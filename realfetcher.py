@@ -1,35 +1,16 @@
-import requests
-from bs4 import BeautifulSoup
-import json
+import pandas as pd
 
-def fetch_real_estate_data(city, property_type, goal):
+def fetch_real_estate_data():
     """
-    كود تجريبي مبدئي لجلب بيانات عقارية من موقع عقار.كوم.
+    دالة وهمية مؤقتًا لجلب بيانات عقارية (حتى نربط لاحقًا ببيانات الإنترنت)
     """
-    try:
-        url = f"https://sa.aqar.fm/{city}"
-        response = requests.get(url, timeout=10)
-        if response.status_code != 200:
-            return []
+    data = {
+        "المدينة": ["الرياض", "جدة", "الدمام", "الرياض", "مكة"],
+        "نوع العقار": ["شقة", "فيلا", "أرض", "شقة", "عمارة"],
+        "السعر": [850000, 2500000, 1200000, 950000, 3000000],
+        "المساحة": [120, 400, 600, 150, 900],
+        "تاريخ العرض": ["2025-10-01", "2025-09-25", "2025-09-30", "2025-10-02", "2025-10-03"]
+    }
 
-        soup = BeautifulSoup(response.text, "html.parser")
-        listings = soup.find_all("div", {"class": "sc-bdnylx-0"})
-
-        results = []
-        for item in listings[:10]:  # نأخذ فقط أول 10 نتائج للتجريب
-            title = item.text.strip()[:100]
-            results.append({
-                "title": title or "إعلان بدون عنوان",
-                "description": "تم جمع هذا الإعلان تجريبياً من موقع عقار.",
-                "location": city,
-                "price": "غير محدد"
-            })
-
-        with open("outputs/results.json", "w", encoding="utf-8") as f:
-            json.dump(results, f, ensure_ascii=False, indent=2)
-
-        return results
-
-    except Exception as e:
-        print(f"❌ خطأ أثناء جلب البيانات: {e}")
-        return []
+    df = pd.DataFrame(data)
+    return df
