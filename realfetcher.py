@@ -1,30 +1,35 @@
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
-import random
-import time
+import json
 
-# ✅ جلب بيانات عقارية تجريبية (تحاكي مواقع مثل Aqar وBayut)
-def fetch_real_data(city):
-    print(f"🔍 جاري جلب البيانات من المواقع للعقار في {city}...")
+def fetch_real_estate_data(city, property_type, goal):
+    """
+    كود تجريبي مبدئي لجلب بيانات عقارية من موقع عقار.كوم.
+    """
+    try:
+        url = f"https://sa.aqar.fm/{city}"
+        response = requests.get(url, timeout=10)
+        if response.status_code != 200:
+            return []
 
-    # قائمة بيانات تجريبية تمثل نتائج المواقع العقارية
-    simulated_data = []
-    for i in range(50):
-        price = random.randint(100000, 2000000)  # السعر
-        area = random.randint(50, 500)  # المساحة
-        rooms = random.randint(1, 6)  # عدد الغرف
+        soup = BeautifulSoup(response.text, "html.parser")
+        listings = soup.find_all("div", {"class": "sc-bdnylx-0"})
 
-        simulated_data.append({
-            "City": city,
-            "Price": price,
-            "Area(m²)": area,
-            "Rooms": rooms,
-            "Source": random.choice(["Aqar", "Bayut"])
-        })
+        results = []
+        for item in listings[:10]:  # نأخذ فقط أول 10 نتائج للتجريب
+            title = item.text.strip()[:100]
+            results.append({
+                "title": title or "إعلان بدون عنوان",
+                "description": "تم جمع هذا الإعلان تجريبياً من موقع عقار.",
+                "location": city,
+                "price": "غير محدد"
+            })
 
-        time.sleep(0.05)  # تأخير بسيط لمحاكاة تحميل المواقع
+        with open("outputs/results.json", "w", encoding="utf-8") as f:
+            json.dump(results, f, ensure_ascii=False, indent=2)
 
-    # تحويل القائمة إلى جدول DataFrame
-    df = pd.DataFrame(simulated_data)
-    return df
+        return results
+
+    except Exception as e:
+        print(f"❌ خطأ أثناء جلب البيانات: {e}")
+        return []
