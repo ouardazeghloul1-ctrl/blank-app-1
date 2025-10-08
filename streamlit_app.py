@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import os
-from realfetcher import fetch_real_data  # نفترض أن deepseek جهز هذه الدالة
+from realfetcher import fetch_real_estate_data  # ✅ تعديل الاسم هنا
 
 # -------------------------------------
 # إعداد الصفحة
@@ -25,7 +25,8 @@ CSV_PATH = os.path.join(OUTPUT_DIR, "data.csv")
 if st.button("🔄 تحديث البيانات من المواقع"):
     with st.spinner("جاري جلب البيانات الحقيقية..."):
         try:
-            df = fetch_real_data()  # هذه الدالة من realfetcher.py
+            # ✅ تعديل الدالة المستدعاة هنا أيضًا
+            df = fetch_real_estate_data()
             os.makedirs(OUTPUT_DIR, exist_ok=True)
             df.to_csv(CSV_PATH, index=False)
             st.success("✅ تم جلب البيانات وتحديث الملف بنجاح!")
