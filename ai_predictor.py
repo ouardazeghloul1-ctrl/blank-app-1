@@ -1,54 +1,33 @@
-# ai_predictor.py
-import numpy as np
 import pandas as pd
+import numpy as np
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.metrics import r2_score, mean_absolute_error
+import matplotlib.pyplot as plt
+import streamlit as st
 
-def train_price_predictor(df_prices):
-    """
-    df_prices: DataFrame يحتوي عمود 'price' (فريد)
-    يعيد (model, poly_transformer, metrics) أو (None, None, None) إن لم تكن البيانات كافية
-    """
-    if df_prices is None or df_prices.empty:
-        return None, None, None
+# ✅ تحليل البيانات والتنبؤ بالأسعار المستقبلية
+def analyze_results(df):
+    df = df.copy()
+    df["Price_per_m²"] = df["Price"] / df["Area(m²)"]
 
-    prices = df_prices['price'].values
-    n = len(prices)
-    if n < 6:
-        return None, None, None
+    # 🔢 تدريب نموذج بسيط للتنبؤ بالأسعار المستقبلية
+    X = np.array(df["Area(m²)"]).reshape(-1, 1)
+    y = np.array(df["Price"])
+    model = LinearRegression().fit(X, y)
 
-    X = np.arange(n).reshape(-1, 1).astype(float)
-    y = prices.astype(float)
+    future_areas = np.linspace(50, 500, 10).reshape(-1, 1)
+    future_prices = model.predict(future_areas)
 
-    poly = PolynomialFeatures(degree=2)
-    X_poly = poly.fit_transform(X)
-
-    model = LinearRegression()
-    model.fit(X_poly, y)
-
-    # تقييم
-    y_pred = model.predict(X_poly)
-    r2 = r2_score(y, y_pred)
-    mae = mean_absolute_error(y, y_pred)
-
-    metrics = {"r2": float(r2), "mae": float(mae)}
-    return model, poly, metrics
-
-def predict_future_prices(model, poly, df_prices, days=14):
-    """
-    يعيد DataFrame بـ columns ['day','predicted_price']
-    """
-    if model is None or poly is None or df_prices is None or df_prices.empty:
-        return pd.DataFrame()
-
-    n = len(df_prices)
-    future_idx = np.arange(n, n + days).reshape(-1, 1).astype(float)
-    X_future_poly = poly.transform(future_idx)
-    preds = model.predict(X_future_poly)
-    preds = preds.clip(min=0)
-    out = pd.DataFrame({
-        "day_index": list(range(n, n + days)),
-        "predicted_price": preds.astype(float)
+    prediction_df = pd.DataFrame({
+        "Area(m²)": future_areas.flatten(),
+        "Predicted Price": future_prices.astype(int)
     })
-    return out
+
+    # 📊 رسم Histogram لتوزيع الأسعار
+    fig, ax = plt.subplots()
+    ax.hist(df["Price"], bins=10)
+    ax.set_title("توزيع أسعار العقارات")
+    ax.set_xlabel("السعر (بالدولار)")
+    ax.set_ylabel("عدد العقارات")
+    st.pyplot(fig)
+
+    return prediction_df
