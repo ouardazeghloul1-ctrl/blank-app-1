@@ -1,4 +1,4 @@
-# ==================== streamlit_app.py ====================
+# ====================== Warda Smart Real Estate - Streamlit App ======================
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -9,163 +9,195 @@ from fpdf import FPDF
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 
-from data_scraper import RealEstateScraper  # ملفك
+from data_scraper import RealEstateScraper  # تأكدي من وجود هذا الملف مع دالة get_real_data
 
-# ---------------------- إعداد الصفحة ----------------------
+# ------------------ إعداد الصفحة ------------------
 st.set_page_config(page_title="Warda Smart Real Estate", page_icon="🏠", layout="wide")
 
-# ---------------------- ستايل داكن وذهبي ----------------------
+# ------------------ ستايل أسود وذهبي ------------------
 st.markdown("""
 <style>
     body { background-color: #050505; color: #f0f0f0; }
     .gold { color: #D4AF37; font-weight:700; }
-    .card { background:#0f0f0f; padding:20px; border-radius:16px; border:2px solid rgba(212,175,55,0.2); text-align:center; transition: transform 0.3s; }
-    .card:hover { transform: scale(1.05); border-color: rgba(212,175,55,0.5);}
-    .btn-gold > button { background: linear-gradient(90deg,#D4AF37,#c9a833); color:#0a0a0a; font-weight:700; border-radius:12px; padding:12px 24px; }
+    .card { background:#0f0f0f; padding:20px; border-radius:12px; border:1px solid rgba(212,175,55,0.25); text-align:center; }
+    .btn-gold > button { background: linear-gradient(90deg,#D4AF37,#c9a833); color:#0a0a0a; font-weight:700; border-radius:12px; padding:12px 20px; font-size:16px; }
     .small-muted { color:#bfbfbf; font-size:13px; }
-    .package-title { font-size:20px; font-weight:bold; margin-bottom:6px; }
-    .package-desc { font-size:14px; margin-bottom:12px; }
+    .package-title { font-size:18px; font-weight:700; margin-bottom:6px; }
+    .package-desc { font-size:14px; color:#ddd; margin-bottom:10px; }
+    .btn-paypal { background:#ffc439; color:#050505; padding:10px 16px; border-radius:10px; font-weight:700; text-decoration:none; }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------------- العنوان والشعار ----------------------
+# ------------------ عنوان المنصة ------------------
 st.markdown("<h1 style='text-align:center' class='gold'>🏠 Warda Smart Real Estate</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:#ddd; margin-top:-10px'>✨ منصة تحليل عقاري ذكية وفخمة</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#ddd; margin-top:-10px'>✨ ذكاء عقاري، تحليل شامل، تقارير فخمة</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# ---------------------- إعدادات عامة ----------------------
-EXCHANGE_RATE_SAR_PER_USD = 3.75
-MAX_PROPERTIES_ALLOWED = 5000
+# ------------------ اختيار فئة العميل ------------------
+st.header("🎯 أخبرنا من أنت")
+client_types = [
+    "مستثمر فردي", "وسيط عقاري", "شركة تطوير", "باحث عن سكن",
+    "ممول عقاري", "مستشار عقاري", "مالك عقار", "مستأجر",
+    "مطور صغير", "مدير صندوق استثمار", "خبير تقييم", "طالب دراسة جدوى"
+]
 
-# ---------------------- اختيار المدينة ونوع العقار وعدد العقارات ----------------------
-st.header("ابدأ تحليل السوق — اختر إعداداتك")
+cols = st.columns(4)
+selected_client = None
+for idx, client in enumerate(client_types):
+    if cols[idx%4].button(f"أنا {client}", key=f"client_{idx}"):
+        selected_client = client
+
+if selected_client is None:
+    selected_client = client_types[0]
+    st.info(f"تم افتراض نوع العميل: **{selected_client}** — يمكنك تغييره بالضغط على بطاقة أخرى.", icon="ℹ️")
+
+# ------------------ اختيار الباقة ------------------
+st.header("📦 اختر باقتك المفضلة")
+packages = {
+    "مجانية": {
+        "description": [
+            "تحليل سريع لموقع واحد",
+            "مؤشرات سعرية أساسية",
+            "مخطط رسوم بيانية مبسط",
+            "تقرير PDF مختصر"
+        ],
+        "price_sar": 0
+    },
+    "متوسطة": {
+        "description": [
+            "تحليل 3 مواقع",
+            "مؤشرات سعرية وتوصيات أولية",
+            "تنبؤ 30 يوم لأسعار العقارات",
+            "تقرير PDF مفصل"
+        ],
+        "price_sar": 150
+    },
+    "جيدة": {
+        "description": [
+            "تحليل شامل 5 مواقع",
+            "توصيات استثمارية دقيقة",
+            "تنبؤ 30 و90 يوم",
+            "تقرير PDF مصمم بالهوية الذهبية"
+        ],
+        "price_sar": 300
+    },
+    "ممتازة": {
+        "description": [
+            "تحليل شامل لكل المواقع المطلوبة",
+            "توصيات استثمارية + مقارنة عروض المنافسين",
+            "تنبؤ مفصل 30 و90 يوم مع توقعات النمو",
+            "تقرير PDF شامل، جاهز للتحميل"
+        ],
+        "price_sar": 500
+    }
+}
+
+package_cols = st.columns(4)
+selected_package = None
+for idx, (pkg, info) in enumerate(packages.items()):
+    with package_cols[idx]:
+        st.markdown(f"<div class='card'><div class='package-title'>{pkg}</div>"
+                    f"<div class='package-desc'>{'<br>'.join(info['description'])}</div>"
+                    f"<p class='gold'>السعر: {info['price_sar']} ريال</p></div>", unsafe_allow_html=True)
+        if st.button(f"اختر {pkg}", key=f"pkg_{idx}"):
+            selected_package = pkg
+
+if selected_package is None:
+    selected_package = "مجانية"
+
+st.info(f"لقد اخترت الباقة: **{selected_package}**", icon="✨")
+
+# ------------------ إعدادات البحث ------------------
+st.header("🔍 إعدادات التحليل")
 city = st.selectbox("💠 اختر المدينة", ["الرياض", "جدة", "الدمام", "مكة", "المدينة", "الخبر", "الطائف"])
 property_type = st.selectbox("🏷️ نوع العقار", [
     "شقة", "فيلا", "أرض", "دوبلكس", "محل تجاري", "مكتب", "استوديو", "عمارة", "مزرعة", "مستودع", "شاليه"
 ])
-listing_status = st.selectbox("📌 الحالة", ["للبيع", "للإيجار", "كلاهما"])
-num_properties = st.slider("📊 عدد العقارات في التحليل", min_value=100, max_value=MAX_PROPERTIES_ALLOWED, value=500, step=100)
+num_properties = st.slider("📊 عدد العقارات في التحليل", min_value=100, max_value=5000, value=500, step=100)
 
-# ---------------------- باقات تحليل السوق ----------------------
-st.markdown("## ✨ اختر باقتك")
-packages = [
-    {"title":"🆓 مجانية","desc":"تحليل بسيط لموقع واحد","level":1},
-    {"title":"💼 متوسطة","desc":"تحليل + مقارنة أسعار 3 مواقع","level":2},
-    {"title":"💎 جيدة","desc":"تحليل تفصيلي + تقرير PDF","level":3},
-    {"title":"👑 ممتازة","desc":"تحليل شامل + تقرير PDF مخصص + تنبؤات","level":4},
-]
-
-cols = st.columns(4)
-selected_package = None
-for idx, pkg in enumerate(packages):
-    with cols[idx]:
-        st.markdown(f"<div class='card'><div class='package-title'>{pkg['title']}</div><div class='package-desc'>{pkg['desc']}</div></div>", unsafe_allow_html=True)
-        if st.button(f"اطلب التحليل", key=f"pkg_{idx}"):
-            selected_package = pkg
-
-if selected_package is None:
-    selected_package = packages[0]  # افتراضي
-
-st.markdown(f"### ✨ باقتك المختارة: **{selected_package['title']}** — {selected_package['desc']}")
-
-# ---------------------- دالة تقدير السعر ----------------------
-def estimate_market_price(city, property_type, num_properties):
-    base = {
-        "الرياض": {"شقة": 800000, "فيلا": 2200000, "أرض": 1200000, "دوبلكس":1300000, "محل تجاري":900000, "مكتب":850000, "استوديو":450000, "عمارة":3500000, "مزرعة":2500000, "مستودع":1100000, "شاليه":1200000},
-        "جدة": {"شقة": 700000, "فيلا": 2400000, "أرض": 1400000, "دوبلكس":1350000, "محل تجاري":950000, "مكتب":800000, "استوديو":430000, "عمارة":3200000, "مزرعة":2300000, "مستودع":1050000, "شاليه":1250000},
-        "الدمام": {"شقة": 600000, "فيلا": 1800000, "أرض": 1000000, "دوبلكس":1100000, "محل تجاري":700000, "مكتب":650000, "استوديو":320000, "عمارة":2200000, "مزرعة":1800000, "مستودع":900000, "شاليه":1000000},
-        "مكة": {"شقة": 650000, "فيلا": 1900000, "أرض": 1100000},
-        "المدينة": {"شقة": 600000, "فيلا": 1700000, "أرض": 1000000},
-        "الخبر": {"شقة": 900000, "فيلا": 2600000, "أرض": 1600000},
-        "الطائف": {"شقة": 400000, "فيلا": 1200000, "أرض": 700000}
-    }
-    city_map = base.get(city, base["الرياض"])
-    base_price = city_map.get(property_type, 800000)
-    multiplier = 1 + (num_properties / 5000) * 0.15
-    estimated_sar = int(base_price * multiplier)
-    estimated_usd = round(estimated_sar / EXCHANGE_RATE_SAR_PER_USD, 2)
-    return estimated_sar, estimated_usd
-
-est_sar, est_usd = estimate_market_price(city, property_type, num_properties)
-st.markdown(f"<h3 class='gold'>💰 السعر التقديري: {est_sar:,.0f} ريال ≈ ${est_usd:,.2f}</h3>", unsafe_allow_html=True)
-st.markdown("---")
-
-# ---------------------- منطقة معلومات الجلب ----------------------
-info_placeholder = st.empty()
-results_placeholder = st.empty()
-
-# ---------------------- زر جلب البيانات ----------------------
+# ------------------ زر جلب البيانات ------------------
 scraper = RealEstateScraper()
+df_placeholder = st.empty()
+info_placeholder = st.empty()
 
-if st.button("🔍 جلب البيانات الحقيقية الآن", key="fetch_real_data"):
+if st.button("💎 اطلب التحليل الآن", key="fetch_analysis"):
     start_time = time.time()
-    with st.spinner("⏳ جاري جلب البيانات..."):
+    with st.spinner("⏳ جاري جلب البيانات ومعالجة التحليل..."):
         df = scraper.get_real_data(city=city, property_type=property_type, num_properties=num_properties)
     duration = time.time() - start_time
 
-    # إحصائيات
     total_count = len(df)
     avg_price = int(df['السعر'].dropna().astype(float).mean()) if 'السعر' in df.columns else 0
-    avg_price_usd = round(avg_price / EXCHANGE_RATE_SAR_PER_USD,2)
-    source_counts = df['المصدر'].value_counts().to_dict() if 'المصدر' in df.columns else {}
 
-    # تدريب نموذج بسيط (إن توفرت بيانات كافية)
-    ai_message = "نموذج AI لم يُدَرَّب (بيانات قليلة)"
-    predictions_30 = predictions_90 = None
+    # ------------------ نموذج تنبؤ مبسط ------------------
+    predictions_30, predictions_90 = None, None
+    ai_message = "نموذج التنبؤ لم يُفعّل (بيانات غير كافية)."
+    numeric_cols = ['المساحة', 'غرف', 'حمامات', 'عمر_العقار']
+    available_cols = [c for c in numeric_cols if c in df.columns]
     try:
-        numeric_cols = [col for col in ['المساحة','غرف','حمامات','عمر_العقار'] if col in df.columns]
-        if 'السعر' in df.columns and len(df)>=50 and len(numeric_cols)>=2:
-            dfn = df.copy()
-            if 'المساحة' in dfn.columns:
-                dfn['مساحة_num'] = pd.to_numeric(dfn['المساحة'].astype(str).str.extract(r'(\d+)')[0], errors='coerce')
-                numeric_cols = ['مساحة_num'] + [c for c in numeric_cols if c!='المساحة']
-            dfn[numeric_cols] = dfn[numeric_cols].apply(pd.to_numeric, errors='coerce').fillna(1)
-            X = dfn[numeric_cols]
-            y = pd.to_numeric(dfn['السعر'], errors='coerce')
+        if 'السعر' in df.columns and len(df) >= 50 and len(available_cols) >= 2:
+            X = df[available_cols].apply(pd.to_numeric, errors='coerce').fillna(1)
+            y = pd.to_numeric(df['السعر'], errors='coerce')
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
             model = RandomForestRegressor(n_estimators=100, random_state=42)
             model.fit(X_train, y_train)
             base_x = X_test.median().to_frame().T
             pred_now = model.predict(base_x)[0]
-            predictions_30 = int(pred_now*1.03)
-            predictions_90 = int(pred_now*1.08)
-            ai_message = f"نموذج AI جاهز: تقديرات 30 يوم ≈ {predictions_30}, 90 يوم ≈ {predictions_90}"
-    except Exception as e:
-        ai_message = f"خطأ في نموذج AI: {str(e)}"
+            predictions_30 = int(pred_now * 1.03)
+            predictions_90 = int(pred_now * 1.08)
+            ai_message = "✅ تم تدريب نموذج تنبؤ وعرض النتائج (محاكاة)."
+    except:
+        ai_message = "⚠️ فشل تدريب نموذج التنبؤ."
 
-    # عرض النتائج
-    results_placeholder.markdown(f"""
-    ### 📊 إحصائيات التحليل
-    - عدد العقارات: {total_count}
-    - متوسط السعر: {avg_price:,} ريال ≈ ${avg_price_usd}
-    - المصادر: {source_counts}
-    - {ai_message}
-    - زمن المعالجة: {duration:.2f} ثانية
-    """)
+    info_html = f"""
+    <div class='card'>
+        <h3 class='gold'>🛰️ ملخص التحليل</h3>
+        <p class='small-muted'>المدينة: <b>{city}</b> · نوع العقار: <b>{property_type}</b></p>
+        <p>عدد السجلات: <b>{total_count}</b> · متوسط السعر: <b>{avg_price:,.0f} ريال</b></p>
+        <p class='small-muted'>{ai_message}</p>
+    </div>
+    """
+    info_placeholder.markdown(info_html, unsafe_allow_html=True)
+    df_placeholder.dataframe(df.head(50))
 
-    # ---------------------- تقرير PDF ----------------------
-    def create_pdf(city, property_type, df, est_sar, est_usd, predictions_30=None, predictions_90=None):
+    # ------------------ إنشاء PDF ------------------
+    def create_pdf(client, package, city, df, pred30, pred90):
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", 'B', 16)
-        pdf.set_text_color(212,175,55)
-        pdf.cell(0, 10, f"📄 تقرير تحليل سوق العقار — {city} ({property_type})", ln=True, align='C')
+        pdf.cell(0, 10, f"Warda Smart Real Estate - {client}", ln=True, align='C')
+        pdf.ln(5)
         pdf.set_font("Arial", '', 12)
-        pdf.set_text_color(0,0,0)
+        pdf.cell(0, 8, f"الباقة: {package}", ln=True)
+        pdf.cell(0, 8, f"المدينة: {city}", ln=True)
         pdf.ln(5)
-        pdf.cell(0,8,f"تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True)
-        pdf.cell(0,8,f"عدد العقارات: {len(df)}", ln=True)
-        pdf.cell(0,8,f"السعر التقديري: {est_sar:,} ريال ≈ ${est_usd}", ln=True)
-        if predictions_30:
-            pdf.cell(0,8,f"تقديرات AI 30 يوم: {predictions_30:,}", ln=True)
-        if predictions_90:
-            pdf.cell(0,8,f"تقديرات AI 90 يوم: {predictions_90:,}", ln=True)
+        if pred30 and pred90:
+            pdf.cell(0, 8, f"توقع سعر العقار خلال 30 يوم: {pred30:,.0f} ريال", ln=True)
+            pdf.cell(0, 8, f"توقع سعر العقار خلال 90 يوم: {pred90:,.0f} ريال", ln=True)
         pdf.ln(5)
-        pdf.multi_cell(0,6,"ملخص التحليل: التقرير يقدم مقارنة الأسعار، أبرز المواقع، ونصائح استثمارية لكل فئة مستهدفه (مستثمر فردي، وسيط، شركة تطوير، الباحث عن سكن).")
-        buffer = BytesIO()
-        pdf.output(buffer)
-        buffer.seek(0)
-        return buffer
+        pdf.cell(0, 8, f"ملخص أول 10 سجلات:", ln=True)
+        for i, row in df.head(10).iterrows():
+            pdf.multi_cell(0, 6, str(row.to_dict()))
+        pdf_output = BytesIO()
+        pdf.output(pdf_output)
+        pdf_output.seek(0)
+        return pdf_output
 
-    pdf_buffer = create_pdf(city, property_type, df, est_sar, est_usd, predictions_30, predictions_90)
-    st.download_button("⬇️ تحميل تقرير PDF", data=pdf_buffer, file_name=f"report_{city}_{property_type}.pdf", mime="application/pdf")
+    pdf_file = create_pdf(selected_client, selected_package, city, df, predictions_30, predictions_90)
+
+    st.download_button(
+        label="📥 حمل تقريرك الآن",
+        data=pdf_file,
+        file_name=f"warda_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+        mime="application/pdf"
+    )
+
+    # ------------------ زر PayPal ------------------
+    paypal_email = "zeghloulwarda6@gmail.com"
+    price_sar = packages[selected_package]['price_sar']
+    paypal_link = f"https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business={paypal_email}&currency_code=SAR&amount={price_sar}&item_name=Warda+Smart+Real+Estate+{selected_package}"
+    st.markdown(f"<a class='btn-paypal' href='{paypal_link}' target='_blank'>💳 ادفع الآن عبر PayPal</a>", unsafe_allow_html=True)
+
+    # ------------------ زر WhatsApp ------------------
+    st.markdown("<br>")
+    st.markdown("<a class='btn-paypal' style='background:#25D366;' href='https://wa.me/213000000000' target='_blank'>💬 تواصل معنا عبر WhatsApp</a>", unsafe_allow_html=True)
