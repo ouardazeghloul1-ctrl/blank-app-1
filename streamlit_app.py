@@ -1,12 +1,10 @@
 import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-import os
 from fpdf import FPDF
 from datetime import datetime
+import os
 
 # === إعداد الصفحة ===
-st.set_page_config(page_title="التحليل العقاري الذهبي", layout="centered")
+st.set_page_config(page_title="التحليل العقاري الذهبي | Golden Real Estate Analysis", layout="centered")
 
 # === تصميم واجهة أسود وذهبي فاخر ===
 st.markdown("""
@@ -36,7 +34,7 @@ st.markdown("""
 
 # === العنوان الرئيسي ===
 st.markdown("<h1 class='center'>🏙️ منصة التحليل العقاري الذهبي</h1>", unsafe_allow_html=True)
-st.markdown("<p class='center'>تحليل حقيقي مبني على بيانات من السوق السعودي</p>", unsafe_allow_html=True)
+st.markdown("<p class='center'>تحليل حقيقي مبني على بيانات من السوق السعودي (عقار - بيوت)</p>", unsafe_allow_html=True)
 
 # === إدخال بيانات المستخدم ===
 user_type = st.selectbox("👤 اختر فئتك:", [
@@ -71,19 +69,18 @@ st.markdown(f"""
 # === إنشاء التقرير PDF بالعربية ===
 class PDF(FPDF):
     def header(self):
-        self.set_font("Amiri", "", 16)
+        self.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
+        self.set_font("Amiri", "B", 16)
         self.cell(0, 10, "🏙️ تقرير التحليل العقاري الذهبي", 0, 1, "C")
         self.ln(5)
 
 def create_arabic_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price):
     pdf = PDF()
     pdf.add_page()
-    pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
     pdf.set_font("Amiri", "", 14)
     
     content = f"""
 معلومات العميل:
-----------------
 نوع العميل: {user_type}
 المدينة: {city}
 نوع العقار: {property_type}
@@ -93,45 +90,35 @@ def create_arabic_pdf(user_type, city, property_type, area, rooms, status, count
 عدد العقارات المحللة: {count}
 
 تفاصيل الباقة:
-----------------
 الباقة المختارة: {chosen_pkg}
 السعر الإجمالي: {total_price} دولار
 
 ملخص التحليل:
-----------------
-تم تحليل سوق العقارات في مدينة {city} لنوع العقار {property_type} وحالة {status}.
-الباقة المختارة: {chosen_pkg}
-
-التقرير يقدم:
-- تحليل شامل لاتجاهات السوق الحالية.
-- تقييم الأسعار والعقارات المماثلة.
-- توصيات استثمارية واضحة ومباشرة لـ {user_type}.
+- تحليل سوق العقارات في مدينة {city}.
+- تقييم الأسعار لنوع العقار {property_type}.
+- تقييم فرص الاستثمار.
+- توصيات مخصصة لـ {user_type}.
 
 تم إنشاء التقرير في: {datetime.now().strftime('%Y-%m-%d الساعة %H:%M:%S')}
-
-للمزيد من الاستشارات والخدمات، تواصل معنا عبر واتساب أو البريد الإلكتروني.
 """
-    pdf.multi_cell(0, 8, content)
+    
+    pdf.multi_cell(0, 10, content)
     return pdf
 
 if st.button("📥 تحميل تقريرك PDF بالعربية"):
     try:
         pdf = create_arabic_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
-        filename = f"تقرير_التحليل_الذهبي_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        filename = f"تقرير_عقاري_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         pdf.output(filename)
-        
         with open(filename, "rb") as f:
             st.download_button(
-                label="📥 اضغط لتحميل تقريرك PDF",
+                label="📥 اضغط لتحميل التقرير بالعربية",
                 data=f,
                 file_name=filename,
                 mime="application/pdf"
             )
         st.success("✅ تم إنشاء التقرير بالعربية بنجاح!")
-        try:
-            os.remove(filename)
-        except:
-            pass
+        os.remove(filename)
     except Exception as e:
         st.error(f"❌ حدث خطأ أثناء إنشاء التقرير: {e}")
 
