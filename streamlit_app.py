@@ -1,119 +1,117 @@
 import streamlit as st
 from fpdf import FPDF
-from io import BytesIO
 
-# ====== تصميم الصفحة ======
-st.set_page_config(page_title="منصة تحليل العقارات", page_icon="🏠", layout="wide")
+# إعداد واجهة التطبيق
+st.set_page_config(page_title="تحليل عقاري ذهبي", layout="centered")
+
+# CSS لتصميم أسود وذهبي فاخر
 st.markdown("""
-<style>
-body {
-    background-color: #000000;
-    color: #FFD700;
-    font-family: 'Arial', sans-serif;
-}
-.stButton>button {
-    background-color: #FFD700;
-    color: #000000;
-    font-weight: bold;
-    border-radius: 10px;
-    padding: 10px 20px;
-    margin: 5px 0px;
-}
-.stDownloadButton>button {
-    background-color: #FFD700;
-    color: #000000;
-    font-weight: bold;
-    border-radius: 10px;
-    padding: 10px 20px;
-    margin: 5px 0px;
-}
-.stTextInput>div>input {
-    background-color: #333333;
-    color: #FFD700;
-}
-</style>
+    <style>
+        body { background-color: black; color: gold; }
+        .stApp { background-color: black; color: gold; }
+        .stTextInput, .stSelectbox, .stNumberInput, .stSlider { color: gold !important; }
+        .css-1d391kg, .css-1cpxqw2 { background-color: #111 !important; color: gold !important; }
+        .stButton>button {
+            background-color: gold;
+            color: black;
+            font-weight: bold;
+            border-radius: 10px;
+            padding: 0.6em 1.2em;
+            transition: 0.3s;
+        }
+        .stButton>button:hover { background-color: #d4af37; color: white; }
+        h1, h2, h3, h4 { color: gold; text-align: center; }
+        .gold-box {
+            border: 2px solid gold;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            background-color: #111;
+        }
+        .center { text-align: center; }
+    </style>
 """, unsafe_allow_html=True)
 
-st.title("🏠 منصة تحليل العقارات – تقريرك في دقائق")
-st.subheader("اختر هويتك لتبدأ التحليل:")
+# عنوان المنصة
+st.markdown("<h1>🏙️ منصة التحليل العقاري الذهبي</h1>", unsafe_allow_html=True)
+st.markdown("<p class='center'>حلّل عقارك بدقة واحترافية، واحصل على تقرير PDF فاخر 🔍</p>", unsafe_allow_html=True)
 
-# ====== فئات متعددة ======
-factions = [
-    "أنا مستشار عقاري",
-    "أنا فرد يبحث عن عقار",
-    "أنا صاحب عقار",
-    "أنا مستثمر",
-    "أنا مطور عقاري",
-    "أنا شركة عقارات",
-    "أنا مستأجر",
-    "أنا باحث عن فرص استثمارية",
-    "أنا طالب دراسة سوق العقارات",
-    "أنا مستثمر دولي"
-]
-selected_faction = st.radio("من أنت؟", factions)
+# فئة المستخدم
+st.markdown("### من أنت؟")
+user_type = st.selectbox("اختر الفئة التي تمثلك:", [
+    "مستشار", "مستثمر", "فرد", "شركة تطوير", "وسيط عقاري", "خبير تسويق", "مالك عقار", "باحث عن فرصة"
+])
 
-st.markdown("---")
-st.subheader("اختر الباقة:")
+# بيانات العقار
+st.markdown("### بيانات العقار 📋")
+city = st.text_input("المدينة:")
+property_type = st.selectbox("نوع العقار:", ["شقة", "فيلا", "أرض", "محل تجاري", "مبنى إداري", "مزرعة", "شاليه"])
+status = st.selectbox("الحالة:", ["للبيع", "للإيجار", "كلاهما"])
+count = st.slider("عدد العقارات للتحليل:", 1, 20, 1)
 
-# ====== باقات مع أسعار وتفاصيل ======
+# الباقات
+st.markdown("### اختر باقتك 💎")
+
 packages = {
-    "باقة أساسية": {"price": 50, "details": "تحليل أساسي لكل العقارات مع النصائح الأولية"},
-    "باقة متقدمة": {"price": 100, "details": "تحليل متعمق مع توقعات الأسعار ومستقبل السوق"},
-    "باقة احترافية": {"price": 200, "details": "تقرير كامل + توقعات دقيقة + نصائح استثمارية مخصصة"}
+    "مجانية": {"price": 0, "desc": "تحليل أساسي لعقار واحد فقط بدون تنبؤات."},
+    "أساسية": {"price": 10, "desc": "تحليل متقدم يشمل الموقع والسوق المحلي."},
+    "احترافية": {"price": 25, "desc": "تحليل احترافي مع تنبؤات الأسعار المستقبلية ومؤشرات السوق."},
+    "ذهبية": {"price": 50, "desc": "تقرير فاخر PDF يشمل تحليل كامل، تنبؤات دقيقة، وتوصيات استثمارية خاصة."}
 }
-selected_package = st.selectbox(
-    "اختر الباقة التي تناسبك",
-    list(packages.keys())
-)
-st.write(f"💰 السعر: {packages[selected_package]['price']}$")
-st.write(f"📄 التفاصيل: {packages[selected_package]['details']}")
 
-st.markdown("---")
-st.subheader("أدخل معلوماتك الأساسية لإصدار التقرير:")
-client_name = st.text_input("الاسم الكامل")
-client_email = st.text_input("البريد الإلكتروني")
+chosen_pkg = st.radio("اختر باقتك:", list(packages.keys()))
+base_price = packages[chosen_pkg]["price"]
+total_price = base_price * count
 
-# ====== زر إنشاء التقرير ======
-if st.button("حمل تقريرك الآن 📄"):
+st.markdown(f"""
+<div class='gold-box'>
+<h3>💰 السعر الإجمالي: {total_price} دولار</h3>
+<p>{packages[chosen_pkg]['desc']}</p>
+</div>
+""", unsafe_allow_html=True)
 
-    # إنشاء PDF
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.add_font("ArialUnicode", "", "arial.ttf", uni=True)
-    pdf.set_font("ArialUnicode", '', 14)
-
-    pdf.cell(0, 10, f"تقرير تحليل العقارات", ln=True)
-    pdf.cell(0, 10, f"العميل: {client_name}", ln=True)
-    pdf.cell(0, 10, f"البريد: {client_email}", ln=True)
-    pdf.cell(0, 10, f"الفئة: {selected_faction}", ln=True)
-    pdf.cell(0, 10, f"الباقة: {selected_package}", ln=True)
-    pdf.multi_cell(0, 10, f"تفاصيل التحليل: {packages[selected_package]['details']}\n\nتوقعات السوق والنصائح الاستثمارية: هذا القسم يتضمن كل ما تحتاجه لتنجح في استثماراتك العقارية بطريقة ذكية واحترافية.")
-
-    # حفظ PDF في الذاكرة
-    pdf_buffer = BytesIO()
-    pdf.output(pdf_buffer)
-    pdf_buffer.seek(0)
-
-    st.download_button(
-        label="تحميل التقرير الآن PDF",
-        data=pdf_buffer,
-        file_name="تقرير_العقارات.pdf",
-        mime="application/pdf"
-    )
-
-# ====== زر بايبال ======
-st.markdown("---")
+# زر الدفع (بايبال)
 paypal_email = "zeghloulwarda6@gmail.com"
 st.markdown(f"""
-<a href="https://www.paypal.com/paypalme/{paypal_email}" target="_blank">
-<button>💳 دفع عبر PayPal</button>
+<div class='center'>
+<a href="https://www.paypal.com/paypalme/{paypal_email}/{total_price}" target="_blank">
+<button style="background-color:gold;color:black;font-size:18px;padding:10px 20px;border:none;border-radius:10px;">💳 الدفع عبر PayPal</button>
 </a>
+</div>
 """, unsafe_allow_html=True)
 
-# ====== زر واتساب ======
-whatsapp_number = "0000000000"  # ضع رقمك هنا بصيغة 966xxxxxxxxx بدون +
-st.markdown(f"""
-<a href="https://wa.me/{whatsapp_number}" target="_blank">
-<button>💬 تواصل معنا عبر WhatsApp</button>
+# بعد الدفع
+st.markdown("### ✅ بعد الدفع يمكنك تحميل تقريرك:")
+
+if st.button("📄 تحميل التقرير الآن"):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(200, 10, "تقرير التحليل العقاري الذهبي", ln=True, align="C")
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 10, f"""
+الفئة: {user_type}
+المدينة: {city}
+نوع العقار: {property_type}
+الحالة: {status}
+عدد العقارات: {count}
+الباقة المختارة: {chosen_pkg}
+السعر الإجمالي: {total_price} دولار
+
+📈 يشمل هذا التقرير تحليلاً دقيقاً للعقار بناءً على السوق المحلي، مع تنبؤات الأسعار المستقبلية وفرص الاستثمار المحتملة.
+""")
+
+    pdf_file = "تقرير_التحليل_الذهبي.pdf"
+    pdf.output(pdf_file)
+    with open(pdf_file, "rb") as f:
+        st.download_button("📥 اضغط لتحميل تقريرك PDF", data=f, file_name=pdf_file, mime="application/pdf")
+
+# زر واتساب للتواصل
+st.markdown("""
+<br>
+<div class='center'>
+<a href="https://wa.me/213000000000" target="_blank">
+<button style="background-color:green;color:white;font-size:18px;padding:10px 20px;border:none;border-radius:10px;">💬 تواصل عبر واتساب</button>
 </a>
+</div>
 """, unsafe_allow_html=True)
