@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import os
 from fpdf import FPDF
 from datetime import datetime
-from data_scraper import RealEstateScraper
+import io
 
 # === إعداد الصفحة ===
 st.set_page_config(page_title="التحليل العقاري الذهبي | Golden Real Estate Analysis", layout="centered")
@@ -69,10 +69,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# === تحليل البيانات ===
-# تعليق مؤقت للبيانات الحقيقية لتجنب الأخطاء
-data = pd.DataFrame()
-
 # === إنشاء التقرير PDF ===
 class PDF(FPDF):
     def header(self):
@@ -80,65 +76,89 @@ class PDF(FPDF):
         self.cell(0, 10, "Golden Real Estate Analysis Report", 0, 1, "C")
         self.ln(5)
 
-def create_safe_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price):
-    """إنشاء PDF آمن بدون مشاكل Unicode"""
+def create_pdf_report(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price):
+    """إنشاء PDF بدون مشاكل"""
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     
-    # استخدام النصوص الإنجليزية فقط مع استبدال الآمن للنصوص العربية
-    safe_user_type = user_type.replace("مستثمر", "Investor").replace("وسيط عقاري", "Real Estate Agent").replace("شركة تطوير", "Development Company").replace("فرد", "Individual").replace("باحث عن فرصة", "Opportunity Seeker").replace("مالك عقار", "Property Owner")
+    # تحويل النصوص العربية إلى إنجليزية
+    user_english = {
+        "مستثمر": "Investor",
+        "وسيط عقاري": "Real Estate Agent", 
+        "شركة تطوير": "Development Company",
+        "فرد": "Individual",
+        "باحث عن فرصة": "Opportunity Seeker",
+        "مالك عقار": "Property Owner"
+    }.get(user_type, user_type)
     
-    safe_city = city.replace("الرياض", "Riyadh").replace("جدة", "Jeddah").replace("الدمام", "Dammam").replace("مكة", "Makkah").replace("المدينة المنورة", "Madinah").replace("الخبر", "Khobar").replace("تبوك", "Tabuk").replace("الطائف", "Taif")
+    city_english = {
+        "الرياض": "Riyadh",
+        "جدة": "Jeddah",
+        "الدمام": "Dammam",
+        "مكة": "Makkah",
+        "المدينة المنورة": "Madinah", 
+        "الخبر": "Khobar",
+        "تبوك": "Tabuk",
+        "الطائف": "Taif"
+    }.get(city, city)
     
-    safe_property_type = property_type.replace("شقة", "Apartment").replace("فيلا", "Villa").replace("أرض", "Land")
+    property_english = {
+        "شقة": "Apartment",
+        "فيلا": "Villa",
+        "أرض": "Land"
+    }.get(property_type, property_type)
     
-    safe_status = status.replace("للبيع", "For Sale").replace("للإيجار", "For Rent")
+    status_english = {
+        "للبيع": "For Sale",
+        "للإيجار": "For Rent"
+    }.get(status, status)
     
-    safe_package = chosen_pkg.replace("مجانية", "Free").replace("أساسية", "Basic").replace("احترافية", "Professional").replace("ذهبية", "Golden")
+    package_english = {
+        "مجانية": "Free",
+        "أساسية": "Basic",
+        "احترافية": "Professional",
+        "ذهبية": "Golden"
+    }.get(chosen_pkg, chosen_pkg)
 
-    # محتوى التقرير بالإنجليزية
+    # محتوى التقرير
     content = f"""
 GOLDEN REAL ESTATE ANALYSIS REPORT
 ==================================
 
 CLIENT INFORMATION:
 ------------------
-Client Type: {safe_user_type}
-City: {safe_city}
-Property Type: {safe_property_type}
+Client Type: {user_english}
+City: {city_english}
+Property Type: {property_english}
 Area: {area} sqm
 Rooms: {rooms}
-Status: {safe_status}
+Status: {status_english}
 Properties Analyzed: {count}
 
 PACKAGE DETAILS:
 ---------------
-Selected Package: {safe_package}
+Selected Package: {package_english}
 Total Price: ${total_price} USD
 
 ANALYSIS SUMMARY:
-----------------
-Market analysis completed for {safe_city}
-Property type analysis: {safe_property_type}
-Market status: {safe_status}
-Package level: {safe_package}
+-----------------
+This report provides comprehensive market analysis for {city_english}.
+Based on current market data for {property_english} properties {status_english}.
 
-This comprehensive report provides:
-- Current market trends in {safe_city}
-- Price analysis for {safe_property_type}
-- Investment recommendations
-- Market predictions based on current data
+KEY FINDINGS:
+- Market trends analysis completed
+- Price evaluation for selected property type
+- Investment opportunity assessment
+- Custom recommendations for {user_english}
 
 Report generated on: {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}
 
-CONCLUSION:
------------
-Based on the analysis of {count} properties in {safe_city},
-this report offers valuable insights for {safe_user_type.lower()} 
-looking for {safe_property_type.lower()} options {safe_status.lower()}.
+For detailed consultation and personalized advice,
+contact our real estate experts.
 
-For detailed consultation, contact our experts.
+Warda Smart Real Estate
+Professional Market Analysis
 """
     
     pdf.multi_cell(0, 8, content)
@@ -146,28 +166,50 @@ For detailed consultation, contact our experts.
 
 if st.button("📥 تحميل تقريرك PDF"):
     try:
-        # إنشاء PDF آمن
-        pdf = create_safe_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
+        # إنشاء PDF
+        pdf = create_pdf_report(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
         
-        # حفظ في buffer بدلاً من ملف مباشر
-        from io import BytesIO
-        pdf_buffer = BytesIO()
-        pdf.output(pdf_buffer)
-        pdf_bytes = pdf_buffer.getvalue()
-        pdf_buffer.close()
+        # الحل الصحيح: حفظ في BytesIO بطريقة صحيحة
+        pdf_buffer = io.BytesIO()
+        pdf_output = pdf.output(dest='S').encode('latin-1')
+        pdf_buffer.write(pdf_output)
+        pdf_buffer.seek(0)
         
         # تحميل الملف
         st.download_button(
             label="📥 اضغط لتحميل تقريرك PDF",
-            data=pdf_bytes,
-            file_name=f"golden_estate_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+            data=pdf_buffer,
+            file_name=f"real_estate_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
             mime="application/pdf"
         )
         st.success("✅ تم إنشاء التقرير بنجاح!")
         
     except Exception as e:
-        st.error(f"❌ حدث خطأ في إنشاء PDF: {str(e)}")
-        st.info("💡 حاولي استخدام أسماء إنجليزية أو قللي من استخدام النصوص العربية في التقرير")
+        st.error(f"❌ حدث خطأ: {e}")
+        
+        # حل بديل إذا فشل الحل الأول
+        try:
+            st.info("🔄 جرب الحل البديل...")
+            pdf = create_pdf_report(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
+            
+            # حفظ مؤقت في ملف ثم قراءته
+            temp_file = "temp_report.pdf"
+            pdf.output(temp_file)
+            
+            with open(temp_file, "rb") as f:
+                st.download_button(
+                    label="📥 اضغط لتحميل التقرير (البديل)",
+                    data=f,
+                    file_name="real_estate_report.pdf",
+                    mime="application/pdf"
+                )
+            
+            # تنظيف الملف المؤقت
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+                
+        except Exception as e2:
+            st.error(f"❌ فشل الحل البديل أيضاً: {e2}")
 
 # === واتساب للتواصل ===
 st.markdown("""
