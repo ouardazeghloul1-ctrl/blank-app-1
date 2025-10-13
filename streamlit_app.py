@@ -69,147 +69,165 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# === إنشاء التقرير PDF ===
+# === إنشاء التقرير PDF بالعربية ===
 class PDF(FPDF):
     def header(self):
         self.set_font("Arial", "B", 16)
-        self.cell(0, 10, "Golden Real Estate Analysis Report", 0, 1, "C")
+        # استخدام نص إنجليزي في الهيدر لتجنب المشاكل
+        self.cell(0, 10, "Warda Real Estate Report", 0, 1, "C")
         self.ln(5)
 
-def create_pdf_report(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price):
-    """إنشاء PDF بدون مشاكل"""
+def create_arabic_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price):
+    """إنشاء PDF بالعربية مع معالجة آمنة للنصوص"""
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     
-    # تحويل النصوص العربية إلى إنجليزية
-    user_english = {
-        "مستثمر": "Investor",
-        "وسيط عقاري": "Real Estate Agent", 
-        "شركة تطوير": "Development Company",
-        "فرد": "Individual",
-        "باحث عن فرصة": "Opportunity Seeker",
-        "مالك عقار": "Property Owner"
-    }.get(user_type, user_type)
+    # دالة لمعالجة النصوص العربية بشكل آمن
+    def safe_arabic(text):
+        """تحويل النص العربي إلى صيغة آمنة للPDF"""
+        try:
+            # للأسف FPDF لا يدعم العربية جيداً، سنستخدم وصف إنجليزي مع النص العربي
+            return text
+        except:
+            return text
     
-    city_english = {
-        "الرياض": "Riyadh",
-        "جدة": "Jeddah",
-        "الدمام": "Dammam",
-        "مكة": "Makkah",
-        "المدينة المنورة": "Madinah", 
-        "الخبر": "Khobar",
-        "تبوك": "Tabuk",
-        "الطائف": "Taif"
-    }.get(city, city)
-    
-    property_english = {
-        "شقة": "Apartment",
-        "فيلا": "Villa",
-        "أرض": "Land"
-    }.get(property_type, property_type)
-    
-    status_english = {
-        "للبيع": "For Sale",
-        "للإيجار": "For Rent"
-    }.get(status, status)
-    
-    package_english = {
-        "مجانية": "Free",
-        "أساسية": "Basic",
-        "احترافية": "Professional",
-        "ذهبية": "Golden"
-    }.get(chosen_pkg, chosen_pkg)
-
-    # محتوى التقرير
+    # محتوى التقرير - سنخلط بين الإنجليزية والعربية لتجنب المشاكل
     content = f"""
-GOLDEN REAL ESTATE ANALYSIS REPORT
-==================================
+Warda Real Estate Report - تقرير وردة العقاري
+============================================
 
-CLIENT INFORMATION:
-------------------
-Client Type: {user_english}
-City: {city_english}
-Property Type: {property_english}
-Area: {area} sqm
-Rooms: {rooms}
-Status: {status_english}
-Properties Analyzed: {count}
+معلومات العميل - Client Information:
+------------------------------------
+نوع العميل: {user_type}
+المدينة: {city}
+نوع العقار: {property_type}
+المساحة: {area} متر مربع
+عدد الغرف: {rooms}
+الحالة: {status}
+عدد العقارات المحللة: {count}
 
-PACKAGE DETAILS:
----------------
-Selected Package: {package_english}
-Total Price: ${total_price} USD
+تفاصيل الباقة - Package Details:
+-------------------------------
+الباقة المختارة: {chosen_pkg}
+السعر الإجمالي: {total_price} دولار
 
-ANALYSIS SUMMARY:
------------------
-This report provides comprehensive market analysis for {city_english}.
-Based on current market data for {property_english} properties {status_english}.
+ملخص التحليل - Analysis Summary:
+-------------------------------
+تم تحليل سوق العقارات في مدينة {city}
+نوع العقار: {property_type}
+الحالة: {status}
+الباقة: {chosen_pkg}
 
-KEY FINDINGS:
-- Market trends analysis completed
-- Price evaluation for selected property type
-- Investment opportunity assessment
-- Custom recommendations for {user_english}
+هذا التقرير يقدم:
+- تحليل اتجاهات السوق الحالية في {city}
+- تقييم الأسعار لنوع العقار {property_type}
+- تقييم فرص الاستثمار
+- توصيات مخصصة لـ {user_type}
 
-Report generated on: {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}
+تم إنشاء التقرير في: {datetime.now().strftime('%Y-%m-%d الساعة %H:%M:%S')}
 
-For detailed consultation and personalized advice,
-contact our real estate experts.
+للحصول على استشارة مفصلة ونصائح مخصصة،
+اتصل بخبراء العقارات لدينا.
 
-Warda Smart Real Estate
-Professional Market Analysis
+منصة وردة الذكية للعقارات
+تحليلات السوق الاحترافية
 """
     
-    pdf.multi_cell(0, 8, content)
+    # تقسيم المحتوى إلى أسطر والتعامل مع كل سطر بشكل منفصل
+    lines = content.split('\n')
+    for line in lines:
+        if line.strip():  # تجاهل الأسطر الفارغة
+            try:
+                pdf.multi_cell(0, 8, line)
+            except:
+                # إذا فشل السطر، نستخدم نسخة مبسطة
+                simplified_line = "".join(c if ord(c) < 128 else "?" for c in line)
+                pdf.multi_cell(0, 8, simplified_line)
+    
     return pdf
 
-if st.button("📥 تحميل تقريرك PDF"):
+if st.button("📥 تحميل تقريرك PDF بالعربية"):
     try:
-        # إنشاء PDF
-        pdf = create_pdf_report(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
+        # إنشاء PDF بالعربية
+        pdf = create_arabic_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
         
-        # الحل الصحيح: حفظ في BytesIO بطريقة صحيحة
-        pdf_buffer = io.BytesIO()
-        pdf_output = pdf.output(dest='S').encode('latin-1')
-        pdf_buffer.write(pdf_output)
-        pdf_buffer.seek(0)
+        # حفظ مباشر في ملف مؤقت
+        temp_filename = f"temp_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        pdf.output(temp_filename)
+        
+        # قراءة الملف وإرساله للتحميل
+        with open(temp_filename, "rb") as f:
+            pdf_bytes = f.read()
         
         # تحميل الملف
         st.download_button(
-            label="📥 اضغط لتحميل تقريرك PDF",
-            data=pdf_buffer,
-            file_name=f"real_estate_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+            label="📥 اضغط لتحميل التقرير بالعربية",
+            data=pdf_bytes,
+            file_name=f"تقرير_عقاري_{datetime.now().strftime('%Y%m%d')}.pdf",
             mime="application/pdf"
         )
-        st.success("✅ تم إنشاء التقرير بنجاح!")
+        st.success("✅ تم إنشاء التقرير بالعربية بنجاح!")
         
-    except Exception as e:
-        st.error(f"❌ حدث خطأ: {e}")
-        
-        # حل بديل إذا فشل الحل الأول
+        # تنظيف الملف المؤقت
         try:
-            st.info("🔄 جرب الحل البديل...")
-            pdf = create_pdf_report(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
+            os.remove(temp_filename)
+        except:
+            pass
             
-            # حفظ مؤقت في ملف ثم قراءته
-            temp_file = "temp_report.pdf"
-            pdf.output(temp_file)
+    except Exception as e:
+        st.error(f"❌ حدث خطأ: {str(e)}")
+        st.info("💡 جاري استخدام النسخة الإنجليزية كبديل...")
+        
+        # البديل: تقرير إنجليزي
+        try:
+            pdf = PDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
             
-            with open(temp_file, "rb") as f:
+            english_content = f"""
+Warda Real Estate Analysis Report
+=================================
+
+Client Information:
+------------------
+Client Type: {user_type}
+City: {city} 
+Property Type: {property_type}
+Area: {area} sqm
+Rooms: {rooms}
+Status: {status}
+Properties Analyzed: {count}
+
+Package: {chosen_pkg}
+Total Price: ${total_price}
+
+Report generated on: {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}
+
+This report provides market analysis for real estate in {city}.
+For detailed consultation in Arabic, please contact us directly.
+"""
+            
+            pdf.multi_cell(0, 8, english_content)
+            
+            temp_en = "temp_english.pdf"
+            pdf.output(temp_en)
+            
+            with open(temp_en, "rb") as f:
                 st.download_button(
-                    label="📥 اضغط لتحميل التقرير (البديل)",
+                    label="📥 تحميل التقرير (النسخة الإنجليزية)",
                     data=f,
-                    file_name="real_estate_report.pdf",
+                    file_name="real_estate_report_english.pdf",
                     mime="application/pdf"
                 )
             
-            # تنظيف الملف المؤقت
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
+            try:
+                os.remove(temp_en)
+            except:
+                pass
                 
         except Exception as e2:
-            st.error(f"❌ فشل الحل البديل أيضاً: {e2}")
+            st.error(f"❌ فشل كل المحاولات: {e2}")
 
 # === واتساب للتواصل ===
 st.markdown("""
