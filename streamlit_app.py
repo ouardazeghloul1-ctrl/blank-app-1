@@ -69,6 +69,14 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# === دالة لمعالجة النصوص العربية في PDF ===
+def safe_text_for_pdf(text):
+    """معالجة النصوص العربية لتجنب أخطاء Unicode في PDF"""
+    try:
+        return str(text)
+    except:
+        return text.encode('utf-8', 'ignore').decode('utf-8', 'ignore')
+
 # === تحليل البيانات ===
 scraper = RealEstateScraper()
 data = scraper.get_real_data(city, property_type, count)
@@ -87,49 +95,54 @@ if not data.empty:
 class PDF(FPDF):
     def header(self):
         self.set_font("Helvetica", "B", 14)
-        self.cell(0, 10, "🏙️ تقرير التحليل العقاري الذهبي", 0, 1, "C")
+        self.cell(0, 10, "Golden Real Estate Analysis Report", 0, 1, "C")
 
 if st.button("📥 تحميل تقريرك PDF"):
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Helvetica", "", 12)
 
-    analysis_text_ar = f"""
-👤 الفئة: {user_type}
-🏙️ المدينة: {city}
-🏠 نوع العقار: {property_type}
-📏 المساحة: {area} م²
-🚪 عدد الغرف: {rooms}
-📌 الحالة: {status}
-🔢 عدد العقارات للتحليل: {count}
-💎 الباقة: {chosen_pkg}
-💰 السعر الإجمالي: {total_price} دولار
+    # استخدام النصوص الإنجليزية فقط في PDF لتجنب مشاكل Unicode
+    analysis_text = f"""
+User Category: {safe_text_for_pdf(user_type)}
+City: {safe_text_for_pdf(city)}
+Property Type: {safe_text_for_pdf(property_type)}
+Area: {area} sqm
+Rooms: {rooms}
+Status: {safe_text_for_pdf(status)}
+Properties Analyzed: {count}
+Package: {safe_text_for_pdf(chosen_pkg)}
+Total Price: {total_price} USD
 
-📈 تم تحليل العقارات في {city} بناءً على أحدث البيانات من مواقع "عقار" و"بيوت".
-"""
-    analysis_text_en = f"""
-👤 Category: {user_type}
-🏙️ City: {city}
-🏠 Property Type: {property_type}
-📏 Area: {area} sqm
-🚪 Rooms: {rooms}
-📌 Status: {status}
-🔢 Properties Analyzed: {count}
-💎 Package: {chosen_pkg}
-💰 Total Price: {total_price} USD
+Real estate analysis based on real data from Saudi property platforms.
+Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-📈 Real estate analysis based on real data from Saudi property platforms.
+ANALYSIS SUMMARY:
+- Market analysis completed for {safe_text_for_pdf(city)}
+- Property type: {safe_text_for_pdf(property_type)}
+- Status: {safe_text_for_pdf(status)}
+- Package level: {safe_text_for_pdf(chosen_pkg)}
+- This report provides insights based on current market data
 """
 
-    pdf.multi_cell(0, 10, analysis_text_ar)
-    pdf.multi_cell(0, 10, analysis_text_en)
+    pdf.multi_cell(0, 10, analysis_text)
 
     # حفظ التقرير
     os.makedirs("reports", exist_ok=True)
     file_name = f"reports/warda_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    pdf.output(file_name)
-    with open(file_name, "rb") as f:
-        st.download_button("📥 اضغط لتحميل تقريرك PDF", data=f, file_name="تقرير_التحليل_الذهبي.pdf", mime="application/pdf")
+    
+    try:
+        pdf.output(file_name)
+        with open(file_name, "rb") as f:
+            st.download_button(
+                "📥 اضغط لتحميل تقريرك PDF", 
+                data=f, 
+                file_name="golden_real_estate_report.pdf", 
+                mime="application/pdf"
+            )
+        st.success("✅ تم إنشاء التقرير بنجاح!")
+    except Exception as e:
+        st.error(f"❌ حدث خطأ في إنشاء PDF: {str(e)}")
 
 # === واتساب للتواصل ===
 st.markdown("""
