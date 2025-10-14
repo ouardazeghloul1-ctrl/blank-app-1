@@ -2,29 +2,19 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 from datetime import datetime, timedelta
 import io
 import base64
 from fpdf import FPDF
-import arabic_reshaper
-from bidi.algorithm import get_display
-import matplotlib
-matplotlib.rcParams['font.family'] = 'DejaVu Sans'
 
 # === إعداد الصفحة ===
-st.set_page_config(page_title="التحليل العقاري الذهبي | Warda Smart Real Estate", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="التحليل العقاري الذهبي | Warda Smart Real Estate", layout="wide")
 
 # === التصميم الفاخر ===
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap');
-    
-    * {
-        font-family: 'Tajawal', sans-serif;
-    }
     .stApp {
-        background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+        background: #000000;
         color: #D4AF37;
     }
     .main-header {
@@ -41,7 +31,6 @@ st.markdown("""
         border-radius: 15px;
         padding: 1.5rem;
         margin: 1rem 0;
-        backdrop-filter: blur(10px);
     }
     .analysis-card {
         background: rgba(0, 0, 0, 0.8);
@@ -58,11 +47,6 @@ st.markdown("""
         border-radius: 10px;
         padding: 12px 30px;
         font-size: 18px;
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4);
     }
     .metric-card {
         background: rgba(212, 175, 55, 0.15);
@@ -85,9 +69,8 @@ st.markdown("""
 
 # === توليد بيانات عقارية حقيقية ===
 def generate_real_estate_data(city, property_type, count):
-    np.random.seed(42)  # للتأكد من أن البيانات متسقة
+    np.random.seed(42)
     
-    # أسعار أساسية حسب المدينة ونوع العقار
     base_prices = {
         "الرياض": {"شقة": 800000, "فيلا": 1500000, "أرض": 500000},
         "جدة": {"شقة": 700000, "فيلا": 1200000, "أرض": 400000},
@@ -99,26 +82,20 @@ def generate_real_estate_data(city, property_type, count):
     
     data = []
     for i in range(count):
-        # تباين في الأسعار
-        price_variation = np.random.normal(0, 0.2)  # ±20%
+        price_variation = np.random.normal(0, 0.2)
         price = base_price * (1 + price_variation)
         
-        # مساحة متغيرة
         if property_type == "شقة":
             area = np.random.randint(80, 200)
         elif property_type == "فيلا":
             area = np.random.randint(200, 500)
-        else:  # أرض
+        else:
             area = np.random.randint(300, 1000)
         
-        # غرف
         rooms = np.random.randint(2, 6) if property_type != "أرض" else 0
-        
-        # عمر العقار
         age = np.random.randint(0, 20)
         
-        # موقع (حي)
-        districts = ["الشمال", "الجنوب", "الشرق", "الغرب", "الوسط"]
+        districts = ["حي الشمال", "حي الجنوب", "حي الشرق", "حي الغرب", "حي الوسط"]
         district = np.random.choice(districts)
         
         data.append({
@@ -140,12 +117,11 @@ def get_custom_analysis(user_type, city, property_type, data):
         analysis["نوع_التحليل"] = "تحليل استثماري متقدم"
         avg_price = data['السعر'].mean()
         price_per_m2 = data['سعر_المتر'].mean()
-        roi = (price_per_m2 * 0.08)  # عائد استثماري تقديري 8%
         
         analysis["التوصيات"] = [
             f"متوسط سعر العقار: {avg_price:,.0f} ريال",
             f"سعر المتر المربع: {price_per_m2:,.0f} ريال",
-            f"العائد الاستثماري المتوقع: {roi:.1f}% سنوياً",
+            "العائد الاستثماري المتوقع: 7-9% سنوياً",
             "أنصح بالاستثمار في المناطق الشمالية والوسطى",
             "توقع ارتفاع الأسعار بنسبة 5-7% خلال السنة القادمة"
         ]
@@ -153,23 +129,17 @@ def get_custom_analysis(user_type, city, property_type, data):
     elif user_type == "وسيط عقاري":
         analysis["نوع_التحليل"] = "تحليل سوق للمتاجرة"
         price_range = f"{data['السعر'].min():,.0f} - {data['السعر'].max():,.0f} ريال"
-        commission = data['السعر'].mean() * 0.02  # عمولة 2%
         
         analysis["التوصيات"] = [
             f"نطاق الأسعار في السوق: {price_range}",
-            f"متوسط العمولة المتوقعة: {commission:,.0f} ريال",
             "ركز على العقارات في الأحياء الراقية",
-            "استهدف العملاء من فئة المستثمرين الأجانب",
-            "العقارات الجديدة تحقق عمولات أعلى"
+            "استهدف العملاء من فئة المستثمرين",
+            "العقارات الجديدة تحقق عمولات أعلى",
+            "استخدم منصات التواصل للوصول لشريحة أكبر"
         ]
         
     elif user_type == "شركة تطوير":
         analysis["نوع_التحليل"] = "تحليل جدوى تطويرية"
-        demand_indicators = {
-            "عرض_منخفض": "طلب مرتفع - فرصة تطويرية ممتازة",
-            "عرض_متوسط": "طلب جيد - فرصة تطويرية جيدة", 
-            "عرض_مرتفع": "طلب منخفض - يحتاج دراسة متعمقة"
-        }
         
         analysis["التوصيات"] = [
             "أنصح بتطوير مشاريع سكنية متوسطة المستوى",
@@ -268,31 +238,31 @@ with col1:
     
     user_type = st.selectbox("**الفئة:**", [
         "مستثمر", "وسيط عقاري", "شركة تطوير", "فرد", "باحث عن فرصة", "مالك عقار"
-    ], key="user_type")
+    ])
     
     city = st.selectbox("**المدينة:**", [
         "الرياض", "جدة", "الدمام", "مكة", "المدينة المنورة", "الخبر", "تبوك", "الطائف"
-    ], key="city")
+    ])
     
-    property_type = st.selectbox("**نوع العقار:**", ["شقة", "فيلا", "أرض"], key="property_type")
-    
-    analysis_scope = st.slider("**عدد العقارات للتحليل:**", 50, 1000, 200, key="count")
+    property_type = st.selectbox("**نوع العقار:**", ["شقة", "فيلا", "أرض"])
 
 with col2:
     st.markdown("### 📊 خيارات التحليل المتقدم")
     
+    analysis_scope = st.slider("**عدد العقارات للتحليل:**", 50, 1000, 200)
+    
     analysis_depth = st.selectbox("**عمق التحليل:**", [
         "تحليل سريع", "تحليل مفصل", "تحليل شامل", "تحليل احترافي"
-    ], key="depth")
-    
-    include_forecast = st.checkbox("**تضمين توقعات الأسعار**", value=True)
-    include_comparison = st.checkbox("**مقارنة مع المدن الأخرى**", value=True)
+    ])
     
     if st.button("**🚀 ابدأ التحليل الذكي**", use_container_width=True):
         st.session_state.analyze_clicked = True
 
 # === التحليل والنتائج ===
-if st.session_state.get('analyze_clicked', False):
+if 'analyze_clicked' not in st.session_state:
+    st.session_state.analyze_clicked = False
+
+if st.session_state.analyze_clicked:
     st.markdown("---")
     
     # توليد البيانات
@@ -362,58 +332,45 @@ if st.session_state.get('analyze_clicked', False):
         """, unsafe_allow_html=True)
     
     # توقعات السوق
-    if include_forecast:
-        st.markdown("### 🔮 توقعات السوق القادمة")
-        forecast_col1, forecast_col2, forecast_col3 = st.columns(3)
-        
-        with forecast_col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h4 style="color: #D4AF37;">📈 3 أشهر</h4>
-                <p style="color: #00FF00; font-size: 1.2em; font-weight: bold;">+2% إلى +4%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with forecast_col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h4 style="color: #D4AF37;">📈 6 أشهر</h4>
-                <p style="color: #00FF00; font-size: 1.2em; font-weight: bold;">+4% إلى +7%</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with forecast_col3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <h4 style="color: #D4AF37;">📈 سنة</h4>
-                <p style="color: #00FF00; font-size: 1.2em; font-weight: bold;">+7% إلى +12%</p>
-            </div>
-            """, unsafe_allow_html=True)
+    st.markdown("### 🔮 توقعات السوق القادمة")
+    forecast_col1, forecast_col2, forecast_col3 = st.columns(3)
     
-    # زر تحميل التقرير
-    st.markdown("---")
-    st.markdown("### 📥 احصل على تقريرك الكامل")
+    with forecast_col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h4 style="color: #D4AF37;">📈 3 أشهر</h4>
+            <p style="color: #00FF00; font-size: 1.2em; font-weight: bold;">+2% إلى +4%</p>
+        </div>
+        """, unsafe_allow_html=True)
     
-    if st.button("**📄 تحميل التقرير المفصل PDF**", use_container_width=True):
-        st.success("✅ سيتم إضافة ميزة تحميل PDF في التحديث القادم!")
-        st.info("💡 يمكنك التواصل معنا عبر الواتساب للحصول على تقرير مفصل")
+    with forecast_col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h4 style="color: #D4AF37;">📈 6 أشهر</h4>
+            <p style="color: #00FF00; font-size: 1.2em; font-weight: bold;">+4% إلى +7%</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with forecast_col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h4 style="color: #D4AF37;">📈 سنة</h4>
+            <p style="color: #00FF00; font-size: 1.2em; font-weight: bold;">+7% إلى +12%</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 # === قسم التواصل ===
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center;">
-    <h3 style="color: #D4AF37;">💬 need help?</h3>
-    <p style="color: #FFFFFF;">we are here to help you make the right decision</p>
+    <h3 style="color: #D4AF37;">💬 تواصل معنا</h3>
+    <p style="color: #FFFFFF;">نحن هنا لمساعدتك في اتخاذ القرار المناسب</p>
     <a href="https://wa.me/966500000000" target="_blank">
         <button style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); 
                       color: white; border: none; padding: 15px 30px; border-radius: 10px; 
                       font-size: 18px; font-weight: bold; cursor: pointer;">
-            💬 talk to us via whatsapp
+            💬 تواصل عبر واتساب
         </button>
     </a>
 </div>
 """, unsafe_allow_html=True)
-
-# تهيئة session state
-if 'analyze_clicked' not in st.session_state:
-    st.session_state.analyze_clicked = False
