@@ -10,7 +10,7 @@ from fpdf import FPDF
 # === إعداد الصفحة ===
 st.set_page_config(page_title="Warda Smart Real Estate", page_icon="🏠", layout="wide")
 
-# === التصميم الأسود والذهبي ===
+# === التصميم الأسود والذهبي الأصلي ===
 st.markdown(
     """
     <style>
@@ -83,7 +83,7 @@ count = st.slider("عدد العقارات في التحليل (من 1 إلى 10
 
 st.markdown("---")
 
-# === الباقات ===
+# === الباقات - الطريقة الأصلية ===
 st.header("📦 اختر باقتك")
 packages = {
     "مجانية": {
@@ -123,45 +123,58 @@ packages = {
     }
 }
 
+# طريقة الاختيار الأصلية - زر واحد يختار الباقة
 pkg_cols = st.columns(4)
-pkg_keys = list(packages.keys())
-for i, k in enumerate(pkg_keys):
+for i, (pkg_name, pkg_info) in enumerate(packages.items()):
     with pkg_cols[i]:
-        st.markdown(f"<div class='card'><h3 class='gold'>{k}</h3>"
-                    f"<p class='muted'>{'<br>'.join(packages[k]['details'])}</p>"
-                    f"<p class='gold'>السعر الأساسي: ${packages[k]['price_usd']}</p></div>", unsafe_allow_html=True)
-        if st.button(f"اختر {k}", key=f"pkgbtn_{i}"):
-            st.session_state.selected_package = k
+        st.markdown(f"<div class='card'><h3 class='gold'>{pkg_name}</h3>"
+                    f"<p class='muted'>{'<br>'.join(pkg_info['details'])}</p>"
+                    f"<p class='gold'>السعر الأساسي: ${pkg_info['price_usd']}</p></div>", unsafe_allow_html=True)
+        
+        # زر اختيار الباقة
+        if st.button(f"اختر {pkg_name}", key=f"pkg_btn_{i}"):
+            st.session_state.selected_package = pkg_name
             st.session_state.paid = False
 
+# عرض الباقة المختارة
 if st.session_state.selected_package:
-    st.info(f"باقة مختارة: **{st.session_state.selected_package}**", icon="✨")
+    selected_pkg_info = packages[st.session_state.selected_package]
+    st.markdown(f"""
+    <div class='gold-box'>
+    <h3 class='gold'>✅ الباقة المختارة: {st.session_state.selected_package}</h3>
+    <p class='muted'>{' • '.join(selected_pkg_info['details'])}</p>
+    </div>
+    """, unsafe_allow_html=True)
 else:
-    st.info("اختر باقة لعرض السعر وتفعيل خيار الدفع")
+    st.info("اختر باقة من الخيارات أعلاه")
 
 # === حساب السعر ===
-base_price = packages.get(st.session_state.selected_package, packages["مجانية"])["price_usd"]
+if st.session_state.selected_package:
+    base_price = packages[st.session_state.selected_package]["price_usd"]
+    
+    # كل عقار إضافي يضيف 10 دولار
+    if base_price > 0:
+        total_price_usd = base_price + (count * 10)
+    else:
+        total_price_usd = 0.0
 
-# كل عقار إضافي يضيف 10 دولار كما طلبتِ
-if base_price > 0:
-    total_price_usd = base_price + (count * 10)
+    st.markdown(f"""
+    <div class="gold-box">
+    <h3 class="gold">💰 السعر الإجمالي: ${total_price_usd}</h3>
+    <p class="small">السعر يشمل ${base_price} للباقة + ${10} لكل عقار إضافي (إجمالي {count} عقار)</p>
+    </div>
+    """, unsafe_allow_html=True)
 else:
-    total_price_usd = 0.0
-
-st.markdown(f"""
-<div class="gold-box">
-<h3 class="gold">💰 السعر الإجمالي: ${total_price_usd}</h3>
-<p class="small">السعر يشمل ${base_price} للباقة + ${10} لكل عقار إضافي (إجمالي {count} عقار)</p>
-</div>
-""", unsafe_allow_html=True)
+    total_price_usd = 0
 
 st.markdown("---")
 
 # === نظام الدفع ===
 paypal_email = "zeghloulwarda6@gmail.com"
 st.markdown("### 💳 للدفع الآمن عبر PayPal")
+
 if total_price_usd == 0:
-    st.info("الباقة مجانية — يمكنك تحميل التقرير مباشرة بعد الضغط على زر التحليل.", icon="info")
+    st.info("الباقة مجانية — يمكنك تحميل التقرير مباشرة بعد الضغط على زر التحليل.")
 else:
     paypal_link = f"https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business={paypal_email}&currency_code=USD&amount={total_price_usd}&item_name=Warda+Report+{st.session_state.selected_package}"
     st.markdown(f"""<a href="{paypal_link}" target="_blank"><button class="stButton">💳 ادفع عبر PayPal الآن (${total_price_usd})</button></a>""", unsafe_allow_html=True)
@@ -170,7 +183,7 @@ else:
 if total_price_usd > 0:
     if st.button("✅ لقد دفعت — أريد التقرير"):
         st.session_state.paid = True
-        st.success("تم تفعيل إمكانية تحميل التقرير — انزلي للأسفل لتحمليه.", icon="✅")
+        st.success("تم تفعيل إمكانية تحميل التقرير — انزلي للأسفل لتحمليه.")
 
 if total_price_usd == 0:
     st.session_state.paid = True
@@ -186,7 +199,7 @@ def create_simple_pdf(client_type, city, prop_type, status, count, package, pric
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     
-    # محتوى التقرير بالإنجليزية فقط لتجنب المشاكل
+    # محتوى التقرير
     content = f"""
 WARDASMART REAL ESTATE ANALYSIS REPORT
 =====================================
@@ -209,21 +222,13 @@ for the selected market parameters.
 Based on the analysis of {count} properties in {city},
 we provide market insights and recommendations.
 
-KEY METRICS:
-- Market analysis completed
-- Price trends evaluated
-- Investment opportunities identified
-- Custom recommendations provided
-
 Report generated on: {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}
-
-For detailed consultation in Arabic, please contact us directly.
 
 Warda Smart Real Estate
 Professional Market Analysis
 """
     
-    # كتابة المحتوى سطراً سطراً
+    # كتابة المحتوى
     lines = content.split('\n')
     for line in lines:
         if line.strip():
@@ -233,15 +238,17 @@ Professional Market Analysis
     
     return pdf
 
-if st.session_state.paid:
+if st.session_state.paid and st.session_state.selected_package:
     # عرض الملخص
-    st.markdown(f"**نوع العميل:** {st.session_state.selected_client or '—'}  \n"
-                f"**المدينة:** {city}  \n"
-                f"**نوع العقار:** {property_type}  \n"
-                f"**الحالة:** {status}  \n"
-                f"**عدد العقارات:** {count}  \n"
-                f"**الباقة:** {st.session_state.selected_package or '—'}  \n"
-                f"**المبلغ المدفوع:** ${total_price_usd}")
+    st.markdown(f"""
+    **نوع العميل:** {st.session_state.selected_client or '—'}  
+    **المدينة:** {city}  
+    **نوع العقار:** {property_type}  
+    **الحالة:** {status}  
+    **عدد العقارات:** {count}  
+    **الباقة:** {st.session_state.selected_package}  
+    **المبلغ المدفوع:** ${total_price_usd}
+    """)
     
     if st.button("🔍 أنشئ تقرير PDF الآن"):
         try:
@@ -252,11 +259,11 @@ if st.session_state.paid:
                 prop_type=property_type,
                 status=status,
                 count=count,
-                package=st.session_state.selected_package or "",
+                package=st.session_state.selected_package,
                 price=total_price_usd,
             )
             
-            # حفظ PDF في buffer
+            # حفظ PDF
             pdf_buffer = io.BytesIO()
             pdf_output = pdf.output(dest='S').encode('latin-1')
             pdf_buffer.write(pdf_output)
@@ -272,36 +279,12 @@ if st.session_state.paid:
             st.success("✅ تم إنشاء التقرير بنجاح!")
             
         except Exception as e:
-            st.error(f"❌ حدث خطأ: {str(e)}")
-            st.info("💡 جاري استخدام الحل البديل...")
-            
-            # حل بديل بسيط
-            try:
-                pdf_simple = FPDF()
-                pdf_simple.add_page()
-                pdf_simple.set_font("Arial", size=14)
-                pdf_simple.cell(0, 10, "Warda Real Estate Report", 0, 1, "C")
-                pdf_simple.ln(10)
-                pdf_simple.set_font("Arial", size=12)
-                pdf_simple.cell(0, 8, f"Client: {st.session_state.selected_client}", ln=True)
-                pdf_simple.cell(0, 8, f"City: {city}", ln=True)
-                pdf_simple.cell(0, 8, "Report generated successfully!", ln=True)
-                
-                buffer_simple = io.BytesIO()
-                pdf_simple.output(buffer_simple)
-                
-                st.download_button(
-                    label="📥 حمل التقرير المبسط",
-                    data=buffer_simple.getvalue(),
-                    file_name="warda_simple_report.pdf",
-                    mime="application/pdf"
-                )
-                
-            except Exception as e2:
-                st.error(f"❌ فشل الحل البديل: {e2}")
+            st.error(f"حدث خطأ في إنشاء PDF: {str(e)}")
 
+elif not st.session_state.selected_package:
+    st.warning("⚠️ يرجى اختيار باقة أولاً")
 else:
-    st.warning("لتفعيل زر تنزيل التقرير: يجب الدفع أولا (للباقات غير المجانية) ثم النقر على 'لقد دفعت — أريد التقرير'.", icon="⚠️")
+    st.warning("⚠️ لتفعيل زر تنزيل التقرير: يجب الدفع أولا (للباقات غير المجانية) ثم النقر على 'لقد دفعت — أريد التقرير'.")
 
 st.markdown("---")
 
