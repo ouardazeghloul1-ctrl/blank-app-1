@@ -1,150 +1,143 @@
 import streamlit as st
+import pandas as pd
 from fpdf import FPDF
+from datetime import datetime
 import os
-import uuid
 
 # إعداد الصفحة
-st.set_page_config(page_title="منصتك العقارية الذكية", layout="centered")
+st.set_page_config(page_title="التحليل العقاري الذهبي | Warda Intelligence", layout="centered")
 
-# تحميل الخط العربي
-if not os.path.exists("Amiri-Regular.ttf"):
-    st.error("❌ ملف الخط Amiri-Regular.ttf غير موجود في مجلد المشروع.")
-else:
-    pdf_font = "Amiri-Regular.ttf"
-
-# تنسيق الواجهة
+# تنسيق واجهة فاخرة
 st.markdown("""
     <style>
         body { background-color: black; color: gold; }
         .stApp { background-color: black; color: gold; }
-        div[data-testid="stForm"] { background-color: #111; padding: 30px; border-radius: 20px; }
-        h1, h2, h3, h4 { color: gold; text-align: center; }
+        h1, h2, h3, h4, p, label { color: gold !important; }
         .stButton>button {
             background-color: gold;
             color: black;
             font-weight: bold;
             border-radius: 10px;
-            border: none;
-            padding: 10px 25px;
+            padding: 0.6em 1.2em;
+            transition: 0.3s;
         }
-        .stButton>button:hover {
-            background-color: #b8860b;
-            color: white;
+        .stButton>button:hover { background-color: #d4af37; color: white; }
+        .gold-box {
+            border: 2px solid gold;
+            padding: 15px;
+            border-radius: 12px;
+            background-color: #111;
+            margin-bottom: 15px;
         }
+        .center { text-align: center; }
     </style>
 """, unsafe_allow_html=True)
 
-# بيانات الباقات
-plans = {
-    "مجانية": {
-        "price": 0,
-        "features": [
-            "تحليل سريع لعقار واحد بدون تفاصيل مالية دقيقة"
-        ]
-    },
-    "فضية": {
-        "price": 10,
-        "features": [
-            "تحليل دقيق",
-            "متوسط الأسعار في المنطقة",
-            "نصائح استثمارية"
-        ]
-    },
-    "ذهبية": {
-        "price": 30,
-        "features": [
-            "تحليل دقيق + كل مزايا الباقة الفضية",
-            "تحليل ذكي بالذكاء الاصطناعي",
-            "تنبؤ بالسعر المستقبلي",
-            "اقتراح أفضل وقت للبيع"
-        ]
-    },
-    "ماسية": {
-        "price": 60,
-        "features": [
-            "كل مزايا الباقة الذهبية",
-            "تحليل ذكي بالذكاء الاصطناعي متطور",
-            "مقارنة مع مشاريع مماثلة",
-            "تقرير فاخر بتصميم مميز"
-        ]
-    }
+# العنوان الرئيسي
+st.markdown("<h1 class='center'>🏙️ منصة التحليل العقاري الذهبي</h1>", unsafe_allow_html=True)
+st.markdown("<p class='center'>تحليل ذكي مدعوم بالذكاء الاصطناعي من منصة Warda Intelligence</p>", unsafe_allow_html=True)
+
+# إدخال بيانات المستخدم
+user_type = st.selectbox("👤 اختر(ي) فئتك:", ["مستثمر", "وسيط عقاري", "شركة تطوير", "فرد", "باحث عن فرصة", "مالك عقار"])
+city = st.selectbox("🏙️ المدينة:", ["الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة", "الخبر", "تبوك", "الطائف"])
+property_type = st.selectbox("🏠 نوع العقار:", ["شقة", "فيلا", "أرض", "محل تجاري"])
+status = st.selectbox("📌 الحالة:", ["للبيع", "للشراء"])
+count = st.slider("🔢 عدد العقارات للتحليل:", 1, 1000, 5)
+area = st.slider("📏 متوسط مساحة العقار (م²):", 50, 1000, 150)
+rooms = st.slider("🚪 عدد الغرف (تقريبي):", 1, 10, 3)
+
+# الباقات
+packages = {
+    "مجانية": {"price": 0, "features": "تحليل سريع لعقار واحد، بدون تفاصيل مالية دقيقة."},
+    "فضية": {"price": 10, "features": "تحليل دقيق + متوسط الأسعار في المنطقة + نصائح استثمارية."},
+    "ذهبية": {"price": 30, "features": "كل ما سبق + تنبؤ بالسعر المستقبلي + تحليل ذكي بالذكاء الاصطناعي + اقتراح أفضل وقت للبيع."},
+    "ماسية": {"price": 60, "features": "تحليل شامل + مقارنة مع مشاريع مماثلة + تحليل ذكي بالذكاء الاصطناعي + تقرير PDF فاخر."}
 }
 
-# عنوان التطبيق
-st.title("🏡 منصتك العقارية الذكية")
-st.write("اختار(ي) الباقة التي تناسبك لتحليل عقارك بدقة واحترافية")
-
-# قسم رابط المؤثرين
-st.write("---")
-st.subheader("🎁 رابط المؤثرين (تجربة مجانية لمرة واحدة فقط)")
-
-if "used_free_link" not in st.session_state:
-    st.session_state.used_free_link = False
-
-if not st.session_state.used_free_link:
-    if st.button("🔗 إنشاء رابط مجاني"):
-        unique_link = str(uuid.uuid4())[:8]
-        st.session_state.free_link = f"https://example.com/free-access/{unique_link}"
-        st.session_state.used_free_link = True
-        st.success(f"✅ تم إنشاء الرابط المجاني لمرة واحدة فقط:\n\n{st.session_state.free_link}")
-else:
-    st.info("🔒 لقد استخدمت الرابط المجاني بالفعل.")
-
-st.write("---")
-
 # اختيار الباقة
-plan_name = st.selectbox("🎯 اختر(ي) الباقة:", list(plans.keys()))
-selected_plan = plans[plan_name]
+chosen_pkg = st.radio("💎 اختر(ي) باقتك:", list(packages.keys()), horizontal=True)
 
-st.subheader(f"💰 السعر: {selected_plan['price']} دولار")
-st.write("### ⭐ مميزات الباقة:")
-for feature in selected_plan["features"]:
-    st.markdown(f"- {feature}")
+# حساب السعر
+base_price = packages[chosen_pkg]["price"]
+total_price = base_price * count
 
-# إدخال معلومات العقار
-st.write("---")
-st.subheader("📋 أدخل(ي) تفاصيل العقار:")
-property_name = st.text_input("اسم العقار:")
-property_location = st.text_input("الموقع:")
-property_size = st.text_input("المساحة (م²):")
-property_price = st.text_input("السعر الحالي (بالدولار):")
+# عرض السعر والمميزات
+st.markdown(f"""
+<div class='gold-box'>
+<h3>💰 السعر الإجمالي: {total_price} دولار</h3>
+<p><b>مميزات الباقة ({chosen_pkg}):</b><br>{packages[chosen_pkg]['features']}</p>
+</div>
+""", unsafe_allow_html=True)
 
-# زر التحليل
-if st.button("🔍 تحليل العقار"):
-    if not property_name or not property_location or not property_size or not property_price:
-        st.error("❗ الرجاء إدخال جميع المعلومات قبل التحليل.")
-    else:
-        # إنشاء تقرير PDF
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.add_font("Amiri", "", pdf_font, uni=True)
-        pdf.set_font("Amiri", "", 14)
+# توليد التقرير PDF
+class PDF(FPDF):
+    def header(self):
+        self.set_font("Arial", "B", 16)
+        self.cell(0, 10, "Warda Intelligence Real Estate Report", 0, 1, "C")
+        self.ln(5)
 
-        pdf.cell(0, 10, txt="تقرير التحليل العقاري", ln=True, align="C")
-        pdf.cell(0, 10, txt=f"اسم العقار: {property_name}", ln=True)
-        pdf.cell(0, 10, txt=f"الموقع: {property_location}", ln=True)
-        pdf.cell(0, 10, txt=f"المساحة: {property_size} م²", ln=True)
-        pdf.cell(0, 10, txt=f"السعر الحالي: {property_price} دولار", ln=True)
-        pdf.cell(0, 10, txt=f"الباقة المختارة: {plan_name}", ln=True)
+def create_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price):
+    pdf = PDF()
+    pdf.add_page()
+    pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
+    pdf.set_font("Amiri", "", 14)
+    pdf.multi_cell(0, 10, f"""
+📘 تقرير التحليل العقاري الذهبي
+==============================
 
-        pdf.ln(10)
-        pdf.cell(0, 10, txt="مميزات التحليل:", ln=True)
-        for f in selected_plan["features"]:
-            pdf.cell(0, 10, txt=f"• {f}", ln=True)
+👤 الفئة: {user_type}
+🏙️ المدينة: {city}
+🏠 نوع العقار: {property_type}
+📏 المساحة: {area} م²
+🚪 عدد الغرف: {rooms}
+📌 الحالة: {status}
+📊 عدد العقارات المحللة: {count}
 
-        pdf_file = f"تقرير_{property_name}.pdf"
-        pdf.output(pdf_file)
-        with open(pdf_file, "rb") as f:
-            st.download_button(
-                label="📥 تحميل التقرير (PDF)",
-                data=f,
-                file_name=pdf_file,
-                mime="application/pdf"
-            )
+💎 الباقة: {chosen_pkg}
+💰 السعر الإجمالي: {total_price} دولار
 
-        st.success("✅ تم تحليل العقار وإنشاء التقرير بنجاح!")
+🔍 مميزات التحليل:
+{packages[chosen_pkg]['features']}
 
-# حقوق المنصة
-st.write("---")
-st.markdown("👑 **© جميع الحقوق محفوظة لـ Warda Intelligence**")
-st.caption("منصة تحليل واستشارات عقارية مدعومة بالذكاء الاصطناعي.")
+📈 هذا التقرير يقدم نظرة دقيقة عن سوق {city} بناءً على بيانات واقعية وتنبؤات بالذكاء الاصطناعي.
+
+🕒 تاريخ الإنشاء: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+منصة Warda Intelligence — تحليلات عقارية دقيقة بثقة وجودة.
+""")
+    return pdf
+
+# زر تحميل التقرير
+if st.button("📥 تحميل التقرير (PDF)"):
+    pdf = create_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
+    temp_name = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    pdf.output(temp_name)
+    with open(temp_name, "rb") as f:
+        st.download_button(
+            label="📩 اضغط هنا لتحميل تقريرك الآن",
+            data=f,
+            file_name=f"تقرير_{chosen_pkg}_{city}.pdf",
+            mime="application/pdf"
+        )
+    os.remove(temp_name)
+    st.success("✅ تم إنشاء التقرير بنجاح!")
+
+# رابط المؤثرين - يمنح تقرير مجاني لمرة واحدة
+st.markdown("""
+<div class='center'>
+<h4>🎁 رابط خاص بالمؤثرين</h4>
+<p>يمكنك منح هذا الرابط لأي مؤثر ليستفيد من تقرير مجاني لمرة واحدة فقط:</p>
+<a href="https://warda-intelligence.streamlit.app/?promo=FREE1" target="_blank">
+<button style="background-color:green;color:white;font-size:18px;padding:10px 20px;border:none;border-radius:10px;">🎯 رابط المؤثرين المجاني</button>
+</a>
+</div>
+""", unsafe_allow_html=True)
+
+# واتساب
+st.markdown("""
+<div class='center'>
+<a href="https://wa.me/213779888140" target="_blank">
+<button style="background-color:green;color:white;font-size:18px;padding:10px 20px;border:none;border-radius:10px;">💬 تواصل مع Warda Intelligence عبر واتساب</button>
+</a>
+</div>
+""", unsafe_allow_html=True)
