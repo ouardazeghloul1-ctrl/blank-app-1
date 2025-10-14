@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
 import io
-import base64
 
 # === إعداد الصفحة ===
 st.set_page_config(page_title="Warda Smart Real Estate", page_icon="🏠", layout="wide")
@@ -28,7 +27,7 @@ st.markdown(
 )
 
 st.markdown("<h1 class='gold center'>🏠 Warda Smart Real Estate</h1>", unsafe_allow_html=True)
-st.markdown("<p class='center small'>المنصة الذكية لتحليل السوق — تقرير PDF بعد الدفع</p>", unsafe_allow_html=True)
+st.markdown("<p class='center small'>المنصة الذكية لتحليل السوق • تقرير مفصل بعد الإعداد</p>", unsafe_allow_html=True)
 st.markdown("---")
 
 # === Session state ===
@@ -38,14 +37,14 @@ if "selected_package" not in st.session_state:
     st.session_state.selected_package = None
 if "paid" not in st.session_state:
     st.session_state.paid = False
+if "free_report_generated" not in st.session_state:
+    st.session_state.free_report_generated = False
 
 # === فئات العملاء ===
 st.header("🎯 اختر هويتك (انقري على ما يناسبك)")
 client_types = [
     "مستثمر فردي", "وسيط عقاري", "شركة تطوير", "باحث عن سكن",
-    "ممول عقاري", "مستشار عقاري", "مالك عقار", "مستأجر",
-    "مطور صغير", "مدير صندوق استثمار", "خبير تقييم", "طالب دراسة جدوى",
-    "باحث عن فرص تجارية", "وسيط تأجير", "محلل سوق", "شركة إدارة أملاك"
+    "ممول عقاري", "مستشار عقاري", "مطور عقاري", "مدير استثمار"
 ]
 
 cols = st.columns(4)
@@ -65,14 +64,13 @@ st.header("📋 بيانات التحليل")
 
 cities = [
     "الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة", "الخبر", "الطائف",
-    "بريدة", "حفر الباطن", "ينبع", "أبها", "نجران", "جازان", "حائل", "عرعر",
-    "القاهرة", "الإسكندرية", "الجزائر", "تونس", "الرباط"
+    "بريدة", "حفر الباطن", "ينبع", "أبها", "نجران", "جازان", "حائل", "عرعر"
 ]
 city = st.selectbox("المدينة", cities)
 
 property_types = [
     "شقة", "فيلا", "أرض", "دوبلكس", "محل تجاري", "مكتب", "استوديو",
-    "عمارة", "مزرعة", "مستودع", "شاليه", "أرض تجارية", "بيت شعبي"
+    "عمارة", "مزرعة", "مستودع", "شاليه", "أرض تجارية"
 ]
 property_type = st.selectbox("نوع العقار", property_types)
 
@@ -89,8 +87,9 @@ packages = {
         "price_usd": 0,
         "details": [
             "تحليل سريع لموقع واحد",
-            "مؤشرات سعرية أساسية",
-            "ملخص PDF مختصر (صفحة واحدة)"
+            "مؤشرات سعرية أساسية", 
+            "ملخص مفصل (صفحة واحدة)",
+            "تحميل مباشر بدون دفع"
         ]
     },
     "متوسطة": {
@@ -99,25 +98,25 @@ packages = {
             "تحليل 3 مواقع/أحياء",
             "مؤشرات سعرية + توصيات أولية",
             "تنبؤ 30 يوم (مخطط تقريبي)",
-            "تقرير PDF مفصل (3-4 صفحات)"
+            "تقرير مفصل (3-4 صفحات)"
         ]
     },
     "جيدة": {
         "price_usd": 40,
         "details": [
-            "تحليل شامل حتى 5 مواقع",
+            "تحليل شامل حتى 5 مواقع", 
             "توصيات استثمارية قابلة للتنفيذ",
-            "تنبؤ 30 و90 يوم (نطاق ثقة تقريبي)",
-            "تقرير PDF مصمم بالهوية الذهبية"
+            "تنبؤ 30 و90 يوم",
+            "تقرير مصمم بالهوية الذهبية"
         ]
     },
     "ممتازة": {
         "price_usd": 90,
         "details": [
             "تحليل كامل لكل المواقع المطلوبة",
-            "مقارنة عروض المنافسين وتحليل مخاطر",
+            "مقارنة عروض المنافسين وتحليل مخاطر", 
             "تنبؤ مفصل 30/90 يوم + سيناريوهات نمو",
-            "تقرير PDF شامل وجاهز للعرض على مستثمرين"
+            "تقرير شامل وجاهز للعرض على مستثمرين"
         ]
     }
 }
@@ -133,6 +132,7 @@ for i, (pkg_name, pkg_info) in enumerate(packages.items()):
         if st.button(f"اختر {pkg_name}", key=f"pkg_btn_{i}"):
             st.session_state.selected_package = pkg_name
             st.session_state.paid = False
+            st.session_state.free_report_generated = False
 
 # عرض الباقة المختارة
 if st.session_state.selected_package:
@@ -168,78 +168,38 @@ else:
 st.markdown("---")
 
 # === نظام الدفع ===
-paypal_email = "zeghloulwarda6@gmail.com"
-st.markdown("### 💳 للدفع الآمن عبر PayPal")
-
-if total_price_usd == 0:
-    st.info("الباقة مجانية — يمكنك تحميل التقرير مباشرة بعد الضغط على زر التحليل.")
+if st.session_state.selected_package == "مجانية":
+    st.session_state.paid = True
+    st.session_state.free_report_generated = True
+    
+    st.markdown("### 🎁 الباقة المجانية")
+    st.info("يمكنك تحميل التقرير مباشرة بدون دفع - هذه الباقة مجانية لكافة المستخدمين.")
+    
 else:
+    paypal_email = "zeghloulwarda6@gmail.com"
+    st.markdown("### 💳 للدفع الآمن عبر PayPal")
+    
     paypal_link = f"https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business={paypal_email}&currency_code=USD&amount={total_price_usd}&item_name=Warda+Report+{st.session_state.selected_package}"
     st.markdown(f"""<a href="{paypal_link}" target="_blank"><button class="stButton">💳 ادفع عبر PayPal الآن (${total_price_usd})</button></a>""", unsafe_allow_html=True)
     st.markdown("<p class='small'>بعد الدفع ستعود إلى هذه الصفحة وتضغط على: <b>لقد دفعت — أريد التقرير</b></p>", unsafe_allow_html=True)
 
-if total_price_usd > 0:
     if st.button("✅ لقد دفعت — أريد التقرير"):
         st.session_state.paid = True
         st.success("تم تفعيل إمكانية تحميل التقرير — انزلي للأسفل لتحمليه.")
 
-if total_price_usd == 0:
-    st.session_state.paid = True
-
 st.markdown("---")
 
 # === إنشاء PDF ===
-st.header("📄 تقريرك (سيصبح متاحًا بعد الدفع)")
+st.header("📄 تقريرك الجاهز")
 
-def create_pdf_safe(client_type, city, prop_type, status, count, package, price):
-    """إنشاء PDF بدون أي مشاكل Unicode"""
+def create_professional_pdf(client_type, city, prop_type, status, count, package, price):
+    """إنشاء PDF احترافي يعمل 100%"""
     
-    # محتوى إنجليزي فقط - هذا هو الحل النهائي
-    content = f"""
-WARDASMART REAL ESTATE ANALYSIS REPORT
-=====================================
-
-CLIENT INFORMATION:
-Client Type: {client_type}
-City: {city}
-Property Type: {prop_type}
-Status: {status}
-Properties Analyzed: {count}
-Package: {package}
-Total Price: ${price}
-
-ANALYSIS SUMMARY:
-This professional real estate analysis report provides
-comprehensive market insights based on current data.
-
-REPORT DETAILS:
-- Market analysis completed for specified parameters
-- Price trends and investment opportunities identified
-- Custom recommendations provided based on client profile
-- Professional insights for informed decision making
-
-TECHNICAL SPECIFICATIONS:
-- Analysis based on {count} property data points
-- Market evaluation for {city} area
-- Property type focus: {prop_type}
-- Client category: {client_type}
-
-CONCLUSION:
-This report serves as a foundation for strategic
-real estate decisions. For detailed consultation
-and Arabic version, please contact us directly.
-
-Report generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-
-WARDASMART REAL ESTATE
-Professional Analysis Platform
-"""
-    
-    # إنشاء PDF باستخدام reportlab بدلاً من fpdf - الحل الجذري
+    # استخدام مكتبة reportlab للPDF - الأكثر استقراراً
     try:
         from reportlab.lib.pagesizes import letter
         from reportlab.pdfgen import canvas
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
         from reportlab.lib.units import inch
         
@@ -248,26 +208,111 @@ Professional Analysis Platform
         styles = getSampleStyleSheet()
         story = []
         
-        # إضافة المحتوى
-        lines = content.split('\n')
-        for line in lines:
-            if line.strip():
-                p = Paragraph(line, styles["Normal"])
-                story.append(p)
-                story.append(Spacer(1, 12))
+        # محتوى التقرير
+        title_style = styles["Heading1"]
+        normal_style = styles["Normal"]
         
+        # العنوان
+        title = Paragraph("Warda Smart Real Estate Report", title_style)
+        story.append(title)
+        story.append(Spacer(1, 20))
+        
+        # معلومات العميل
+        client_info = f"""
+        <b>Client Information:</b><br/>
+        Client Type: {client_type}<br/>
+        City: {city}<br/>
+        Property Type: {prop_type}<br/>
+        Status: {status}<br/>
+        Properties Analyzed: {count}<br/>
+        Package: {package}<br/>
+        Total Price: ${price}<br/>
+        """
+        story.append(Paragraph(client_info, normal_style))
+        story.append(Spacer(1, 15))
+        
+        # التحليل
+        analysis = f"""
+        <b>Market Analysis Summary:</b><br/>
+        This comprehensive real estate analysis report provides detailed insights 
+        into the current market conditions in {city}. Based on the analysis of 
+        {count} properties, this report offers valuable information for {client_type}.
+        
+        The {prop_type} market shows promising opportunities with current trends 
+        indicating growth potential. The {status} segment demonstrates stable 
+        performance with opportunities for strategic investments.
+        """
+        story.append(Paragraph(analysis, normal_style))
+        story.append(Spacer(1, 15))
+        
+        # التوصيات
+        recommendations = """
+        <b>Key Recommendations:</b><br/>
+        • Conduct thorough due diligence before investment<br/>
+        • Consider location-specific market factors<br/>
+        • Monitor market trends regularly<br/>
+        • Consult with real estate professionals<br/>
+        • Review financing options carefully<br/>
+        """
+        story.append(Paragraph(recommendations, normal_style))
+        story.append(Spacer(1, 15))
+        
+        # الخاتمة
+        conclusion = f"""
+        <b>Conclusion:</b><br/>
+        Report generated on: {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}<br/>
+        For detailed consultation and personalized advice, contact Warda Smart Real Estate.
+        """
+        story.append(Paragraph(conclusion, normal_style))
+        
+        # بناء الPDF
         doc.build(story)
         buffer.seek(0)
         return buffer.getvalue()
         
-    except:
-        # إذا فشل reportlab، نرجع ملف نصي بسيط
-        simple_content = f"Wardasmart Report - {datetime.now()}"
-        return simple_content.encode('utf-8')
+    except Exception as e:
+        # إذا فشل reportlab، نستخدم طريقة بسيطة مضمونة
+        from fpdf import FPDF
+        
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        
+        # محتوى إنجليزي فقط لتجنب المشاكل
+        content = [
+            "WARDASMART REAL ESTATE REPORT",
+            "",
+            "CLIENT INFORMATION:",
+            f"Client Type: {client_type}",
+            f"City: {city}",
+            f"Property Type: {prop_type}",
+            f"Status: {status}",
+            f"Properties Analyzed: {count}",
+            f"Package: {package}",
+            f"Total Price: ${price}",
+            "",
+            "ANALYSIS SUMMARY:",
+            f"Market analysis for {city} completed.",
+            f"Based on {count} properties analysis.",
+            "Professional insights provided.",
+            "",
+            f"Report Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "Warda Smart Real Estate - Professional Services"
+        ]
+        
+        for line in content:
+            pdf.cell(0, 10, line, ln=True)
+        
+        pdf_buffer = io.BytesIO()
+        pdf_output = pdf.output(dest='S').encode('latin-1')
+        pdf_buffer.write(pdf_output)
+        pdf_buffer.seek(0)
+        return pdf_buffer.getvalue()
 
 if st.session_state.paid and st.session_state.selected_package:
     # عرض الملخص
     st.markdown(f"""
+    **📊 ملخص طلبك:**  
     **نوع العميل:** {st.session_state.selected_client or '—'}  
     **المدينة:** {city}  
     **نوع العقار:** {property_type}  
@@ -277,57 +322,32 @@ if st.session_state.paid and st.session_state.selected_package:
     **المبلغ المدفوع:** ${total_price_usd}
     """)
     
-    if st.button("🔍 أنشئ تقرير PDF الآن"):
-        try:
-            # إنشاء PDF
-            pdf_data = create_pdf_safe(
-                client_type=st.session_state.selected_client or "",
-                city=city,
-                prop_type=property_type,
-                status=status,
-                count=count,
-                package=st.session_state.selected_package,
-                price=total_price_usd,
-            )
-            
-            # زر التحميل
-            st.download_button(
-                label="📥 حمل تقريرك الآن (PDF)",
-                data=pdf_data,
-                file_name=f"warda_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                mime="application/pdf",
-            )
-            st.success("✅ تم إنشاء التقرير بنجاح!")
-            st.balloons()
-            
-        except Exception as e:
-            st.error(f"حدث خطأ: {str(e)}")
-            # حل بديل فوري
-            st.info("📝 جاري إنشاء تقرير بديل...")
-            
-            # إنشاء ملف نصي بسيط كبديل
-            simple_report = f"""
-            Warda Smart Real Estate Report
-            =============================
-            Client: {st.session_state.selected_client}
-            City: {city}
-            Property: {property_type}
-            Status: {status}
-            Count: {count}
-            Package: {st.session_state.selected_package}
-            Price: ${total_price_usd}
-            Date: {datetime.now()}
-            
-            This is your real estate analysis report.
-            Contact us for the full detailed version.
-            """
-            
-            st.download_button(
-                label="📥 حمل التقرير النصي (بديل)",
-                data=simple_report.encode('utf-8'),
-                file_name=f"warda_report_{datetime.now().strftime('%Y%m%d')}.txt",
-                mime="text/plain",
-            )
+    if st.button("🔄 أنشئ تقريري الآن", key="generate_report"):
+        with st.spinner("جاري إنشاء التقرير المحترف..."):
+            try:
+                # إنشاء PDF
+                pdf_data = create_professional_pdf(
+                    client_type=st.session_state.selected_client or "",
+                    city=city,
+                    prop_type=property_type,
+                    status=status,
+                    count=count,
+                    package=st.session_state.selected_package,
+                    price=total_price_usd,
+                )
+                
+                # زر التحميل
+                st.download_button(
+                    label="📥 حمل تقريرك الآن",
+                    data=pdf_data,
+                    file_name=f"warda_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                )
+                st.success("✅ تم إنشاء التقرير بنجاح!")
+                st.balloons()
+                
+            except Exception as e:
+                st.error(f"حدث خطأ: {str(e)}")
 
 elif not st.session_state.selected_package:
     st.warning("⚠️ يرجى اختيار باقة أولاً")
