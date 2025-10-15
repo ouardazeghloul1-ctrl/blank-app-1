@@ -1,74 +1,89 @@
 import streamlit as st
-from datetime import datetime, timedelta
+import pandas as pd
+from fpdf import FPDF
+import datetime
 import random
 
-st.set_page_config(page_title="تحليل عقاري ذهبي", layout="centered")
+# === الإعداد العام للتصميم ===
+st.set_page_config(page_title="تحليل عقاري ذكي - وردة", layout="centered")
 
-# ===== واجهة سوداء وذهبية فخمة =====
 st.markdown("""
     <style>
-        body, .stApp { background-color: black; color: gold; font-family: 'Amiri', serif; }
-        .title { color: gold; text-align: center; font-size: 32px; font-weight: bold; margin-bottom: 20px; }
-        .stButton>button { background-color: gold; color: black; border-radius: 12px; font-weight: bold; }
-        .stSelectbox label, .stTextInput label, .stNumberInput label { color: gold !important; }
-        .hidden {visibility: hidden;}
+        body { background-color: black; color: gold; }
+        .stApp { background-color: black; color: gold; }
+        h1, h2, h3, h4, h5 { color: gold; text-align: center; }
+        .stButton button {
+            background-color: gold; color: black; border-radius: 12px;
+            padding: 10px 20px; font-weight: bold;
+        }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<div class='title'>💎 منصة التحليل العقاري الذكي</div>", unsafe_allow_html=True)
+st.title("💎 منصة وردة للتحليل العقاري الذكي")
 
-# ========== كلمة سر الإدارة ==========
-admin_mode = False
-password = st.text_input("🔒 إدخال كلمة السر (خاص بصاحبة المنصة):", type="password")
-if password == "adminWarda123":
-    admin_mode = True
-    st.success("تم الدخول إلى وضع الإدارة ✅")
+# === بيانات أولية ===
+cities = ["الرياض", "جدة", "الدمام", "مكة", "المدينة المنورة"]
+property_types = ["شقة", "فيلا", "أرض", "عمارة", "مكتب", "محل تجاري"]
+status_options = ["بيع", "شراء", "إيجار"]
 
-# ========== اختيار المدينة ==========
-city = st.selectbox("🏙️ اختر(ي) المدينة:", ["الرياض", "جدة", "الدمام"])
-
-# ========== نوع العقار ==========
-property_type = st.selectbox("🏠 نوع العقار:", ["شقة", "فيلا", "أرض", "عمارة", "محل تجاري"])
-
-# ========== حالة العقار ==========
-status = st.selectbox("📊 الحالة:", ["بيع", "شراء", "إيجار"])
-
-# ========== عدد العقارات ==========
-property_count = st.number_input("🔢 عدد العقارات للتحليل:", min_value=1, max_value=50, value=1)
-
-# ========== اختيار الباقة ==========
-st.subheader("💼 اختر(ي) الباقة:")
-plans = {
-    "مجانية": {"price": 0, "features": "تحليل سريع لعقار واحد بدون تفاصيل مالية دقيقة + تقرير PDF"},
+packages = {
+    "مجانية": {"price": 0, "features": "تحليل سريع لعقار واحد + تقرير PDF"},
     "فضية": {"price": 10, "features": "تحليل دقيق + متوسط الأسعار + نصائح استثمارية + تقرير PDF"},
-    "ذهبية": {"price": 30, "features": "كل ما سبق + تنبؤ ذكي بالأسعار + اقتراح وقت البيع + تقرير PDF"},
-    "ماسية": {"price": 55, "features": "تحليل شامل + مقارنة مشاريع + تنبؤ ذكي + تقرير PDF فاخر"}
+    "ذهبية": {"price": 30, "features": "كل ما سبق + تنبؤ ذكي بالسعر + اقتراح أفضل وقت للبيع + تقرير PDF"},
+    "ماسية": {"price": 60, "features": "تحليل شامل + مقارنة مشاريع مماثلة + تنبؤ ذكي + تقرير PDF فاخر"},
 }
 
-plan = st.selectbox("📦 الباقة:", list(plans.keys()))
+# === اختيار الفئة ===
+st.subheader("اختار(ي) فئتك")
+selected_package = st.selectbox("اختر الباقة:", list(packages.keys()))
+package_info = packages[selected_package]
+st.markdown(f"**مميزات الباقة:** {package_info['features']}")
 
-# ===== السعر الإجمالي =====
-total_price = plans[plan]["price"] * property_count
-st.write(f"💰 **السعر الإجمالي:** {total_price} دولار")
+# === اختيار التفاصيل ===
+st.subheader("تفاصيل العقار")
 
-# ===== عرض المميزات =====
-st.markdown(f"📝 **مميزات الباقة:** {plans[plan]['features']}")
+city = st.selectbox("المدينة:", cities)
+property_type = st.selectbox("نوع العقار:", property_types)
+status = st.selectbox("الحالة:", status_options)
+num_properties = st.slider("عدد العقارات:", 1, 1000, 1)
 
-# ===== زر التحليل =====
-if st.button("🚀 تحليل العقار الآن"):
-    st.success("✅ تم توليد التقرير بنجاح!")
-    st.download_button("📄 تحميل التقرير (PDF)", "تقرير_عقاري.pdf")
+# حساب السعر الإجمالي
+total_price = package_info["price"] * num_properties
+st.markdown(f"### 💰 السعر الإجمالي: {total_price} دولار")
 
-# ===== قسم خاص بالمؤثرين (يظهر فقط للإدارة) =====
-if admin_mode:
-    st.markdown("---")
-    st.markdown("🎯 **رابط خاص للمؤثرين** — صالح لمدة 24 ساعة ولمرة واحدة فقط")
+# === زر تحميل التقرير ===
+if st.button("📄 تحميل التقرير"):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.add_font('Amiri', '', 'Amiri-Regular.ttf', uni=True)
+    pdf.set_font('Amiri', '', 14)
+    pdf.cell(0, 10, txt="تقرير التحليل العقاري الذكي", ln=True, align='C')
+    pdf.cell(0, 10, txt=f"الباقة: {selected_package}", ln=True)
+    pdf.cell(0, 10, txt=f"المدينة: {city}", ln=True)
+    pdf.cell(0, 10, txt=f"نوع العقار: {property_type}", ln=True)
+    pdf.cell(0, 10, txt=f"الحالة: {status}", ln=True)
+    pdf.cell(0, 10, txt=f"عدد العقارات: {num_properties}", ln=True)
+    pdf.cell(0, 10, txt=f"السعر الإجمالي: {total_price} دولار", ln=True)
+    pdf.output("report.pdf")
+    with open("report.pdf", "rb") as f:
+        st.download_button("⬇️ تحميل التقرير PDF", f, file_name="real_estate_report.pdf")
 
-    if st.button("🔗 إنشاء رابط مؤثر جديد"):
-        unique_code = random.randint(100000, 999999)
-        expiry = datetime.now() + timedelta(hours=24)
-        influencer_link = f"https://yourapp.streamlit.app/?token={unique_code}"
-        st.info(f"رابط مؤقت للمؤثر: {influencer_link}\n⏰ صالح حتى: {expiry.strftime('%Y-%m-%d %H:%M:%S')}")
+# === وضع الإدارة السري ===
+params = st.experimental_get_query_params()
+if "admin" in params and params["admin"][0].lower() == "true":
+    st.markdown("### 🔐 وضع الإدارة (خاص بوردة فقط)")
+    password = st.text_input("أدخلي الرمز السري:", type="password")
 
-st.markdown("<hr>", unsafe_allow_html=True)
-st.caption("© منصة التحليل العقاري الذكي - بإدارة الاسم العملي لصاحبة المنصة 🌟")
+    if password == "Warda2025":
+        st.success("تم الدخول بنجاح ✅")
+        st.markdown("#### 🎁 إنشاء رابط مؤثر مجاني ليوم واحد")
+
+        if st.button("🔗 إنشاء رابط مؤقت"):
+            token = random.randint(100000, 999999)
+            expiry = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime("%Y-%m-%d %H:%M")
+            influencer_link = f"https://منصتك.com/?free_access={token}"
+            st.write(f"🔗 الرابط المجاني (صالح حتى {expiry}):")
+            st.code(influencer_link, language="text")
+    else:
+        if password:
+            st.error("الرمز السري غير صحيح ❌")
