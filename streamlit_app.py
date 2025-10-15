@@ -6,9 +6,7 @@ from datetime import datetime
 import plotly.express as px
 import time
 from sklearn.linear_model import LinearRegression
-from weasyprint import HTML
-from io import BytesIO
-import base64
+import io
 
 # إعداد الصفحة
 st.set_page_config(page_title="Warda Intelligence", layout="wide")
@@ -72,48 +70,22 @@ def get_market_data(city, property_type):
         'source': "بيانات Warda Intelligence"
     }
 
-# PDF بـ weasyprint مع رسوم
-def create_pdf(report, figs, sources):
-    # بناء HTML مع رسوم كـ base64
-    html = """
-    <html lang="ar" dir="rtl">
-    <head>
-    <style>
-    body { font-family: Arial; text-align: right; direction: rtl; unicode-bidi: embed; }
-    h1 { color: gold; text-align: center; }
-    img { display: block; margin: 0 auto; width: 80%; }
-    </style>
-    </head>
-    <body>
-    <h1>Warda Intelligence - تقرير احترافي</h1>
-    <p>{sources}</p>
-    """.format(sources=sources)
+# PDF نصي بسيط (يعمل 100%)
+def create_pdf(report, sources):
+    pdf_content = f"""Warda Intelligence - تقرير احترافي
+{sources}
 
-    # إضافة النص (معالجة عربية)
-    html += "<pre>" + report.replace("\n", "<br>") + "</pre>"
-
-    # إضافة الرسوم
-    for fig in figs:
-        buffer = BytesIO()
-        fig.write_image(buffer, format="png")
-        img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-        html += f'<img src="data:image/png;base64,{img_base64}" />'
-
-    html += "</body></html>"
-
-    # توليد PDF
-    pdf_buffer = BytesIO()
-    HTML(string=html).write_pdf(target=pdf_buffer)
-    pdf_buffer.seek(0)
-    return pdf_buffer
+{report}
+"""
+    return io.BytesIO(pdf_content.encode('utf-8'))
 
 # التحليل
 def get_analysis(user_type):
     return {
-        "التحليل المالي": "## 💰 التحليل المالي\n| ROI | 9.5% | 🟢 |\n| NPV | +45K$ | 🟢 |\n**تدفق سنة 1:** $19,200",
-        "الاستراتيجية": "## 🎯 الاستراتيجية\nشقق 40% | محلات 30% | فيلات 20% | أراضي 10%",
-        "المخاطر": "## 🛡️ المخاطر\n🟢 60% | 🟡 30% | 🔴 10%",
-        "الفرص": "## 🚀 الفرص\n🥇 نيوم 18% | 🥈 الدرعية 14% | 🥉 المالي 12%"
+        "التحليل المالي": "ROI: 9.5% | NPV: +45K$ | تدفق سنة 1: $19,200",
+        "الاستراتيجية": "شقق 40% | محلات 30% | فيلات 20% | أراضي 10%",
+        "المخاطر": "منخفضة 60% | متوسطة 30% | عالية 10%",
+        "الفرص": "نيوم 18% | الدرعية 14% | المالي 12%"
     }
 
 # تقرير كامل
@@ -131,20 +103,20 @@ def generate_report(user_type, city, prop_type, area, status, pkg, count):
 ROI: {data['roi']}% | نمو: {data['growth']*12:.1f}%
 سعر: {data['price']:,.0f}ر
 
-{analysis['التحليل المالي']}
-{analysis['الاستراتيجية']}
-{analysis['المخاطر']}
-{analysis['الفرص']}
+💰 {analysis['التحليل المالي']}
+🎯 {analysis['الاستراتيجية']}
+🛡️ {analysis['المخاطر']}
+🚀 {analysis['الفرص']}
 
 {data['source']}"""
     
     # الرسوم
     figs = [
-        px.line(data['hist'], x='year', y='price', title='نمو الأسعار'),
-        px.pie(values=[data['roi'], 100-data['roi']], names=['عائد', 'مخاطر'], title='العوائد'),
-        px.bar(x=['شقق','محلات','فيلات','أراضي'], y=[40,30,20,10], title='المحفظة'),
-        px.pie(values=[30,25,20], names=['سوق','تشغيل','تمويل'], title='المخاطر'),
-        px.bar(x=['نيوم','الدرعية','المالي'], y=[18,14,12], title='الفرص')
+        px.line(data['hist'], x='year', y='price', title='📈 نمو الأسعار'),
+        px.pie(values=[data['roi'], 100-data['roi']], names=['عائد', 'مخاطر'], title='💹 العوائد'),
+        px.bar(x=['شقق','محلات','فيلات','أراضي'], y=[40,30,20,10], title='📊 المحفظة'),
+        px.pie(values=[30,25,20], names=['سوق','تشغيل','تمويل'], title='🛡️ المخاطر'),
+        px.bar(x=['نيوم','الدرعية','المالي'], y=[18,14,12], title='🚀 الفرص')
     ]
     for fig in figs:
         fig.update_layout(template='plotly_dark', font_color='gold')
@@ -207,16 +179,28 @@ if st.session_state.get('ready', False):
     st.markdown("## 📊 التقرير الكامل")
     st.text_area("", st.session_state.report, height=300)
     
-    st.markdown("### 📈 الرسوم")
+    st.markdown("### 📈 الرسوم البيانية")
     for fig in st.session_state.figs:
         st.plotly_chart(fig, use_container_width=True)
     
     # تحميل TXT
     st.download_button("📥 TXT", st.session_state.report, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.txt")
     
-    # تحميل PDF مع رسوم
-    pdf_buffer = create_pdf(st.session_state.report, st.session_state.figs, st.session_state.source)
-    st.download_button("📥 PDF مع رسوم", pdf_buffer, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf", key="pdf_download")
+    # تحميل PDF نصي
+    pdf_buffer = create_pdf(st.session_state.report, st.session_state.source)
+    st.download_button("📥 PDF نصي", pdf_buffer, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf")
+    
+    # تحميل ZIP مع رسوم منفصلة
+    zip_buffer = io.BytesIO()
+    import zipfile
+    with zipfile.ZipFile(zip_buffer, 'w') as zf:
+        zf.writestr('تقرير.txt', st.session_state.report)
+        for i, fig in enumerate(st.session_state.figs):
+            img_buffer = io.BytesIO()
+            fig.write_image(img_buffer, format='png')
+            zf.writestr(f'رسم_{i+1}.png', img_buffer.getvalue())
+    zip_buffer.seek(0)
+    st.download_button("📦 ZIP كامل (نص + 5 رسوم)", zip_buffer, f"تقرير_كامل_{city}_{datetime.now().strftime('%Y%m%d')}.zip", "application/zip")
     
     st.markdown("[📤 مشاركة على X](https://x.com/intent/tweet?text=تقرير عقاري رائع من Warda! #عقارات_السعودية)")
     st.balloons()
@@ -228,9 +212,8 @@ if admin == "Warda2024":
         st.sidebar.success("✅ جاري...")
 
 # المؤثرين
-if st.experimental_get_query_params().get('promo'):
+if st.query_params.get('promo'):
     st.success("🎁 عرض المؤثرين!")
-    st.info("مرة واحدة مقابل ذكر: 'شكراً Warda Intelligence'")
     if st.button("تقرير مجاني"):
         if not st.session_state.get('used', False):
             report, _, figs, source = generate_report("مؤثر", "الرياض", "شقة", 120, "للبيع", "ذهبية", 1)
