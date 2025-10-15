@@ -6,9 +6,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 import io
-import base64
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
+import zipfile
 
 # إعداد الصفحة
 st.set_page_config(page_title="Warda Intelligence", layout="wide")
@@ -72,29 +70,18 @@ def get_market_data(city, property_type):
         'source': "بيانات Warda Intelligence"
     }
 
-# PDF مع رسوم بـ reportlab + matplotlib
-def create_pdf(report, figs_data, sources):
+# PDF نصي بسيط
+def create_pdf(report, sources):
     buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    c.setFont("Helvetica", 12)
-    
-    # إضافة غلاف
-    c.drawString(100, 750, "Warda Intelligence - تقرير احترافي")
-    c.drawString(100, 730, sources)
-    c.showPage()
-    
-    # إضافة النص
-    y = 750
-    for line in report.split('\n'):
-        if y < 50:
-            c.showPage()
-            y = 750
-        c.drawString(50, y, line)
-        y -= 20
-    
-    # إضافة الرسوم
+    buffer.write(f"Warda Intelligence - تقرير احترافي\n{sources}\n\n".encode('utf-8'))
+    buffer.write(report.encode('utf-8'))
+    buffer.seek(0)
+    return buffer
+
+# إنشاء رسوم كـ PNG
+def create_figs(figs_data):
+    img_buffers = []
     for i, (title, data) in enumerate(figs_data):
-        c.showPage()
         img_buffer = io.BytesIO()
         plt.figure(figsize=(8, 4))
         if 'line' in title.lower():
@@ -114,12 +101,8 @@ def create_pdf(report, figs_data, sources):
         plt.savefig(img_buffer, format='PNG', bbox_inches='tight', facecolor='#0E1117')
         plt.close()
         img_buffer.seek(0)
-        c.drawImage(io.BytesIO(img_buffer.getvalue()), 50, 500, width=500, height=200)
-        c.drawString(50, 470, f"الرسم {i+1}: {title}")
-    
-    c.save()
-    buffer.seek(0)
-    return buffer
+        img_buffers.append((f"رسم_{i+1}.png", img_buffer.getvalue()))
+    return img_buffers
 
 # التحليل
 def get_analysis(user_type):
@@ -222,9 +205,19 @@ if st.session_state.get('ready', False):
     # تحميل TXT
     st.download_button("📥 TXT", st.session_state.report, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.txt")
     
-    # تحميل PDF مع رسوم
-    pdf_buffer = create_pdf(st.session_state.report, st.session_state.figs_data, st.session_state.source)
-    st.download_button("📥 PDF مع رسوم", pdf_buffer, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf")
+    # تحميل PDF نصي
+    pdf_buffer = create_pdf(st.session_state.report, st.session_state.source)
+    st.download_button("📥 PDF نصي", pdf_buffer, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf")
+    
+    # تحميل ZIP مع رسوم
+    img_buffers = create_figs(st.session_state.figs_data)
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr('تقرير.txt', st.session_state.report)
+        for filename, img_data in img_buffers:
+            zf.writestr(filename, img_data)
+    zip_buffer.seek(0)
+    st.download_button("📦 ZIP (نص + 5 رسوم)", zip_buffer, f"تقرير_كامل_{city}_{datetime.now().strftime('%Y%m%d')}.zip", "application/zip")
     
     st.markdown("[📤 مشاركة على X](https://x.com/intent/tweet?text=تقرير عقاري رائع من Warda! #عقارات_السعودية)")
     st.balloons()
