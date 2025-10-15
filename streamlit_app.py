@@ -3,8 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 from datetime import datetime
-import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
+import plotly.express as px
 import io
 import zipfile
 
@@ -78,28 +77,18 @@ def create_pdf(report, sources):
     buffer.seek(0)
     return buffer
 
-# إنشاء رسوم كـ PNG
+# إنشاء رسوم كـ PNG باستخدام plotly
 def create_figs(figs_data):
     img_buffers = []
     for i, (title, data) in enumerate(figs_data):
+        if 'year' in data:
+            fig = px.line(x=data['year'], y=data['price'], title=title, template='plotly_dark', color_discrete_sequence=['gold'])
+        elif 'values' in data:
+            fig = px.pie(values=data['values'], names=data['labels'], title=title, template='plotly_dark', color_discrete_sequence=['gold', 'gray'])
+        elif 'x' in data:
+            fig = px.bar(x=data['x'], y=data['y'], title=title, template='plotly_dark', color_discrete_sequence=['gold'])
         img_buffer = io.BytesIO()
-        plt.figure(figsize=(8, 4))
-        if 'line' in title.lower():
-            plt.plot(data['year'], data['price'], marker='o', color='gold')
-            plt.title(title, color='gold')
-            plt.xlabel('السنة', color='gold')
-            plt.ylabel('السعر', color='gold')
-            plt.grid(True)
-        elif 'pie' in title.lower():
-            plt.pie(data['values'], labels=data['labels'], colors=['gold', 'gray'], autopct='%1.1f%%')
-            plt.title(title, color='gold')
-        elif 'bar' in title.lower():
-            plt.bar(data['x'], data['y'], color='gold')
-            plt.title(title, color='gold')
-            plt.xlabel('الفئة', color='gold')
-            plt.ylabel('القيمة', color='gold')
-        plt.savefig(img_buffer, format='PNG', bbox_inches='tight', facecolor='#0E1117')
-        plt.close()
+        fig.write_image(img_buffer, format='png', width=800, height=400)
         img_buffer.seek(0)
         img_buffers.append((f"رسم_{i+1}.png", img_buffer.getvalue()))
     return img_buffers
