@@ -6,8 +6,8 @@ from datetime import datetime
 import plotly.express as px
 import time
 from sklearn.linear_model import LinearRegression
-from fpdf import FPDF  # ✅ مكتبة fpdf اللي عندك موجودة!
-import io
+from weasyprint import HTML
+from io import BytesIO
 import base64
 
 # إعداد الصفحة
@@ -72,39 +72,40 @@ def get_market_data(city, property_type):
         'source': "بيانات Warda Intelligence"
     }
 
-# PDF بسيط مع دعم أفضل للعربية
-def create_pdf(report, figs, sources, filename):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    
-    # غلاف
-    pdf.cell(0, 10, "Warda Intelligence - تقرير احترافي", 0, 1, 'C')
-    pdf.cell(0, 10, sources, 0, 1, 'C')
-    pdf.ln(10)
-    
-    # نص التقرير (معالجة العربية)
-    for line in report.split('\n'):
-        try:
-            clean_line = line.encode('latin1', 'replace').decode('latin1')
-            pdf.cell(0, 5, clean_line, 0, 1)
-        except:
-            pdf.cell(0, 5, "النص", 0, 1)
-    
-    # حفظ رسم واحد كمثال (الأول فقط للبساطة)
-    try:
-        img_path = "temp_fig.png"
-        figs[0].write_image(img_path, width=800)
-        pdf.add_page()
-        pdf.image(img_path, 10, 10, 190)
-        pdf.cell(0, 10, "رسم بياني: نمو الأسعار", 0, 1, 'C')
-        if os.path.exists(img_path):
-            os.remove(img_path)
-    except:
-        pass  # إذا فشل، نترك النص فقط
-    
-    pdf.output(filename)
-    return filename
+# PDF بـ weasyprint مع رسوم
+def create_pdf(report, figs, sources):
+    # بناء HTML مع رسوم كـ base64
+    html = """
+    <html lang="ar" dir="rtl">
+    <head>
+    <style>
+    body { font-family: Arial; text-align: right; direction: rtl; unicode-bidi: embed; }
+    h1 { color: gold; text-align: center; }
+    img { display: block; margin: 0 auto; width: 80%; }
+    </style>
+    </head>
+    <body>
+    <h1>Warda Intelligence - تقرير احترافي</h1>
+    <p>{sources}</p>
+    """.format(sources=sources)
+
+    # إضافة النص (معالجة عربية)
+    html += "<pre>" + report.replace("\n", "<br>") + "</pre>"
+
+    # إضافة الرسوم
+    for fig in figs:
+        buffer = BytesIO()
+        fig.write_image(buffer, format="png")
+        img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        html += f'<img src="data:image/png;base64,{img_base64}" />'
+
+    html += "</body></html>"
+
+    # توليد PDF
+    pdf_buffer = BytesIO()
+    HTML(string=html).write_pdf(target=pdf_buffer)
+    pdf_buffer.seek(0)
+    return pdf_buffer
 
 # التحليل
 def get_analysis(user_type):
@@ -213,10 +214,9 @@ if st.session_state.get('ready', False):
     # تحميل TXT
     st.download_button("📥 TXT", st.session_state.report, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.txt")
     
-    # تحميل PDF مع رسم
-    pdf_file = create_pdf(st.session_state.report, st.session_state.figs, st.session_state.source, "report.pdf")
-    with open(pdf_file, "rb") as f:
-        st.download_button("📥 PDF مع رسم", f, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf")
+    # تحميل PDF مع رسوم
+    pdf_buffer = create_pdf(st.session_state.report, st.session_state.figs, st.session_state.source)
+    st.download_button("📥 PDF مع رسوم", pdf_buffer, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf", key="pdf_download")
     
     st.markdown("[📤 مشاركة على X](https://x.com/intent/tweet?text=تقرير عقاري رائع من Warda! #عقارات_السعودية)")
     st.balloons()
@@ -228,7 +228,7 @@ if admin == "Warda2024":
         st.sidebar.success("✅ جاري...")
 
 # المؤثرين
-if st.query_params.get('promo'):
+if st.experimental_get_query_params().get('promo'):
     st.success("🎁 عرض المؤثرين!")
     st.info("مرة واحدة مقابل ذكر: 'شكراً Warda Intelligence'")
     if st.button("تقرير مجاني"):
