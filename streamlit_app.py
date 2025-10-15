@@ -1,79 +1,115 @@
 import streamlit as st
 from fpdf import FPDF
 
-# إعداد صفحة التطبيق
-st.set_page_config(page_title="التحليل العقاري الذهبي", layout="centered")
+# إعداد الصفحة
+st.set_page_config(page_title="منصة وردة الذكية للعقارات", layout="centered")
 
-# --- التصميم الذهبي الفاخر ---
+# تصميم الواجهة (أسود وذهبي)
 st.markdown("""
     <style>
-        body, .stApp {background-color: black; color: gold;}
-        .stTextInput, .stSelectbox, .stNumberInput, .stButton button {
-            background-color: black !important;
-            color: gold !important;
-            border: 1px solid gold !important;
-        }
-        .stButton button:hover {
-            background-color: gold !important;
-            color: black !important;
-        }
-        .gold-title {
-            text-align: center;
-            font-size: 30px;
-            font-weight: bold;
-            color: gold;
-        }
+    body { background-color: black; color: gold; }
+    .stApp { background-color: black; color: gold; }
+    .stTextInput, .stSelectbox, .stNumberInput, .stButton > button {
+        background-color: #111;
+        color: gold;
+        border: 1px solid gold;
+        border-radius: 10px;
+    }
+    .stButton > button:hover {
+        background-color: gold;
+        color: black;
+    }
+    .password-button {
+        position: fixed;
+        bottom: 15px;
+        right: 15px;
+        background-color: #111;
+        color: gold;
+        border: 1px solid gold;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        text-align: center;
+        font-size: 22px;
+        cursor: pointer;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<div class='gold-title'>🏠 التحليل العقاري الذهبي 🏠</div>", unsafe_allow_html=True)
+# عنوان التطبيق
+st.markdown("<h1 style='text-align:center; color:gold;'>🏡 منصة وردة الذكية للعقارات</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#bbb;'>اختر(ي) مدينتك، نوع العقار، وعدد العقارات لتحليل ذكي دقيق 🔍</p>", unsafe_allow_html=True)
 
-# --- كلمة السر الخاصة بك ---
-password = st.sidebar.text_input("🔒 كلمة السر الخاصة بلوحة المؤثرين", type="password")
-is_admin = password == "GoldenAccess2025"
+# واجهة اختيار البيانات
+st.subheader("🔍 اختر المدينة والفئة لتحليل العقارات:")
 
-# --- الواجهة العامة ---
-st.markdown("### 🔍 اختر بيانات العقار للتحليل:")
+col1, col2 = st.columns(2)
+with col1:
+    city = st.selectbox("🏙️ المدينة", ["الرياض", "جدة", "الدمام", "مكة", "المدينة"])
+with col2:
+    category = st.selectbox("🏘️ الفئة", ["شقق", "فلل", "أراضي", "مكاتب", "محلات"])
 
-city = st.selectbox("🏙️ المدينة", ["الرياض", "جدة", "الدمام", "مكة", "المدينة المنورة"])
-category = st.selectbox("🏘️ الفئة", ["شقق", "فلل", "أراضي", "عمائر", "محلات تجارية"])
-property_type = st.selectbox("🏗️ نوع العقار", ["سكني", "تجاري", "استثماري"])
-status = st.selectbox("📜 الحالة", ["بيع", "شراء", "إيجار"])
+col3, col4 = st.columns(2)
+with col3:
+    property_type = st.selectbox("🏗️ نوع العقار", ["سكني", "تجاري", "استثماري"])
+with col4:
+    status = st.selectbox("📈 الحالة", ["بيع", "شراء", "إيجار"])
 
-# --- عدد العقارات ---
-num_properties = st.number_input("📊 عدد العقارات", min_value=1, max_value=10000, value=1000, step=100)
+num_properties = st.slider("🏢 عدد العقارات للتحليل", 100, 1000, 500)
 
-# السعر يبدأ من قيمة أساسية ويصعد حسب العدد
-base_price = 150000  # دولار كبداية
-price = base_price + (num_properties * 25)
+# اختيار الباقة
+st.subheader("💎 اختر الباقة المناسبة لك:")
+packages = {
+    "مجانية": {"price": 0, "features": "تحليل سريع لعقار واحد + تقرير PDF"},
+    "فضية": {"price": 12, "features": "تحليل دقيق + متوسط الأسعار + نصائح + تقرير PDF"},
+    "ذهبية": {"price": 28, "features": "تحليل متقدم + تنبؤ ذكي + أفضل وقت للبيع + تقرير PDF"},
+    "ماسية": {"price": 55, "features": "تحليل شامل + مقارنة مشاريع + تنبؤ ذكي + تقرير PDF فاخر"}
+}
+selected_package = st.selectbox("💼 الباقة", list(packages.keys()))
+price = packages[selected_package]["price"]
+features = packages[selected_package]["features"]
 
-st.write(f"💰 السعر التقديري الحالي: **{price:,} دولار**")
-st.write(f"📈 كلما زاد عدد العقارات، زاد السعر تلقائيًا.")
+st.markdown(f"""
+<div style='background-color:#111; padding:10px; border-radius:10px; border:1px solid gold;'>
+<strong>💰 السعر:</strong> {price} دولار<br>
+<strong>✨ مميزات الباقة:</strong> {features}
+</div>
+""", unsafe_allow_html=True)
 
-# --- زر التحليل ---
-if st.button("ابدأ التحليل الآن 💫"):
-    st.success("🔎 جاري تحليل البيانات الذكية...")
-    st.balloons()
+# زر إنشاء التقرير
+if st.button("📄 تحميل تقريرك PDF"):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.add_font('Amiri', '', 'Amiri-Regular.ttf', uni=True)
+    pdf.set_font('Amiri', '', 14)
+    pdf.cell(0, 10, txt="تقرير التحليل العقاري", ln=True, align='C')
+    pdf.ln(10)
+    pdf.multi_cell(0, 10, f"""
+    المدينة: {city}
+    الفئة: {category}
+    نوع العقار: {property_type}
+    الحالة: {status}
+    عدد العقارات: {num_properties}
+    الباقة المختارة: {selected_package}
+    السعر بالدولار: {price}
+    المميزات: {features}
+    """)
+    pdf.output("تقرير_وردة.pdf")
+    st.success("تم إنشاء التقرير بنجاح ✅")
+    st.download_button("⬇️ تحميل التقرير PDF", data=open("تقرير_وردة.pdf", "rb"), file_name="تقرير_وردة.pdf")
 
-    st.write("✅ تحليل شامل للعقارات المختارة")
-    st.write("✅ مقارنة بالمشاريع المشابهة في المنطقة")
-    st.write("✅ تنبؤ ذكي للأسعار المستقبلية")
-    st.write("✨ **مميزات الباقة: تحليل شامل + مقارنة مشاريع + تنبؤ ذكي + تقرير PDF فاخر** ✨")
+# زر المؤثرين (سري)
+st.markdown("<div class='password-button'>🔑</div>", unsafe_allow_html=True)
 
-    # --- زر تحميل التقرير ---
-    if st.button("📄 تحميل التقرير PDF"):
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(200, 10, txt="تقرير التحليل العقاري الذهبي", ln=True, align="C")
-        pdf.output("golden_report.pdf")
-        st.success("📁 تم إنشاء التقرير بنجاح! يمكنك تحميله الآن.")
+# إدخال كلمة السر عند الضغط
+show_panel = st.text_input("كلمة السر (خاصة بالمؤثرين):", type="password")
 
-# --- لوحة المؤثرين (لكِ فقط) ---
-if is_admin:
-    st.sidebar.markdown("## 🔑 لوحة المؤثرين الخاصة بك")
-    influencer_link = st.sidebar.text_input("أدخل رابط المؤثر:")
-    if influencer_link:
-        st.sidebar.success(f"✅ تم حفظ رابط المؤثر: {influencer_link}")
-else:
-    pass  # الزوار لا يرون أي شيء
+if show_panel == "Warda2025":
+    st.success("تم فتح لوحة المؤثرين ✅")
+    st.markdown("""
+        ### 🎯 لوحة المؤثرين
+        يمكنك توليد روابط خاصة تمنح المستخدمين تقارير مجانية ليوم واحد فقط.
+        """)
+    influencer_name = st.text_input("اسم المؤثر:")
+    if st.button("🔗 إنشاء رابط مؤقت"):
+        st.success(f"✅ تم إنشاء رابط خاص لـ {influencer_name} صالح لمدة 24 ساعة.")
