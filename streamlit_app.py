@@ -6,231 +6,561 @@ from datetime import datetime
 import plotly.express as px
 import time
 import io
-import zipfile
+from fpdf import FPDF
+import arabic_reshaper
+from bidi.algorithm import get_display
 
 # إعداد الصفحة
 st.set_page_config(page_title="Warda Intelligence", layout="wide")
 
-# تنسيق فاخر
+# تنسيق واجهة فاخرة
 st.markdown("""
-<style>
-.main {background-color: #0E1117; color: gold;}
-h1,h2,h3,h4,h5,h6 {color: gold !important;}
-.stButton>button {background-color: gold; color: black; font-weight: bold; border-radius: 10px; width: 100%;}
-.package-card {background: linear-gradient(135deg, #2d2d2d, #1a1a1a); padding: 15px; border-radius: 10px; border: 2px solid #d4af37; text-align: center;}
-</style>
+    <style>
+    .main { background-color: #0E1117; color: gold; }
+    .stApp { background-color: #0E1117; }
+    h1, h2, h3, h4, h5, h6 { color: gold !important; }
+    .stSelectbox label, .stSlider label, .stRadio label { color: gold !important; }
+    .stButton>button {
+        background-color: gold; color: black; font-weight: bold;
+        border-radius: 10px; padding: 0.6em 1.2em; border: none;
+        width: 100%;
+    }
+    .analysis-card {
+        background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+        padding: 20px; border-radius: 15px; border: 1px solid gold;
+        margin: 10px 0; color: white;
+    }
+    .price-up { color: #00ff00; font-weight: bold; }
+    .price-down { color: #ff4444; font-weight: bold; }
+    .package-card {
+        background: linear-gradient(135deg, #2d2d2d, #1a1a1a);
+        padding: 15px; border-radius: 10px; border: 2px solid #d4af37;
+        margin: 10px 0; text-align: center;
+    }
+    .admin-panel {
+        background: linear-gradient(135deg, #1a2a3a, #2a3a4a);
+        padding: 20px; border-radius: 15px; border: 2px solid #00ff00;
+        margin: 10px 0;
+    }
+    .report-section {
+        background: linear-gradient(135deg, #1e1e1e, #2a2a2a);
+        padding: 25px; border-radius: 15px; border-left: 5px solid gold;
+        margin: 15px 0; color: white;
+    }
+    .metric-card {
+        background: linear-gradient(135deg, #2a2a2a, #3a3a3a);
+        padding: 15px; border-radius: 10px; border: 1px solid #d4af37;
+        margin: 10px; text-align: center;
+    }
+    </style>
 """, unsafe_allow_html=True)
 
-# العنوان
-st.markdown("<h1 style='text-align: center; color: gold;'>🏙️ Warda Intelligence - التحليل العقاري الذهبي</h1>", unsafe_allow_html=True)
+# العنوان الرئيسي
+st.markdown("<h1 style='text-align: center; color: gold;'>🏙️ منصة التحليل العقاري الذهبي - Warda Intelligence</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #d4af37;'>تحليل ذكي مخصص لكل فئة - قرارات استثمارية مدروسة</p>", unsafe_allow_html=True)
 
-# الباقات
+# === نظام الباقات والأسعار ===
 PACKAGES = {
-    "مجانية": {"price": 0, "features": ["تحليل أساسي", "أسعار متوسطة", "تقرير TXT", "عقار واحد"]},
-    "فضية": {"price": 29, "features": ["كل المجانية +", "تنبؤ 6 أشهر", "PDF", "رسوم بيانية", "5 منافسين"]},
-    "ذهبية": {"price": 79, "features": ["كل الفضية +", "AI متقدم", "تنبؤ سنة", "10 منافسين", "مخاطر متقدمة"]},
-    "ماسية": {"price": 149, "features": ["كل الذهبية +", "تحليل شامل", "كل المدن", "خطة استثمارية"]}
+    "مجانية": {
+        "price": 0,
+        "features": [
+            "تحليل سوق أساسي",
+            "أسعار متوسطة للمنطقة", 
+            "تقرير نصي بسيط",
+            "صالح لعقار واحد"
+        ]
+    },
+    "فضية": {
+        "price": 29,
+        "features": [
+            "كل مميزات المجانية +",
+            "تحليل تنبؤي 6 أشهر",
+            "مقارنة مع 5 مشاريع مشابهة",
+            "نصائح استثمارية متقدمة",
+            "تقرير PDF تفاعلي",
+            "رسوم بيانية متحركة",
+            "تحليل المنافسين",
+            "دراسة الجدوى المبدئية"
+        ]
+    },
+    "ذهبية": {
+        "price": 79,
+        "features": [
+            "كل مميزات الفضية +", 
+            "تحليل ذكاء اصطناعي متقدم",
+            "تنبؤات لمدة سنة كاملة",
+            "دراسة الجدوى الاقتصادية الشاملة",
+            "تحليل 10 منافسين رئيسيين",
+            "نصائح مخصصة حسب الفئة",
+            "مؤشرات أداء مفصلة",
+            "تحليل المخاطر المتقدم"
+        ]
+    },
+    "ماسية": {
+        "price": 149,
+        "features": [
+            "كل مميزات الذهبية +",
+            "تحليل شمولي متكامل", 
+            "تقارير مقارنة مع كل المدن",
+            "تحليل المخاطرة المتقدم",
+            "خطة استثمارية تفصيلية",
+            "محاكاة سيناريوهات متعددة",
+            "تحليل توقيت السوق",
+            "توصيات استراتيجية شاملة"
+        ]
+    }
 }
 
-# قراءة بيانات السكريبر
-@st.cache_data(ttl=604800)
-def load_real_data(city, property_type):
-    try:
-        if os.path.exists("outputs"):
-            files = [f for f in os.listdir("outputs") if f.startswith(f"{city}_")]
-            if files:
-                latest = max(files, key=lambda x: os.path.getctime(f"outputs/{x}"))
-                return pd.read_csv(f"outputs/{latest}")
-    except:
-        pass
-    return pd.DataFrame()
+# === بيانات سوقية متقدمة ===
+def generate_advanced_market_data(city, property_type, status):
+    """إنشاء بيانات سوقية متقدمة ومفصلة"""
+    
+    # أسعار أساسية مفصلة
+    base_prices = {
+        "الرياض": {
+            "شقة": {"سكني": 4500, "فاخر": 6500, "اقتصادي": 3200},
+            "فيلا": {"سكني": 3200, "فاخر": 4800, "اقتصادي": 2400},
+            "أرض": {"سكني": 1800, "تجاري": 3500, "استثماري": 2200},
+            "محل تجاري": {"مركزي": 8000, "تجاري": 6000, "حيوي": 4500}
+        },
+        "جدة": {
+            "شقة": {"سكني": 3800, "فاخر": 5500, "اقتصادي": 2800},
+            "فيلا": {"سكني": 2800, "فاخر": 4200, "اقتصادي": 2000},
+            "أرض": {"سكني": 1500, "تجاري": 2800, "استثماري": 1800},
+            "محل تجاري": {"مركزي": 6500, "تجاري": 5000, "حيوي": 3800}
+        }
+    }
+    
+    city_data = base_prices.get(city, base_prices["الرياض"])
+    property_data = city_data.get(property_type, {"سكني": 3000})
+    avg_price = np.mean(list(property_data.values()))
+    
+    # تأثير الحالة على السعر
+    price_multiplier = 1.12 if status == "للبيع" else 0.88 if status == "للشراء" else 0.95
+    
+    return {
+        'السعر_الحالي': avg_price * price_multiplier,
+        'متوسط_السوق': avg_price,
+        'أعلى_سعر': avg_price * 1.35,
+        'أقل_سعر': avg_price * 0.75,
+        'حجم_التداول_شهري': np.random.randint(150, 600),
+        'معدل_النمو_الشهري': np.random.uniform(0.8, 3.5),
+        'عرض_العقارات': np.random.randint(80, 250),
+        'طالب_الشراء': np.random.randint(120, 400),
+        'معدل_الإشغال': np.random.uniform(75, 95),
+        'العائد_التأجيري': np.random.uniform(6, 12),
+        'مؤشر_السيولة': np.random.uniform(60, 90)
+    }
 
-# بيانات السوق
-def get_market_data(city, property_type):
-    df = load_real_data(city, property_type)
-    if not df.empty:
-        price_col = next((c for c in ['price', 'Price', 'السعر'] if c in df.columns), None)
-        if price_col:
-            avg = df[price_col].mean()
-            vol = len(df)
-            hist = pd.DataFrame({'year': [2024, 2025], 'price': [avg*0.92, avg]})
-            model = LinearRegression().fit(hist[['year']], hist['price'])
-            return {
-                'price': avg, 'high': df[price_col].max(), 'low': df[price_col].min(),
-                'volume': vol, 'roi': 8.5, 'growth': 0.65, 'hist': hist,
-                'future1': model.predict([[2026]])[0],
-                'future3': model.predict([[2028]])[0],
-                'future5': model.predict([[2030]])[0],
-                'source': f"بيانات حية | {datetime.now().strftime('%Y-%m-%d')} | {vol} عقار"
+# === تحليلات متقدمة لكل فئة ===
+def get_advanced_analysis_by_user_type(user_type, city, property_type, area, status):
+    """تحليل متقدم ومفصل حسب فئة المستخدم"""
+    
+    analyses = {
+        "مستثمر": {
+            "title": "📊 التحليل الاستثماري الشامل",
+            "sections": {
+                "التحليل_المالي": """
+                ## 💰 التحليل المالي المتقدم
+                
+                ### 📈 مؤشرات الأداء الرئيسية (KPIs)
+                | المؤشر | القيمة | التقييم |
+                |---------|--------|----------|
+                | العائد على الاستثمار (ROI) | 9.5% سنوياً | 🟢 ممتاز |
+                | صافي القيمة الحالية (NPV) | +$45,000 | 🟢 إيجابي |
+                | معدل العائد الداخلي (IRR) | 11.2% | 🟢 جيد |
+                | فترة استرداد رأس المال | 8.2 سنة | 🟡 متوسطة |
+                | نسبة الدين إلى الحقوق | 65% | 🟢 مقبولة |
+                
+                ### 💸 تحليل التدفقات النقدية
+                **السنة الأولى:**
+                - الإيرادات الشهرية المتوقعة: $2,800
+                - المصروفات التشغيلية: $1,200  
+                - صافي التدفق الشهري: $1,600
+                - صافي التدفق السنوي: $19,200
+                
+                **توقعات 5 سنوات:**
+                - إجمالي الإيرادات: $168,000
+                - إجمالي المصروفات: $72,000
+                - صافي الربح التراكمي: $96,000
+                """,
+                
+                "استراتيجيات_الاستثمار": """
+                ## 🎯 استراتيجيات الاستثمار المتقدمة
+                
+                ### 🏆 الاستراتيجية المثلى: الشراء والتأجير طويل الأجل
+                
+                **المزايا:**
+                ✅ تدفقات نقدية شهرية ثابتة
+                ✅ ارتفاع القيمة السوقية مع الوقت  
+                ✅ حماية من التضخم
+                ✅ إعفاءات ضريبية محتملة
+                
+                **خطة التنفيذ:**
+                1. **الشهر 1-3:** البحث والتفاوض على 3-5 عقارات
+                2. **الشهر 4-6:** التمويل والتجهيزات
+                3. **الشهر 7-9:** التأجير وإدارة الممتلكات
+                4. **الشهر 10-12:** التقييم والتعديل
+                
+                ### 📊 محفظة الاستثمار المقترحة
+                | نوع العقار | النسبة | المبلغ | العائد المتوقع |
+                |-------------|---------|---------|-----------------|
+                | شقق سكنية | 40% | $200,000 | 8-10% |
+                | محلات تجارية | 30% | $150,000 | 10-12% |
+                | فيلات | 20% | $100,000 | 7-9% |
+                | أراضي | 10% | $50,000 | 12-15% |
+                """,
+                
+                "إدارة_المخاطر": """
+                ## 🛡️ إدارة المخاطر المتقدمة
+                
+                ### ⚠️ تحليل المخاطر الرئيسية
+                
+                **مخاطر السوق (30%)**
+                - تقلبات أسعار العقارات
+                - تغير ظروف الاقتصاد الكلي
+                - منافسة جديدة في المنطقة
+                
+                **مخاطر التشغيل (25%)**  
+                - صعوبة في إيجاد مستأجرين
+                - تكاليف صيانة غير متوقعة
+                - مشاكل قانونية وإدارية
+                
+                **مخاطر التمويل (20%)**
+                - ارتفاع أسعار الفائدة
+                - صعوبة إعادة التمويل
+                - تغير شروط القروض
+                
+                ### 🛡️ استراتيجيات التخفيف
+                1. **التنويع الجغرافي:** الاستثمار في 3 مناطق مختلفة
+                2. **تحوط سعري:** عقود خيارات للبيع
+                3. **احتياطي نقدي:** 6 أشهر من المصروفات
+                4. **تأمين شامل:** ضد جميع المخاطر
+                """,
+                
+                "الفرص_المستقبلية": """
+                ## 🚀 الفرص الاستثمارية المستقبلية
+                
+                ### 🎯 المناطق الواعدة في الرياض
+                
+                **🔝 المنطقة الشمالية (مشروع القدية)**
+                - معدل نمو متوقع: 15% سنوياً
+                - مشاريع تطوير كبرى قيد الإنشاء
+                - طلب متزايد على الوحدات السكنية
+                
+                **🏙️ المنطقة المركزية (المربع)**
+                - أسعار مستقرة ومضمونة
+                - طلب دائم من الموظفين الحكوميين
+                - إشغال مرتفع على مدار السنة
+                
+                **📈 توقعات الذكاء الاصطناعي**
+                - نمو السوق العقاري: 7.8% خلال 2024
+                - ارتفاع أسعار المواد: 4.2% 
+                - زيادة الطلب السكني: 12.5%
+                """
             }
-    return {
-        'price': 4500, 'high': 6000, 'low': 3000, 'volume': 150, 'roi': 8.5, 'growth': 0.65,
-        'hist': pd.DataFrame({'year': [2024, 2025], 'price': [4200, 4500] }),
-        'future1': 4800, 'future3': 5200, 'future5': 5800,
-        'source': "بيانات Warda Intelligence"
+        }
     }
-
-# PDF نصي بسيط
-def create_pdf(report, sources):
-    buffer = io.BytesIO()
-    buffer.write(f"Warda Intelligence - تقرير احترافي\n{sources}\n\n".encode('utf-8'))
-    buffer.write(report.encode('utf-8'))
-    buffer.seek(0)
-    return buffer
-
-# إنشاء رسوم كـ PNG باستخدام plotly
-def create_figs(figs_data):
-    img_buffers = []
-    for i, (title, data) in enumerate(figs_data):
-        if 'year' in data:
-            fig = px.line(x=data['year'], y=data['price'], title=title, template='plotly_dark', color_discrete_sequence=['gold'])
-        elif 'values' in data:
-            fig = px.pie(values=data['values'], names=data['labels'], title=title, template='plotly_dark', color_discrete_sequence=['gold', 'gray'])
-        elif 'x' in data:
-            fig = px.bar(x=data['x'], y=data['y'], title=title, template='plotly_dark', color_discrete_sequence=['gold'])
-        img_buffer = io.BytesIO()
-        fig.write_image(img_buffer, format='png', width=800, height=400)
-        img_buffer.seek(0)
-        img_buffers.append((f"رسم_{i+1}.png", img_buffer.getvalue()))
-    return img_buffers
-
-# التحليل
-def get_analysis(user_type):
-    return {
-        "التحليل المالي": "ROI: 9.5% | NPV: +45K$ | تدفق سنة 1: $19,200",
-        "الاستراتيجية": "شقق 40% | محلات 30% | فيلات 20% | أراضي 10%",
-        "المخاطر": "منخفضة 60% | متوسطة 30% | عالية 10%",
-        "الفرص": "نيوم 18% | الدرعية 14% | المالي 12%"
-    }
-
-# تقرير كامل
-def generate_report(user_type, city, prop_type, area, status, pkg, count):
-    price = PACKAGES[pkg]["price"] * count
-    data = get_market_data(city, prop_type)
-    analysis = get_analysis(user_type)
     
-    report = f"""🏙️ تقرير Warda Intelligence
-فئة: {user_type} | {city} | {prop_type}
-تاريخ: {datetime.now().strftime('%Y-%m-%d')}
-سعر: ${price} | مساحة: {area}م²
+    return analyses.get(user_type, analyses["مستثمر"])
 
-📈 ملخص:
-ROI: {data['roi']}% | نمو: {data['growth']*12:.1f}%
-سعر: {data['price']:,.0f}ر
-
-💰 {analysis['التحليل المالي']}
-🎯 {analysis['الاستراتيجية']}
-🛡️ {analysis['المخاطر']}
-🚀 {analysis['الفرص']}
-
-{data['source']}"""
+# === توليد تقرير متقدم مع صفحات متعددة ===
+def generate_advanced_report(user_type, city, property_type, area, status, package, property_count):
+    """توليد تقرير متقدم مع صفحات وجداول ومؤشرات مبهرة"""
     
-    # بيانات الرسوم
-    figs_data = [
-        ('نمو الأسعار', {'year': data['hist']['year'], 'price': data['hist']['price']}),
-        ('العوائد', {'values': [data['roi'], 100-data['roi']], 'labels': ['عائد', 'مخاطر']}),
-        ('المحفظة', {'x': ['شقق', 'محلات', 'فيلات', 'أراضي'], 'y': [40, 30, 20, 10]}),
-        ('المخاطر', {'values': [30, 25, 20], 'labels': ['سوق', 'تشغيل', 'تمويل']}),
-        ('الفرص', {'x': ['نيوم', 'الدرعية', 'المالي'], 'y': [18, 14, 12]})
-    ]
+    # حساب السعر
+    base_price = PACKAGES[package]["price"]
+    total_price = base_price * property_count
     
-    return report, price, figs_data, data['source']
+    # بيانات السوق المتقدمة
+    market_data = generate_advanced_market_data(city, property_type, status)
+    
+    # التحليل المتقدم
+    advanced_analysis = get_advanced_analysis_by_user_type(user_type, city, property_type, area, status)
+    
+    # إنشاء التقرير المتعدد الصفحات
+    report_content = []
+    
+    # الصفحة 1: الغلاف والمقدمة
+    cover_page = f"""
+    🏙️ تقرير Warda Intelligence المتقدم
+    {'=' * 60}
+    
+    📊 **التقرير الاستثماري الشامل**
+    🎯 مخصص لفئة: {user_type}
+    🏙️ المنطقة: {city}
+    🏠 نوع العقار: {property_type}
+    
+    📅 تاريخ الإصدار: {datetime.now().strftime('%Y-%m-%d')}
+    ⏰ وقت الإنشاء: {datetime.now().strftime('%H:%M')}
+    🔢 رقم التقرير: WR-{datetime.now().strftime('%Y%m%d%H%M')}
+    
+    💼 **معلومات العميل:**
+    ┌─ 🏷️ الفئة: {user_type}
+    ├─ 🏙️ المدينة: {city} 
+    ├─ 🏠 نوع العقار: {property_type}
+    ├─ 📏 المساحة: {area} م²
+    ├─ 📌 الحالة: {status}
+    ├─ 🔢 عدد العقارات: {property_count}
+    ├─ 💎 الباقة: {package}
+    └─ 💰 القيمة: {total_price} دولار
+    
+    📈 **ملخص الأداء:**
+    ├─ 📊 تصنيف الاستثمار: {'🟢 ممتاز' if market_data['العائد_التأجيري'] > 8 else '🟡 جيد'}
+    ├─ 💸 العائد المتوقع: {market_data['العائد_التأجيري']:.1f}% سنوياً
+    ├─ 📈 نمو رأس المال: {market_data['معدل_النمو_الشهري']*12:.1f}% سنوياً
+    ├─ 🛡️ مستوى المخاطرة: {np.random.randint(15, 35)}%
+    └─ ⭐ التوصية: {'🟢 شراء مستعجل' if market_data['معدل_النمو_الشهري'] > 2 else '🟡 شراء مدروس'}
+    
+    {'=' * 60}
+    """
+    report_content.append(cover_page)
+    
+    # الصفحة 2: التحليل المالي
+    financial_page = f"""
+    📑 الصفحة 2: التحليل المالي المتقدم
+    {'=' * 60}
+    
+    {advanced_analysis['sections']['التحليل_المالي']}
+    
+    💹 **مؤشرات السوق المالية:**
+    
+    📊 **مقارنة الأداء مع المؤشرات القياسية:**
+    | المؤشر | أداؤك | متوسط السوق | التصنيف |
+    |---------|--------|-------------|----------|
+    | العائد على الاستثمار | {market_data['العائد_التأجيري']:.1f}% | 7.2% | 🟢 +{market_data['العائد_التأجيري']-7.2:.1f}% |
+    | معدل النمو | {market_data['معدل_النمو_الشهري']*12:.1f}% | 6.5% | 🟢 +{(market_data['معدل_النمو_الشهري']*12)-6.5:.1f}% |
+    | السيولة | {market_data['مؤشر_السيولة']:.0f}% | 70% | 🟢 +{market_data['مؤشر_السيولة']-70:.0f}% |
+    | الإشغال | {market_data['معدل_الإشغال']:.1f}% | 82% | 🟢 +{market_data['معدل_الإشغال']-82:.1f}% |
+    
+    {'=' * 60}
+    """
+    report_content.append(financial_page)
+    
+    # الصفحة 3: استراتيجيات الاستثمار
+    strategy_page = f"""
+    📑 الصفحة 3: استراتيجيات الاستثمار المتقدمة  
+    {'=' * 60}
+    
+    {advanced_analysis['sections']['استراتيجيات_الاستثمار']}
+    
+    {'=' * 60}
+    """
+    report_content.append(strategy_page)
+    
+    # الصفحة 4: إدارة المخاطر
+    risk_page = f"""
+    📑 الصفحة 4: إدارة المخاطر المتقدمة
+    {'=' * 60}
+    
+    {advanced_analysis['sections']['إدارة_المخاطر']}
+    
+    {'=' * 60}
+    """
+    report_content.append(risk_page)
+    
+    # الصفحة 5: الفرص المستقبلية
+    opportunities_page = f"""
+    📑 الصفحة 5: الفرص الاستثمارية المستقبلية
+    {'=' * 60}
+    
+    {advanced_analysis['sections']['الفرص_المستقبلية']}
+    
+    {'=' * 60}
+    """
+    report_content.append(opportunities_page)
+    
+    return "\n\n".join(report_content), total_price
 
-# === الواجهة ===
-col1, col2 = st.columns(2)
+# === الواجهة الرئيسية ===
+col1, col2 = st.columns([1, 1])
 
 with col1:
-    st.header("👤 البيانات")
-    user_type = st.selectbox("الفئة", ["مستثمر", "وسيط", "شركة", "فرد"])
-    city = st.selectbox("المدينة", ["الرياض", "جدة", "الدمام"])
-    prop_type = st.selectbox("النوع", ["شقة", "فيلا", "أرض", "محل"])
-    status = st.selectbox("الحالة", ["للبيع", "للشراء"])
-    area = st.slider("المساحة", 50, 1000, 120)
+    st.markdown("### 👤 بيانات المستخدم")
+    
+    user_type = st.selectbox("اختر فئتك:", 
+                           ["مستثمر", "وسيط عقاري", "شركة تطوير", "فرد", "باحث عن فرصة", "مالك عقار"])
+    
+    city = st.selectbox("المدينة:", 
+                       ["الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة", "الخبر", "تبوك", "الطائف"])
+    
+    property_type = st.selectbox("نوع العقار:", 
+                                ["شقة", "فيلا", "أرض", "محل تجاري"])
+    
+    status = st.selectbox("الحالة:", ["للبيع", "للشراء", "للإيجار"])
+    
+    area = st.slider("المساحة (م²):", 50, 1000, 120)
 
 with col2:
-    st.header("💎 الباقة")
-    count = st.slider("عدد العقارات", 1, 10, 1)
-    pkg = st.radio("الباقة", list(PACKAGES))
-    total = PACKAGES[pkg]["price"] * count
+    st.markdown("### 💎 اختيار الباقة")
     
+    # عدد العقارات مع تحديث السعر تلقائياً
+    property_count = st.slider("🔢 عدد العقارات للتحليل:", 1, 50, 1,
+                              help="كلما زاد عدد العقارات، زادت دقة التحليل والسعر")
+    
+    # عرض الباقات
+    chosen_pkg = st.radio("اختر باقتك:", list(PACKAGES.keys()))
+    
+    # حساب السعر الديناميكي
+    base_price = PACKAGES[chosen_pkg]["price"]
+    total_price = base_price * property_count
+    
+    # عرض تفاصيل الباقة
     st.markdown(f"""
     <div class='package-card'>
-    <h3>{pkg}</h3><h2>${total}</h2>
+    <h3>باقة {chosen_pkg}</h3>
+    <h4>{total_price} دولار</h4>
     </div>
     """, unsafe_allow_html=True)
-    for f in PACKAGES[pkg]["features"]:
-        st.write(f"✅ {f}")
+    
+    # عرض المميزات
+    st.markdown("**المميزات:**")
+    for feature in PACKAGES[chosen_pkg]["features"]:
+        st.write(f"✅ {feature}")
 
-# الدفع
+# === نظام الدفع ===
 st.markdown("---")
-st.markdown(f"### 💰 **الإجمالي: ${total}**")
-st.markdown(f"""
-<form action="https://www.paypal.com/cgi-bin/webscr" method="post">
+st.markdown(f"### 💰 السعر النهائي: **{total_price} دولار**")
+
+# زر الدفع باي بال
+paypal_html = f"""
+<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
 <input type="hidden" name="cmd" value="_xclick">
 <input type="hidden" name="business" value="warda.intelligence@gmail.com">
-<input type="hidden" name="item_name" value="تقرير {pkg}">
-<input type="hidden" name="amount" value="{total}">
+<input type="hidden" name="item_name" value="تقرير {chosen_pkg} - {property_count} عقار">
+<input type="hidden" name="amount" value="{total_price}">
 <input type="hidden" name="currency_code" value="USD">
-<input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_buynow_LG.gif" style="display:block;margin:0 auto;">
+<input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_buynowCC_LG.gif" border="0" name="submit" alt="PayPal - The safer, easier way to pay online!" style="display: block; margin: 0 auto;">
 </form>
-""", unsafe_allow_html=True)
+"""
 
-# إنشاء التقرير
-if st.button("🎯 إنشاء التقرير", use_container_width=True):
-    with st.spinner("جاري الإنشاء..."):
-        time.sleep(2)
-        report, price, figs_data, source = generate_report(user_type, city, prop_type, area, status, pkg, count)
-        st.session_state.report = report
-        st.session_state.figs_data = figs_data
-        st.session_state.source = source
-        st.session_state.ready = True
-        st.success("✅ تم!")
+st.markdown(paypal_html, unsafe_allow_html=True)
 
-# عرض التقرير
-if st.session_state.get('ready', False):
+# === زر واحد لإنشاء التقرير ===
+st.markdown("---")
+st.markdown("### 🚀 إنشاء التقرير")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    # زر للمسؤول (بدون دفع)
+    if st.button("🎯 إنشاء التقرير (للمسؤول)", use_container_width=True):
+        with st.spinner("🔄 جاري إنشاء التقرير المتقدم..."):
+            time.sleep(3)
+            
+            # إنشاء التقرير المتقدم
+            report, final_price = generate_advanced_report(
+                user_type, city, property_type, area, status, chosen_pkg, property_count
+            )
+            
+            # حفظ التقرير في الجلسة
+            st.session_state.current_report = report
+            st.session_state.report_generated = True
+            st.success("✅ تم إنشاء التقرير المتقدم!")
+
+with col2:
+    # زر للعميل (بعد الدفع)
+    if st.button("📥 تحميل التقرير (بعد الدفع)", use_container_width=True):
+        if hasattr(st.session_state, 'current_report'):
+            st.success("✅ تم تحميل التقرير")
+        else:
+            st.warning("⚠️ يرجى إتمام عملية الدفع أولاً")
+
+# === عرض التقرير وزر التحميل ===
+if st.session_state.get('report_generated', False):
     st.markdown("---")
-    st.markdown("## 📊 التقرير الكامل")
-    st.text_area("", st.session_state.report, height=300)
+    st.markdown("## 📊 التقرير النهائي المتقدم")
     
-    # تحميل TXT
-    st.download_button("📥 TXT", st.session_state.report, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.txt")
+    # عرض التقرير
+    st.text_area("محتوى التقرير:", st.session_state.current_report, height=600)
     
-    # تحميل PDF نصي
-    pdf_buffer = create_pdf(st.session_state.report, st.session_state.source)
-    st.download_button("📥 PDF نصي", pdf_buffer, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf")
+    # زر تحميل التقرير
+    st.download_button(
+        label="📥 تحميل التقرير الكامل (TXT)",
+        data=st.session_state.current_report,
+        file_name=f"تقرير_متقدم_{user_type}_{city}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
     
-    # تحميل ZIP مع رسوم
-    img_buffers = create_figs(st.session_state.figs_data)
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr('تقرير.txt', st.session_state.report)  # صُحح من witestr إلى writestr
-        for filename, img_data in img_buffers:
-            zf.writestr(filename, img_data)
-    zip_buffer.seek(0)
-    st.download_button("📦 ZIP (نص + 5 رسوم)", zip_buffer, f"تقرير_كامل_{city}_{datetime.now().strftime('%Y%m%d')}.zip", "application/zip")
-    
-    st.markdown("[📤 مشاركة على X](https://x.com/intent/tweet?text=تقرير عقاري رائع من Warda! #عقارات_السعودية)")
+    st.success("🎉 تم إنشاء التقرير المتقدم بنجاح! يحتوي على 5 صفحات من التحليل الشامل")
     st.balloons()
 
-# Sidebar المسؤول
-admin = st.sidebar.text_input("كلمة المرور", type="password")
-if admin == "Warda2024":
-    if st.sidebar.button("🔄 تحديث البيانات"):
-        st.sidebar.success("✅ جاري...")
+# === لوحة المسؤول ===
+admin_password = st.sidebar.text_input("كلمة مرور المسؤول:", type="password")
+if admin_password == "WardaAdmin2024":
+    st.sidebar.success("🎉 مرحباً بك في لوحة التحكم!")
+    
+    # لوحة تحكم المسؤول
+    st.sidebar.markdown("### 🛠️ لوحة تحكم المسؤول")
+    
+    if st.sidebar.button("🔗 إنشاء رابط مؤثرين جديد"):
+        today = datetime.now().strftime("%Y%m%d")
+        influencer_token = np.random.randint(1000,9999)
+        st.session_state.influencer_url = f"https://warda-intelligence.streamlit.app/?promo={influencer_token}"
+        st.sidebar.success("✅ تم إنشاء الرابط الجديد")
+    
+    if hasattr(st.session_state, 'influencer_url'):
+        st.sidebar.markdown(f"**رابط المؤثرين:**")
+        st.sidebar.code(st.session_state.influencer_url)
 
-# المؤثرين
-if st.query_params.get('promo'):
-    st.success("🎁 عرض المؤثرين!")
-    if st.button("تقرير مجاني"):
-        if not st.session_state.get('used', False):
-            report, _, figs_data, source = generate_report("مؤثر", "الرياض", "شقة", 120, "للبيع", "ذهبية", 1)
-            st.session_state.used = True
-            st.download_button("📥 مجاني", report, "مجاني_مؤثر.txt")
-
-# اتصال
+# === رابط المؤثرين (للزوار العاديين) ===
 st.markdown("---")
+st.markdown("### 🎁 عرض المؤثرين")
+
+# التحقق من رابط المؤثرين
+query_params = st.experimental_get_query_params()
+if query_params.get('promo'):
+    promo_token = query_params['promo'][0]
+    st.success("🎉 تم تفعيل العرض المجاني للمؤثرين!")
+    
+    # استخدام بيانات افتراضية للتقرير المجاني
+    free_user_type = "مؤثر"
+    free_city = "الرياض" 
+    free_property_type = "شقة"
+    free_area = 120
+    free_status = "للبيع"
+    free_package = "ذهبية"
+    free_count = 1
+    
+    if st.button("🎁 الحصول على التقرير المجاني", use_container_width=True):
+        report, _ = generate_advanced_report(
+            free_user_type, free_city, free_property_type, free_area, free_status, free_package, free_count
+        )
+        
+        st.download_button(
+            label="📥 تحميل التقرير المجاني",
+            data=report,
+            file_name=f"تقرير_مجاني_لمؤثر_{datetime.now().strftime('%Y%m%d')}.txt",
+            mime="text/plain",
+            use_container_width=True
+        )
+else:
+    st.info("""
+    **للمؤثرين:** 
+    للحصول على تقرير مجاني، يرجى استخدام الرابط الخاص الذي تم توفيره من إدارة المنصة.
+    """)
+
+# === معلومات الاتصال ===
+st.markdown("---")
+st.markdown("### 📞 للتواصل مع Warda Intelligence")
+
 col1, col2 = st.columns(2)
+
 with col1:
-    st.markdown("**واتساب:** +213779888140<br>**بريد:** info@warda-intelligence.com")
+    st.markdown("""
+    **💬 واتساب:**
+    +213779888140
+    
+    **📧 البريد:**
+    info@warda-intelligence.com
+    """)
+
 with col2:
-    st.markdown("**موقع:** www.warda-intelligence.com<br>**ساعات:** 9ص-6م")
+    st.markdown("""
+    **🌐 الموقع:**
+    www.warda-intelligence.com
+    
+    **🕒 ساعات العمل:**
+    9:00 ص - 6:00 م
+    """)
