@@ -77,55 +77,67 @@ class PDF(FPDF):
         self.ln(5)
 
 def create_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price):
-   pdf = PDF()
-pdf.add_page()
-import os
-font_path = "Amiri-Regular.ttf"
-if not os.path.exists(font_path):
-    raise FileNotFoundError(f"ملف الخط غير موجود: {font_path}")
-pdf.add_font("Amiri", "", font_path, uni=True)
-pdf.set_font("Amiri", "", 14)
-
-pdf.multi_cell(0, 10, "تقرير التحليل العقاري الذهبي")
-
-==============================
-
-👤 الفئة: {user_type}
-🏙️ المدينة: {city}
-🏠 نوع العقار: {property_type}
-📏 المساحة: {area} م²
-🚪 عدد الغرف: {rooms}
-📌 الحالة: {status}
-📊 عدد العقارات المحللة: {count}
-
-💎 الباقة: {chosen_pkg}
-💰 السعر الإجمالي: {total_price} دولار
-
-🔍 مميزات التحليل:
-{packages[chosen_pkg]['features']}
-
-📈 هذا التقرير يقدم نظرة دقيقة عن سوق {city} بناءً على بيانات واقعية وتنبؤات بالذكاء الاصطناعي.
-
-🕒 تاريخ الإنشاء: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-منصة Warda Intelligence — تحليلات عقارية دقيقة بثقة وجودة.
-""")
+    pdf = PDF()
+    pdf.add_page()
+    
+    # إضافة محتوى PDF
+    pdf.set_font("Arial", size=12)
+    
+    # العنوان
+    pdf.cell(0, 10, "تقرير التحليل العقاري الذهبي", 0, 1, 'C')
+    pdf.ln(10)
+    
+    # بيانات المستخدم
+    pdf.cell(0, 10, f"👤 الفئة: {user_type}", 0, 1)
+    pdf.cell(0, 10, f"🏙️ المدينة: {city}", 0, 1)
+    pdf.cell(0, 10, f"🏠 نوع العقار: {property_type}", 0, 1)
+    pdf.cell(0, 10, f"📏 المساحة: {area} م²", 0, 1)
+    pdf.cell(0, 10, f"🚪 عدد الغرف: {rooms}", 0, 1)
+    pdf.cell(0, 10, f"📌 الحالة: {status}", 0, 1)
+    pdf.cell(0, 10, f"📊 عدد العقارات المحللة: {count}", 0, 1)
+    pdf.ln(5)
+    
+    pdf.cell(0, 10, f"💎 الباقة: {chosen_pkg}", 0, 1)
+    pdf.cell(0, 10, f"💰 السعر الإجمالي: {total_price} دولار", 0, 1)
+    pdf.ln(5)
+    
+    pdf.cell(0, 10, "🔍 مميزات التحليل:", 0, 1)
+    pdf.multi_cell(0, 10, packages[chosen_pkg]['features'])
+    pdf.ln(5)
+    
+    pdf.multi_cell(0, 10, f"📈 هذا التقرير يقدم نظرة دقيقة عن سوق {city} بناءً على بيانات واقعية وتنبؤات بالذكاء الاصطناعي.")
+    pdf.ln(5)
+    
+    pdf.cell(0, 10, f"🕒 تاريخ الإنشاء: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 0, 1)
+    pdf.ln(10)
+    
+    pdf.cell(0, 10, "منصة Warda Intelligence — تحليلات عقارية دقيقة بثقة وجودة.", 0, 1, 'C')
+    
     return pdf
 
 # زر تحميل التقرير
 if st.button("📥 تحميل التقرير (PDF)"):
-    pdf = create_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
-    temp_name = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    pdf.output(temp_name)
-    with open(temp_name, "rb") as f:
-        st.download_button(
-            label="📩 اضغط هنا لتحميل تقريرك الآن",
-            data=f,
-            file_name=f"تقرير_{chosen_pkg}_{city}.pdf",
-            mime="application/pdf"
-        )
-    os.remove(temp_name)
-    st.success("✅ تم إنشاء التقرير بنجاح!")
+    try:
+        pdf = create_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
+        temp_name = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        pdf.output(temp_name)
+        
+        with open(temp_name, "rb") as f:
+            st.download_button(
+                label="📩 اضغط هنا لتحميل تقريرك الآن",
+                data=f,
+                file_name=f"تقرير_{chosen_pkg}_{city}.pdf",
+                mime="application/pdf"
+            )
+        
+        # تنظيف الملف المؤقت
+        if os.path.exists(temp_name):
+            os.remove(temp_name)
+            
+        st.success("✅ تم إنشاء التقرير بنجاح!")
+        
+    except Exception as e:
+        st.error(f"❌ حدث خطأ في إنشاء التقرير: {str(e)}")
 
 # رابط المؤثرين - يمنح تقرير مجاني لمرة واحدة
 st.markdown("""
@@ -134,6 +146,7 @@ st.markdown("""
 <p>يمكنك منح هذا الرابط لأي مؤثر ليستفيد من تقرير مجاني لمرة واحدة فقط:</p>
 <a href="https://warda-intelligence.streamlit.app/?promo=FREE1" target="_blank">
 <button style="background-color:green;color:white;font-size:18px;padding:10px 20px;border:none;border-radius:10px;">🎯 رابط المؤثرين المجاني</button>
+
 </a>
 </div>
 """, unsafe_allow_html=True)
