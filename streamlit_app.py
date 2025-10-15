@@ -1,8 +1,17 @@
 import streamlit as st
 import pandas as pd
-from fpdf import FPDF
 from datetime import datetime
 import os
+import base64
+from io import BytesIO
+
+# محاولة استيراد weasyprint أو استخدام بديل
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except ImportError:
+    WEASYPRINT_AVAILABLE = False
+    st.warning("⚠️ لم يتم تثبيت WeasyPrint - سيتم استخدام HTML بدلاً من PDF")
 
 # إعداد الصفحة
 st.set_page_config(page_title="التحليل العقاري الذهبي | Warda Intelligence", layout="centered")
@@ -69,122 +78,159 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# الحل النهائي: استخدام unicode بشكل مباشر مع خط يدعم العربية
-class UnicodePDF(FPDF):
-    def header(self):
-        self.set_font("Arial", "B", 16)
-        self.cell(0, 10, "Warda Intelligence - تقرير التحليل العقاري", 0, 1, "C")
-        self.ln(5)
-
-def create_simple_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price):
-    pdf = UnicodePDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    
-    # استخدام نص إنجليزي فقط لتجنب مشاكل الترميز
-    content = f"""
-    Warda Intelligence - Real Estate Analysis Report
-    ================================================
-    
-    User Information:
-    - User Type: {user_type}
-    - City: {city}
-    - Property Type: {property_type}
-    - Area: {area} m²
-    - Rooms: {rooms}
-    - Status: {status}
-    - Properties Analyzed: {count}
-    
-    Package Details:
-    - Selected Package: {chosen_pkg}
-    - Total Price: ${total_price}
-    - Features: {packages[chosen_pkg]['features']}
-    
-    Report Summary:
-    This report provides comprehensive analysis of the real estate market
-    in {city} based on advanced AI algorithms and market data.
-    
-    Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-    
-    --- Warda Intelligence ---
-    Smart Real Estate Analytics
+# دالة إنشاء التقرير بالعربية
+def create_arabic_report(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price):
+    # إنشاء محتوى HTML عربي
+    html_content = f"""
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{
+                font-family: 'Arial', sans-serif;
+                line-height: 1.8;
+                color: #333;
+                margin: 40px;
+                background: linear-gradient(135deg, #f5f5f5, #e0e0e0);
+            }}
+            .header {{
+                text-align: center;
+                background: linear-gradient(135deg, #d4af37, #b8941f);
+                color: white;
+                padding: 30px;
+                border-radius: 15px;
+                margin-bottom: 30px;
+            }}
+            .content {{
+                background: white;
+                padding: 30px;
+                border-radius: 15px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                margin-bottom: 20px;
+            }}
+            .section {{
+                margin-bottom: 25px;
+                padding: 20px;
+                border-right: 5px solid #d4af37;
+                background: #f9f9f9;
+                border-radius: 10px;
+            }}
+            .gold-text {{
+                color: #d4af37;
+                font-weight: bold;
+            }}
+            .footer {{
+                text-align: center;
+                margin-top: 40px;
+                padding: 20px;
+                background: #333;
+                color: white;
+                border-radius: 10px;
+            }}
+            h1, h2, h3 {{
+                color: #d4af37;
+            }}
+            .info-item {{
+                margin: 10px 0;
+                padding: 8px;
+                background: #fff;
+                border-radius: 5px;
+                border: 1px solid #ddd;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🏙️ تقرير التحليل العقاري الذهبي</h1>
+            <h3>منصة Warda Intelligence - تحليلات عقارية ذكية</h3>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2>👤 معلومات العميل</h2>
+                <div class="info-item"><strong>الفئة:</strong> {user_type}</div>
+                <div class="info-item"><strong>المدينة:</strong> {city}</div>
+                <div class="info-item"><strong>نوع العقار:</strong> {property_type}</div>
+                <div class="info-item"><strong>المساحة:</strong> {area} م²</div>
+                <div class="info-item"><strong>عدد الغرف:</strong> {rooms}</div>
+                <div class="info-item"><strong>الحالة:</strong> {status}</div>
+                <div class="info-item"><strong>عدد العقارات المحللة:</strong> {count}</div>
+            </div>
+            
+            <div class="section">
+                <h2>💎 تفاصيل الباقة</h2>
+                <div class="info-item"><strong>الباقة المختارة:</strong> {chosen_pkg}</div>
+                <div class="info-item"><strong>السعر الإجمالي:</strong> {total_price} دولار</div>
+                <div class="info-item"><strong>مميزات الباقة:</strong> {packages[chosen_pkg]['features']}</div>
+            </div>
+            
+            <div class="section">
+                <h2>📈 ملخص التحليل</h2>
+                <p>هذا التقرير يقدم تحليلاً شاملاً لسوق العقارات في <span class="gold-text">{city}</span> بناءً على:</p>
+                <ul>
+                    <li>تحليل بيانات السوق الحالية</li>
+                    <li>تنبؤات بالذكاء الاصطناعي</li>
+                    <li>مقارنة مع المشاريع المماثلة</li>
+                    <li>نصائح استثمارية مخصصة</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>🕒 تاريخ الإنشاء: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p>📞 للاستفسار: +213779888140</p>
+            <p>© 2024 Warda Intelligence - جميع الحقوق محفوظة</p>
+        </div>
+    </body>
+    </html>
     """
     
-    pdf.multi_cell(0, 10, content)
-    return pdf
+    return html_content
 
 # زر تحميل التقرير
 if st.button("📥 تحميل التقرير (PDF)"):
     try:
-        pdf = create_simple_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
-        temp_name = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        pdf.output(temp_name)
-        
-        with open(temp_name, "rb") as f:
-            st.download_button(
-                label="📩 اضغط هنا لتحميل تقريرك الآن",
-                data=f,
-                file_name=f"warda_report_{city}.pdf",
-                mime="application/pdf"
-            )
-        
-        if os.path.exists(temp_name):
-            os.remove(temp_name)
+        with st.spinner("🔄 جاري إنشاء التقرير العربي..."):
+            html_content = create_arabic_report(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
             
-        st.success("✅ تم إنشاء التقرير بنجاح!")
+            if WEASYPRINT_AVAILABLE:
+                # إنشاء PDF باستخدام weasyprint
+                pdf_bytes = HTML(string=html_content).write_pdf()
+                
+                st.download_button(
+                    label="🎯 اضغط لتحميل التقرير العربي PDF",
+                    data=pdf_bytes,
+                    file_name=f"تقرير_عقاري_{city}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf"
+                )
+            else:
+                # عرض التقرير كHTML إذا لم يكن weasyprint متاحاً
+                st.markdown("### 📄 معاينة التقرير العربي")
+                st.components.v1.html(html_content, height=800, scrolling=True)
+                
+                st.info("""
+                💡 **لتحميل التقرير كPDF:**
+                1. اضغط على زر التحميل أدناه لتحميل ملف HTML
+                2. افتح الملف في متصفحك
+                3. اختر "طباعة" ثم "حفظ كPDF"
+                """)
+                
+                st.download_button(
+                    label="📄 تحميل التقرير كملف HTML",
+                    data=html_content,
+                    file_name=f"تقرير_عقاري_{city}.html",
+                    mime="text/html"
+                )
+        
+        st.success("✅ تم إنشاء التقرير العربي بنجاح!")
+        st.balloons()
         
     except Exception as e:
         st.error(f"❌ حدث خطأ: {str(e)}")
-        st.info("🔧 جاري استخدام الحل البديل...")
-        
-        # الحل البديل النهائي
-        try:
-            from fpdf import FPDF
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", size=12)
-            
-            # نص إنجليزي فقط - مضمون العمل
-            safe_content = [
-                "WARD A INTELLIGENCE - REAL ESTATE REPORT",
-                "----------------------------------------",
-                f"CLIENT: {user_type}",
-                f"LOCATION: {city}",
-                f"PROPERTY: {property_type}",
-                f"AREA: {area} SQ M",
-                f"ROOMS: {rooms}",
-                f"TRANSACTION: {status}",
-                f"ANALYSIS COUNT: {count}",
-                f"PACKAGE: {chosen_pkg}",
-                f"TOTAL: ${total_price}",
-                f"DATE: {datetime.now().strftime('%Y-%m-%d')}",
-                "",
-                "Thank you for using Warda Intelligence",
-                "Smart Real Estate Analytics Platform"
-            ]
-            
-            for line in safe_content:
-                pdf.cell(0, 10, line, 0, 1)
-            
-            backup_name = f"warda_backup_{datetime.now().strftime('%H%M%S')}.pdf"
-            pdf.output(backup_name)
-            
-            with open(backup_name, "rb") as f:
-                st.download_button(
-                    label="📥 تحميل النسخة المضمونة",
-                    data=f,
-                    file_name=f"warda_analysis_{city}.pdf",
-                    mime="application/pdf"
-                )
-            
-            if os.path.exists(backup_name):
-                os.remove(backup_name)
-                
-        except Exception as final_error:
-            st.error("❌ فشل جميع محاولات الإنشاء")
-            st.info("⚠️ يرجى المحاولة مرة أخرى أو التواصل مع الدعم")
+        st.info("📞 يرجى التواصل مع الدعم الفني لحل المشكلة")
 
-# رابط المؤثرين - يمنح تقرير مجاني لمرة واحدة
+# رابط المؤثرين
 st.markdown("""
 <div class='center'>
 <h4>🎁 رابط خاص بالمؤثرين</h4>
