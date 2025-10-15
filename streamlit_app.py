@@ -3,10 +3,12 @@ import pandas as pd
 import numpy as np
 import os
 from datetime import datetime
-import plotly.express as px
-import time
+import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 import io
+import base64
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
 
 # إعداد الصفحة
 st.set_page_config(page_title="Warda Intelligence", layout="wide")
@@ -70,14 +72,54 @@ def get_market_data(city, property_type):
         'source': "بيانات Warda Intelligence"
     }
 
-# PDF نصي بسيط (يعمل 100%)
-def create_pdf(report, sources):
-    pdf_content = f"""Warda Intelligence - تقرير احترافي
-{sources}
-
-{report}
-"""
-    return io.BytesIO(pdf_content.encode('utf-8'))
+# PDF مع رسوم بـ reportlab + matplotlib
+def create_pdf(report, figs_data, sources):
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    c.setFont("Helvetica", 12)
+    
+    # إضافة غلاف
+    c.drawString(100, 750, "Warda Intelligence - تقرير احترافي")
+    c.drawString(100, 730, sources)
+    c.showPage()
+    
+    # إضافة النص
+    y = 750
+    for line in report.split('\n'):
+        if y < 50:
+            c.showPage()
+            y = 750
+        c.drawString(50, y, line)
+        y -= 20
+    
+    # إضافة الرسوم
+    for i, (title, data) in enumerate(figs_data):
+        c.showPage()
+        img_buffer = io.BytesIO()
+        plt.figure(figsize=(8, 4))
+        if 'line' in title.lower():
+            plt.plot(data['year'], data['price'], marker='o', color='gold')
+            plt.title(title, color='gold')
+            plt.xlabel('السنة', color='gold')
+            plt.ylabel('السعر', color='gold')
+            plt.grid(True)
+        elif 'pie' in title.lower():
+            plt.pie(data['values'], labels=data['labels'], colors=['gold', 'gray'], autopct='%1.1f%%')
+            plt.title(title, color='gold')
+        elif 'bar' in title.lower():
+            plt.bar(data['x'], data['y'], color='gold')
+            plt.title(title, color='gold')
+            plt.xlabel('الفئة', color='gold')
+            plt.ylabel('القيمة', color='gold')
+        plt.savefig(img_buffer, format='PNG', bbox_inches='tight', facecolor='#0E1117')
+        plt.close()
+        img_buffer.seek(0)
+        c.drawImage(io.BytesIO(img_buffer.getvalue()), 50, 500, width=500, height=200)
+        c.drawString(50, 470, f"الرسم {i+1}: {title}")
+    
+    c.save()
+    buffer.seek(0)
+    return buffer
 
 # التحليل
 def get_analysis(user_type):
@@ -110,18 +152,16 @@ ROI: {data['roi']}% | نمو: {data['growth']*12:.1f}%
 
 {data['source']}"""
     
-    # الرسوم
-    figs = [
-        px.line(data['hist'], x='year', y='price', title='📈 نمو الأسعار'),
-        px.pie(values=[data['roi'], 100-data['roi']], names=['عائد', 'مخاطر'], title='💹 العوائد'),
-        px.bar(x=['شقق','محلات','فيلات','أراضي'], y=[40,30,20,10], title='📊 المحفظة'),
-        px.pie(values=[30,25,20], names=['سوق','تشغيل','تمويل'], title='🛡️ المخاطر'),
-        px.bar(x=['نيوم','الدرعية','المالي'], y=[18,14,12], title='🚀 الفرص')
+    # بيانات الرسوم
+    figs_data = [
+        ('نمو الأسعار', {'year': data['hist']['year'], 'price': data['hist']['price']}),
+        ('العوائد', {'values': [data['roi'], 100-data['roi']], 'labels': ['عائد', 'مخاطر']}),
+        ('المحفظة', {'x': ['شقق', 'محلات', 'فيلات', 'أراضي'], 'y': [40, 30, 20, 10]}),
+        ('المخاطر', {'values': [30, 25, 20], 'labels': ['سوق', 'تشغيل', 'تمويل']}),
+        ('الفرص', {'x': ['نيوم', 'الدرعية', 'المالي'], 'y': [18, 14, 12]})
     ]
-    for fig in figs:
-        fig.update_layout(template='plotly_dark', font_color='gold')
     
-    return report, price, figs, data['source']
+    return report, price, figs_data, data['source']
 
 # === الواجهة ===
 col1, col2 = st.columns(2)
@@ -166,9 +206,9 @@ st.markdown(f"""
 if st.button("🎯 إنشاء التقرير", use_container_width=True):
     with st.spinner("جاري الإنشاء..."):
         time.sleep(2)
-        report, price, figs, source = generate_report(user_type, city, prop_type, area, status, pkg, count)
+        report, price, figs_data, source = generate_report(user_type, city, prop_type, area, status, pkg, count)
         st.session_state.report = report
-        st.session_state.figs = figs
+        st.session_state.figs_data = figs_data
         st.session_state.source = source
         st.session_state.ready = True
         st.success("✅ تم!")
@@ -179,28 +219,12 @@ if st.session_state.get('ready', False):
     st.markdown("## 📊 التقرير الكامل")
     st.text_area("", st.session_state.report, height=300)
     
-    st.markdown("### 📈 الرسوم البيانية")
-    for fig in st.session_state.figs:
-        st.plotly_chart(fig, use_container_width=True)
-    
     # تحميل TXT
     st.download_button("📥 TXT", st.session_state.report, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.txt")
     
-    # تحميل PDF نصي
-    pdf_buffer = create_pdf(st.session_state.report, st.session_state.source)
-    st.download_button("📥 PDF نصي", pdf_buffer, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf")
-    
-    # تحميل ZIP مع رسوم منفصلة
-    zip_buffer = io.BytesIO()
-    import zipfile
-    with zipfile.ZipFile(zip_buffer, 'w') as zf:
-        zf.writestr('تقرير.txt', st.session_state.report)
-        for i, fig in enumerate(st.session_state.figs):
-            img_buffer = io.BytesIO()
-            fig.write_image(img_buffer, format='png')
-            zf.writestr(f'رسم_{i+1}.png', img_buffer.getvalue())
-    zip_buffer.seek(0)
-    st.download_button("📦 ZIP كامل (نص + 5 رسوم)", zip_buffer, f"تقرير_كامل_{city}_{datetime.now().strftime('%Y%m%d')}.zip", "application/zip")
+    # تحميل PDF مع رسوم
+    pdf_buffer = create_pdf(st.session_state.report, st.session_state.figs_data, st.session_state.source)
+    st.download_button("📥 PDF مع رسوم", pdf_buffer, f"تقرير_{city}_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf")
     
     st.markdown("[📤 مشاركة على X](https://x.com/intent/tweet?text=تقرير عقاري رائع من Warda! #عقارات_السعودية)")
     st.balloons()
@@ -216,7 +240,7 @@ if st.query_params.get('promo'):
     st.success("🎁 عرض المؤثرين!")
     if st.button("تقرير مجاني"):
         if not st.session_state.get('used', False):
-            report, _, figs, source = generate_report("مؤثر", "الرياض", "شقة", 120, "للبيع", "ذهبية", 1)
+            report, _, figs_data, source = generate_report("مؤثر", "الرياض", "شقة", 120, "للبيع", "ذهبية", 1)
             st.session_state.used = True
             st.download_button("📥 مجاني", report, "مجاني_مؤثر.txt")
 
