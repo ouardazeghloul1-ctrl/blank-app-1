@@ -1,115 +1,143 @@
 import streamlit as st
+import pandas as pd
 from fpdf import FPDF
+from datetime import datetime
+import os
 
 # إعداد الصفحة
-st.set_page_config(page_title="منصة وردة الذكية للعقارات", layout="centered")
+st.set_page_config(page_title="التحليل العقاري الذهبي | Warda Intelligence", layout="centered")
 
-# تصميم الواجهة (أسود وذهبي)
+# تنسيق واجهة فاخرة
 st.markdown("""
     <style>
-    body { background-color: black; color: gold; }
-    .stApp { background-color: black; color: gold; }
-    .stTextInput, .stSelectbox, .stNumberInput, .stButton > button {
-        background-color: #111;
-        color: gold;
-        border: 1px solid gold;
-        border-radius: 10px;
-    }
-    .stButton > button:hover {
-        background-color: gold;
-        color: black;
-    }
-    .password-button {
-        position: fixed;
-        bottom: 15px;
-        right: 15px;
-        background-color: #111;
-        color: gold;
-        border: 1px solid gold;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        text-align: center;
-        font-size: 22px;
-        cursor: pointer;
-    }
+        body { background-color: black; color: gold; }
+        .stApp { background-color: black; color: gold; }
+        h1, h2, h3, h4, p, label { color: gold !important; }
+        .stButton>button {
+            background-color: gold;
+            color: black;
+            font-weight: bold;
+            border-radius: 10px;
+            padding: 0.6em 1.2em;
+            transition: 0.3s;
+        }
+        .stButton>button:hover { background-color: #d4af37; color: white; }
+        .gold-box {
+            border: 2px solid gold;
+            padding: 15px;
+            border-radius: 12px;
+            background-color: #111;
+            margin-bottom: 15px;
+        }
+        .center { text-align: center; }
     </style>
 """, unsafe_allow_html=True)
 
-# عنوان التطبيق
-st.markdown("<h1 style='text-align:center; color:gold;'>🏡 منصة وردة الذكية للعقارات</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:#bbb;'>اختر(ي) مدينتك، نوع العقار، وعدد العقارات لتحليل ذكي دقيق 🔍</p>", unsafe_allow_html=True)
+# العنوان الرئيسي
+st.markdown("<h1 class='center'>🏙️ منصة التحليل العقاري الذهبي</h1>", unsafe_allow_html=True)
+st.markdown("<p class='center'>تحليل ذكي مدعوم بالذكاء الاصطناعي من منصة Warda Intelligence</p>", unsafe_allow_html=True)
 
-# واجهة اختيار البيانات
-st.subheader("🔍 اختر المدينة والفئة لتحليل العقارات:")
+# إدخال بيانات المستخدم
+user_type = st.selectbox("👤 اختر(ي) فئتك:", ["مستثمر", "وسيط عقاري", "شركة تطوير", "فرد", "باحث عن فرصة", "مالك عقار"])
+city = st.selectbox("🏙️ المدينة:", ["الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة", "الخبر", "تبوك", "الطائف"])
+property_type = st.selectbox("🏠 نوع العقار:", ["شقة", "فيلا", "أرض", "محل تجاري"])
+status = st.selectbox("📌 الحالة:", ["للبيع", "للشراء"])
+count = st.slider("🔢 عدد العقارات للتحليل:", 1, 1000, 5)
+area = st.slider("📏 متوسط مساحة العقار (م²):", 50, 1000, 150)
+rooms = st.slider("🚪 عدد الغرف (تقريبي):", 1, 10, 3)
 
-col1, col2 = st.columns(2)
-with col1:
-    city = st.selectbox("🏙️ المدينة", ["الرياض", "جدة", "الدمام", "مكة", "المدينة"])
-with col2:
-    category = st.selectbox("🏘️ الفئة", ["شقق", "فلل", "أراضي", "مكاتب", "محلات"])
-
-col3, col4 = st.columns(2)
-with col3:
-    property_type = st.selectbox("🏗️ نوع العقار", ["سكني", "تجاري", "استثماري"])
-with col4:
-    status = st.selectbox("📈 الحالة", ["بيع", "شراء", "إيجار"])
-
-num_properties = st.slider("🏢 عدد العقارات للتحليل", 100, 1000, 500)
+# الباقات
+packages = {
+    "مجانية": {"price": 0, "features": "تحليل سريع لعقار واحد، بدون تفاصيل مالية دقيقة."},
+    "فضية": {"price": 10, "features": "تحليل دقيق + متوسط الأسعار في المنطقة + نصائح استثمارية."},
+    "ذهبية": {"price": 30, "features": "كل ما سبق + تنبؤ بالسعر المستقبلي + تحليل ذكي بالذكاء الاصطناعي + اقتراح أفضل وقت للبيع."},
+    "ماسية": {"price": 60, "features": "تحليل شامل + مقارنة مع مشاريع مماثلة + تحليل ذكي بالذكاء الاصطناعي + تقرير PDF فاخر."}
+}
 
 # اختيار الباقة
-st.subheader("💎 اختر الباقة المناسبة لك:")
-packages = {
-    "مجانية": {"price": 0, "features": "تحليل سريع لعقار واحد + تقرير PDF"},
-    "فضية": {"price": 12, "features": "تحليل دقيق + متوسط الأسعار + نصائح + تقرير PDF"},
-    "ذهبية": {"price": 28, "features": "تحليل متقدم + تنبؤ ذكي + أفضل وقت للبيع + تقرير PDF"},
-    "ماسية": {"price": 55, "features": "تحليل شامل + مقارنة مشاريع + تنبؤ ذكي + تقرير PDF فاخر"}
-}
-selected_package = st.selectbox("💼 الباقة", list(packages.keys()))
-price = packages[selected_package]["price"]
-features = packages[selected_package]["features"]
+chosen_pkg = st.radio("💎 اختر(ي) باقتك:", list(packages.keys()), horizontal=True)
 
+# حساب السعر
+base_price = packages[chosen_pkg]["price"]
+total_price = base_price * count
+
+# عرض السعر والمميزات
 st.markdown(f"""
-<div style='background-color:#111; padding:10px; border-radius:10px; border:1px solid gold;'>
-<strong>💰 السعر:</strong> {price} دولار<br>
-<strong>✨ مميزات الباقة:</strong> {features}
+<div class='gold-box'>
+<h3>💰 السعر الإجمالي: {total_price} دولار</h3>
+<p><b>مميزات الباقة ({chosen_pkg}):</b><br>{packages[chosen_pkg]['features']}</p>
 </div>
 """, unsafe_allow_html=True)
 
-# زر إنشاء التقرير
-if st.button("📄 تحميل تقريرك PDF"):
-    pdf = FPDF()
+# توليد التقرير PDF
+class PDF(FPDF):
+    def header(self):
+        self.set_font("Arial", "B", 16)
+        self.cell(0, 10, "Warda Intelligence Real Estate Report", 0, 1, "C")
+        self.ln(5)
+
+def create_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price):
+    pdf = PDF()
     pdf.add_page()
-    pdf.add_font('Amiri', '', 'Amiri-Regular.ttf', uni=True)
-    pdf.set_font('Amiri', '', 14)
-    pdf.cell(0, 10, txt="تقرير التحليل العقاري", ln=True, align='C')
-    pdf.ln(10)
+    pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
+    pdf.set_font("Amiri", "", 14)
     pdf.multi_cell(0, 10, f"""
-    المدينة: {city}
-    الفئة: {category}
-    نوع العقار: {property_type}
-    الحالة: {status}
-    عدد العقارات: {num_properties}
-    الباقة المختارة: {selected_package}
-    السعر بالدولار: {price}
-    المميزات: {features}
-    """)
-    pdf.output("تقرير_وردة.pdf")
-    st.success("تم إنشاء التقرير بنجاح ✅")
-    st.download_button("⬇️ تحميل التقرير PDF", data=open("تقرير_وردة.pdf", "rb"), file_name="تقرير_وردة.pdf")
+📘 تقرير التحليل العقاري الذهبي
+==============================
 
-# زر المؤثرين (سري)
-st.markdown("<div class='password-button'>🔑</div>", unsafe_allow_html=True)
+👤 الفئة: {user_type}
+🏙️ المدينة: {city}
+🏠 نوع العقار: {property_type}
+📏 المساحة: {area} م²
+🚪 عدد الغرف: {rooms}
+📌 الحالة: {status}
+📊 عدد العقارات المحللة: {count}
 
-# إدخال كلمة السر عند الضغط
-show_panel = st.text_input("كلمة السر (خاصة بالمؤثرين):", type="password")
+💎 الباقة: {chosen_pkg}
+💰 السعر الإجمالي: {total_price} دولار
 
-if show_panel == "Warda2025":
-    st.success("تم فتح لوحة المؤثرين ✅")
-    st.markdown("""
-        ### 🎯 لوحة المؤثرين
-        يمكنك توليد روابط خاصة تمنح المستخدمين تقارير مجانية ليوم واحد فقط.
-        """)
-    influencer_name = st.text_input("اسم المؤثر:")
-    if st.button("🔗 إنشاء رابط مؤقت"):
-        st.success(f"✅ تم إنشاء رابط خاص لـ {influencer_name} صالح لمدة 24 ساعة.")
+🔍 مميزات التحليل:
+{packages[chosen_pkg]['features']}
+
+📈 هذا التقرير يقدم نظرة دقيقة عن سوق {city} بناءً على بيانات واقعية وتنبؤات بالذكاء الاصطناعي.
+
+🕒 تاريخ الإنشاء: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+منصة Warda Intelligence — تحليلات عقارية دقيقة بثقة وجودة.
+""")
+    return pdf
+
+# زر تحميل التقرير
+if st.button("📥 تحميل التقرير (PDF)"):
+    pdf = create_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
+    temp_name = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    pdf.output(temp_name)
+    with open(temp_name, "rb") as f:
+        st.download_button(
+            label="📩 اضغط هنا لتحميل تقريرك الآن",
+            data=f,
+            file_name=f"تقرير_{chosen_pkg}_{city}.pdf",
+            mime="application/pdf"
+        )
+    os.remove(temp_name)
+    st.success("✅ تم إنشاء التقرير بنجاح!")
+
+# رابط المؤثرين - يمنح تقرير مجاني لمرة واحدة
+st.markdown("""
+<div class='center'>
+<h4>🎁 رابط خاص بالمؤثرين</h4>
+<p>يمكنك منح هذا الرابط لأي مؤثر ليستفيد من تقرير مجاني لمرة واحدة فقط:</p>
+<a href="https://warda-intelligence.streamlit.app/?promo=FREE1" target="_blank">
+<button style="background-color:green;color:white;font-size:18px;padding:10px 20px;border:none;border-radius:10px;">🎯 رابط المؤثرين المجاني</button>
+</a>
+</div>
+""", unsafe_allow_html=True)
+
+# واتساب
+st.markdown("""
+<div class='center'>
+<a href="https://wa.me/213779888140" target="_blank">
+<button style="background-color:green;color:white;font-size:18px;padding:10px 20px;border:none;border-radius:10px;">💬 تواصل مع Warda Intelligence عبر واتساب</button>
+</a>
+</div>
+""", unsafe_allow_html=True)
