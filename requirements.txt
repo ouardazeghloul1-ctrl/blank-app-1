@@ -25,5 +25,6 @@ tqdm==4.66.4
 
 # وقت التشغيل والتوافق
 packaging==24.1
-matplotlib
-weasyprint
+
+# إضافة مكتبة matplotlib للرسوم
+matplotlib==3.9.2
