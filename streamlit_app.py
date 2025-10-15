@@ -3,15 +3,6 @@ import pandas as pd
 from datetime import datetime
 import os
 import base64
-from io import BytesIO
-
-# محاولة استيراد weasyprint أو استخدام بديل
-try:
-    from weasyprint import HTML
-    WEASYPRINT_AVAILABLE = True
-except ImportError:
-    WEASYPRINT_AVAILABLE = False
-    st.warning("⚠️ لم يتم تثبيت WeasyPrint - سيتم استخدام HTML بدلاً من PDF")
 
 # إعداد الصفحة
 st.set_page_config(page_title="التحليل العقاري الذهبي | Warda Intelligence", layout="centered")
@@ -39,6 +30,14 @@ st.markdown("""
             margin-bottom: 15px;
         }
         .center { text-align: center; }
+        .report-preview {
+            background: white;
+            color: black;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 2px solid gold;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -88,7 +87,7 @@ def create_arabic_report(user_type, city, property_type, area, rooms, status, co
         <meta charset="UTF-8">
         <style>
             body {{
-                font-family: 'Arial', sans-serif;
+                font-family: 'Arial', 'Segoe UI', Tahoma, sans-serif;
                 line-height: 1.8;
                 color: #333;
                 margin: 40px;
@@ -137,6 +136,22 @@ def create_arabic_report(user_type, city, property_type, area, rooms, status, co
                 background: #fff;
                 border-radius: 5px;
                 border: 1px solid #ddd;
+            }}
+            ul {{
+                list-style-type: none;
+                padding: 0;
+            }}
+            li {{
+                margin: 8px 0;
+                padding-right: 15px;
+                position: relative;
+            }}
+            li:before {{
+                content: "•";
+                color: #d4af37;
+                font-weight: bold;
+                position: absolute;
+                right: 0;
             }}
         </style>
     </head>
@@ -188,49 +203,77 @@ def create_arabic_report(user_type, city, property_type, area, rooms, status, co
     
     return html_content
 
-# زر تحميل التقرير
-if st.button("📥 تحميل التقرير (PDF)"):
-    try:
-        with st.spinner("🔄 جاري إنشاء التقرير العربي..."):
-            html_content = create_arabic_report(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
-            
-            if WEASYPRINT_AVAILABLE:
-                # إنشاء PDF باستخدام weasyprint
-                pdf_bytes = HTML(string=html_content).write_pdf()
-                
-                st.download_button(
-                    label="🎯 اضغط لتحميل التقرير العربي PDF",
-                    data=pdf_bytes,
-                    file_name=f"تقرير_عقاري_{city}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                    mime="application/pdf"
-                )
-            else:
-                # عرض التقرير كHTML إذا لم يكن weasyprint متاحاً
-                st.markdown("### 📄 معاينة التقرير العربي")
-                st.components.v1.html(html_content, height=800, scrolling=True)
-                
-                st.info("""
-                💡 **لتحميل التقرير كPDF:**
-                1. اضغط على زر التحميل أدناه لتحميل ملف HTML
-                2. افتح الملف في متصفحك
-                3. اختر "طباعة" ثم "حفظ كPDF"
-                """)
-                
-                st.download_button(
-                    label="📄 تحميل التقرير كملف HTML",
-                    data=html_content,
-                    file_name=f"تقرير_عقاري_{city}.html",
-                    mime="text/html"
-                )
-        
-        st.success("✅ تم إنشاء التقرير العربي بنجاح!")
-        st.balloons()
-        
-    except Exception as e:
-        st.error(f"❌ حدث خطأ: {str(e)}")
-        st.info("📞 يرجى التواصل مع الدعم الفني لحل المشكلة")
+# عرض معاينة التقرير
+st.markdown("### 📊 معاينة التقرير")
+
+# إنشاء التقرير وعرضه
+html_report = create_arabic_report(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price)
+
+# عرض التقرير في iframe
+st.components.v1.html(html_report, height=1000, scrolling=True)
+
+# تحميل التقرير كملف HTML
+st.markdown("---")
+st.markdown("### 📥 تحميل التقرير")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    # تحميل كملف HTML
+    st.download_button(
+        label="📄 تحميل التقرير كملف HTML",
+        data=html_report,
+        file_name=f"تقرير_عقاري_{city}_{datetime.now().strftime('%Y%m%d')}.html",
+        mime="text/html",
+        use_container_width=True
+    )
+
+with col2:
+    # تحميل كملف نصي
+    text_report = f"""
+    تقرير التحليل العقاري الذهبي
+    منصة Warda Intelligence
+    ===============================
+    
+    👤 معلومات العميل:
+    - الفئة: {user_type}
+    - المدينة: {city}
+    - نوع العقار: {property_type}
+    - المساحة: {area} م²
+    - عدد الغرف: {rooms}
+    - الحالة: {status}
+    - عدد العقارات المحللة: {count}
+    
+    💎 تفاصيل الباقة:
+    - الباقة المختارة: {chosen_pkg}
+    - السعر الإجمالي: {total_price} دولار
+    - مميزات الباقة: {packages[chosen_pkg]['features']}
+    
+    📈 ملخص التحليل:
+    هذا التقرير يقدم تحليلاً شاملاً لسوق العقارات في {city}
+    بناءً على تحليل بيانات السوق الحالية وتنبؤات بالذكاء الاصطناعي
+    
+    🕒 تاريخ الإنشاء: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    📞 للاستفسار: +213779888140
+    """
+    
+    st.download_button(
+        label="📝 تحميل التقرير كملف نصي",
+        data=text_report,
+        file_name=f"تقرير_عقاري_{city}_{datetime.now().strftime('%Y%m%d')}.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
+
+st.info("""
+💡 **طريقة استخدام التقرير:**
+1. يمكنك تحميل التقرير كملف HTML وفتحه في أي متصفح
+2. للحصول على PDF: افتح الملف HTML ثم اختر "طباعة" → "حفظ كPDF"
+3. أو استخدم التقرير النصي للقراءة السريعة
+""")
 
 # رابط المؤثرين
+st.markdown("---")
 st.markdown("""
 <div class='center'>
 <h4>🎁 رابط خاص بالمؤثرين</h4>
