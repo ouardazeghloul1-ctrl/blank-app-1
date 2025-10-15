@@ -77,11 +77,15 @@ class PDF(FPDF):
         self.ln(5)
 
 def create_pdf(user_type, city, property_type, area, rooms, status, count, chosen_pkg, total_price):
-    pdf = PDF()
-    pdf.add_page()
-    pdf.add_font("Amiri", "", "Amiri-Regular.ttf", uni=True)
-    pdf.set_font("Amiri", "", 14)
-    pdf.multi_cell(0, 10, f"""
+   pdf = PDF()
+pdf.add_page()
+import os
+font_path = "Amiri-Regular.ttf"
+if not os.path.exists(font_path):
+    raise FileNotFoundError(f"ملف الخط غير موجود: {font_path}")
+pdf.add_font("Amiri", "", font_path, uni=True)
+pdf.set_font("Amiri", "", 14)
+
 📘 تقرير التحليل العقاري الذهبي
 ==============================
 
