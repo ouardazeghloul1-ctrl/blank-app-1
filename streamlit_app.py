@@ -35,7 +35,11 @@ st.markdown("""
         padding: 15px; border-radius: 10px; border: 2px solid #d4af37;
         margin: 10px 0; text-align: center;
     }
-    .premium { border-color: #ffd700; background: linear-gradient(135deg, #3d2e1a, #2d1f0f); }
+    .admin-panel {
+        background: linear-gradient(135deg, #1a2a3a, #2a3a4a);
+        padding: 20px; border-radius: 15px; border: 2px solid #00ff00;
+        margin: 10px 0;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -52,8 +56,7 @@ PACKAGES = {
             "أسعار متوسطة للمنطقة", 
             "تقرير نصي بسيط",
             "صالح لعقار واحد"
-        ],
-        "color": "white"
+        ]
     },
     "فضية": {
         "price": 29,
@@ -63,8 +66,7 @@ PACKAGES = {
             "مقارنة مع مشاريع مشابهة",
             "نصائح استثمارية مبدئية",
             "تقرير PDF متقدم"
-        ],
-        "color": "silver"
+        ]
     },
     "ذهبية": {
         "price": 79,
@@ -75,26 +77,22 @@ PACKAGES = {
             "دراسة الجدوى الاقتصادية",
             "تحليل المنافسين",
             "نصائح مخصصة حسب الفئة"
-        ],
-        "color": "gold"
+        ]
     },
     "ماسية": {
         "price": 149,
         "features": [
             "كل مميزات الذهبية +",
             "تحليل شمولي متكامل", 
-            "متابعة شهرية لمدة 3 أشهر",
-            "استشارة مباشرة مع خبير",
+            "تقارير مقارنة مع كل المدن",
             "تحليل المخاطرة المتقدم",
-            "خطة استثمارية تفصيلية",
-            "تقارير مقارنة مع كل المدن"
-        ],
-        "color": "diamond"
+            "خطة استثمارية تفصيلية"
+        ]
     }
 }
 
 # === تحليلات مخصصة لكل فئة ===
-def get_analysis_by_user_type(user_type, city, property_type, area, budget):
+def get_analysis_by_user_type(user_type, city, property_type, area):
     """تحليل مخصص حسب فئة المستخدم"""
     
     analyses = {
@@ -168,8 +166,8 @@ def get_analysis_by_user_type(user_type, city, property_type, area, budget):
     
     return analyses.get(user_type, analyses["فرد"])
 
-# === نظام الدفع والتقارير ===
-def generate_comprehensive_report(user_type, city, property_type, area, budget, package, property_count):
+# === توليد التقرير ===
+def generate_comprehensive_report(user_type, city, property_type, area, package, property_count):
     """توليد تقرير شامل حسب الباقة المختارة"""
     
     # حساب السعر الديناميكي
@@ -177,9 +175,10 @@ def generate_comprehensive_report(user_type, city, property_type, area, budget, 
     total_price = base_price * property_count
     
     # تحليل مخصص للفئة
-    user_analysis = get_analysis_by_user_type(user_type, city, property_type, area, budget)
+    user_analysis = get_analysis_by_user_type(user_type, city, property_type, area)
     
-    report = f"""
+    # إنشاء محتوى التقرير
+    report_content = f"""
     🏙️ تقرير Warda Intelligence المتقدم
     =================================
     
@@ -188,7 +187,6 @@ def generate_comprehensive_report(user_type, city, property_type, area, budget, 
     - المدينة: {city} 
     - نوع العقار: {property_type}
     - المساحة: {area} م²
-    - الميزانية: {budget:,.0f} دولار
     - عدد العقارات: {property_count}
     
     💎 الباقة المختارة: {package}
@@ -201,42 +199,81 @@ def generate_comprehensive_report(user_type, city, property_type, area, budget, 
     """
     
     for i, question in enumerate(user_analysis['questions'], 1):
-        report += f"\n{i}. {question}"
+        report_content += f"\n{i}. {question}"
     
-    report += f"""
+    report_content += f"""
     
     📊 مجالات التركيز:
     """
     for focus in user_analysis['focus']:
-        report += f"\n   • {focus}"
+        report_content += f"\n   • {focus}"
     
-    report += f"""
+    report_content += f"""
     
     💡 النصيحة الذهبية:
     {user_analysis['advice']}
     
-    📈 تحليل السوق:
-    - متوسط الأسعار في {city}: {np.random.randint(1000, 5000):,} دولار/م²
-    - اتجاه السوق: {'صاعد' if np.random.random() > 0.5 else 'هابط'}
-    - السيولة: {'عالية' if np.random.random() > 0.3 else 'متوسطة'}
+    📈 تحليل السوق في {city}:
+    - متوسط الأسعار: {np.random.randint(1000, 5000):,} دولار/م²
+    - اتجاه السوق: {'صاعد ↗️' if np.random.random() > 0.5 else 'هابط ↘️'}
+    - السيولة: {'عالية 💧' if np.random.random() > 0.3 else 'متوسطة ⚖️'}
+    - المنافسة: {'عالية 🔥' if np.random.random() > 0.6 else 'متوسطة 📊'}
     
     🔮 توقعات الذكاء الاصطناعي:
     - فرص النمو: {np.random.randint(5, 25)}%
-    - المخاطر: {np.random.randint(10, 40)}%
-    - التوصية: {'شراء' if np.random.random() > 0.4 else 'انتظار'}
+    - مستوى المخاطرة: {np.random.randint(10, 40)}%
+    - التوصية: {'شراء 🟢' if np.random.random() > 0.4 else 'انتظار 🟡'}
+    - الفترة المثلى: {np.random.randint(1, 12)} أشهر
     
-    📋 خطة العمل:
+    📋 خطة العمل المقترحة:
     1. دراسة السوق المحلي لمدة أسبوع
     2. تحديد 3-5 عقارات محتملة
     3. التفاوض على السعر
     4. المراجعة القانونية
     5. إتمام الصفقة
     
-    🕒 تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-    📞 للاستفسار: +213779888140
+    💎 مميزات الباقة {package}:
     """
     
-    return report, total_price
+    for feature in PACKAGES[package]["features"]:
+        report_content += f"\n   ✅ {feature}"
+    
+    report_content += f"""
+    
+    🕒 تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+    📞 للاستفسار: +213779888140
+    🌐 Warda Intelligence - التحليل العقاري الذكي
+    """
+    
+    return report_content, total_price
+
+# === لوحة التحكم للمسؤول ===
+def admin_panel():
+    """لوحة تحكم المسؤول"""
+    st.markdown("---")
+    st.markdown("### 🛠️ لوحة تحكم المسؤول")
+    
+    with st.expander("🔗 إنشاء رابط مؤثرين جديد"):
+        days_valid = st.number_input("مدة الصلاحية (أيام):", min_value=1, max_value=30, value=1)
+        
+        if st.button("إنشاء رابط جديد"):
+            today = datetime.now().strftime("%Y%m%d")
+            influencer_token = hashlib.md5(f"FREE1_{today}_{np.random.randint(1000,9999)}".encode()).hexdigest()[:10]
+            expiry_date = datetime.now() + timedelta(days=days_valid)
+            
+            st.session_state.influencer_url = f"https://warda-intelligence.streamlit.app/?promo={influencer_token}"
+            st.session_state.expiry_date = expiry_date
+            
+            st.success(f"✅ تم إنشاء الرابط الجديد")
+    
+    if hasattr(st.session_state, 'influencer_url'):
+        st.markdown(f"""
+        <div class='admin-panel'>
+        <h4>🎯 رابط المؤثرين الحالي:</h4>
+        <code style='background: black; padding: 10px; border-radius: 5px; display: block; margin: 10px; font-size: 16px;'>{st.session_state.influencer_url}</code>
+        <p>📅 ينتهي في: {st.session_state.expiry_date.strftime('%Y-%m-%d %H:%M')}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 # === الواجهة الرئيسية ===
 col1, col2 = st.columns([1, 1])
@@ -254,17 +291,16 @@ with col1:
                                 ["شقة", "فيلا", "أرض", "محل تجاري"])
     
     area = st.slider("المساحة (م²):", 50, 1000, 120)
-    budget = st.number_input("الميزانية (دولار):", min_value=10000, max_value=5000000, value=100000, step=10000)
-    
-    # عدد العقارات مع تحديث السعر تلقائياً
-    property_count = st.slider("🔢 عدد العقارات للتحليل:", 1, 50, 1, 
-                              help="كلما زاد عدد العقارات، زادت دقة التحليل والسعر")
 
 with col2:
     st.markdown("### 💎 اختيار الباقة")
     
+    # عدد العقارات مع تحديث السعر تلقائياً
+    property_count = st.slider("🔢 عدد العقارات للتحليل:", 1, 50, 1,
+                              help="كلما زاد عدد العقارات، زادت دقة التحليل والسعر")
+    
     # عرض الباقات
-    chosen_pkg = st.radio("اختر باقتك:", list(PACKAGES.keys()), horizontal=True)
+    chosen_pkg = st.radio("اختر باقتك:", list(PACKAGES.keys()))
     
     # حساب السعر الديناميكي
     base_price = PACKAGES[chosen_pkg]["price"]
@@ -273,8 +309,8 @@ with col2:
     # عرض تفاصيل الباقة
     st.markdown(f"""
     <div class='package-card'>
-    <h3>{chosen_pkg} - {total_price} دولار</h3>
-    <p>{PACKAGES[chosen_pkg]['features'][0]}</p>
+    <h3>باقة {chosen_pkg}</h3>
+    <h4>{total_price} دولار</h4>
     </div>
     """, unsafe_allow_html=True)
     
@@ -282,107 +318,114 @@ with col2:
     st.markdown("**المميزات:**")
     for feature in PACKAGES[chosen_pkg]["features"]:
         st.write(f"✅ {feature}")
-    
-    # تحديث السعر مباشرة
-    st.markdown(f"### 💰 السعر النهائي: **{total_price} دولار**")
-    
-    # زر الدفع
-    if st.button("💳 proceed to payment", use_container_width=True):
-        st.session_state.payment_ready = True
 
-# === نظام الدفع ===
-if st.session_state.get('payment_ready', False):
-    st.markdown("---")
-    st.markdown("### 💳 معلومات الدفع")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        email = st.text_input("البريد الإلكتروني:")
-        card_number = st.text_input("رقم البطاقة:")
-        
-    with col2:
-        expiry = st.text_input("تاريخ الانتهاء (MM/YY):")
-        cvv = st.text_input("CVV:")
-    
-    if st.button("✅ تأكيد الدفع وإنشاء التقرير", use_container_width=True):
+# === زر إنشاء التقرير ===
+st.markdown("---")
+st.markdown(f"### 💰 السعر النهائي: **{total_price} دولار**")
+
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    if st.button("🚀 إنشاء التقرير الآن", use_container_width=True):
         with st.spinner("🔄 جاري إنشاء التقرير المتقدم..."):
             time.sleep(2)
             
             # إنشاء التقرير
             report, final_price = generate_comprehensive_report(
-                user_type, city, property_type, area, budget, chosen_pkg, property_count
+                user_type, city, property_type, area, chosen_pkg, property_count
             )
             
-            # عرض التقرير
-            st.markdown("---")
-            st.markdown("## 📊 التقرير النهائي")
-            st.text_area("محتوى التقرير:", report, height=400)
-            
-            # زر تحميل التقرير
-            st.download_button(
-                label="📥 تحميل التقرير الكامل",
-                data=report,
-                file_name=f"تقرير_{user_type}_{city}_{datetime.now().strftime('%Y%m%d')}.txt",
-                mime="text/plain"
-            )
-            
-            st.success("✅ تم الدفع وإنشاء التقرير بنجاح!")
-            st.balloons()
+            # حفظ التقرير في الجلسة
+            st.session_state.current_report = report
+            st.session_state.report_generated = True
 
-# === رابط المؤثرين ===
+with col2:
+    # زر لتحميل أي تقرير سابق
+    if st.button("📥 تحميل آخر تقرير", use_container_width=True):
+        if hasattr(st.session_state, 'current_report'):
+            st.success("✅ تم تحميل آخر تقرير")
+        else:
+            st.warning("⚠️ لا يوجد تقرير سابق")
+
+# === عرض التقرير وزر التحميل ===
+if st.session_state.get('report_generated', False):
+    st.markdown("---")
+    st.markdown("## 📊 التقرير النهائي")
+    
+    # عرض التقرير
+    st.text_area("محتوى التقرير:", st.session_state.current_report, height=400)
+    
+    # زر تحميل التقرير
+    st.download_button(
+        label="📥 تحميل التقرير الكامل",
+        data=st.session_state.current_report,
+        file_name=f"تقرير_{user_type}_{city}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
+    
+    st.success("✅ تم إنشاء التقرير بنجاح!")
+    st.balloons()
+
+# === لوحة المسؤول (تظهر فقط للمسؤول) ===
+admin_password = st.sidebar.text_input("كلمة مرور المسؤول:", type="password")
+if admin_password == "WardaAdmin2024":  # كلمة السر الخاصة بك
+    admin_panel()
+
+# === رابط المؤثرين (للزوار العاديين) ===
 st.markdown("---")
-st.markdown("### 🎁 نظام المؤثرين")
+st.markdown("### 🎁 عرض المؤثرين")
 
-# إنشاء رابط مؤقت صالح ليوم واحد
-today = datetime.now().strftime("%Y%m%d")
-influencer_token = hashlib.md5(f"FREE1_{today}".encode()).hexdigest()[:8]
-influencer_url = f"https://warda-intelligence.streamlit.app/?promo={influencer_token}"
-
-st.markdown(f"""
-<div style='text-align: center; padding: 20px; background: linear-gradient(135deg, #1a3a1a, #2d5a2d); border-radius: 10px;'>
-<h4>🎯 رابط خاص بالمؤثرين</h4>
-<p>هذا الرابط صالح ليوم واحد فقط ويوفر تقرير مجاني كامل:</p>
-<code style='background: black; padding: 10px; border-radius: 5px; display: block; margin: 10px;'>{influencer_url}</code>
-<p>📅 ينتهي في: {(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d %H:%M')}</p>
-</div>
-""", unsafe_allow_html=True)
-
-# === التحقق من رابط المؤثرين ===
-if st.experimental_get_query_params().get('promo', [''])[0] == influencer_token:
-    st.success("🎉 تم تفعيل العرض المجاني للمؤثرين! يمكنك الحصول على تقرير مجاني كامل.")
+# التحقق من رابط المؤثرين
+query_params = st.experimental_get_query_params()
+if query_params.get('promo'):
+    promo_token = query_params['promo'][0]
+    st.success("🎉 تم تفعيل العرض المجاني للمؤثرين!")
+    
+    # استخدام بيانات افتراضية للتقرير المجاني
+    free_user_type = "مؤثر"
+    free_city = "الرياض" 
+    free_property_type = "شقة"
+    free_area = 120
+    free_package = "ذهبية"
+    free_count = 1
     
     if st.button("🎁 الحصول على التقرير المجاني", use_container_width=True):
         report, _ = generate_comprehensive_report(
-            "مؤثر", "الرياض", "شقة", 120, 100000, "ذهبية", 1
+            free_user_type, free_city, free_property_type, free_area, free_package, free_count
         )
+        
         st.download_button(
             label="📥 تحميل التقرير المجاني",
             data=report,
-            file_name=f"تقرير_مجاني_{datetime.now().strftime('%Y%m%d')}.txt",
-            mime="text/plain"
+            file_name=f"تقرير_مجاني_لمؤثر_{datetime.now().strftime('%Y%m%d')}.txt",
+            mime="text/plain",
+            use_container_width=True
         )
+else:
+    st.info("""
+    **للمؤثرين:** 
+    للحصول على تقرير مجاني، يرجى استخدام الرابط الخاص الذي تم توفيره من إدارة المنصة.
+    """)
 
 # === معلومات الاتصال ===
 st.markdown("---")
 st.markdown("### 📞 للتواصل مع Warda Intelligence")
 
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("""
     **💬 واتساب:**
     +213779888140
-    """)
-
-with col2:
-    st.markdown("""
+    
     **📧 البريد:**
     info@warda-intelligence.com
     """)
 
-with col3:
+with col2:
     st.markdown("""
     **🌐 الموقع:**
     www.warda-intelligence.com
-    """)
+    
+   
