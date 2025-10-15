@@ -4,7 +4,7 @@ import numpy as np
 import os
 from datetime import datetime
 import plotly.express as px
-import time  # أضفت الاستيراد هنا
+import time
 import io
 import zipfile
 
@@ -178,7 +178,7 @@ st.markdown(f"""
 # إنشاء التقرير
 if st.button("🎯 إنشاء التقرير", use_container_width=True):
     with st.spinner("جاري الإنشاء..."):
-        time.sleep(2)  # هنا الاستخدام الصحيح
+        time.sleep(2)
         report, price, figs_data, source = generate_report(user_type, city, prop_type, area, status, pkg, count)
         st.session_state.report = report
         st.session_state.figs_data = figs_data
@@ -203,7 +203,7 @@ if st.session_state.get('ready', False):
     img_buffers = create_figs(st.session_state.figs_data)
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-        zf.witestr('تقرير.txt', st.session_state.report)
+        zf.writestr('تقرير.txt', st.session_state.report)  # صُحح من witestr إلى writestr
         for filename, img_data in img_buffers:
             zf.writestr(filename, img_data)
     zip_buffer.seek(0)
