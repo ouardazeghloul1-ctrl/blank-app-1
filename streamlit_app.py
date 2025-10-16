@@ -716,5 +716,7 @@ if admin_password == "WardaAdmin2024":
         st.sidebar.markdown("**🔗 الرابط الحصري:**")
         st.sidebar.code(st.session_state.influencer_url)
         
-        st.sidebar.markdown(f"**📋 معلومات الرابط:**")
-        st.sidebar.markdown(f"- المؤثر: {st
+        st.sidebar.markdown(f"- المؤثر: {st.session_state.influencer_name}")
+st.sidebar.markdown(f"- الباقة: 🥇 ذهبية مجانية")
+st.sidebar.markdown(f"- الصلاحية: 30 يوماً")
+st.sidebar.markdown(f"- الشروط: ذكر المنصة في المحتوى")
