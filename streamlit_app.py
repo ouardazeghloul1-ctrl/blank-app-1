@@ -702,4 +702,20 @@ if admin_password == "WardaAdmin2024":
     if st.sidebar.button("🎁 إنشاء رابط مؤثر جديد"):
         if influencer_name:
             today = datetime.now().strftime("%Y%m%d")
-            influencer_token = hashlib.md5(f"GOLD_{influencer_name}_{today}_{np.random.randint(1000,9999)}".encode
+            influencer_token = hashlib.md5(f"GOLD_{influencer_name}_{today}_{np.random.randint(1000,9999)}".encode()).hexdigest()[:12]
+            influencer_url = f"https://warda-intelligence.streamlit.app/?promo={influencer_token}"
+            
+            st.session_state.influencer_url = influencer_url
+            st.session_state.influencer_name = influencer_name
+            
+            st.sidebar.success(f"✅ تم إنشاء الرابط للمؤثر: {influencer_name}")
+        else:
+            st.sidebar.error("⚠️ يرجى إدخال اسم المؤثر")
+    
+    if hasattr(st.session_state, 'influencer_url'):
+        st.sidebar.markdown("**🔗 الرابط الحصري:**")
+        st.sidebar.code(st.session_state.influencer_url)
+        
+        st.sidebar.markdown(f"""
+        **📋 معلومات الرابط:**
+        - المؤثر: {st.session_state
