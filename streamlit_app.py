@@ -8,7 +8,9 @@ from plotly.subplots import make_subplots
 import hashlib
 import time
 import base64
-from fpdf import FPDF
+from io import BytesIO
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 import arabic_reshaper
 from bidi.algorithm import get_display
 
@@ -113,60 +115,76 @@ PACKAGES = {
     }
 }
 
-class ArabicPDF(FPDF):
-    def header(self):
-        self.set_font('Arial', 'B', 16)
-        self.set_text_color(218, 165, 32)
-        self.cell(0, 10, 'تقرير Warda Intelligence المتقدم', 0, 1, 'C')
-        self.ln(5)
-    
-    def footer(self):
-        self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
-        self.set_text_color(128, 128, 128)
-        self.cell(0, 10, f'الصفحة {self.page_no()}', 0, 0, 'C')
-    
-    def add_arabic_text(self, text, size=12, style=''):
-        try:
-            reshaped_text = arabic_reshaper.reshape(text)
-            bidi_text = get_display(reshaped_text)
-            self.set_font('Arial', style, size)
-            self.multi_cell(0, 8, bidi_text)
-            self.ln(5)
-        except:
-            self.set_font('Arial', style, size)
-            self.multi_cell(0, 8, text)
-            self.ln(5)
+def reshape_arabic_text(text):
+    """إعادة تشكيل النص العربي للعرض الصحيح"""
+    try:
+        reshaped_text = arabic_reshaper.reshape(text)
+        bidi_text = get_display(reshaped_text)
+        return bidi_text
+    except:
+        return text
 
 def create_professional_arabic_pdf(report_data, user_info):
-    pdf = ArabicPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    """إنشاء تقرير PDF احترافي بالعربية باستخدام matplotlib"""
     
-    # صفحة الغلاف
-    pdf.set_font('Arial', 'B', 20)
-    pdf.set_text_color(218, 165, 32)
-    pdf.cell(0, 40, 'تقرير التحليل العقاري المتقدم', 0, 1, 'C')
-    pdf.set_font('Arial', 'B', 16)
-    pdf.set_text_color(0, 0, 0)
-    pdf.cell(0, 20, 'Warda Intelligence - الذكاء العقاري', 0, 1, 'C')
+    buffer = BytesIO()
     
-    # معلومات العميل
-    pdf.add_arabic_text('معلومات العميل:', 14, 'B')
-    pdf.add_arabic_text(f'👤 الفئة: {user_info["user_type"]}')
-    pdf.add_arabic_text(f'🏙️ المدينة: {user_info["city"]}')
-    pdf.add_arabic_text(f'🏠 نوع العقار: {user_info["property_type"]}')
-    pdf.add_arabic_text(f'📏 المساحة: {user_info["area"]} م²')
-    pdf.add_arabic_text(f'💎 الباقة: {user_info["package"]}')
+    with PdfPages(buffer) as pdf:
+        # الصفحة 1: الغلاف
+        plt.figure(figsize=(8.27, 11.69))  # A4 size
+        plt.axis('off')
+        
+        # العنوان الرئيسي
+        plt.text(0.5, 0.8, reshape_arabic_text('تقرير Warda Intelligence المتقدم'), 
+                fontsize=20, ha='center', va='center', weight='bold', color='#d4af37')
+        
+        # العنوان الثانوي
+        plt.text(0.5, 0.7, reshape_arabic_text('التحليل العقاري الذكي'), 
+                fontsize=16, ha='center', va='center', style='italic')
+        
+        # معلومات العميل
+        info_text = f"""
+        {reshape_arabic_text('معلومات العميل:')}
+        
+        {reshape_arabic_text('👤 الفئة:')} {user_info['user_type']}
+        {reshape_arabic_text('🏙️ المدينة:')} {user_info['city']}
+        {reshape_arabic_text('🏠 نوع العقار:')} {user_info['property_type']}
+        {reshape_arabic_text('📏 المساحة:')} {user_info['area']} م²
+        {reshape_arabic_text('💎 الباقة:')} {user_info['package']}
+        """
+        
+        plt.text(0.5, 0.5, info_text, fontsize=12, ha='center', va='center', 
+                bbox=dict(boxstyle="round,pad=1", facecolor="lightgray"))
+        
+        # التاريخ
+        date_text = f"{reshape_arabic_text('تاريخ التقرير:')} {datetime.now().strftime('%Y-%m-%d')}"
+        plt.text(0.5, 0.2, date_text, fontsize=10, ha='center', va='center')
+        
+        pdf.savefig()
+        plt.close()
+        
+        # الصفحات التالية: المحتوى
+        for section_title, section_content in report_data.items():
+            plt.figure(figsize=(8.27, 11.69))
+            plt.axis('off')
+            
+            # عنوان القسم
+            plt.text(0.1, 0.95, reshape_arabic_text(section_title), 
+                    fontsize=16, ha='left', va='top', weight='bold', color='#d4af37')
+            
+            # محتوى القسم
+            plt.text(0.1, 0.85, reshape_arabic_text(section_content), 
+                    fontsize=10, ha='left', va='top', wrap=True)
+            
+            # رقم الصفحة
+            plt.text(0.5, 0.05, f"صفحة {len(pdf.pages)}", 
+                    fontsize=8, ha='center', va='center')
+            
+            pdf.savefig()
+            plt.close()
     
-    pdf.add_page()
-    
-    for section_title, section_content in report_data.items():
-        pdf.add_arabic_text(section_title, 16, 'B')
-        pdf.add_arabic_text(section_content, 12, '')
-        pdf.ln(10)
-    
-    return pdf
+    buffer.seek(0)
+    return buffer
 
 def generate_advanced_market_data(city, property_type, status):
     base_prices = {
@@ -224,13 +242,13 @@ def generate_executive_report(user_type, city, property_type, area, status, pack
         "التحليل المالي المتقدم": f"""
 التحليل المالي الشامل:
 
-📈 **مؤشرات الأداء الرئيسية:**
+مؤشرات الأداء الرئيسية:
 - العائد على الاستثمار: {market_data['العائد_التأجيري']:.1f}% سنوياً
 - معدل النمو السنوي: {market_data['معدل_النمو_الشهري']*12:.1f}%
 - معدل الإشغال: {market_data['معدل_الإشغال']:.1f}%
 - مؤشر السيولة: {market_data['مؤشر_السيولة']:.1f}%
 
-💼 **التقييم المالي:**
+التقييم المالي:
 بناءً على مساحة {area} متر مربع والسعر الحالي للسوق:
 - القيمة السوقية الحالية: {market_data['السعر_الحالي'] * area:,.0f} ريال
 - القيمة المتوقعة بعد سنة: {market_data['السعر_الحالي'] * area * 1.08:,.0f} ريال
@@ -243,17 +261,17 @@ def generate_executive_report(user_type, city, property_type, area, status, pack
         "التوصيات الاستراتيجية": f"""
 بناءً على تحليل السوق ووضعك كـ {user_type}، أقدم لكم هذه التوصيات الاستراتيجية:
 
-🎯 **الاستراتيجية الفورية (0-3 أشهر):**
+الاستراتيجية الفورية (0-3 أشهر):
 1. التفاوض على السعر ضمن نطاق {market_data['أقل_سعر']:,.0f} - {market_data['متوسط_السوق']:,.0f} ريال
 2. التركيز على المميزات التنافسية للعقار
 3. إعداد خطة تسويقية مكثفة
 
-📊 **الاستراتيجية المتوسطة (3-12 شهر):**
+الاستراتيجية المتوسطة (3-12 شهر):
 1. متابعة تطورات السوق شهرياً
 2. تحسين الخدمات لزيادة القيمة الإيجارية
 3. دراسة فرص إعادة التمويل
 
-🚀 **الاستراتيجية طويلة الأجل (1-3 سنوات):**
+الاستراتيجية طويلة الأجل (1-3 سنوات):
 1. التوسع في الاستثمار في المنطقة
 2. بناء محفظة عقارية متنوعة
 3. الاستفادة من مشاريع التطوير القادمة
@@ -262,7 +280,7 @@ def generate_executive_report(user_type, city, property_type, area, status, pack
         """,
         
         "تحليل المخاطر وفرص النمو": """
-🛡️ **تحليل المخاطر المحتملة:**
+تحليل المخاطر المحتملة:
 
 المخاطر المتوسطة:
 - تقلبات أسعار المواد الإنشائية
@@ -272,7 +290,7 @@ def generate_executive_report(user_type, city, property_type, area, status, pack
 - تغير السياسات التمويلية
 - منافسة المشاريع الجديدة
 
-🚀 **فرص النمو الاستثنائية:**
+فرص النمو الاستثنائية:
 
 الفرص الذهبية:
 - مشاريع الرؤية 2030 في المنطقة
@@ -350,31 +368,40 @@ st.markdown("### 🚀 إنشاء التقرير")
 
 if st.button("🎯 إنشاء التقرير المتقدم (PDF)", use_container_width=True):
     with st.spinner("🔄 جاري إنشاء التقرير الاحترافي... قد يستغرق بضع ثوانٍ"):
-        report_data = generate_executive_report(user_type, city, property_type, area, status, chosen_pkg)
-        user_info = {
-            "user_type": user_type,
-            "city": city, 
-            "property_type": property_type,
-            "area": area,
-            "package": chosen_pkg
-        }
-        
-        pdf = create_professional_arabic_pdf(report_data, user_info)
-        pdf_output = pdf.output(dest='S').encode('latin1')
-        pdf_b64 = base64.b64encode(pdf_output).decode()
-        
-        st.session_state.pdf_data = pdf_b64
-        st.session_state.report_generated = True
-        
-        st.success("✅ تم إنشاء التقرير الاحترافي بنجاح!")
-        st.balloons()
+        try:
+            report_data = generate_executive_report(user_type, city, property_type, area, status, chosen_pkg)
+            user_info = {
+                "user_type": user_type,
+                "city": city, 
+                "property_type": property_type,
+                "area": area,
+                "package": chosen_pkg
+            }
+            
+            pdf_buffer = create_professional_arabic_pdf(report_data, user_info)
+            
+            st.session_state.pdf_data = pdf_buffer.getvalue()
+            st.session_state.report_generated = True
+            
+            st.success("✅ تم إنشاء التقرير الاحترافي بنجاح!")
+            st.balloons()
+            
+        except Exception as e:
+            st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
+            st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم")
 
 if st.session_state.get('report_generated', False):
     st.markdown("---")
     st.markdown("## 📊 التقرير النهائي الجاهز للطباعة")
     
-    href = f'<a href="data:application/octet-stream;base64,{st.session_state.pdf_data}" download="تقرير_Warda_Intelligence_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf" style="background-color: gold; color: black; padding: 15px 30px; text-align: center; text-decoration: none; display: inline-block; border-radius: 10px; font-weight: bold; font-size: 16px;">📥 تحميل التقرير PDF</a>'
-    st.markdown(href, unsafe_allow_html=True)
+    # زر تحميل PDF
+    st.download_button(
+        label="📥 تحميل التقرير PDF",
+        data=st.session_state.pdf_data,
+        file_name=f"تقرير_Warda_Intelligence_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
     
     st.info("""
     **🎉 التقرير جاهز للطباعة والتقديم:**
@@ -419,25 +446,26 @@ if query_params.get('promo'):
     free_count = 1
     
     if st.button("🎁 الحصول على التقرير المجاني", use_container_width=True):
-        report_data = generate_executive_report(free_user_type, free_city, free_property_type, free_area, free_status, free_package)
-        user_info = {
-            "user_type": free_user_type,
-            "city": free_city, 
-            "property_type": free_property_type,
-            "area": free_area,
-            "package": free_package
-        }
-        
-        pdf = create_professional_arabic_pdf(report_data, user_info)
-        pdf_output = pdf.output(dest='S').encode('latin1')
-        
-        st.download_button(
-            label="📥 تحميل التقرير المجاني PDF",
-            data=pdf_output,
-            file_name=f"تقرير_مجاني_لمؤثر_{datetime.now().strftime('%Y%m%d')}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+        with st.spinner("🔄 جاري إنشاء التقرير المجاني..."):
+            report_data = generate_executive_report(free_user_type, free_city, free_property_type, free_area, free_status, free_package)
+            user_info = {
+                "user_type": free_user_type,
+                "city": free_city, 
+                "property_type": free_property_type,
+                "area": free_area,
+                "package": free_package
+            }
+            
+            pdf_buffer = create_professional_arabic_pdf(report_data, user_info)
+            
+            st.download_button(
+                label="📥 تحميل التقرير المجاني PDF",
+                data=pdf_buffer.getvalue(),
+                file_name=f"تقرير_مجاني_لمؤثر_{datetime.now().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+
 else:
     st.info("""
     **للمؤثرين:** 
