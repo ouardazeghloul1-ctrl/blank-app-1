@@ -118,18 +118,16 @@ PACKAGES = {
 def reshape_arabic_text(text):
     """إعادة تشكيل النص العربي للعرض الصحيح"""
     try:
-        # تجاهل الأرقام والرموز في إعادة التشكيل
         if text.replace(' ', '').isdigit() or 'صفحة' in text or 'page' in text.lower():
             return text
-            
         reshaped_text = arabic_reshaper.reshape(text)
         bidi_text = get_display(reshaped_text)
         return bidi_text
     except:
         return text
 
-def create_professional_arabic_pdf(report_data, user_info):
-    """إنشاء تقرير PDF احترافي بالعربية باستخدام matplotlib"""
+def create_professional_arabic_pdf(report_data, user_info, market_data):
+    """إنشاء تقرير PDF احترافي بالعربية مع كل المحتويات"""
     
     buffer = BytesIO()
     
@@ -137,41 +135,78 @@ def create_professional_arabic_pdf(report_data, user_info):
         page_num = 1
         
         # الصفحة 1: الغلاف
-        plt.figure(figsize=(8.27, 11.69))  # A4 size
+        plt.figure(figsize=(8.27, 11.69))
         plt.axis('off')
         
         # العنوان الرئيسي
         plt.text(0.5, 0.8, reshape_arabic_text('تقرير Warda Intelligence المتقدم'), 
-                fontsize=20, ha='center', va='center', weight='bold', color='#d4af37')
+                fontsize=22, ha='center', va='center', weight='bold', color='#d4af37')
         
         # العنوان الثانوي
-        plt.text(0.5, 0.7, reshape_arabic_text('التحليل العقاري الذكي'), 
-                fontsize=16, ha='center', va='center', style='italic')
+        plt.text(0.5, 0.7, reshape_arabic_text('التحليل العقاري الشامل'), 
+                fontsize=16, ha='center', va='center', style='italic', color='#d4af37')
         
-        # معلومات العميل
+        # معلومات العميل في جدول منظم
         info_text = f"""
-        {reshape_arabic_text('معلومات العميل:')}
+        {reshape_arabic_text('معلومات العميل')}
         
-        {reshape_arabic_text('الفئة:')} {user_info['user_type']}
-        {reshape_arabic_text('المدينة:')} {user_info['city']}
-        {reshape_arabic_text('نوع العقار:')} {user_info['property_type']}
-        {reshape_arabic_text('المساحة:')} {user_info['area']} م²
-        {reshape_arabic_text('الباقة:')} {user_info['package']}
+        • {reshape_arabic_text('الفئة:')} {user_info['user_type']}
+        • {reshape_arabic_text('المدينة:')} {user_info['city']}
+        • {reshape_arabic_text('نوع العقار:')} {user_info['property_type']}
+        • {reshape_arabic_text('المساحة:')} {user_info['area']} م²
+        • {reshape_arabic_text('الباقة:')} {user_info['package']}
+        • {reshape_arabic_text('التاريخ:')} {datetime.now().strftime('%Y-%m-%d')}
         """
         
         plt.text(0.5, 0.5, info_text, fontsize=12, ha='center', va='center', 
-                bbox=dict(boxstyle="round,pad=1", facecolor="lightgray"))
+                bbox=dict(boxstyle="round,pad=1", facecolor="#f5f5f5", edgecolor='#d4af37'))
         
-        # التاريخ
-        date_text = f"{reshape_arabic_text('تاريخ التقرير:')} {datetime.now().strftime('%Y-%m-%d')}"
-        plt.text(0.5, 0.2, date_text, fontsize=10, ha='center', va='center')
+        # الشعار
+        plt.text(0.5, 0.3, "🏙️ Warda Intelligence", 
+                fontsize=14, ha='center', va='center', color='#d4af37')
+        
+        pdf.savefig()
+        plt.close()
+        
+        # الصفحة 2: الملخص التنفيذي مع رسومات
+        plt.figure(figsize=(8.27, 11.69))
+        plt.axis('off')
+        
+        # عنوان الصفحة
+        plt.text(0.1, 0.95, reshape_arabic_text('📊 الملخص التنفيذي'), 
+                fontsize=18, ha='left', va='top', weight='bold', color='#d4af37')
+        
+        # محتوى الملخص
+        exec_summary = report_data["📊 الملخص التنفيذي الشامل"]
+        plt.text(0.1, 0.85, reshape_arabic_text(exec_summary), 
+                fontsize=10, ha='left', va='top', wrap=True)
+        
+        # إضافة مؤشرات أداء
+        metrics_text = f"""
+        {reshape_arabic_text('🎯 مؤشرات الأداء الرئيسية:')}
+        
+        📈 العائد المتوقع: {market_data['العائد_التأجيري']:.1f}% سنوياً
+        📊 معدل النمو: {market_data['معدل_النمو_الشهري']*12:.1f}% سنوياً  
+        🏠 معدل الإشغال: {market_data['معدل_الإشغال']:.1f}%
+        💰 السيولة: {market_data['مؤشر_السيولة']:.1f}%
+        """
+        
+        plt.text(0.1, 0.4, reshape_arabic_text(metrics_text), 
+                fontsize=10, ha='left', va='top', 
+                bbox=dict(boxstyle="round,pad=1", facecolor="#f0f8ff", edgecolor='gold'))
+        
+        # رقم الصفحة
+        plt.text(0.5, 0.05, f"صفحة {page_num}", fontsize=8, ha='center', va='center')
         
         pdf.savefig()
         plt.close()
         page_num += 1
         
-        # الصفحات التالية: المحتوى
+        # الصفحات التالية: كل قسم في صفحة منظمة
         for section_title, section_content in report_data.items():
+            if section_title == "📊 الملخص التنفيذي الشامل":
+                continue
+                
             plt.figure(figsize=(8.27, 11.69))
             plt.axis('off')
             
@@ -179,17 +214,58 @@ def create_professional_arabic_pdf(report_data, user_info):
             plt.text(0.1, 0.95, reshape_arabic_text(section_title), 
                     fontsize=16, ha='left', va='top', weight='bold', color='#d4af37')
             
+            # خط تحت العنوان
+            plt.axhline(y=0.92, xmin=0.1, xmax=0.9, color='#d4af37', linewidth=2)
+            
             # محتوى القسم
             plt.text(0.1, 0.85, reshape_arabic_text(section_content), 
                     fontsize=10, ha='left', va='top', wrap=True)
             
             # رقم الصفحة
-            plt.text(0.5, 0.05, f"صفحة {page_num}", 
-                    fontsize=8, ha='center', va='center')
+            plt.text(0.5, 0.05, f"صفحة {page_num}", fontsize=8, ha='center', va='center')
             
             pdf.savefig()
             plt.close()
             page_num += 1
+            
+        # الصفحة الأخيرة: الخلاصة والتوصيات
+        plt.figure(figsize=(8.27, 11.69))
+        plt.axis('off')
+        
+        plt.text(0.1, 0.95, reshape_arabic_text('🎯 التوصيات النهائية'), 
+                fontsize=18, ha='left', va='top', weight='bold', color='#d4af37')
+        
+        recommendations = """
+        بناءً على التحليل الشامل، نوصي بما يلي:
+        
+        ✅ التوصية: شراء مستعجل
+        ✅ مستوى المخاطرة: متوسطة
+        ✅ التصنيف: استثمار ممتاز
+        
+        📅 الخطوات التالية:
+        1. التفاوض على السعر خلال أسبوع
+        2. دراسة التمويل المتاح
+        3. إتمام الصفقة خلال شهر
+        
+        📞 لمزيد من الاستشارات:
+        واتساب: +213779888140
+        البريد: info@warda-intelligence.com
+        
+        شكراً لثقتكم بمنصة Warda Intelligence
+        """
+        
+        plt.text(0.1, 0.8, reshape_arabic_text(recommendations), 
+                fontsize=11, ha='left', va='top', wrap=True,
+                bbox=dict(boxstyle="round,pad=1", facecolor="#f0f8ff", edgecolor='gold'))
+        
+        # تذييل
+        plt.text(0.5, 0.1, "Warda Intelligence - الذكاء العقاري المتقدم", 
+                fontsize=10, ha='center', va='center', style='italic', color='#d4af37')
+        
+        plt.text(0.5, 0.05, f"صفحة {page_num}", fontsize=8, ha='center', va='center')
+        
+        pdf.savefig()
+        plt.close()
     
     buffer.seek(0)
     return buffer
@@ -197,7 +273,6 @@ def create_professional_arabic_pdf(report_data, user_info):
 def generate_advanced_market_data(city, property_type, status):
     """إنشاء بيانات سوقية متقدمة ومفصلة"""
     
-    # أسعار أساسية مفصلة
     base_prices = {
         "الرياض": {
             "شقة": {"سكني": 4500, "فاخر": 6500, "اقتصادي": 3200},
@@ -210,12 +285,6 @@ def generate_advanced_market_data(city, property_type, status):
             "فيلا": {"سكني": 2800, "فاخر": 4200, "اقتصادي": 2000},
             "أرض": {"سكني": 1500, "تجاري": 2800, "استثماري": 1800},
             "محل تجاري": {"مركزي": 6500, "تجاري": 5000, "حيوي": 3800}
-        },
-        "الدمام": {
-            "شقة": {"سكني": 3200, "فاخر": 4800, "اقتصادي": 2500},
-            "فيلا": {"سكني": 2600, "فاخر": 3800, "اقتصادي": 1800},
-            "أرض": {"سكني": 1200, "تجاري": 2200, "استثماري": 1500},
-            "محل تجاري": {"مركزي": 5500, "تجاري": 4200, "حيوي": 3200}
         }
     }
     
@@ -223,7 +292,6 @@ def generate_advanced_market_data(city, property_type, status):
     property_data = city_data.get(property_type, {"سكني": 3000})
     avg_price = np.mean(list(property_data.values()))
     
-    # تأثير الحالة على السعر
     price_multiplier = 1.12 if status == "للبيع" else 0.88 if status == "للشراء" else 0.95
     
     return {
@@ -240,71 +308,8 @@ def generate_advanced_market_data(city, property_type, status):
         'مؤشر_السيولة': np.random.uniform(60, 90)
     }
 
-def create_advanced_visualizations(market_data, user_type):
-    """إنشاء رسومات بيانية متقدمة ومبهرة"""
-    
-    # 1. مخطط العوائد المتوقع
-    fig_returns = go.Figure()
-    
-    fig_returns.add_trace(go.Indicator(
-        mode = "gauge+number+delta",
-        value = market_data['العائد_التأجيري'],
-        domain = {'x': [0, 1], 'y': [0, 1]},
-        title = {'text': "العائد السنوي المتوقع (%)"},
-        delta = {'reference': 7, 'increasing': {'color': "green"}},
-        gauge = {
-            'axis': {'range': [None, 20]},
-            'bar': {'color': "gold"},
-            'steps': [
-                {'range': [0, 7], 'color': "lightgray"},
-                {'range': [7, 12], 'color': "yellow"},
-                {'range': [12, 20], 'color': "orange"}
-            ],
-            'threshold': {
-                'line': {'color': "red", 'width': 4},
-                'thickness': 0.75,
-                'value': 15
-            }
-        }
-    ))
-    
-    fig_returns.update_layout(
-        height=400,
-        paper_bgcolor='rgba(0,0,0,0)',
-        font={'color': "gold", 'family': "Arial"}
-    )
-    
-    # 2. مخطط النمو
-    months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-             'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
-    
-    growth_data = [market_data['معدل_النمو_الشهري'] * i for i in range(1, 13)]
-    
-    fig_growth = go.Figure()
-    fig_growth.add_trace(go.Scatter(
-        x=months,
-        y=growth_data,
-        mode='lines+markers',
-        name='النمو التراكمي',
-        line=dict(color='gold', width=3),
-        marker=dict(size=8, color='white')
-    ))
-    
-    fig_growth.update_layout(
-        title='توقعات النمو الشهري (%)',
-        xaxis_title='الشهر',
-        yaxis_title='النمو التراكمي (%)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='white'),
-        xaxis=dict(color='white'),
-        yaxis=dict(color='white')
-    )
-    
-    return fig_returns, fig_growth
-
 def generate_executive_report(user_type, city, property_type, area, status, package):
-    """توليد تقرير تنفيذي مفصل بالعربية - 10 صفحات من المحتوى الثري"""
+    """توليد تقرير تنفيذي مفصل بالعربية"""
     
     market_data = generate_advanced_market_data(city, property_type, status)
     
@@ -453,117 +458,8 @@ def generate_executive_report(user_type, city, property_type, area, status, pack
 - العقارات الذكية: +25% نمو متوقع
 - المباني الخضراء: +22% نمو متوقع
 - المجمعات المتكاملة: +18% نمو متوقع
-        """,
-        
-        "💡 نصائح الخبراء": """
-**حكمة من واقع التجربة:**
-
-🎓 **من مستثمر ناجح:**
-"النجاح في العقارات لا يأتي من الصفقات الكبيرة، بل من القرارات الصحيحة المتتالية"
-
-💼 **من وسيط محترف:**
-"أفضل استثمار هو الذي تفهمه تماماً وتشعر بالراحة تجاه مخاطره"
-
-🏆 **من مطور عقاري:**
-"الجودة تبني السمعة، والسمعة تبني الثروة"
-
-**نصائح عملية:**
-1. ادرس السوق لمدة 3 أشهر قبل الاستثمار
-2. استشر أكثر من خبير قبل اتخاذ القرار
-3. لا تستثمر أكثر من 30% من رأس مالك في صفقة واحدة
-4. حافظ على سيولة كافية للطوارئ
-5. تابع السوق أسبوعياً وكن مستعداً للتعديل
-        """,
-        
-        "📋 خطة التنفيذ التفصيلية": """
-**الخطوات العملية للنجاح:**
-
-📅 **الأسبوع 1-4: الدراسة والبحث**
-- تحليل 50 عقار مشابه
-- دراسة 10 مشاريع منافسة
-- مقابلة 5 وسطاء متخصصين
-- زيارة 3 مناطق مستهدفة
-
-📅 **الشهر 2-3: التفاوض والشراء**
-- التفاوض على 3 عقارات واعدة
-- دراسة الجدوى التفصيلية
-- تأمين التمويل المناسب
-- إتمام الصفقة الأفضل
-
-📅 **الشهر 4-6: التطوير والتأجير**
-- تجهيز العقار بأفضل المواصفات
-- وضع خطة تسويقية مكثفة
-- اختيار المستأجرين المناسبين
-- بدء تحقيق العوائد
-
-**مؤشرات النجاح:**
-- تحقيق 80% إشغال خلال 3 أشهر
-- عائد 8% على الاستثمار سنوياً
-- نمو القيمة السوقية 10% سنوياً
-        """,
-        
-        "🔮 توقعات المستقبل": """
-**رؤية 2030 وتأثيرها على العقارات:**
-
-🏙️ **التأثيرات الإيجابية:**
-- نمو الاستثمارات الأجنبية: +40%
-- زيادة السياحة: +25 مليون سائح
-- نمو الاقتصاد: +3.5% سنوياً
-- تحسين البنية التحتية: +200%
-
-📊 **التوقعات الاقتصادية:**
-- نمو الناتج المحلي: 3.8% سنوياً
-- ارتفاع احتياطي النقد الأجنبي: 2.1 تريليون ريال
-- نمو الصادرات غير النفطية: +12%
-
-🎯 **الفرص المستقبلية:**
-- الذكاء الاصطناعي في العقارات: +35% نمو
-- الاستدامة والطاقة الخضراء: +28% نمو
-- التكنولوجيا المالية: +22% نمو
-        """,
-        
-        "🏆 الخلاصة والتوصيات": """
-**النتائج النهائية والتوصيات:**
-
-✅ **التقييم النهائي:**
-- تصنيف الاستثمار: 🟢 ممتاز
-- مستوى المخاطرة: 🟡 متوسطة
-- التوصية: 🟢 شراء مستعجل
-
-🎯 **التوصيات الاستراتيجية:**
-1. الاستثمار الفوري في المنطقة
-2. التركيز على النوعية لا الكمية
-3. التنويع في المحفظة الاستثمارية
-4. المتابعة المستمرة للسوق
-
-**خاتمة:**
-هذا ليس مجرد تقرير، بل هو خريطة طريق نحو النجاح الاستثماري. ثق بقدراتك واتخذ القرار المدروس.
         """
     }
-    
-    # إضافة قسم خاص للمؤثرين
-    if user_type == "مؤثر":
-        report_sections["🎁 هدية Warda Intelligence"] = """
-        **عزيزي المؤثر الكريم،**
-
-        نقدم لك هذا التقرير الذهبي كهدية حصرية تقديراً لتأثيرك الإيجابي في المجتمع.
-
-        **ماذا تحصل عليه مجاناً؟**
-        🥇 تقرير ذهبي بقيمة 79 دولار
-        📊 10 صفحات من التحليل المتقدم
-        🎯 رسومات بيانية تفاعلية
-        💡 نصائح استثمارية حصرية
-
-        **كيف تدعمنا؟**
-        بمشاركتك تجربتك مع منصة Warda Intelligence، فأنت تساعد في:
-        - نشر الثقافة الاستثمارية الواعية
-        - دعم منصة عربية متخصصة
-        - تمكين المستثمرين من اتخاذ قرارات مدروسة
-
-        **شكراً لكونك جزءاً من نجاحنا!**
-
-        *فريق Warda Intelligence*
-        """
     
     return report_sections
 
@@ -642,18 +538,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", use_containe
                 "package": chosen_pkg
             }
             
-            # إنشاء الرسومات البيانية للباقات المدفوعة
-            if chosen_pkg != "مجانية":
-                st.markdown("### 📈 الرسوم البيانية المتقدمة")
-                fig_returns, fig_growth = create_advanced_visualizations(market_data, user_type)
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.plotly_chart(fig_returns, use_container_width=True)
-                with col2:
-                    st.plotly_chart(fig_growth, use_container_width=True)
-            
-            pdf_buffer = create_professional_arabic_pdf(report_data, user_info)
+            pdf_buffer = create_professional_arabic_pdf(report_data, user_info, market_data)
             
             st.session_state.pdf_data = pdf_buffer.getvalue()
             st.session_state.report_generated = True
@@ -717,6 +602,93 @@ if admin_password == "WardaAdmin2024":
         st.sidebar.code(st.session_state.influencer_url)
         
         st.sidebar.markdown(f"- المؤثر: {st.session_state.influencer_name}")
-st.sidebar.markdown(f"- الباقة: 🥇 ذهبية مجانية")
-st.sidebar.markdown(f"- الصلاحية: 30 يوماً")
-st.sidebar.markdown(f"- الشروط: ذكر المنصة في المحتوى")
+        st.sidebar.markdown(f"- الباقة: 🥇 ذهبية مجانية")
+        st.sidebar.markdown(f"- الصلاحية: 30 يوماً")
+        st.sidebar.markdown(f"- الشروط: ذكر المنصة في المحتوى")
+
+# === رابط المؤثرين ===
+st.markdown("---")
+st.markdown("### 🎁 عرض المؤثرين")
+
+query_params = st.experimental_get_query_params()
+if query_params.get('promo'):
+    promo_token = query_params['promo'][0]
+    
+    st.success("🎉 تم تفعيل العرض الحصري للمؤثرين!")
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #d4af37, #ffd700); padding: 20px; border-radius: 15px; text-align: center; color: black;'>
+    <h3>🎁 تقرير مجاني حصري للمؤثرين</h3>
+    <p>شكراً لتواجدكم في منصتنا! هذا التقرير الذهبي هدية خاصة لكم</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    free_user_type = "مؤثر"
+    free_city = "الرياض" 
+    free_property_type = "شقة"
+    free_area = 120
+    free_status = "للبيع"
+    free_package = "ذهبية"
+    
+    if st.button("🎁 تحميل التقرير الذهبي المجاني", use_container_width=True):
+        with st.spinner("🔄 جاري إنشاء التقرير الحصري..."):
+            market_data = generate_advanced_market_data(free_city, free_property_type, free_status)
+            report_data = generate_executive_report(free_user_type, free_city, free_property_type, free_area, free_status, free_package)
+            user_info = {
+                "user_type": free_user_type,
+                "city": free_city, 
+                "property_type": free_property_type,
+                "area": free_area,
+                "package": free_package
+            }
+            
+            pdf_buffer = create_professional_arabic_pdf(report_data, user_info, market_data)
+            
+            st.download_button(
+                label="📥 تحميل التقرير الذهبي PDF",
+                data=pdf_buffer.getvalue(),
+                file_name=f"تقرير_ذهبي_مجاني_{datetime.now().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+            
+            st.markdown("""
+            <div style='background: linear-gradient(135deg, #1a2a3a, #2a3a4a); padding: 15px; border-radius: 10px; border: 2px solid gold; margin: 20px 0;'>
+            <h4 style='color: gold; text-align: center;'>🎯 شروط الاستفادة من العرض:</h4>
+            <p style='color: white; text-align: center;'>
+            نرجو ذكر منصة <strong>Warda Intelligence</strong> في محتواكم مقابل هذه الهدية القيمة
+            </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+else:
+    st.info("""
+    **🎁 حصرياً للمؤثرين:** 
+    للحصول على تقرير ذهبي مجاني، يرجى استخدام الرابط الحصري من إدارة المنصة.
+    """)
+
+# === معلومات الاتصال ===
+st.markdown("---")
+st.markdown("### 📞 للتواصل مع Warda Intelligence")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("""
+    **💬 واتساب:**
+    +213779888140
+    
+    **📧 البريد الإلكتروني للدفع:**
+    zeghloulwarda6@gmail.com
+    """)
+
+with col2:
+    st.markdown("""
+    **📧 البريد الاستشاري:**
+    info@warda-intelligence.com
+    
+    **🌐 الموقع:**
+    www.warda-intelligence.com
+    
+    **⏰ دعم على مدار الساعة:**
+    نعمل لخدمتك 24/7
+    """)
