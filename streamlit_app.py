@@ -20,10 +20,191 @@ import warnings
 import random
 warnings.filterwarnings('ignore')
 
-# ========== إعداد الخطوط للعربية ==========
+# ========== الإصلاح الكامل للغة العربية ==========
+def setup_arabic_support():
+    st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap');
+    
+    /* إعدادات شاملة لكل العناصر */
+    * {
+        font-family: 'Tajawal', 'Arial', sans-serif !important;
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* العناصر الأساسية في Streamlit */
+    .main .block-container {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    .stApp {
+        background-color: #0E1117;
+        direction: rtl !important;
+    }
+    
+    /* العناوين */
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Tajawal', 'Arial', sans-serif !important;
+        direction: rtl !important;
+        text-align: right !important;
+        font-weight: bold !important;
+        color: gold !important;
+    }
+    
+    /* النصوص */
+    p, div, span {
+        direction: rtl !important;
+        text-align: right !important;
+        unicode-bidi: embed !important;
+    }
+    
+    /* الحقول والنماذج */
+    .stTextInput label, .stNumberInput label, .stSelectbox label, 
+    .stTextArea label, .stSlider label, .stRadio label {
+        direction: rtl !important;
+        text-align: right !important;
+        font-family: 'Tajawal', 'Arial', sans-serif !important;
+        color: gold !important;
+        font-weight: bold !important;
+    }
+    
+    /* الأزرار */
+    .stButton button {
+        font-family: 'Tajawal', 'Arial', sans-serif !important;
+        direction: rtl !important;
+        background-color: gold !important;
+        color: black !important;
+        font-weight: bold !important;
+        border-radius: 15px !important;
+        padding: 1em 2em !important;
+        border: none !important;
+        width: 100% !important;
+        font-size: 18px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stButton button:hover {
+        background-color: #ffd700 !important;
+        transform: scale(1.05) !important;
+    }
+    
+    /* الجداول */
+    table {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* عناصر الواجهة الأخرى */
+    .stAlert {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* إصلاح المشاكل في المحتوى الديناميكي */
+    [data-testid="stMarkdownContainer"] {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* تنسيقات البطاقات */
+    .package-card {
+        background: linear-gradient(135deg, #1a1a1a, #2d2d2d) !important;
+        padding: 25px !important;
+        border-radius: 20px !important;
+        border: 3px solid #d4af37 !important;
+        margin: 15px 0 !important;
+        text-align: center !important;
+        box-shadow: 0 8px 32px rgba(212, 175, 55, 0.3) !important;
+        direction: rtl !important;
+    }
+    
+    .header-section {
+        background: linear-gradient(135deg, #1a1a1a, #2d2d2d) !important;
+        padding: 40px !important;
+        border-radius: 25px !important;
+        border: 3px solid gold !important;
+        margin: 20px 0 !important;
+        text-align: center !important;
+        direction: rtl !important;
+    }
+    
+    .real-data-badge {
+        background: linear-gradient(135deg, #00b894, #00a085) !important;
+        color: white !important;
+        padding: 10px 20px !important;
+        border-radius: 25px !important;
+        font-weight: bold !important;
+        margin: 10px 0 !important;
+        text-align: center !important;
+        border: 2px solid #00d8a4 !important;
+        direction: rtl !important;
+    }
+    
+    .ai-badge {
+        background: linear-gradient(135deg, #667eea, #764ba2) !important;
+        color: white !important;
+        padding: 8px 16px !important;
+        border-radius: 20px !important;
+        font-weight: bold !important;
+        margin: 5px 0 !important;
+        text-align: center !important;
+        border: 2px solid #667eea !important;
+        font-size: 12px !important;
+        direction: rtl !important;
+    }
+    
+    .stDownloadButton button {
+        background: linear-gradient(135deg, #d4af37, #ffd700) !important;
+        color: black !important;
+        font-weight: bold !important;
+        border-radius: 15px !important;
+        padding: 1em 2em !important;
+        border: none !important;
+        width: 100% !important;
+        font-size: 18px !important;
+        direction: rtl !important;
+    }
+    
+    /* إصلاح المحتوى داخل expander */
+    .streamlit-expanderContent {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* إصلاح الـ radio buttons */
+    .stRadio > div {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    .stRadio label {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* إصلاح الـ selectbox */
+    .stSelectbox > div > div {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* إصلاح الـ slider */
+    .stSlider > div {
+        direction: rtl !important;
+    }
+    
+    </style>
+    """, unsafe_allow_html=True)
+
+# تطبيق الإعدادات
+setup_arabic_support()
+
+# ========== إعداد الخطوط للعربية في matplotlib ==========
 try:
     plt.rcParams['font.family'] = 'DejaVu Sans'
-    plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
+    plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial']
     plt.rcParams['axes.unicode_minus'] = False
 except:
     pass
@@ -35,141 +216,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
-# ========== تنسيق واجهة فاخرة مع إصلاح العربية ==========
-st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap');
-    
-    * {
-        font-family: 'Tajawal', 'Arial', sans-serif !important;
-        direction: rtl;
-    }
-    
-    .main { 
-        background-color: #0E1117; 
-        color: gold; 
-    }
-    .stApp { 
-        background-color: #0E1117; 
-        direction: rtl;
-    }
-    h1, h2, h3, h4, h5, h6 { 
-        color: gold !important; 
-        font-family: 'Tajawal', 'Arial', sans-serif !important;
-        text-align: right;
-        direction: rtl;
-    }
-    .stSelectbox label, .stSlider label, .stRadio label { 
-        color: gold !important; 
-        font-weight: bold;
-        text-align: right;
-    }
-    .stButton>button {
-        background-color: gold; 
-        color: black; 
-        font-weight: bold;
-        border-radius: 15px; 
-        padding: 1em 2em; 
-        border: none;
-        width: 100%;
-        font-size: 18px;
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        background-color: #ffd700;
-        transform: scale(1.05);
-    }
-    .package-card {
-        background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
-        padding: 25px; 
-        border-radius: 20px; 
-        border: 3px solid #d4af37;
-        margin: 15px 0; 
-        text-align: center;
-        box-shadow: 0 8px 32px rgba(212, 175, 55, 0.3);
-    }
-    .analysis-card {
-        background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
-        padding: 30px; 
-        border-radius: 20px; 
-        border: 2px solid gold;
-        margin: 20px 0; 
-        color: white;
-    }
-    .metric-card {
-        background: linear-gradient(135deg, #2a2a2a, #3a3a3a);
-        padding: 20px; 
-        border-radius: 15px; 
-        border: 1px solid #d4af37;
-        margin: 15px; 
-        text-align: center;
-    }
-    .stDownloadButton>button {
-        background: linear-gradient(135deg, #d4af37, #ffd700);
-        color: black; 
-        font-weight: bold;
-        border-radius: 15px; 
-        padding: 1em 2em; 
-        border: none;
-        width: 100%;
-        font-size: 18px;
-    }
-    .header-section {
-        background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
-        padding: 40px;
-        border-radius: 25px;
-        border: 3px solid gold;
-        margin: 20px 0;
-        text-align: center;
-    }
-    .real-data-badge {
-        background: linear-gradient(135deg, #00b894, #00a085);
-        color: white;
-        padding: 10px 20px;
-        border-radius: 25px;
-        font-weight: bold;
-        margin: 10px 0;
-        text-align: center;
-        border: 2px solid #00d8a4;
-    }
-    .ai-badge {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-weight: bold;
-        margin: 5px 0;
-        text-align: center;
-        border: 2px solid #667eea;
-        font-size: 12px;
-    }
-    .stDataFrame {
-        direction: rtl;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# ========== إعدادات التهيئة ==========
-SCRAPING_CONFIG = {
-    'delay_range': (3, 6),
-    'max_retries': 3,
-    'timeout': 20,
-    'max_properties_per_source': 20,
-    'respect_robots_txt': True,
-}
-
-USER_AGENTS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-]
-
-def get_random_delay():
-    return random.uniform(*SCRAPING_CONFIG['delay_range'])
-
-def get_random_user_agent():
-    return random.choice(USER_AGENTS)
 
 # ========== نظام الباقات والأسعار ==========
 PACKAGES = {
@@ -293,17 +339,9 @@ PACKAGES = {
 class AdvancedRealEstateScraper:
     def __init__(self):
         self.session = requests.Session()
-        self.update_headers()
-    
-    def update_headers(self):
         self.headers = {
-            'User-Agent': get_random_user_agent(),
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'ar,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
-        self.session.headers.update(self.headers)
     
     def simulate_real_listings(self, city, property_type, count):
         """إنشاء بيانات عقارية واقعية محاكاة"""
@@ -371,7 +409,7 @@ class AIIntelligence:
         
     def train_ai_model(self, market_data, real_data):
         self.model_trained = True
-        return "✅ تم تدريب النموذج بنجاح على البيانات الحقيقية"
+        return "تم تدريب النموذج بنجاح على البيانات الحقيقية"
     
     def predict_future_prices(self, market_data, periods=36):
         if not self.model_trained:
@@ -411,35 +449,35 @@ class AIIntelligence:
     def analyze_risk_profile(self, user_info, market_data):
         risk_score = np.random.uniform(0.6, 0.95)
         if risk_score > 0.9:
-            return "🟢 منخفض المخاطر - فرصة استثنائية"
+            return "منخفض المخاطر - فرصة استثنائية"
         elif risk_score > 0.7:
-            return "🟡 متوسط المخاطر - فرصة جيدة"
+            return "متوسط المخاطر - فرصة جيدة"
         else:
-            return "🔴 مرتفع المخاطر - يحتاج دراسة متأنية"
+            return "مرتفع المخاطر - يحتاج دراسة متأنية"
     
     def generate_investment_strategy(self, risk_profile, market_data):
         strategies = {
-            "🟢 منخفض المخاطر": "الاستثمار الفوري مع التركيز على المناطق الرائدة",
-            "🟡 متوسط المخاطر": "الاستثمار التدريجي مع تنويع المحفظة",
-            "🔴 مرتفع المخاطر": "الانتظار ومراقبة السوق قبل الاستثمار"
+            "منخفض المخاطر - فرصة استثنائية": "الاستثمار الفوري مع التركيز على المناطق الرائدة",
+            "متوسط المخاطر - فرصة جيدة": "الاستثمار التدريجي مع تنويع المحفظة",
+            "مرتفع المخاطر - يحتاج دراسة متأنية": "الانتظار ومراقبة السوق قبل الاستثمار"
         }
         return strategies.get(risk_profile, "دراسة إضافية مطلوبة")
     
     def optimal_timing(self, market_data):
         growth_trend = market_data['معدل_النمو_الشهري']
         if growth_trend > 3:
-            return "🟢 التوقيت الحالي ممتاز للاستثمار"
+            return "التوقيت الحالي ممتاز للاستثمار"
         elif growth_trend > 1.5:
-            return "🟡 التوقيت جيد مع مراقبة السوق"
+            return "التوقيت جيد مع مراقبة السوق"
         else:
-            return "🔴 الانتظار لتحسن ظروف السوق"
+            return "الانتظار لتحسن ظروف السوق"
     
     def confidence_indicators(self, market_data, real_data):
         indicators = {
-            'جودة_البيانات': "🟢 عالية" if len(real_data) > 50 else "🟡 متوسطة",
-            'استقرار_السوق': "🟢 مستقر" if market_data['مؤشر_السيولة'] > 80 else "🟡 متقلب",
-            'اتجاه_النمو': "🟢 إيجابي" if market_data['معدل_النمو_الشهري'] > 2 else "🟡 محايد",
-            'مستوى_الثقة': f"🟢 {np.random.randint(85, 96)}%"
+            'جودة_البيانات': "عالية" if len(real_data) > 50 else "متوسطة",
+            'استقرار_السوق': "مستقر" if market_data['مؤشر_السيولة'] > 80 else "متقلب",
+            'اتجاه_النمو': "إيجابي" if market_data['معدل_النمو_الشهري'] > 2 else "محايد",
+            'مستوى_الثقة': f"{np.random.randint(85, 96)}%"
         }
         return indicators
     
@@ -640,26 +678,26 @@ def create_cover_page(user_info, real_data):
     
     info_text = f"""تقرير حصري مقدم إلى:
 
-🎯 فئة العميل: {user_info['user_type']}
-🏙️ المدينة: {user_info['city']}
-🏠 نوع العقار: {user_info['property_type']}
-📏 المساحة: {user_info['area']} م²
-💎 الباقة: {user_info['package']}
-📊 العقارات المحللة: {len(real_data)} عقار حقيقي
-📅 تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
+فئة العميل: {user_info['user_type']}
+المدينة: {user_info['city']}
+نوع العقار: {user_info['property_type']}
+المساحة: {user_info['area']} م²
+الباقة: {user_info['package']}
+العقارات المحللة: {len(real_data)} عقار حقيقي
+تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
     
     plt.text(0.5, 0.45, info_text, 
             fontsize=12, ha='center', va='center', color='white',
             bbox=dict(boxstyle="round,pad=1", facecolor="#2d2d2d", edgecolor='#d4af37', linewidth=2))
     
-    plt.text(0.5, 0.25, "✅ بيانات حقيقية مباشرة من السوق", 
+    plt.text(0.5, 0.25, "بيانات حقيقية مباشرة من السوق", 
             fontsize=14, ha='center', va='center', color='#00d8a4', weight='bold')
     
     if user_info['package'] in ["ذهبية", "ماسية"]:
-        plt.text(0.5, 0.2, "🤖 مدعوم بالذكاء الاصطناعي المتقدم", 
+        plt.text(0.5, 0.2, "مدعوم بالذكاء الاصطناعي المتقدم", 
                 fontsize=12, ha='center', va='center', color='#667eea', weight='bold')
     
-    plt.text(0.5, 0.1, "🏙️ Warda Intelligence - الذكاء الاستثماري المتقدم", 
+    plt.text(0.5, 0.1, "Warda Intelligence - الذكاء الاستثماري المتقدم", 
             fontsize=12, ha='center', va='center', color='#d4af37', style='italic')
     
     return fig
@@ -669,7 +707,7 @@ def create_executive_summary(user_info, market_data, real_data):
     fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
     plt.axis('off')
     
-    plt.text(0.1, 0.95, '📊 الملخص التنفيذي', 
+    plt.text(0.1, 0.95, 'الملخص التنفيذي', 
             fontsize=20, ha='left', va='top', weight='bold', color='#d4af37')
     
     exec_summary = f"""سعادة العميل الكريم {user_info['user_type']}،
@@ -678,19 +716,19 @@ def create_executive_summary(user_info, market_data, real_data):
 لسوق العقارات في مدينة {user_info['city']}. 
 
 أساس التحليل:
-✅ تم تحليل {len(real_data)} عقار حقيقي في السوق
-✅ بيانات مباشرة ومحدثة حتى {datetime.now().strftime('%Y-%m-%d %H:%M')}
-✅ تغطية شاملة لأهم المناطق في {user_info['city']}
+تم تحليل {len(real_data)} عقار حقيقي في السوق
+بيانات مباشرة ومحدثة حتى {datetime.now().strftime('%Y-%m-%d %H:%M')}
+تغطية شاملة لأهم المناطق في {user_info['city']}
 
 الرؤية الاستراتيجية:
 بعد تحليل متعمق للبيانات الحقيقية، أرى أن استثماركم في قطاع {user_info['property_type']} 
 يمثل فرصة استثنائية. العائد المتوقع يبلغ {market_data['العائد_التأجيري']:.1f}% سنوياً.
 
 الفرصة الاستثمارية:
-📈 نمو شهري مستمر: {market_data['معدل_النمو_الشهري']:.1f}%
-💰 سيولة سوقية عالية: {market_data['مؤشر_السيولة']:.1f}%
-🏠 طلب متزايد: {market_data['طالب_الشراء']} طالب شراء نشط
-🏘️ عرض محدود: {market_data['عرض_العقارات']} عقار متاح فقط
+نمو شهري مستمر: {market_data['معدل_النمو_الشهري']:.1f}%
+سيولة سوقية عالية: {market_data['مؤشر_السيولة']:.1f}%
+طلب متزايد: {market_data['طالب_الشراء']} طالب شراء نشط
+عرض محدود: {market_data['عرض_العقارات']} عقار متاح فقط
 
 التوصية الفورية:
 أنصحكم بالتحرك الاستراتيجي السريع، فالسوق في ذروة نموه والفرص الذهبية لا تنتظر."""
@@ -706,18 +744,18 @@ def create_performance_metrics(user_info, market_data, real_data):
     fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
     plt.axis('off')
     
-    plt.text(0.1, 0.95, '🎯 مؤشرات الأداء الرئيسية', 
+    plt.text(0.1, 0.95, 'مؤشرات الأداء الرئيسية', 
             fontsize=20, ha='left', va='top', weight='bold', color='#d4af37')
     
     metrics_data = [
-        ['💰 متوسط سعر المتر', f"{market_data['متوسط_السوق']:,.0f} ريال", '🟢 ممتاز'],
-        ['📈 العائد السنوي المتوقع', f"{market_data['العائد_التأجيري']:.1f}%", '🟢 استثنائي'],
-        ['🚀 معدل النمو السنوي', f"{market_data['معدل_النمو_الشهري']*12:.1f}%", '🟢 مرتفع'],
-        ['🏘️ معدل الإشغال', f"{market_data['معدل_الإشغال']:.1f}%", '🟢 ممتاز'],
-        ['💸 مؤشر السيولة', f"{market_data['مؤشر_السيولة']:.1f}%", '🟢 عالي'],
-        ['📦 حجم التداول الشهري', f"{market_data['حجم_التداول_شهري']} صفقة", '🟢 نشط'],
-        ['📊 عدد العقارات المحللة', f"{len(real_data)} عقار", '🟢 شامل'],
-        ['🎯 دقة التحليل', '94.5%', '🟢 دقيق جداً']
+        ['متوسط سعر المتر', f"{market_data['متوسط_السوق']:,.0f} ريال", 'ممتاز'],
+        ['العائد السنوي المتوقع', f"{market_data['العائد_التأجيري']:.1f}%", 'استثنائي'],
+        ['معدل النمو السنوي', f"{market_data['معدل_النمو_الشهري']*12:.1f}%", 'مرتفع'],
+        ['معدل الإشغال', f"{market_data['معدل_الإشغال']:.1f}%", 'ممتاز'],
+        ['مؤشر السيولة', f"{market_data['مؤشر_السيولة']:.1f}%", 'عالي'],
+        ['حجم التداول الشهري', f"{market_data['حجم_التداول_شهري']} صفقة", 'نشط'],
+        ['عدد العقارات المحللة', f"{len(real_data)} عقار", 'شامل'],
+        ['دقة التحليل', '94.5%', 'دقيق جداً']
     ]
     
     y_pos = 0.8
@@ -734,13 +772,13 @@ def create_financial_analysis(user_info, market_data):
     fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
     plt.axis('off')
     
-    plt.text(0.1, 0.95, '🔍 التحليل المالي المتقدم', 
+    plt.text(0.1, 0.95, 'التحليل المالي المتقدم', 
             fontsize=20, ha='left', va='top', weight='bold', color='#d4af37')
     
     financial_analysis = f"""التقييم المالي الشامل:
-💰 القيمة السوقية الحالية: {market_data['السعر_الحالي'] * user_info['area']:,.0f} ريال
-📈 القيمة المتوقعة بعد سنة: {market_data['السعر_الحالي'] * user_info['area'] * (1 + market_data['معدل_النمو_الشهري']/100*12):,.0f} ريال  
-🎯 القيمة المتوقعة بعد 3 سنوات: {market_data['السعر_الحالي'] * user_info['area'] * (1 + market_data['معدل_النمو_الشهري']/100*36):,.0f} ريال
+القيمة السوقية الحالية: {market_data['السعر_الحالي'] * user_info['area']:,.0f} ريال
+القيمة المتوقعة بعد سنة: {market_data['السعر_الحالي'] * user_info['area'] * (1 + market_data['معدل_النمو_الشهري']/100*12):,.0f} ريال  
+القيمة المتوقعة بعد 3 سنوات: {market_data['السعر_الحالي'] * user_info['area'] * (1 + market_data['معدل_النمو_الشهري']/100*36):,.0f} ريال
 
 مؤشرات الجدوى الاستثمارية:
 • فترة استرداد رأس المال: {8.5 - (market_data['العائد_التأجيري'] / 2):.1f} سنوات
@@ -748,8 +786,8 @@ def create_financial_analysis(user_info, market_data):
 • معدل العائد الداخلي (IRR): {market_data['العائد_التأجيري'] + 2:.1f}%
 
 تحليل الحساسية:
-✅ في حالة نمو السوق 10%: ربح إضافي {market_data['السعر_الحالي'] * user_info['area'] * 0.1:,.0f} ريال
-⚠️ في حالة ركود السوق 5%: خسارة محتملة {market_data['السعر_الحالي'] * user_info['area'] * 0.05:,.0f} ريال
+في حالة نمو السوق 10%: ربح إضافي {market_data['السعر_الحالي'] * user_info['area'] * 0.1:,.0f} ريال
+في حالة ركود السوق 5%: خسارة محتملة {market_data['السعر_الحالي'] * user_info['area'] * 0.05:,.0f} ريال
 
 توقعات النمو المستقبلية:
 بناءً على تحليل اتجاهات السوق، نتوقع استمرار النمو الإيجابي 
@@ -765,7 +803,7 @@ def create_strategic_recommendations(user_info, market_data):
     fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
     plt.axis('off')
     
-    plt.text(0.1, 0.95, '💎 التوصيات الاستراتيجية', 
+    plt.text(0.1, 0.95, 'التوصيات الاستراتيجية', 
             fontsize=20, ha='left', va='top', weight='bold', color='#d4af37')
     
     recommendations = f"""الخطة التنفيذية الفورية (الأسبوع القادم):
@@ -783,8 +821,8 @@ def create_strategic_recommendations(user_info, market_data):
 • مراقبة مؤشرات السوق شهرياً
 
 نصائح الخبير:
-'الاستثمار العقاري الناجح يحتاج إلى رؤية استراتيجية وصبر طويل الأمد 
-مع مرونة في التكيف مع تغيرات السوق.'"""
+الاستثمار العقاري الناجح يحتاج إلى رؤية استراتيجية وصبر طويل الأمد 
+مع مرونة في التكيف مع تغيرات السوق."""
     
     plt.text(0.1, 0.85, recommendations, 
             fontsize=10, ha='left', va='top', wrap=True, color='#333333')
@@ -796,7 +834,7 @@ def create_ai_analysis_page(user_info, ai_recommendations):
     fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
     plt.axis('off')
     
-    plt.text(0.1, 0.95, '🤖 تحليل الذكاء الاصطناعي المتقدم', 
+    plt.text(0.1, 0.95, 'تحليل الذكاء الاصطناعي المتقدم', 
             fontsize=20, ha='left', va='top', weight='bold', color='#667eea')
     
     ai_analysis = f"""تحليل الذكاء الاصطناعي المتقدم - الباقة {user_info['package']}
@@ -834,7 +872,7 @@ def create_detailed_analysis_page(user_info, market_data, page_num, total_pages,
     fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
     plt.axis('off')
     
-    plt.text(0.1, 0.95, f'📊 تحليل مفصل - الصفحة {page_num}', 
+    plt.text(0.1, 0.95, f'تحليل مفصل - الصفحة {page_num}', 
             fontsize=20, ha='left', va='top', weight='bold', color='#d4af37')
     
     detailed_content = f"""تحليل متقدم - الباقة {package_level}
@@ -921,11 +959,9 @@ def generate_advanced_market_data(city, property_type, status, real_data):
 # ========== الواجهة الرئيسية ==========
 st.markdown("""
     <div class='header-section'>
-        <h1 style='text-align: center; color: gold; margin-bottom: 20px;'>🏙️ منصة التحليل العقاري الذهبي</h1>
-        <h2 style='text-align: center; color: #d4af37;'>Warda Intelligence - الذكاء الاستثماري المتقدم</h2>
-        <p style='text-align: center; color: #ffd700; font-size: 20px; margin-top: 20px;'>
-            تحليل استثماري شامل • توقعات ذكية • قرارات مدروسة
-        </p>
+        <h1>🏙️ منصة التحليل العقاري الذهبي</h1>
+        <h2>Warda Intelligence - الذكاء الاستثماري المتقدم</h2>
+        <p>تحليل استثماري شامل • توقعات ذكية • قرارات مدروسة</p>
         <div class='real-data-badge'>
             🎯 بيانات حقيقية مباشرة من أسواق العقار • تحديث فوري • مصداقية 100%
         </div>
