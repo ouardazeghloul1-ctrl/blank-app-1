@@ -8,208 +8,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ========== الحل الشامل للغة العربية ==========
-def setup_arabic_support():
-    st.markdown("""
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap');
-        
-        /* إعدادات شاملة لكل العناصر */
-        * {
-            font-family: 'Tajawal', 'Arial', sans-serif !important;
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* العناصر الأساسية في Streamlit */
-        html, body, [class*="css"], .stApp {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        .main .block-container {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* العناوين */
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Tajawal', 'Arial', sans-serif !important;
-            direction: rtl !important;
-            text-align: right !important;
-            font-weight: bold !important;
-            color: gold !important;
-        }
-        
-        /* النصوص */
-        p, div, span, label, .stMarkdown {
-            direction: rtl !important;
-            text-align: right !important;
-            unicode-bidi: embed !important;
-        }
-        
-        /* الحقول والنماذج */
-        .stTextInput label, .stNumberInput label, .stSelectbox label, 
-        .stTextArea label, .stSlider label, .stRadio label {
-            direction: rtl !important;
-            text-align: right !important;
-            font-family: 'Tajawal', 'Arial', sans-serif !important;
-            color: gold !important;
-            font-weight: bold !important;
-        }
-        
-        /* حقول الإدخال */
-        .stTextInput input, .stNumberInput input, .stTextArea textarea {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* الأزرار */
-        .stButton button {
-            font-family: 'Tajawal', 'Arial', sans-serif !important;
-            direction: rtl !important;
-            background-color: gold !important;
-            color: black !important;
-            font-weight: bold !important;
-            border-radius: 15px !important;
-            padding: 1em 2em !important;
-            border: none !important;
-            width: 100% !important;
-            font-size: 18px !important;
-            transition: all 0.3s ease !important;
-        }
-        
-        .stButton button:hover {
-            background-color: #ffd700 !important;
-            transform: scale(1.05) !important;
-        }
-        
-        /* الجداول */
-        table, th, td {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* Selectbox */
-        .stSelectbox > div > div {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* Radio buttons */
-        .stRadio > div {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        .stRadio label {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* Slider */
-        .stSlider > div {
-            direction: rtl !important;
-        }
-        
-        /* Columns */
-        [data-testid="column"] {
-            direction: rtl !important;
-        }
-        
-        /* Sidebar */
-        [data-testid="stSidebar"] {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* التنسيقات المخصصة */
-        .package-card {
-            background: linear-gradient(135deg, #1a1a1a, #2d2d2d) !important;
-            padding: 25px !important;
-            border-radius: 20px !important;
-            border: 3px solid #d4af37 !important;
-            margin: 15px 0 !important;
-            text-align: center !important;
-            box-shadow: 0 8px 32px rgba(212, 175, 55, 0.3) !important;
-            direction: rtl !important;
-        }
-        
-        .header-section {
-            background: linear-gradient(135deg, #1a1a1a, #2d2d2d) !important;
-            padding: 40px !important;
-            border-radius: 25px !important;
-            border: 3px solid gold !important;
-            margin: 20px 0 !important;
-            text-align: center !important;
-            direction: rtl !important;
-        }
-        
-        .real-data-badge {
-            background: linear-gradient(135deg, #00b894, #00a085) !important;
-            color: white !important;
-            padding: 10px 20px !important;
-            border-radius: 25px !important;
-            font-weight: bold !important;
-            margin: 10px 0 !important;
-            text-align: center !important;
-            border: 2px solid #00d8a4 !important;
-            direction: rtl !important;
-        }
-        
-        .ai-badge {
-            background: linear-gradient(135deg, #667eea, #764ba2) !important;
-            color: white !important;
-            padding: 8px 16px !important;
-            border-radius: 20px !important;
-            font-weight: bold !important;
-            margin: 5px 0 !important;
-            text-align: center !important;
-            border: 2px solid #667eea !important;
-            font-size: 12px !important;
-            direction: rtl !important;
-        }
-        
-        .stDownloadButton button {
-            background: linear-gradient(135deg, #d4af37, #ffd700) !important;
-            color: black !important;
-            font-weight: bold !important;
-            border-radius: 15px !important;
-            padding: 1em 2em !important;
-            border: none !important;
-            width: 100% !important;
-            font-size: 18px !important;
-            direction: rtl !important;
-        }
-        
-        /* إصلاح الأرقام (تبقى LTR) */
-        .stMetric {
-            direction: ltr !important;
-        }
-        
-        [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
-            direction: ltr !important;
-            text-align: center !important;
-        }
-        
-        /* إصلاح المحتوى الديناميكي */
-        .streamlit-expanderContent {
-            direction: rtl !important;
-            text-align: right !important;
-        }
-        
-        /* إصلاح JSON والعناصر الفنية */
-        .stJson {
-            direction: ltr !important;
-            text-align: left !important;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-
-# تطبيق الإعدادات
-setup_arabic_support()
-
-# ========== الآن باقي الاستيرادات ==========
+# الآن باقي الاستيرادات
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -230,6 +29,187 @@ from bs4 import BeautifulSoup
 import warnings
 import random
 warnings.filterwarnings('ignore')
+
+# ========== الإصلاح الكامل للغة العربية ==========
+def setup_arabic_support():
+    st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap');
+    
+    /* إعدادات شاملة لكل العناصر */
+    * {
+        font-family: 'Tajawal', 'Arial', sans-serif !important;
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* العناصر الأساسية في Streamlit */
+    .main .block-container {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    .stApp {
+        background-color: #0E1117;
+        direction: rtl !important;
+    }
+    
+    /* العناوين */
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Tajawal', 'Arial', sans-serif !important;
+        direction: rtl !important;
+        text-align: right !important;
+        font-weight: bold !important;
+        color: gold !important;
+    }
+    
+    /* النصوص */
+    p, div, span {
+        direction: rtl !important;
+        text-align: right !important;
+        unicode-bidi: embed !important;
+    }
+    
+    /* الحقول والنماذج */
+    .stTextInput label, .stNumberInput label, .stSelectbox label, 
+    .stTextArea label, .stSlider label, .stRadio label {
+        direction: rtl !important;
+        text-align: right !important;
+        font-family: 'Tajawal', 'Arial', sans-serif !important;
+        color: gold !important;
+        font-weight: bold !important;
+    }
+    
+    /* الأزرار */
+    .stButton button {
+        font-family: 'Tajawal', 'Arial', sans-serif !important;
+        direction: rtl !important;
+        background-color: gold !important;
+        color: black !important;
+        font-weight: bold !important;
+        border-radius: 15px !important;
+        padding: 1em 2em !important;
+        border: none !important;
+        width: 100% !important;
+        font-size: 18px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stButton button:hover {
+        background-color: #ffd700 !important;
+        transform: scale(1.05) !important;
+    }
+    
+    /* الجداول */
+    table {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* عناصر الواجهة الأخرى */
+    .stAlert {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* إصلاح المشاكل في المحتوى الديناميكي */
+    [data-testid="stMarkdownContainer"] {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* تنسيقات البطاقات */
+    .package-card {
+        background: linear-gradient(135deg, #1a1a1a, #2d2d2d) !important;
+        padding: 25px !important;
+        border-radius: 20px !important;
+        border: 3px solid #d4af37 !important;
+        margin: 15px 0 !important;
+        text-align: center !important;
+        box-shadow: 0 8px 32px rgba(212, 175, 55, 0.3) !important;
+        direction: rtl !important;
+    }
+    
+    .header-section {
+        background: linear-gradient(135deg, #1a1a1a, #2d2d2d) !important;
+        padding: 40px !important;
+        border-radius: 25px !important;
+        border: 3px solid gold !important;
+        margin: 20px 0 !important;
+        text-align: center !important;
+        direction: rtl !important;
+    }
+    
+    .real-data-badge {
+        background: linear-gradient(135deg, #00b894, #00a085) !important;
+        color: white !important;
+        padding: 10px 20px !important;
+        border-radius: 25px !important;
+        font-weight: bold !important;
+        margin: 10px 0 !important;
+        text-align: center !important;
+        border: 2px solid #00d8a4 !important;
+        direction: rtl !important;
+    }
+    
+    .ai-badge {
+        background: linear-gradient(135deg, #667eea, #764ba2) !important;
+        color: white !important;
+        padding: 8px 16px !important;
+        border-radius: 20px !important;
+        font-weight: bold !important;
+        margin: 5px 0 !important;
+        text-align: center !important;
+        border: 2px solid #667eea !important;
+        font-size: 12px !important;
+        direction: rtl !important;
+    }
+    
+    .stDownloadButton button {
+        background: linear-gradient(135deg, #d4af37, #ffd700) !important;
+        color: black !important;
+        font-weight: bold !important;
+        border-radius: 15px !important;
+        padding: 1em 2em !important;
+        border: none !important;
+        width: 100% !important;
+        font-size: 18px !important;
+        direction: rtl !important;
+    }
+    
+    /* إصلاح المحتوى داخل expander */
+    .streamlit-expanderContent {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* إصلاح الـ radio buttons */
+    .stRadio > div {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    .stRadio label {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* إصلاح الـ selectbox */
+    .stSelectbox > div > div {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* إصلاح الـ slider */
+    .stSlider > div {
+        direction: rtl !important;
+    }
+    
+    </style>
+    """, unsafe_allow_html=True)
+
+# تطبيق الإعدادات
+setup_arabic_support()
 
 # ========== إعداد الخطوط للعربية في matplotlib ==========
 try:
@@ -383,7 +363,7 @@ class AdvancedRealEstateScraper:
             "الرياض": {"شقة": (300000, 1200000), "فيلا": (800000, 3000000), "أرض": (500000, 2000000), "محل تجاري": (1000000, 5000000)},
             "جدة": {"شقة": (250000, 900000), "فيلا": (700000, 2500000), "أرض": (400000, 1800000), "محل تجاري": (800000, 4000000)},
             "الدمام": {"شقة": (200000, 700000), "فيلا": (600000, 2000000), "أرض": (300000, 1500000), "محل تجاري": (600000, 3500000)},
-            "مكة المكرمة": {"شقة": (280000, 1100000), "فيلا": (750000, 2800000), "أرض": (450000, 1900000), "محل تجاري": (900000, 4500000)},
+            "مكة المكرمة": {"شقة": (280000, 1100000), "فيلa": (750000, 2800000), "أرض": (450000, 1900000), "محل تجاري": (900000, 4500000)},
             "المدينة المنورة": {"شقة": (270000, 1000000), "فيلا": (720000, 2600000), "أرض": (420000, 1700000), "محل تجاري": (850000, 4200000)}
         }
         
