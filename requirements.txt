@@ -9,3 +9,6 @@ beautifulsoup4==4.12.2
 rich<14,>=10.14.0
 arabic_reshaper==3.0.0
 python-bidi==0.4.2
+reportlab==3.6.13
+python-dotenv==1.0.0
+streamlit-paypal-payment==1.0.2
