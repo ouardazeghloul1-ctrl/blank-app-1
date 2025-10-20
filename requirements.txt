@@ -6,4 +6,6 @@ matplotlib==3.7.2
 Pillow==10.0.1
 requests==2.31.0
 beautifulsoup4==4.12.2
+rich<14,>=10.14.0
 arabic_reshaper==3.0.0
+python-bidi==0.4.2
