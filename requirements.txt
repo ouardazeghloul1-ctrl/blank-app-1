@@ -1,19 +1,8 @@
 streamlit==1.28.0
 pandas==2.0.3
-numpy==1.23.5  # متوافق مع Python 3.11
+numpy==1.24.3
 plotly==5.15.0
 matplotlib==3.7.2
 Pillow==10.0.1
 requests==2.31.0
 beautifulsoup4==4.12.2
-scikit-learn==1.3.0
-xgboost==1.7.6
-selenium==4.15.0
-openpyxl==3.1.2
-python-dotenv==1.0.0
-streamlit-authenticator==0.3.2  # أحدث إصدار متوافق
-plotly-express==5.15.0
-sweetviz==2.1.1
-streamlit-option-menu==0.3.6
-streamlit-extras==0.3.5
-rich<14,>=10.14.0
