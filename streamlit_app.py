@@ -876,9 +876,9 @@ def generate_advanced_market_data(city, property_type, status, real_data):
     if real_data.empty:
         real_data = scraper.get_real_data(city, property_type, 100)
     if not real_data.empty:
-        avg_price = real_data['السعر'].mean() / (real_data['المساحة'].str.extract('(\d+)').astype(float).mean() or 1)
-        min_price = real_data['السعر'].min() / (real_data['المساحة'].str.extract('(\d+)').astype(float).mean() or 1) * 0.7
-        max_price = real_data['السعر'].max() / (real_data['المساحة'].str.extract('(\d+)').astype(float).mean() or 1) * 1.5
+        avg_price = real_data['السعر'].mean() / (real_data['المساحة'].str.extract(r'(\d+)').astype(float).mean() or 1)
+min_price = real_data['السعر'].min() / (real_data['المساحة'].str.extract(r'(\d+)').astype(float).mean() or 1) * 0.7
+max_price = real_data['السعر'].max() / (real_data['المساحة'].str.extract(r'(\d+)').astype(float).mean() or 1) * 1.5
         property_count = len(real_data)
     else:
         base_prices = {
