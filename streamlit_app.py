@@ -1028,6 +1028,7 @@ def create_detailed_analysis_page(user_info, market_data, real_data, page_num, t
     plt.text(0.1, 0.85, detailed_text, fontsize=12, ha='left', va='top', wrap=True, color='#333333')
     
     return fig
+
 # ========== توليد بيانات السوق المتقدمة ==========
 def generate_advanced_market_data(city, property_type, status, real_data):
     scraper = RealEstateScraper()
@@ -1039,16 +1040,16 @@ def generate_advanced_market_data(city, property_type, status, real_data):
         areas = real_data['المساحة'].str.extract('(\d+)').astype(float)
         avg_area = areas.mean() if not areas.empty else 120
         
-        avg_price = real_data['السعر'].mean() / avg_area
-        min_price = real_data['السعر'].min() / avg_area * 0.7
-        max_price = real_data['السعر'].max() / avg_area * 1.3
+        avg_price = float(real_data['السعر'].mean() / avg_area)
+        min_price = float(real_data['السعر'].min() / avg_area * 0.7)
+        max_price = float(real_data['السعر'].max() / avg_area * 1.3)
         property_count = len(real_data)
         
         # استخراج متوسط العائد من البيانات إن وجد
         if 'العائد_المتوقع' in real_data.columns:
-            avg_return = real_data['العائد_المتوقع'].mean()
+            avg_return = float(real_data['العائد_المتوقع'].mean())
         else:
-            avg_return = random.uniform(6.0, 10.0)
+            avg_return = float(random.uniform(6.0, 10.0))
     else:
         # بيانات افتراضية مبنية على إحصائيات حقيقية
         base_prices = {
@@ -1058,11 +1059,11 @@ def generate_advanced_market_data(city, property_type, status, real_data):
             "مكة المكرمة": {"شقة": 7000, "فيلا": 6333, "أرض": 3500, "محل تجاري": 16250},
             "المدينة المنورة": {"شقة": 6476, "فيلا": 5968, "أرض": 3214, "محل تجاري": 13529}
         }
-        avg_price = base_prices.get(city, {}).get(property_type, 6000)
-        min_price = avg_price * 0.7
-        max_price = avg_price * 1.5
+        avg_price = float(base_prices.get(city, {}).get(property_type, 6000))
+        min_price = float(avg_price * 0.7)
+        max_price = float(avg_price * 1.5)
         property_count = random.randint(80, 150)
-        avg_return = random.uniform(6.5, 9.5)
+        avg_return = float(random.uniform(6.5, 9.5))
     
     # تعديل السعر بناءً على الحالة
     price_multiplier = 1.15 if status == "للبيع" else 0.85 if status == "للشراء" else 1.0
@@ -1078,18 +1079,18 @@ def generate_advanced_market_data(city, property_type, status, real_data):
     growth_range = city_growth.get(city, (2.2, 4.5))
     
     return {
-        'السعر_الحالي': avg_price * price_multiplier,
-        'متوسط_السوق': avg_price,
-        'أعلى_سعر': max_price,
-        'أقل_سعر': min_price,
-        'حجم_التداول_شهري': property_count,
-        'معدل_النمو_الشهري': random.uniform(*growth_range),
-        'عرض_العقارات': property_count,
+        'السعر_الحالي': float(avg_price * price_multiplier),
+        'متوسط_السوق': float(avg_price),
+        'أعلى_سعر': float(max_price),
+        'أقل_سعر': float(min_price),
+        'حجم_التداول_شهري': int(property_count),
+        'معدل_النمو_الشهري': float(random.uniform(*growth_range)),
+        'عرض_العقارات': int(property_count),
         'طالب_الشراء': int(property_count * random.uniform(1.4, 1.8)),
-        'معدل_الإشغال': random.uniform(88, 96),
-        'العائد_التأجيري': avg_return,
-        'مؤشر_السيولة': random.uniform(78, 92),
-        'عدد_العقارات_الحقيقية': len(real_data)
+        'معدل_الإشغال': float(random.uniform(88, 96)),
+        'العائد_التأجيري': float(avg_return),
+        'مؤشر_السيولة': float(random.uniform(78, 92)),
+        'عدد_العقارات_الحقيقية': int(len(real_data))
     }
 
 # ========== الواجهة الرئيسية ==========
