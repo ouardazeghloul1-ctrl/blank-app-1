@@ -716,6 +716,12 @@ class AIIntelligence:
 # ========== نظام الرسومات البيانية المحسن ==========
 def create_analysis_charts(market_data, real_data, user_info):
     charts = []
+if real_data is None or real_data.empty:
+    fig, ax = plt.subplots(figsize=(10,6))
+    ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
+    ax.axis('off')
+    return fig
+
     fig1 = create_price_distribution_chart(real_data, user_info)
     charts.append(fig1)
     fig2 = create_area_analysis_chart(real_data, user_info)
@@ -729,6 +735,12 @@ def create_analysis_charts(market_data, real_data, user_info):
     return charts
 
 def create_price_distribution_chart(real_data, user_info):
+    if real_data is None or real_data.empty:
+    fig, ax = plt.subplots(figsize=(10,6))
+    ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
+    ax.axis('off')
+    return fig
+
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
     if not real_data.empty and 'السعر' in real_data.columns:
         prices = real_data['السعر'] / 1000  # تحويل لألوف الريالات
@@ -742,6 +754,12 @@ def create_price_distribution_chart(real_data, user_info):
     return fig
 
 def create_area_analysis_chart(real_data, user_info):
+    if real_data is None or real_data.empty:
+    fig, ax = plt.subplots(figsize=(10,6))
+    ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
+    ax.axis('off')
+    return fig
+
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
     if not real_data.empty and 'المنطقة' in real_data.columns and 'السعر' in real_data.columns:
         area_prices = real_data.groupby('المنطقة')['السعر'].mean().nlargest(8) / 1000
@@ -758,6 +776,12 @@ def create_area_analysis_chart(real_data, user_info):
     return fig
 
 def create_forecast_chart(market_data, user_info):
+    if real_data is None or real_data.empty:
+    fig, ax = plt.subplots(figsize=(10,6))
+    ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
+    ax.axis('off')
+    return fig
+
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
     months = [arabic_text('الحالي'), arabic_text('3 أشهر'), arabic_text('6 أشهر'), 
               arabic_text('سنة'), arabic_text('سنتين'), arabic_text('3 سنوات')]
@@ -785,6 +809,12 @@ def create_forecast_chart(market_data, user_info):
     plt.tight_layout()
     return fig
 def create_returns_analysis_chart(real_data, user_info):
+    if real_data is None or real_data.empty:
+    fig, ax = plt.subplots(figsize=(10,6))
+    ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
+    ax.axis('off')
+    return fig
+
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
     if not real_data.empty and 'العائد_المتوقع' in real_data.columns:
         returns = real_data['العائد_المتوقع']
