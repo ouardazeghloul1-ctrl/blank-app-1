@@ -1016,16 +1016,18 @@ def create_detailed_analysis_page(user_info, market_data, real_data, page_num, t
     plt.text(0.1, 0.95, arabic_text(f'تحليل مفصل - الصفحة {page_num} من {total_pages}'), 
              fontsize=20, ha='left', va='top', weight='bold', color='#d4af37')
     
-    detailed_text = arabic_text(f"""في هذه الصفحة، نغوص أعمق في تحليل سوق {user_info['city']} لتقديم تفاصيل إضافية عن {user_info['property_type']}، مستندين إلى بيانات حقيقية جمعت من مصادر موثوقة. 
+    # نص مبسط بدون تنسيق الأرقام
+    detailed_text = arabic_text(f"""في هذه الصفحة، نغوص أعمق في تحليل سوق {user_info['city']} 
+لتقديم تفاصيل إضافية عن {user_info['property_type']}.
 
-تمت دراسة أكثر من {len(real_data)} عقار لفهم الاتجاهات السوقية بدقة، حيث تظهر التحليلات أن الطلب على هذا النوع من العقارات في ازدياد مستمر، مع متوسط سعر يصل إلى {market_data['متوسط_السوق']:,.0f} ريال للمتر المربع. 
+تمت دراسة {len(real_data)} عقار حقيقي.
+المتوسط السعري: {int(market_data['متوسط_السوق'])} ريال/م²
 
-ننصح بدراسة المناطق الأكثر نموًا حيث تظهر مؤشرات قوية للنمو المستقبلي. يمكن أن تساعدكم خطة استثمارية طويلة الأجل في الاستفادة من هذه الفرص، مع الاعتماد على استشاريين متخصصين لتحسين قراراتكم الاستثمارية بناءً على البيانات المتاحة.""")
+هذه الصفحة جزء من التحليل الشامل للباقة {package_level}.""")
     
     plt.text(0.1, 0.85, detailed_text, fontsize=12, ha='left', va='top', wrap=True, color='#333333')
     
     return fig
-
 # ========== توليد بيانات السوق المتقدمة ==========
 def generate_advanced_market_data(city, property_type, status, real_data):
     scraper = RealEstateScraper()
