@@ -1213,7 +1213,10 @@ if st.session_state.get("paid", False):
 st.markdown("---")
 st.markdown("### 🚀 إنشاء التقرير")
 
-if st.button("🎯 إنشاء التقرير المتقدم (PDF)", use_container_width=True):
+st.markdown("---")
+st.markdown("### 🚀 إنشاء التقرير")
+
+if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
     with st.spinner("🔄 جاري إنشاء التقرير الاحترافي... قد يستغرق بضع ثوانٍ"):
         try:
             scraper = RealEstateScraper()
@@ -1244,30 +1247,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", use_containe
             
             st.success("✅ تم إنشاء التقرير الاحترافي بنجاح!")
             st.balloons()
-            
-            with st.expander("📊 معاينة سريعة للتقرير"):
-                st.info(f"""
-                **📄 التقرير النهائي يحتوي على:**
-                - عدد الصفحات: {PACKAGES[chosen_pkg]['pages']} صفحة
-                - التحليل الشامل لـ {property_count} عقار حقيقي
-                - توصيات استراتيجية مفصلة
-                - دراسة جدوى متكاملة
-                - بيانات حقيقية مباشرة من السوق
-                - تحليل الأسعار والمؤشرات
-                {'- 🤖 تحليل الذكاء الاصطناعي المتقدم' if chosen_pkg in ['ذهبية', 'ماسية'] else ''}
-                - 📊 رسومات بيانية احترافية
-                - 🎯 تحليل المناطق الذهبية
-                - 💰 دراسة العوائد والمخاطر
-                """)
-                
-                if not real_data.empty:
-                    st.markdown("**📈 عينة من البيانات الحقيقية:**")
-                    st.dataframe(real_data.head(5), use_container_width=True)
-                
-                if ai_recommendations:
-                    st.markdown("**🤖 توصيات الذكاء الاصطناعي:**")
-                    st.json(ai_recommendations)
-                    
+        
         except Exception as e:
             st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
             st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم")
@@ -1281,7 +1261,8 @@ if st.session_state.get('report_generated', False):
         data=st.session_state.pdf_data,
         file_name=f"تقرير_Warda_Intelligence_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
         mime="application/pdf",
-        use_container_width=True
+        use_container_width=True,
+        key="download_report"
     )
     
     st.info("""
@@ -1295,7 +1276,6 @@ if st.session_state.get('report_generated', False):
     - رسومات بيانية احترافية
     - تحليلات متقدمة لا توجد في أي منصة أخرى
     """)
-
 # ========== لوحة المسؤول ==========
 admin_password = st.sidebar.text_input("كلمة مرور المسؤول:", type="password")
 if admin_password == "WardaAdmin2024":
