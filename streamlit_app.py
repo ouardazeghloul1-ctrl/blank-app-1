@@ -1017,21 +1017,29 @@ def create_detailed_analysis_page(user_info, market_data, real_data, page_num, t
 # ========== توليد بيانات السوق المتقدمة ==========
 # استبدل دالة generate_advanced_market_data
 def generate_advanced_market_data(city, property_type, status, real_data):
-    if not real_data.empty and 'السعر' in real_data.columns and real_data['السعر'].notna().any():
+    if not real_data.empty and 'السعر' in real_data.columns and 'المساحة' in real_data.columns:
         try:
-            areas = real_data['المساحة'].str.extract('(\d+)').astype(float)
-            avg_area = areas.mean() if not areas.empty and not areas.isna().all() else 120
-            
-            avg_price = float(real_data['السعر'].mean() / avg_area)
-            min_price = float(real_data['السعر'].min() / avg_area * 0.7)
-            max_price = float(real_data['السعر'].max() / avg_area * 1.3)
-            property_count = len(real_data)
-            
-            if 'العائد_المتوقع' in real_data.columns and real_data['العائد_المتوقع'].notna().any():
-                avg_return = float(real_data['العائد_المتوقع'].mean())
+            # تنظيف ومعالجة البيانات
+            real_data = real_data.dropna(subset=['السعر', 'المساحة'])
+            real_data['السعر'] = pd.to_numeric(real_data['السعر'], errors='coerce')
+            real_data['المساحة'] = pd.to_numeric(real_data['المساحة'].str.extract('(\d+)')[0], errors='coerce')
+            real_data = real_data.dropna()
+
+            if not real_data.empty:
+                avg_area = real_data['المساحة'].mean()
+                avg_price = float(real_data['السعر'].mean() / avg_area)
+                min_price = float(real_data['السعر'].min() / avg_area * 0.7)
+                max_price = float(real_data['السعر'].max() / avg_area * 1.3)
+                property_count = len(real_data)
+                avg_return = float(random.uniform(6.0, 10.0))
             else:
-                avg_return = float(random.uniform(6.0, 10.0))  # يمكن نعدلها لاحقًا
-        except:
+                avg_price = 6000
+                min_price = 4200
+                max_price = 9000
+                property_count = 100
+                avg_return = 7.5
+        except Exception as e:
+            print(f"خطأ في معالجة البيانات: {e}")
             avg_price = 6000
             min_price = 4200
             max_price = 9000
@@ -1076,7 +1084,6 @@ def generate_advanced_market_data(city, property_type, status, real_data):
         'مؤشر_السيولة': float(random.uniform(78, 92)),
         'عدد_العقارات_الحقيقية': int(len(real_data))
     }
-
 # استبدل جزء إنشاء التقرير
 if st.button("🎯 إنشاء التقرير المتقدم (PDF)", use_container_width=True):
     with st.spinner("🔄 جاري إنشاء التقرير الاحترافي... قد يستغرق بضع ثوانٍ"):
