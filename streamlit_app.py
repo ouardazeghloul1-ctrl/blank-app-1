@@ -712,10 +712,15 @@ class AIIntelligence:
             return "سيولة متوسطة - بيع خلال 3-6 أشهر"
         else:
             return "سيولة منخفضة - يحتاج صبر واستراتيجية تسعير ذكية"
-
 # ========== نظام الرسومات البيانية المحسن ==========
 def create_analysis_charts(market_data, real_data, user_info):
     charts = []
+
+    # ✅ تنظيف الأسعار قبل أي شيء
+    if real_data is not None and not real_data.empty:
+        real_data = real_data.copy()
+        real_data["السعر"] = pd.to_numeric(real_data["السعر"], errors="coerce")
+        real_data = real_data.dropna(subset=["السعر"])
 
     if real_data is None or real_data.empty:
         fig, ax = plt.subplots(figsize=(10,6))
@@ -723,20 +728,11 @@ def create_analysis_charts(market_data, real_data, user_info):
         ax.axis('off')
         return [fig]
 
-    fig1 = create_price_distribution_chart(real_data, user_info)
-    charts.append(fig1)
-
-    fig2 = create_area_analysis_chart(real_data, user_info)
-    charts.append(fig2)
-
-    fig3 = create_forecast_chart(market_data, user_info)
-    charts.append(fig3)
-
-    fig4 = create_market_comparison_chart(market_data, real_data)
-    charts.append(fig4)
-
-    fig5 = create_returns_analysis_chart(real_data, user_info)
-    charts.append(fig5)
+    charts.append(create_price_distribution_chart(real_data, user_info))
+    charts.append(create_area_analysis_chart(real_data, user_info))
+    charts.append(create_forecast_chart(market_data, user_info))
+    charts.append(create_market_comparison_chart(market_data, real_data))
+    charts.append(create_returns_analysis_chart(real_data, user_info))
 
     return charts
 
@@ -747,6 +743,10 @@ def create_price_distribution_chart(real_data, user_info):
         ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
         ax.axis('off')
         return fig
+
+    # ✅ تأكيد تحويل السعر
+    real_data["السعر"] = pd.to_numeric(real_data["السعر"], errors="coerce")
+    real_data = real_data.dropna(subset=["السعر"])
 
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
     prices = real_data['السعر'] / 1000
@@ -765,6 +765,9 @@ def create_area_analysis_chart(real_data, user_info):
         ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
         ax.axis('off')
         return fig
+
+    real_data["السعر"] = pd.to_numeric(real_data["السعر"], errors="coerce")
+    real_data = real_data.dropna(subset=["السعر"])
 
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
     area_prices = real_data.groupby('المنطقة')['السعر'].mean().nlargest(8) / 1000
@@ -811,7 +814,7 @@ def create_forecast_chart(market_data, user_info):
 def create_returns_analysis_chart(real_data, user_info):
     if real_data is None or real_data.empty:
         fig, ax = plt.subplots(figsize=(10,6))
-        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
+        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#667eea')
         ax.axis('off')
         return fig
 
