@@ -6,6 +6,20 @@ import streamlit as st
 
 def analyze_results(df):
     df = df.copy()
+
+# تنظيف سريع قبل أي تحليل
+df = df.dropna(subset=["السعر", "المساحة"])
+if df.empty or df["السعر"].isna().all() or df["المساحة"].isna().all():
+    st.error("⚠️ لا توجد بيانات كافية للتحليل في الملف. تحقق من استخراج الأسعار والمساحات.")
+    return pd.DataFrame()
+
+# تحويل المساحة إلى رقم
+df["Area(m²)"] = df["المساحة"].astype(str).str.extract('(\d+)').astype(float)
+
+# حساب سعر المتر
+df["Price_per_m²"] = df["السعر"] / df["Area(m²)"]
+
+    df = df.copy()
     df["Area(m²)"] = df["المساحة"].str.extract('(\d+)').astype(float)
     df["Price_per_m²"] = df["السعر"] / df["Area(m²)"]
 
@@ -27,5 +41,9 @@ def analyze_results(df):
     ax.set_xlabel("السعر ($)" if st.session_state.lang == "ar" else "Price ($)")
     ax.set_ylabel("عدد العقارات" if st.session_state.lang == "ar" else "Number of Properties")
     st.pyplot(fig)
+if df["السعر"].empty:
+    st.warning("⚠️ لا توجد أسعار كافية لعرض التحليل.")
+    return prediction_df
+
 
     return prediction_df
