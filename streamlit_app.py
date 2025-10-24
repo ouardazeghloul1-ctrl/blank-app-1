@@ -716,120 +716,120 @@ class AIIntelligence:
 # ========== نظام الرسومات البيانية المحسن ==========
 def create_analysis_charts(market_data, real_data, user_info):
     charts = []
-if real_data is None or real_data.empty:
-    fig, ax = plt.subplots(figsize=(10,6))
-    ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
-    ax.axis('off')
-    return fig
+
+    if real_data is None or real_data.empty:
+        fig, ax = plt.subplots(figsize=(10,6))
+        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
+        ax.axis('off')
+        return [fig]
 
     fig1 = create_price_distribution_chart(real_data, user_info)
     charts.append(fig1)
+
     fig2 = create_area_analysis_chart(real_data, user_info)
     charts.append(fig2)
+
     fig3 = create_forecast_chart(market_data, user_info)
     charts.append(fig3)
+
     fig4 = create_market_comparison_chart(market_data, real_data)
     charts.append(fig4)
+
     fig5 = create_returns_analysis_chart(real_data, user_info)
     charts.append(fig5)
+
     return charts
+
 
 def create_price_distribution_chart(real_data, user_info):
     if real_data is None or real_data.empty:
-    fig, ax = plt.subplots(figsize=(10,6))
-    ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
-    ax.axis('off')
-    return fig
+        fig, ax = plt.subplots(figsize=(10,6))
+        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
+        ax.axis('off')
+        return fig
 
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
-    if not real_data.empty and 'السعر' in real_data.columns:
-        prices = real_data['السعر'] / 1000  # تحويل لألوف الريالات
-        ax.hist(prices, bins=15, color='gold', alpha=0.7, edgecolor='#d4af37')
-        ax.set_xlabel(arabic_text('السعر (ألف ريال)'), fontsize=12)
-        ax.set_ylabel(arabic_text('عدد العقارات'), fontsize=12)
-        ax.set_title(arabic_text(f'توزيع أسعار {user_info["property_type"]} في {user_info["city"]}'), 
-                    fontsize=14, color='#d4af37', pad=20)
-        ax.grid(True, alpha=0.3)
+    prices = real_data['السعر'] / 1000
+    ax.hist(prices, bins=15, color='gold', alpha=0.7, edgecolor='#d4af37')
+    ax.set_xlabel(arabic_text('السعر (ألف ريال)'), fontsize=12)
+    ax.set_ylabel(arabic_text('عدد العقارات'), fontsize=12)
+    ax.set_title(arabic_text(f'توزيع أسعار {user_info["property_type"]} - {user_info["city"]}'), fontsize=14, color='#d4af37')
+    ax.grid(True, alpha=0.3)
     plt.tight_layout()
     return fig
+
 
 def create_area_analysis_chart(real_data, user_info):
     if real_data is None or real_data.empty:
-    fig, ax = plt.subplots(figsize=(10,6))
-    ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
-    ax.axis('off')
-    return fig
+        fig, ax = plt.subplots(figsize=(10,6))
+        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
+        ax.axis('off')
+        return fig
 
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
-    if not real_data.empty and 'المنطقة' in real_data.columns and 'السعر' in real_data.columns:
-        area_prices = real_data.groupby('المنطقة')['السعر'].mean().nlargest(8) / 1000
-        bars = ax.bar(range(len(area_prices)), area_prices.values, color='#d4af37', alpha=0.8)
-        ax.set_xlabel(arabic_text('المناطق'), fontsize=12)
-        ax.set_ylabel(arabic_text('متوسط السعر (ألف ريال)'), fontsize=12)
-        ax.set_title(arabic_text('أعلى المناطق سعراً'), fontsize=14, color='#d4af37', pad=20)
-        ax.set_xticks(range(len(area_prices)))
-        ax.set_xticklabels([arabic_text(idx) for idx in area_prices.index], rotation=45, ha='right')
-        for bar, price in zip(bars, area_prices.values):
-            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 5, 
-                   arabic_text(f'{price:,.0f}'), ha='center', va='bottom', fontsize=10)
+    area_prices = real_data.groupby('المنطقة')['السعر'].mean().nlargest(8) / 1000
+    bars = ax.bar(range(len(area_prices)), area_prices.values, color='#d4af37', alpha=0.8)
+    ax.set_xlabel(arabic_text('المناطق'), fontsize=12)
+    ax.set_ylabel(arabic_text('متوسط السعر (ألف ريال)'), fontsize=12)
+    ax.set_title(arabic_text('أعلى المناطق سعراً'), fontsize=14, color='#d4af37')
+    ax.set_xticks(range(len(area_prices)))
+    ax.set_xticklabels([arabic_text(idx) for idx in area_prices.index], rotation=45, ha='right')
+
+    for bar, price in zip(bars, area_prices.values):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 5, f'{price:,.0f}', ha='center', fontsize=10)
+
     plt.tight_layout()
     return fig
+
 
 def create_forecast_chart(market_data, user_info):
-    if real_data is None or real_data.empty:
-    fig, ax = plt.subplots(figsize=(10,6))
-    ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
-    ax.axis('off')
-    return fig
+    if market_data is None or len(market_data) == 0:
+        fig, ax = plt.subplots(figsize=(10,6))
+        ax.text(0.5, 0.5, "لا توجد بيانات كافية للتوقعات", ha='center', va='center', fontsize=14, color='#d4af37')
+        ax.axis('off')
+        return fig
 
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
-    months = [arabic_text('الحالي'), arabic_text('3 أشهر'), arabic_text('6 أشهر'), 
-              arabic_text('سنة'), arabic_text('سنتين'), arabic_text('3 سنوات')]
-    growth_rates = [0, 3, 6, 12, 24, 36]
-    
+    months = [arabic_text('الحالي'), arabic_text('3 أشهر'), arabic_text('6 أشهر'), arabic_text('سنة')]
+    growth_rates = [0, 3, 6, 12]
+
     current_price = market_data.get('السعر_الحالي', None)
     growth_rate = market_data.get('معدل_النمو_الشهري', None)
-    
-    if current_price is not None and growth_rate is not None and not np.isnan(current_price) and not np.isnan(growth_rate):
+
+    if current_price is not None and growth_rate is not None:
         future_prices = [current_price * (1 + growth_rate * rate / 100) for rate in growth_rates]
-        ax.plot(months, future_prices, marker='o', linewidth=3, markersize=8, 
-                color='#d4af37', markerfacecolor='gold')
+        ax.plot(months, future_prices, marker='o', linewidth=3, markersize=8, color='#d4af37', markerfacecolor='gold')
         ax.set_xlabel(arabic_text('الفترة الزمنية'), fontsize=12)
         ax.set_ylabel(arabic_text('السعر المتوقع (ريال/م²)'), fontsize=12)
-        ax.set_title(arabic_text('التوقعات المستقبلية للأسعار'), fontsize=14, color='#d4af37', pad=20)
+        ax.set_title(arabic_text('التوقعات المستقبلية للأسعار'), fontsize=14, color='#d4af37')
         ax.grid(True, alpha=0.3)
-        
-        for i, price in enumerate(future_prices):
-            ax.annotate(arabic_text(f'{price:,.0f}'), (i, price), textcoords="offset points", 
-                       xytext=(0,10), ha='center', fontsize=9)
-    else:
-        ax.text(0.5, 0.5, arabic_text('لا توجد بيانات كافية لعرض التوقعات'), 
-                ha='center', va='center', fontsize=12, color='#d4af37')
-    
+
     plt.tight_layout()
-    return fig
-def create_returns_analysis_chart(real_data, user_info):
-    if real_data is None or real_data.empty:
-    fig, ax = plt.subplots(figsize=(10,6))
-    ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
-    ax.axis('off')
     return fig
 
+
+def create_returns_analysis_chart(real_data, user_info):
+    if real_data is None or real_data.empty:
+        fig, ax = plt.subplots(figsize=(10,6))
+        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
+        ax.axis('off')
+        return fig
+
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
-    if not real_data.empty and 'العائد_المتوقع' in real_data.columns:
-        returns = real_data['العائد_المتوقع']
-        ax.hist(returns, bins=10, color='#667eea', alpha=0.7, edgecolor='#764ba2')
-        ax.set_xlabel(arabic_text('العائد المتوقع (%)'), fontsize=12)
-        ax.set_ylabel(arabic_text('عدد العقارات'), fontsize=12)
-        ax.set_title(arabic_text('توزيع العوائد المتوقعة'), fontsize=14, color='#667eea', pad=20)
-        ax.grid(True, alpha=0.3)
-        
-        # إضافة خط لمتوسط العائد
-        avg_return = returns.mean()
-        ax.axvline(avg_return, color='red', linestyle='--', linewidth=2, label=f'المتوسط: {avg_return:.1f}%')
-        ax.legend()
+    returns = real_data['العائد_المتوقع']
+    ax.hist(returns, bins=10, color='#667eea', alpha=0.7, edgecolor='#764ba2')
+    ax.set_xlabel(arabic_text('العائد المتوقع (%)'), fontsize=12)
+    ax.set_ylabel(arabic_text('عدد العقارات'), fontsize=12)
+    ax.set_title(arabic_text('توزيع العوائد المتوقعة'), fontsize=14, color='#667eea')
+    ax.grid(True, alpha=0.3)
+
+    avg_return = returns.mean()
+    ax.axvline(avg_return, color='red', linestyle='--', linewidth=2)
+    ax.text(avg_return, max(ax.get_ylim())*0.95, f'المتوسط: {avg_return:.1f}%', color='red', ha='center')
+
     plt.tight_layout()
     return fig
+
 
 # ========== نظام إنشاء التقارير مع المحتوى الثري ==========
 def create_professional_pdf(user_info, market_data, real_data, package_level, ai_recommendations=None):
