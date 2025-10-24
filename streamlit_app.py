@@ -1030,15 +1030,10 @@ def create_detailed_analysis_page(user_info, market_data, real_data, page_num, t
     return fig
 
 # ========== توليد بيانات السوق المتقدمة ==========
+# استبدل دالة generate_advanced_market_data
 def generate_advanced_market_data(city, property_type, status, real_data):
-    scraper = RealEstateScraper()
-    if real_data.empty:
-        real_data = scraper.get_real_data(city, property_type, 100)
-    
-    # تأكد من أن البيانات ليست فارغة وتحتوي على أرقام صحيحة
     if not real_data.empty and 'السعر' in real_data.columns and real_data['السعر'].notna().any():
         try:
-            # استخراج المساحة من العمود وتحويلها لأرقام
             areas = real_data['المساحة'].str.extract('(\d+)').astype(float)
             avg_area = areas.mean() if not areas.empty and not areas.isna().all() else 120
             
@@ -1047,20 +1042,17 @@ def generate_advanced_market_data(city, property_type, status, real_data):
             max_price = float(real_data['السعر'].max() / avg_area * 1.3)
             property_count = len(real_data)
             
-            # استخراج متوسط العائد من البيانات إن وجد
             if 'العائد_المتوقع' in real_data.columns and real_data['العائد_المتوقع'].notna().any():
                 avg_return = float(real_data['العائد_المتوقع'].mean())
             else:
-                avg_return = float(random.uniform(6.0, 10.0))
+                avg_return = float(random.uniform(6.0, 10.0))  # يمكن نعدلها لاحقًا
         except:
-            # إذا فشل الحساب، استخدم القيم الافتراضية
             avg_price = 6000
             min_price = 4200
             max_price = 9000
             property_count = 100
             avg_return = 7.5
     else:
-        # بيانات افتراضية مبنية على إحصائيات حقيقية
         base_prices = {
             "الرياض": {"شقة": 6250, "فيلا": 5714, "أرض": 3000, "محل تجاري": 12000},
             "جدة": {"شقة": 5909, "فيلا": 5625, "أرض": 2889, "محل تجاري": 12222},
@@ -1074,16 +1066,8 @@ def generate_advanced_market_data(city, property_type, status, real_data):
         property_count = random.randint(80, 150)
         avg_return = float(random.uniform(6.5, 9.5))
     
-    # تأكد من أن جميع القيم محددة
-    avg_price = avg_price if not np.isnan(avg_price) else 6000
-    min_price = min_price if not np.isnan(min_price) else 4200
-    max_price = max_price if not np.isnan(max_price) else 9000
-    avg_return = avg_return if not np.isnan(avg_return) else 7.5
-    
-    # تعديل السعر بناءً على الحالة
     price_multiplier = 1.15 if status == "للبيع" else 0.85 if status == "للشراء" else 1.0
     
-    # معدلات نمو واقعية لكل مدينة
     city_growth = {
         "الرياض": (2.8, 5.5),
         "جدة": (2.5, 5.0),
@@ -1107,6 +1091,43 @@ def generate_advanced_market_data(city, property_type, status, real_data):
         'مؤشر_السيولة': float(random.uniform(78, 92)),
         'عدد_العقارات_الحقيقية': int(len(real_data))
     }
+
+# استبدل جزء إنشاء التقرير
+if st.button("🎯 إنشاء التقرير المتقدم (PDF)", use_container_width=True):
+    with st.spinner("🔄 جاري إنشاء التقرير الاحترافي... قد يستغرق بضع ثوانٍ"):
+        try:
+            scraper = RealEstateScraper()
+            real_data = scraper.get_real_data(city, property_type, property_count)
+            market_data = generate_advanced_market_data(city, property_type, status, real_data)
+            
+            user_info = {
+                "user_type": user_type,
+                "city": city, 
+                "property_type": property_type,
+                "area": area,
+                "package": chosen_pkg,
+                "property_count": property_count
+            }
+            
+            ai_recommendations = None
+            if chosen_pkg in ["ذهبية", "ماسية"]:
+                ai_engine = AIIntelligence()
+                ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
+            
+            pdf_buffer = create_professional_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
+            
+            st.session_state.pdf_data = pdf_buffer.getvalue()
+            st.session_state.report_generated = True
+            st.session_state.real_data = real_data
+            st.session_state.market_data = market_data
+            st.session_state.ai_recommendations = ai_recommendations
+            
+            st.success("✅ تم إنشاء التقرير الاحترافي بنجاح!")
+            st.balloons()
+            
+        except Exception as e:
+            st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
+            st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم")
 
 # ========== الواجهة الرئيسية ==========
 st.markdown("""
