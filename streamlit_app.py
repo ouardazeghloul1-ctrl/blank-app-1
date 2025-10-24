@@ -1035,21 +1035,30 @@ def generate_advanced_market_data(city, property_type, status, real_data):
     if real_data.empty:
         real_data = scraper.get_real_data(city, property_type, 100)
     
-    if not real_data.empty:
-        # استخراج المساحة من العمود وتحويلها لأرقام
-        areas = real_data['المساحة'].str.extract('(\d+)').astype(float)
-        avg_area = areas.mean() if not areas.empty else 120
-        
-        avg_price = float(real_data['السعر'].mean() / avg_area)
-        min_price = float(real_data['السعر'].min() / avg_area * 0.7)
-        max_price = float(real_data['السعر'].max() / avg_area * 1.3)
-        property_count = len(real_data)
-        
-        # استخراج متوسط العائد من البيانات إن وجد
-        if 'العائد_المتوقع' in real_data.columns:
-            avg_return = float(real_data['العائد_المتوقع'].mean())
-        else:
-            avg_return = float(random.uniform(6.0, 10.0))
+    # تأكد من أن البيانات ليست فارغة وتحتوي على أرقام صحيحة
+    if not real_data.empty and 'السعر' in real_data.columns and real_data['السعر'].notna().any():
+        try:
+            # استخراج المساحة من العمود وتحويلها لأرقام
+            areas = real_data['المساحة'].str.extract('(\d+)').astype(float)
+            avg_area = areas.mean() if not areas.empty and not areas.isna().all() else 120
+            
+            avg_price = float(real_data['السعر'].mean() / avg_area)
+            min_price = float(real_data['السعر'].min() / avg_area * 0.7)
+            max_price = float(real_data['السعر'].max() / avg_area * 1.3)
+            property_count = len(real_data)
+            
+            # استخراج متوسط العائد من البيانات إن وجد
+            if 'العائد_المتوقع' in real_data.columns and real_data['العائد_المتوقع'].notna().any():
+                avg_return = float(real_data['العائد_المتوقع'].mean())
+            else:
+                avg_return = float(random.uniform(6.0, 10.0))
+        except:
+            # إذا فشل الحساب، استخدم القيم الافتراضية
+            avg_price = 6000
+            min_price = 4200
+            max_price = 9000
+            property_count = 100
+            avg_return = 7.5
     else:
         # بيانات افتراضية مبنية على إحصائيات حقيقية
         base_prices = {
@@ -1064,6 +1073,12 @@ def generate_advanced_market_data(city, property_type, status, real_data):
         max_price = float(avg_price * 1.5)
         property_count = random.randint(80, 150)
         avg_return = float(random.uniform(6.5, 9.5))
+    
+    # تأكد من أن جميع القيم محددة
+    avg_price = avg_price if not np.isnan(avg_price) else 6000
+    min_price = min_price if not np.isnan(min_price) else 4200
+    max_price = max_price if not np.isnan(max_price) else 9000
+    avg_return = avg_return if not np.isnan(avg_return) else 7.5
     
     # تعديل السعر بناءً على الحالة
     price_multiplier = 1.15 if status == "للبيع" else 0.85 if status == "للشراء" else 1.0
