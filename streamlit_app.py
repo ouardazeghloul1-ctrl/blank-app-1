@@ -762,43 +762,28 @@ def create_forecast_chart(market_data, user_info):
     months = [arabic_text('الحالي'), arabic_text('3 أشهر'), arabic_text('6 أشهر'), 
               arabic_text('سنة'), arabic_text('سنتين'), arabic_text('3 سنوات')]
     growth_rates = [0, 3, 6, 12, 24, 36]
-    current_price = market_data['السعر_الحالي']
-    future_prices = [current_price * (1 + market_data['معدل_النمو_الشهري']/100 * rate) for rate in growth_rates]
     
-    ax.plot(months, future_prices, marker='o', linewidth=3, markersize=8, 
-            color='#d4af37', markerfacecolor='gold')
-    ax.set_xlabel(arabic_text('الفترة الزمنية'), fontsize=12)
-    ax.set_ylabel(arabic_text('السعر المتوقع (ريال/م²)'), fontsize=12)
-    ax.set_title(arabic_text('التوقعات المستقبلية للأسعار'), fontsize=14, color='#d4af37', pad=20)
-    ax.grid(True, alpha=0.3)
+    current_price = market_data.get('السعر_الحالي', None)
+    growth_rate = market_data.get('معدل_النمو_الشهري', None)
     
-    for i, price in enumerate(future_prices):
-        ax.annotate(arabic_text(f'{price:,.0f}'), (i, price), textcoords="offset points", 
-                   xytext=(0,10), ha='center', fontsize=9)
+    if current_price is not None and growth_rate is not None and not np.isnan(current_price) and not np.isnan(growth_rate):
+        future_prices = [current_price * (1 + growth_rate * rate / 100) for rate in growth_rates]
+        ax.plot(months, future_prices, marker='o', linewidth=3, markersize=8, 
+                color='#d4af37', markerfacecolor='gold')
+        ax.set_xlabel(arabic_text('الفترة الزمنية'), fontsize=12)
+        ax.set_ylabel(arabic_text('السعر المتوقع (ريال/م²)'), fontsize=12)
+        ax.set_title(arabic_text('التوقعات المستقبلية للأسعار'), fontsize=14, color='#d4af37', pad=20)
+        ax.grid(True, alpha=0.3)
+        
+        for i, price in enumerate(future_prices):
+            ax.annotate(arabic_text(f'{price:,.0f}'), (i, price), textcoords="offset points", 
+                       xytext=(0,10), ha='center', fontsize=9)
+    else:
+        ax.text(0.5, 0.5, arabic_text('لا توجد بيانات كافية لعرض التوقعات'), 
+                ha='center', va='center', fontsize=12, color='#d4af37')
+    
     plt.tight_layout()
     return fig
-
-def create_market_comparison_chart(market_data, real_data):
-    fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
-    metrics = [arabic_text('متوسط السوق'), arabic_text('أعلى سعر'), arabic_text('أقل سعر'), arabic_text('السعر الحالي')]
-    values = [
-        market_data['متوسط_السوق'],
-        market_data['أعلى_سعر'],
-        market_data['أقل_سعر'], 
-        market_data['السعر_الحالي']
-    ]
-    colors = ['#28a745', '#dc3545', '#ffc107', '#d4af37']
-    bars = ax.bar(metrics, values, color=colors, alpha=0.8)
-    ax.set_ylabel(arabic_text('السعر (ريال/م²)'), fontsize=12)
-    ax.set_title(arabic_text('مقارنة مؤشرات السوق'), fontsize=14, color='#d4af37', pad=20)
-    ax.grid(True, alpha=0.3)
-    
-    for bar, value in zip(bars, values):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 5, 
-               arabic_text(f'{value:,.0f}'), ha='center', va='bottom', fontsize=10)
-    plt.tight_layout()
-    return fig
-
 def create_returns_analysis_chart(real_data, user_info):
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
     if not real_data.empty and 'العائد_المتوقع' in real_data.columns:
