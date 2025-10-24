@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import time
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class RealEstateScraper:
     def __init__(self):
@@ -97,7 +97,28 @@ class RealEstateScraper:
         cleaned = cleaned.replace(',', '')
         return float(cleaned) if cleaned else random.randint(300000, 1500000)
     
+    def save_to_csv(self, df, city, property_type):
+        filename = f"real_estate_data_{city}_{property_type}_{datetime.now().strftime('%Y_%m_%d')}.csv"
+        df.to_csv(filename, index=False)
+        print(f"تم حفظ البيانات في {filename}")
+    
     def get_real_data(self, city, property_type, num_properties=100):
-        aqar_data = self.scrape_aqar(city, property_type, num_properties // 2)
-        bayut_data = self.scrape_bayut(city, property_type, num_properties // 2)
-        return pd.concat([aqar_data, bayut_data], ignore_index=True)
+        # التحقق من تاريخ آخر تحديث
+        last_week = datetime.now() - timedelta(days=7)
+        latest_file = max([f for f in os.listdir('.') if f.startswith('real_estate_data_') and f.endswith('.csv')], 
+                         key=lambda x: os.path.getmtime(x), default=None)
+        
+        if latest_file and datetime.fromtimestamp(os.path.getmtime(latest_file)) > last_week:
+            df = pd.read_csv(latest_file)
+        else:
+            aqar_data = self.scrape_aqar(city, property_type, num_properties // 2)
+            bayut_data = self.scrape_bayut(city, property_type, num_properties // 2)
+            df = pd.concat([aqar_data, bayut_data], ignore_index=True)
+            self.save_to_csv(df, city, property_type)
+        
+        # تنظيف البيانات
+        df = df.dropna(subset=['السعر', 'المنطقة'])
+        df['السعر'] = df['السعر'].astype(float)
+        return df
+
+import os
