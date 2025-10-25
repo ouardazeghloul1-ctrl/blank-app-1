@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+
+body {
+  font-family: 'Amiri', serif;
+  direction: rtl;
+  text-align: right;
+  background: white;
+  color: #000;
+  line-height: 1.9;
+  font-size: 18px;
+}
+
+h1, h2, h3, h4 {
+  color: #b30000;
+  font-weight: 700;
+  margin-top: 35px;
+  margin-bottom: 15px;
+  text-align: right;
+}
+
+h2::before, h2::after {
+  content: '◼';
+  margin: 0 10px;
+  color: #b30000;
+}
+
+p {
+  margin-bottom: 18px;
+}
+
+.section-box {
+  border-right: 4px solid #b30000;
+  padding: 15px 20px;
+  margin: 25px 0;
+  background: #fafafa;
+}
+
+.table-style {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+}
+
+.table-style th, .table-style td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  font-size: 17px;
+}
+
+.table-style th {
+  background: #fff0f0;
+  color: #b30000;
+}
+
+.footer-note {
+  margin-top: 40px;
+  font-size: 15px;
+  color: #666;
+  text-align: center;
+}
