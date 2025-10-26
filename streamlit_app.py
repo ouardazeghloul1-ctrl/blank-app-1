@@ -738,25 +738,41 @@ def create_analysis_charts(market_data, real_data, user_info):
 
 
 def create_price_distribution_chart(real_data, user_info):
+    # ✅ إذا لا توجد بيانات نرجع رسم فارغ بدل كسر التقرير
     if real_data is None or real_data.empty:
-        fig, ax = plt.subplots(figsize=(10,6))
-        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14)
         ax.axis('off')
         return fig
 
-    # ✅ تأكيد تحويل السعر
+    # ✅ تنظيف عمود السعر
+    real_data = real_data.copy()
     real_data["السعر"] = pd.to_numeric(real_data["السعر"], errors="coerce")
     real_data = real_data.dropna(subset=["السعر"])
 
-    fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
-    prices = real_data['السعر'] / 1000
-    ax.hist(prices, bins=15, color='gold', alpha=0.7, edgecolor='#d4af37')
-    ax.set_xlabel(arabic_text('السعر (ألف ريال)'), fontsize=12)
-    ax.set_ylabel(arabic_text('عدد العقارات'), fontsize=12)
-    ax.set_title(arabic_text(f'توزيع أسعار {user_info["property_type"]} - {user_info["city"]}'), fontsize=14, color='#d4af37')
-    ax.grid(True, alpha=0.3)
+    # إذا بعد التنظيف أصبحت فارغة
+    if real_data.empty:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.text(0.5, 0.5, "لا توجد بيانات صالحة للعرض", ha='center', va='center', fontsize=14)
+        ax.axis('off')
+        return fig
+
+    # ✅ الرسم دون ألوان
+    fig, ax = plt.subplots(figsize=(10, 6))
+    prices = real_data["السعر"] / 1000  # تحويل للألف فقط لأجل الوضوح
+
+    ax.hist(prices, bins=15)  # بدون ألوان
+    ax.set_xlabel("السعر (ألف ريال)")
+    ax.set_ylabel("عدد العقارات")
+
+    # ✅ عنوان واضح بدون arabic_text
+    title_property = user_info.get("property_type", "عقار")
+    title_city = user_info.get("city", "المدينة")
+    ax.set_title(f"توزيع أسعار {title_property} في {title_city}")
+
     plt.tight_layout()
     return fig
+
 
 
 def create_area_analysis_chart(real_data, user_info):
