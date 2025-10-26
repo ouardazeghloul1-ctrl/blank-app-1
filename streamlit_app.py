@@ -835,217 +835,101 @@ def create_returns_analysis_chart(real_data, user_info):
 
 
 # ========== نظام إنشاء التقارير مع المحتوى الثري ==========
-def create_professional_pdf(user_info, market_data, real_data, package_level, ai_recommendations=None):
-    buffer = BytesIO()
-    with PdfPages(buffer) as pdf:
-        total_pages = PACKAGES[package_level]['pages']
+
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import cm
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+from bidi.algorithm import get_display
+import arabic_reshaper
+from datetime import datetime
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+import io
+
+# تسجيل الخط العربي
+pdfmetrics.registerFont(TTFont("Arabic", "Amiri-Regular.ttf"))
+
+def A(text):
+    return get_display(arabic_reshaper.reshape(str(text)))
+
+def create_professional_pdf(user_info, market_data, real_data, ai_recommendations, package_level):
+    pdf_path = f"real_estate_report_{package_level}.pdf"
+    
+    # ربط الرسوم البيانية
+    charts = create_analysis_charts(market_data, real_data, user_info)
+    
+    # فتح ملف PDF متعدد الصفحات
+    with PdfPages(pdf_path) as pdf:
         
-        # الصفحة 1: الغلاف
-        fig = create_cover_page(user_info, real_data)
-        pdf.savefig(fig, facecolor='#1a1a1a', edgecolor='none')
-        plt.close()
+        # -------------------- صفحة الغلاف --------------------
+        fig, ax = plt.subplots(figsize=(8.27, 11.7))
+        ax.axis("off")
+        ax.text(0.5, 0.7, "تقرير Warda Intelligence الفاخر", fontsize=32, ha='center', fontname='Amiri')
+        ax.text(0.5, 0.6, f"الباقة: {package_level}", fontsize=20, ha='center', fontname='Amiri')
+        ax.text(0.5, 0.5, f"العميل: {user_info['user_type']} | المدينة: {user_info['city']}", fontsize=14, ha='center', fontname='Amiri')
+        ax.text(0.5, 0.45, f"تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}", fontsize=12, ha='center', fontname='Amiri')
+        pdf.savefig(fig)
+        plt.close(fig)
         
-        # الصفحة 2: الملخص التنفيذي
-        fig = create_executive_summary(user_info, market_data, real_data)
-        pdf.savefig(fig, facecolor='white', edgecolor='none')
-        plt.close()
+        # -------------------- الملخص التنفيذي --------------------
+        fig, ax = plt.subplots(figsize=(8.27, 11.7))
+        ax.axis("off")
+        summary = f"""
+يوفر هذا التقرير تحليلاً عميقًا لسوق العقارات في مدينة {user_info['city']}
+استناداً إلى بيانات حقيقية تم جمعها من {len(real_data)} عقار فعلي.
+
+العائد التأجيري المتوقع: {market_data.get('العائد_التأجيري', 0):.1f}%
+معدل النمو الشهري: {market_data.get('معدل_النمو_الشهري', 0):.1f}%
+"""
+        ax.text(0.05, 0.95, "الملخص التنفيذي", fontsize=22, fontname='Amiri')
+        ax.text(0.05, 0.8, summary, fontsize=14, fontname='Amiri')
+        pdf.savefig(fig)
+        plt.close(fig)
         
-        # الصفحة 3: مؤشرات الأداء
-        fig = create_performance_metrics(user_info, market_data, real_data)
-        pdf.savefig(fig, facecolor='white', edgecolor='none')
-        plt.close()
+        # -------------------- تحليل السوق --------------------
+        fig, ax = plt.subplots(figsize=(8.27, 11.7))
+        ax.axis("off")
+        ax.text(0.05, 0.95, "تحليل السوق", fontsize=22, fontname='Amiri')
+        ax.text(0.05, 0.85, market_data.get('market_analysis_text', 'لا توجد بيانات'), fontsize=14, fontname='Amiri')
+        pdf.savefig(fig)
+        plt.close(fig)
         
-        # الصفحات 4-7: الرسوم البيانية (للباقات المميزة)
-        if package_level in ["فضية", "ذهبية", "ماسية"]:
-            charts = create_analysis_charts(market_data, real_data, user_info)
-            for i, chart in enumerate(charts):
-                pdf.savefig(chart, facecolor='white', edgecolor='none')
-                plt.close()
+        # -------------------- تفاصيل العقار --------------------
+        fig, ax = plt.subplots(figsize=(8.27, 11.7))
+        ax.axis("off")
+        ax.text(0.05, 0.95, "تفاصيل العقار", fontsize=22, fontname='Amiri')
+        ax.text(0.05, 0.85, user_info.get('property_details_text', 'لا توجد بيانات'), fontsize=14, fontname='Amiri')
+        pdf.savefig(fig)
+        plt.close(fig)
         
-        # الصفحة 8: التحليل المالي
-        fig = create_financial_analysis(user_info, market_data)
-        pdf.savefig(fig, facecolor='white', edgecolor='none')
-        plt.close()
+        # -------------------- الرسوم البيانية --------------------
+        for chart in charts:
+            pdf.savefig(chart)
+            plt.close(chart)
         
-        # الصفحة 9: التوصيات الاستراتيجية
-        fig = create_strategic_recommendations(user_info, market_data)
-        pdf.savefig(fig, facecolor='white', edgecolor='none')
-        plt.close()
+        # -------------------- الرؤى والتوصيات --------------------
+        fig, ax = plt.subplots(figsize=(8.27, 11.7))
+        ax.axis("off")
+        ax.text(0.05, 0.95, "الرؤى الاستثمارية", fontsize=22, fontname='Amiri')
         
-        # الصفحة 10: تحليل الذكاء الاصطناعي (للباقات الذهبية والماسية)
-        if package_level in ["ذهبية", "ماسية"] and ai_recommendations:
-            fig = create_ai_analysis_page(user_info, ai_recommendations)
-            pdf.savefig(fig, facecolor='white', edgecolor='none')
-            plt.close()
+        recommendations_text = ""
+        if package_level == "مجانية":
+            recommendations_text = "🎯 تحليل سوق أساسي متكامل\n🎯 أسعار متوسطة مفصلة للمنطقة\n🎯 نصائح استثمارية أولية"
+        elif package_level == "فضية":
+            recommendations_text = "🎯 كل مميزات المجانية +\n🎯 تحليل تنبؤي 18 شهراً\n🎯 نصائح استثمارية متقدمة\n🎯 رسوم بيانية متحركة"
+        elif package_level == "ذهبية":
+            recommendations_text = "🎯 كل مميزات الفضية +\n🎯 تحليل ذكاء اصطناعي متقدم\n🎯 تنبؤات 5 سنوات\n🎯 دراسة الجدوى الاقتصادية"
+        elif package_level == "ماسية":
+            recommendations_text = "🎯 كل مميزات الذهبية +\n🎯 تحليل شمولي متكامل\n🎯 خطة استثمارية 7 سنوات\n🎯 محاكاة 20 سيناريو استثماري"
         
-        # الصفحات الإضافية للباقات المميزة
-        start_page = 11 if package_level in ["ذهبية", "ماسية"] and ai_recommendations else 10
-        for page_num in range(start_page, total_pages + 1):
-            fig = create_detailed_analysis_page(user_info, market_data, real_data, page_num, total_pages, package_level)
-            pdf.savefig(fig, facecolor='white', edgecolor='none')
-            plt.close()
-    
-    buffer.seek(0)
-    return buffer
+        ax.text(0.05, 0.85, recommendations_text, fontsize=14, fontname='Amiri')
+        pdf.savefig(fig)
+        plt.close(fig)
+        
+    return pdf_path
 
-def create_cover_page(user_info, real_data):
-    fig = plt.figure(figsize=(8.27, 11.69), facecolor='#1a1a1a')
-    plt.axis('off')
-    
-    # العنوان الرئيسي
-    plt.text(0.5, 0.85, arabic_text('تقرير Warda Intelligence الفاخر'), 
-             fontsize=28, ha='center', va='center', weight='bold', color='#d4af37')
-    
-    # العنوان الثانوي
-    plt.text(0.5, 0.78, arabic_text('التحليل الاستثماري الذهبي'), 
-             fontsize=20, ha='center', va='center', style='italic', color='#ffd700')
-    
-    # معلومات التقرير
-    intro_text = arabic_text(f"""تقرير استثماري حصري مقدم إلى {user_info['user_type']} المحترم. 
-
-هذا التقرير يمثل دراسة شاملة ودقيقة لسوق العقارات في مدينة {user_info['city']}، حيث يركز على نوع العقار {user_info['property_type']} الذي يمتد على مساحة {user_info['area']} متر مربع. 
-
-تم جمع البيانات من مصادر موثوقة حيث تم تحليل {len(real_data)} عقار حقيقي لتقديم رؤية استثمارية متكاملة.
-
-تم إعداده في {datetime.now().strftime('%Y-%m-%d %H:%M')} كجزء من الباقة {user_info['package']} التي تتميز بجودة عالية وتحليلات متقدمة.""")
-    
-    plt.text(0.5, 0.55, intro_text, fontsize=12, ha='center', va='center', color='white',
-             bbox=dict(boxstyle="round,pad=1", facecolor="#2d2d2d", edgecolor='#d4af37', linewidth=2))
-    
-    # الشعارات
-    plt.text(0.5, 0.35, arabic_text("بيانات حقيقية مباشرة | تحليل ذكاء اصطناعي"), 
-             fontsize=14, ha='center', va='center', color='#00d8a4', weight='bold')
-    
-    plt.text(0.5, 0.3, arabic_text("Warda Intelligence - شريكك الموثوق في الاستثمار العقاري"), 
-             fontsize=14, ha='center', va='center', color='#d4af37', style='italic')
-    
-    return fig
-
-def create_executive_summary(user_info, market_data, real_data):
-    fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
-    plt.axis('off')
-    
-    plt.text(0.1, 0.95, arabic_text('الملخص التنفيذي'), 
-             fontsize=20, ha='left', va='top', weight='bold', color='#d4af37')
-    
-    summary_text = arabic_text(f"""سعادة العميل الكريم {user_info['user_type']}،
-
-يسعدني أن أرحب بكم في هذا التقرير الاستثماري المتقدم الذي يعكس جهودًا كبيرة في تحليل سوق العقارات في {user_info['city']}. 
-
-تم جمع البيانات من مصادر حقيقية تشمل تحليل أكثر من {len(real_data)} عقار، مما يوفر لكم رؤية واضحة وشاملة عن الوضع الحالي والمستقبلي للسوق. 
-
-يتضمن التقرير دراسة دقيقة للأسعار، الاتجاهات السوقية، والفرص الاستثمارية المتاحة، مع التركيز على تحقيق أعلى عائد ممكن.
-
-نتائج التحليل تشير إلى أن الاستثمار في {user_info['property_type']} يمثل فرصة ذهبية، حيث يبلغ العائد المتوقع حوالي {market_data['العائد_التأجيري']:.1f}% سنويًا، مدعومًا بمعدل نمو شهري يصل إلى {market_data['معدل_النمو_الشهري']:.1f}%. 
-
-نوصي بشدة بالتحرك السريع للاستفادة من الفرص المتاحة في الوقت الحالي، مع مراعاة الخطط الاستراتيجية المقترحة في هذا التقرير.""")
-    
-    plt.text(0.1, 0.85, summary_text, fontsize=12, ha='left', va='top', wrap=True, color='#333333',
-             bbox=dict(boxstyle="round,pad=1", facecolor="#f8f9fa", edgecolor='#dee2e6'))
-    
-    return fig
-
-def create_performance_metrics(user_info, market_data, real_data):
-    fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
-    plt.axis('off')
-    
-    plt.text(0.1, 0.95, arabic_text('مؤشرات الأداء الرئيسية'), 
-             fontsize=20, ha='left', va='top', weight='bold', color='#d4af37')
-    
-    performance_text = arabic_text(f"""تقريرنا يقدم لكم رؤية شاملة حول أداء سوق العقارات في {user_info['city']} من خلال مجموعة من المؤشرات الدقيقة والمحدثة. 
-
-يبلغ متوسط سعر المتر المربع حوالي {market_data['متوسط_السوق']:,.0f} ريال، مع توقعات نمو شهري يتراوح حول {market_data['معدل_النمو_الشهري']:.1f}%، مما يعكس استقرارًا وتطورًا في السوق. 
-
-معدل الإشغال العالي الذي يقترب من {market_data['معدل_الإشغال']:.1f}% يدل على طلب قوي ومستمر على العقارات، بينما يصل العائد السنوي المتوقع إلى {market_data['العائد_التأجيري']:.1f}%. 
-
-كما أن مؤشر السيولة يبلغ {market_data['مؤشر_السيولة']:.1f}%، مما يعزز جدوى الاستثمار. 
-
-هذه المؤشرات تشير إلى أن السوق يتمتع بحالة صحية قوية، وهي فرصة مثالية للمستثمرين الذين يبحثون عن عوائد مستدامة على المدى الطويل.""")
-    
-    plt.text(0.1, 0.85, performance_text, fontsize=12, ha='left', va='top', wrap=True, color='#333333')
-    
-    return fig
-
-def create_financial_analysis(user_info, market_data):
-    fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
-    plt.axis('off')
-    
-    plt.text(0.1, 0.95, arabic_text('التحليل المالي المتقدم'), 
-             fontsize=20, ha='left', va='top', weight='bold', color='#d4af37')
-    
-    financial_text = arabic_text(f"""التقييم المالي للاستثمار في {user_info['property_type']} يظهر نتائج مشجعة ومتميزة. 
-
-القيمة السوقية الحالية لعقار بمساحة {user_info['area']} متر مربع تقدر بحوالي {market_data['السعر_الحالي'] * user_info['area']:,.0f} ريال، ومن المتوقع أن ترتفع هذه القيمة إلى حوالي {market_data['السعر_الحالي'] * user_info['area'] * (1 + market_data['معدل_النمو_الشهري']/100*36):,.0f} ريال خلال ثلاث سنوات بناءً على معدل النمو الشهري الحالي. 
-
-فترة استرداد رأس المال قد تمتد إلى حوالي {8.5 - (market_data['العائد_التأجيري'] / 2):.1f} سنوات، مع صافي قيمة حالية إيجابية تصل إلى {market_data['السعر_الحالي'] * user_info['area'] * 0.15:,.0f} ريال. 
-
-هذا الاستثمار يوفر فرصة ذهبية لتحقيق عوائد طويلة الأجل، خاصة مع وجود مؤشرات إيجابية تدعم النمو المستقبلي، مثل معدل الإشغال العالي وارتفاع الطلب في السوق.""")
-    
-    plt.text(0.1, 0.85, financial_text, fontsize=12, ha='left', va='top', wrap=True, color='#333333')
-    
-    return fig
-
-def create_strategic_recommendations(user_info, market_data):
-    fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
-    plt.axis('off')
-    
-    plt.text(0.1, 0.95, arabic_text('التوصيات الاستراتيجية'), 
-             fontsize=20, ha='left', va='top', weight='bold', color='#d4af37')
-    
-    strategy_text = arabic_text(f"""بناءً على التحليل المتعمق لسوق {user_info['city']}، نوصي ببدء خطة استثمارية فورية في نوع العقار {user_info['property_type']} للاستفادة من الفرص الحالية. 
-
-يُفضل البدء بالتفاوض على سعر مناسب يتراوح حول {market_data['السعر_الحالي'] * 0.95:,.0f} ريال للمتر المربع، مع دراسة خيارات التمويل المقدمة من البنوك المحلية لضمان السيولة المالية. 
-
-من المتوقع أن تصل القيمة الإجمالية للعقار إلى حوالي {market_data['السعر_الحالي'] * user_info['area'] * 1.45:,.0f} ريال بعد خمس سنوات، مما يجعل البيع في هذه الفترة خيارًا مربحًا للغاية. 
-
-ننصح أيضًا بمراقبة السوق بشكل مستمر وتنويع الاستثمارات لتقليل المخاطر، مع الاستعانة بفريق من الخبراء لتقديم الدعم الاستشاري المناسب عند اتخاذ القرارات الاستثمارية.""")
-    
-    plt.text(0.1, 0.85, strategy_text, fontsize=12, ha='left', va='top', wrap=True, color='#333333')
-    
-    return fig
-
-def create_ai_analysis_page(user_info, ai_recommendations):
-    fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
-    plt.axis('off')
-    
-    plt.text(0.1, 0.95, arabic_text('تحليل الذكاء الاصطناعي المتقدم'), 
-             fontsize=20, ha='left', va='top', weight='bold', color='#667eea')
-    
-    ai_text = arabic_text(f"""تقريرنا يعتمد على أحدث تقنيات الذكاء الاصطناعي لتقديم رؤى فريدة تتناسب مع احتياجاتكم كـ {user_info['user_type']} في سوق {user_info['city']}. 
-
-تم تحديد ملف المخاطر الخاص بكم على أنه {ai_recommendations['ملف_المخاطر']}، مما يتطلب استراتيجية استثمارية مدروسة. 
-
-استراتيجية الاستثمار المقترحة تشمل {ai_recommendations['استراتيجية_الاستثمار']} لتحقيق أقصى عائد ممكن. 
-
-أما عن التوقيت المثالي للاستثمار، فإن التحليل يشير إلى {ai_recommendations['التوقيت_المثالي']} كفترة مثالية. 
-
-كما تظهر مؤشرات الثقة استقرار السوق بمستوى {ai_recommendations['مؤشرات_الثقة']['مستوى_الثقة']} مع جودة بيانات عالية جدًا. 
-
-السيناريوهات المستقبلية تشمل سيناريو متفائل يتوقع نموًا بنسبة {ai_recommendations['سيناريوهات_مستقبلية']['السيناريو_المتفائل']['العائد_المتوقع']}، مما يعزز فرص النجاح إذا تم التحرك فورًا.""")
-    
-    plt.text(0.1, 0.85, ai_text, fontsize=12, ha='left', va='top', wrap=True, color='#333333')
-    
-    return fig
-
-def create_detailed_analysis_page(user_info, market_data, real_data, page_num, total_pages, package_level):
-    fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
-    plt.axis('off')
-    
-    plt.text(0.1, 0.95, arabic_text(f'تحليل مفصل - الصفحة {page_num} من {total_pages}'), 
-             fontsize=20, ha='left', va='top', weight='bold', color='#d4af37')
-    
-    # نص مبسط بدون تنسيق الأرقام
-    detailed_text = arabic_text(f"""في هذه الصفحة، نغوص أعمق في تحليل سوق {user_info['city']} 
-لتقديم تفاصيل إضافية عن {user_info['property_type']}.
-
-تمت دراسة {len(real_data)} عقار حقيقي.
-المتوسط السعري: {int(market_data['متوسط_السوق'])} ريال/م²
-
-هذه الصفحة جزء من التحليل الشامل للباقة {package_level}.""")
-    
-    plt.text(0.1, 0.85, detailed_text, fontsize=12, ha='left', va='top', wrap=True, color='#333333')
-    
-    return fig
 
 # ========== توليد بيانات السوق المتقدمة ==========
 # استبدل دالة generate_advanced_market_data
