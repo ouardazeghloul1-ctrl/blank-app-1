@@ -907,6 +907,35 @@ from io import BytesIO
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 from datetime import datetime
+def create_analysis_charts(market_data, real_data, user_info):
+    charts = []
+
+    # ----- 1) توزيع الأسعار -----
+    fig1 = plt.figure(figsize=(8, 5))
+    plt.hist(real_data['price'], bins=12)
+    plt.title(arabic_text("توزيع أسعار العقارات"))
+    plt.xlabel(arabic_text("السعر"))
+    plt.ylabel(arabic_text("عدد العقارات"))
+    charts.append(fig1)
+
+    # ----- 2) توزيع المساحات -----
+    fig2 = plt.figure(figsize=(8, 5))
+    plt.hist(real_data['area'], bins=12)
+    plt.title(arabic_text("توزيع مساحات العقارات"))
+    plt.xlabel(arabic_text("المساحة م²"))
+    plt.ylabel(arabic_text("عدد العقارات"))
+    charts.append(fig2)
+
+    # ----- 3) علاقة السعر بالمساحة -----
+    fig3 = plt.figure(figsize=(8, 5))
+    plt.scatter(real_data['area'], real_data['price'])
+    plt.title(arabic_text("العلاقة بين السعر والمساحة"))
+    plt.xlabel(arabic_text("المساحة م²"))
+    plt.ylabel(arabic_text("السعر"))
+    charts.append(fig3)
+
+    return charts
+
 def create_professional_pdf(user_info, market_data, real_data, package_level, ai_recommendations=None):
     """
     إنشاء تقرير PDF احترافي لجميع الباقات:
