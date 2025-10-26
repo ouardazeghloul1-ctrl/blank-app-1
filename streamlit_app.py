@@ -836,99 +836,89 @@ def create_returns_analysis_chart(real_data, user_info):
 
 # ========== نظام إنشاء التقارير مع المحتوى الثري ==========
 
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import cm
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase import pdfmetrics
-from bidi.algorithm import get_display
-import arabic_reshaper
-from datetime import datetime
-import matplotlib.pyplot as plt
+from io import BytesIO
 from matplotlib.backends.backend_pdf import PdfPages
-import io
+import matplotlib.pyplot as plt
+from datetime import datetime
+from report_content_builder import create_analysis_charts, arabic_text
 
-# تسجيل الخط العربي
-pdfmetrics.registerFont(TTFont("Arabic", "Amiri-Regular.ttf"))
+def create_professional_pdf(user_info, market_data, real_data, package_level, ai_recommendations=None):
+    """
+    إنشاء تقرير PDF احترافي لجميع الباقات:
+    مجانية، فضية، ذهبية، ماسية.
+    """
+    buffer = BytesIO()
+    total_pages = {
+        "مجانية": 8,
+        "فضية": 15,
+        "ذهبية": 20,
+        "ماسية": 25
+    }.get(package_level, 8)
 
-def A(text):
-    return get_display(arabic_reshaper.reshape(str(text)))
-
-def create_professional_pdf(user_info, market_data, real_data, ai_recommendations, package_level):
-    pdf_path = f"real_estate_report_{package_level}.pdf"
-    
-    # ربط الرسوم البيانية
-    charts = create_analysis_charts(market_data, real_data, user_info)
-    
-    # فتح ملف PDF متعدد الصفحات
-    with PdfPages(pdf_path) as pdf:
-        
+    with PdfPages(buffer) as pdf:
         # -------------------- صفحة الغلاف --------------------
-        fig, ax = plt.subplots(figsize=(8.27, 11.7))
-        ax.axis("off")
-        ax.text(0.5, 0.7, "تقرير Warda Intelligence الفاخر", fontsize=32, ha='center', fontname='Amiri')
-        ax.text(0.5, 0.6, f"الباقة: {package_level}", fontsize=20, ha='center', fontname='Amiri')
-        ax.text(0.5, 0.5, f"العميل: {user_info['user_type']} | المدينة: {user_info['city']}", fontsize=14, ha='center', fontname='Amiri')
-        ax.text(0.5, 0.45, f"تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}", fontsize=12, ha='center', fontname='Amiri')
-        pdf.savefig(fig)
-        plt.close(fig)
-        
-        # -------------------- الملخص التنفيذي --------------------
-        fig, ax = plt.subplots(figsize=(8.27, 11.7))
-        ax.axis("off")
-        summary = f"""
-يوفر هذا التقرير تحليلاً عميقًا لسوق العقارات في مدينة {user_info['city']}
-استناداً إلى بيانات حقيقية تم جمعها من {len(real_data)} عقار فعلي.
+        fig = plt.figure(figsize=(8.27, 11.69), facecolor='#1a1a1a')
+        plt.axis('off')
+        plt.text(0.5, 0.85, arabic_text('تقرير Warda Intelligence الفاخر'), fontsize=28,
+                 ha='center', va='center', weight='bold', color='#d4af37')
+        plt.text(0.5, 0.78, arabic_text('التحليل الاستثماري الذهبي'), fontsize=20,
+                 ha='center', va='center', style='italic', color='#ffd700')
+        intro_text = arabic_text(f"""تقرير استثماري حصري مقدم إلى {user_info['user_type']} المحترم.
+هذا التقرير يمثل دراسة شاملة لسوق العقارات في مدينة {user_info['city']}.
+نوع العقار: {user_info['property_type']}, مساحة {user_info['area']} م².
+عدد العقارات المحللة: {len(real_data)}.
+الباقة: {package_level}.
+تم إعداده في {datetime.now().strftime('%Y-%m-%d %H:%M')}.""")
+        plt.text(0.5, 0.55, intro_text, fontsize=12, ha='center', va='center', color='white',
+                 bbox=dict(boxstyle="round,pad=1", facecolor="#2d2d2d", edgecolor='#d4af37', linewidth=2))
+        plt.text(0.5, 0.35, arabic_text("بيانات حقيقية مباشرة | تحليل ذكاء اصطناعي"),
+                 fontsize=14, ha='center', va='center', color='#00d8a4', weight='bold')
+        plt.text(0.5, 0.3, arabic_text("Warda Intelligence - شريكك الموثوق في الاستثمار العقاري"),
+                 fontsize=14, ha='center', va='center', color='#d4af37', style='italic')
+        pdf.savefig(fig, facecolor='#1a1a1a', edgecolor='none')
+        plt.close()
 
-العائد التأجيري المتوقع: {market_data.get('العائد_التأجيري', 0):.1f}%
-معدل النمو الشهري: {market_data.get('معدل_النمو_الشهري', 0):.1f}%
-"""
-        ax.text(0.05, 0.95, "الملخص التنفيذي", fontsize=22, fontname='Amiri')
-        ax.text(0.05, 0.8, summary, fontsize=14, fontname='Amiri')
-        pdf.savefig(fig)
-        plt.close(fig)
-        
-        # -------------------- تحليل السوق --------------------
-        fig, ax = plt.subplots(figsize=(8.27, 11.7))
-        ax.axis("off")
-        ax.text(0.05, 0.95, "تحليل السوق", fontsize=22, fontname='Amiri')
-        ax.text(0.05, 0.85, market_data.get('market_analysis_text', 'لا توجد بيانات'), fontsize=14, fontname='Amiri')
-        pdf.savefig(fig)
-        plt.close(fig)
-        
-        # -------------------- تفاصيل العقار --------------------
-        fig, ax = plt.subplots(figsize=(8.27, 11.7))
-        ax.axis("off")
-        ax.text(0.05, 0.95, "تفاصيل العقار", fontsize=22, fontname='Amiri')
-        ax.text(0.05, 0.85, user_info.get('property_details_text', 'لا توجد بيانات'), fontsize=14, fontname='Amiri')
-        pdf.savefig(fig)
-        plt.close(fig)
-        
+        # -------------------- الملخص التنفيذي --------------------
+        fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
+        plt.axis('off')
+        summary_text = arabic_text(f"""يوفر هذا التقرير تحليلاً عميقًا لسوق العقارات في مدينة {user_info['city']}
+استناداً إلى بيانات حقيقية تم جمعها من {len(real_data)} عقار فعلي.
+العائد التأجيري المتوقع: {market_data.get('العائد_التأجيري',0):.1f}%
+معدل النمو الشهري: {market_data.get('معدل_النمو_الشهري',0):.1f}%""")
+        plt.text(0.05, 0.9, summary_text, fontsize=14, ha='left', va='top')
+        pdf.savefig(fig, facecolor='white', edgecolor='none')
+        plt.close()
+
         # -------------------- الرسوم البيانية --------------------
-        for chart in charts:
-            pdf.savefig(chart)
-            plt.close(chart)
-        
-        # -------------------- الرؤى والتوصيات --------------------
-        fig, ax = plt.subplots(figsize=(8.27, 11.7))
-        ax.axis("off")
-        ax.text(0.05, 0.95, "الرؤى الاستثمارية", fontsize=22, fontname='Amiri')
-        
-        recommendations_text = ""
-        if package_level == "مجانية":
-            recommendations_text = "🎯 تحليل سوق أساسي متكامل\n🎯 أسعار متوسطة مفصلة للمنطقة\n🎯 نصائح استثمارية أولية"
-        elif package_level == "فضية":
-            recommendations_text = "🎯 كل مميزات المجانية +\n🎯 تحليل تنبؤي 18 شهراً\n🎯 نصائح استثمارية متقدمة\n🎯 رسوم بيانية متحركة"
-        elif package_level == "ذهبية":
-            recommendations_text = "🎯 كل مميزات الفضية +\n🎯 تحليل ذكاء اصطناعي متقدم\n🎯 تنبؤات 5 سنوات\n🎯 دراسة الجدوى الاقتصادية"
-        elif package_level == "ماسية":
-            recommendations_text = "🎯 كل مميزات الذهبية +\n🎯 تحليل شمولي متكامل\n🎯 خطة استثمارية 7 سنوات\n🎯 محاكاة 20 سيناريو استثماري"
-        
-        ax.text(0.05, 0.85, recommendations_text, fontsize=14, fontname='Amiri')
-        pdf.savefig(fig)
-        plt.close(fig)
-        
-    return pdf_path
+        if package_level in ["فضية", "ذهبية", "ماسية"]:
+            charts = create_analysis_charts(market_data, real_data, user_info)
+            for chart in charts:
+                pdf.savefig(chart, facecolor='white', edgecolor='none')
+                plt.close()
+
+        # -------------------- توصيات الذكاء الاصطناعي --------------------
+        if package_level in ["ذهبية", "ماسية"] and ai_recommendations:
+            fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
+            plt.axis('off')
+            ai_text = arabic_text(f"""ملف المخاطر: {ai_recommendations.get('ملف_المخاطر','-')}
+الاستراتيجية المقترحة: {ai_recommendations.get('استراتيجية_الاستثمار','-')}
+التوقيت المثالي: {ai_recommendations.get('التوقيت_المثالي','-')}
+مستوى الثقة: {ai_recommendations.get('مؤشرات_الثقة', {}).get('مستوى_الثقة','-')}""")
+            plt.text(0.05, 0.9, ai_text, fontsize=14, ha='left', va='top')
+            pdf.savefig(fig, facecolor='white', edgecolor='none')
+            plt.close()
+
+        # -------------------- الصفحات الإضافية للباقات المميزة --------------------
+        for page_num in range(len(charts)+3, total_pages+1):
+            fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
+            plt.axis('off')
+            plt.text(0.5, 0.5, arabic_text(f"صفحة تحليل إضافية رقم {page_num}"), fontsize=16,
+                     ha='center', va='center', color='#b30000')
+            pdf.savefig(fig, facecolor='white', edgecolor='none')
+            plt.close()
+
+    buffer.seek(0)
+    return buffer  # Streamlit يمكنه التعامل مع BytesIO مباشرة
 
 
 # ========== توليد بيانات السوق المتقدمة ==========
