@@ -840,7 +840,7 @@ from io import BytesIO
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 from datetime import datetime
-from report_content_builder import create_analysis_charts, arabic_text
+from report_content_builder import create_analysis_charts
 def create_professional_pdf(user_info, market_data, real_data, package_level, ai_recommendations=None):
     """
     إنشاء تقرير PDF احترافي لجميع الباقات:
