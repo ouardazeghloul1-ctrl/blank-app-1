@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 def create_analysis_charts(market_data, real_data, user_info):
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
     charts = []
 
     # ✅ تنظيف بيانات السعر قبل التحليل
@@ -13,7 +16,7 @@ def create_analysis_charts(market_data, real_data, user_info):
     # ✅ إذا لا توجد بيانات نرجع رسم فارغ بدل كسر الكود
     if real_data is None or real_data.empty:
         fig, ax = plt.subplots(figsize=(10,6))
-        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
+        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14)
         ax.axis('off')
         return [fig]
 
@@ -28,7 +31,7 @@ def create_analysis_charts(market_data, real_data, user_info):
     charts.append(fig1)
 
     # ---------------------------------------------------------
-    # 🎨 الرسم 2 — متوسط الأسعار حسب المنطقة
+    # 🎨 الرسم 2 — متوسط الأسعار حسب المنطقة (إن وجدت)
     # ---------------------------------------------------------
     if "المنطقة" in real_data.columns:
         mean_by_area = real_data.groupby("المنطقة")["السعر"].mean().sort_values()
@@ -40,7 +43,7 @@ def create_analysis_charts(market_data, real_data, user_info):
         charts.append(fig2)
 
     # ---------------------------------------------------------
-    # 🎨 الرسم 3 — توجهات الأسعار عبر الزمن (إذا كانت بيانات السوق متوفرة)
+    # 🎨 الرسم 3 — توجهات الأسعار عبر الزمن (إذا توفرت بيانات السوق)
     # ---------------------------------------------------------
     if market_data is not None and not market_data.empty and "price_index" in market_data.columns:
         fig3, ax3 = plt.subplots(figsize=(10,6))
