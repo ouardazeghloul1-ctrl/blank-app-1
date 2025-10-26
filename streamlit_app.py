@@ -993,39 +993,33 @@ def generate_advanced_market_data(city, property_type, status, real_data):
 # استبدل جزء إنشاء التقرير
 if st.button("🎯 إنشاء التقرير المتقدم (PDF)", use_container_width=True):
     with st.spinner("🔄 جاري إنشاء التقرير الاحترافي... قد يستغرق بضع ثوانٍ"):
-        try:
-            scraper = RealEstateScraper()
-            real_data = scraper.get_real_data(city, property_type, property_count)
-            market_data = generate_advanced_market_data(city, property_type, status, real_data)
-            
-            user_info = {
-                "user_type": user_type,
-                "city": city, 
-                "property_type": property_type,
-                "area": area,
-                "package": chosen_pkg,
-                "property_count": property_count
-            }
-            
-            ai_recommendations = None
-            if chosen_pkg in ["ذهبية", "ماسية"]:
-                ai_engine = AIIntelligence()
-                ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
-            
-            pdf_buffer = create_professional_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
-            
-            st.session_state.pdf_data = pdf_buffer.getvalue()
-            st.session_state.report_generated = True
-            st.session_state.real_data = real_data
-            st.session_state.market_data = market_data
-            st.session_state.ai_recommendations = ai_recommendations
-            
-            st.success("✅ تم إنشاء التقرير الاحترافي بنجاح!")
-            st.balloons()
-            
-        except Exception as e:
-            st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
-            st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم")
+        user_info = {
+            "user_type": "مستثمر",
+            "city": city,
+            "property_type": property_type,
+            "area": int(df['المساحة'].mean()) if 'المساحة' in df.columns else 0
+        }
+
+        content_text = build_report_content(df, package_level.lower())
+
+        pdf_buffer = create_pdf_from_content(
+            user_info,
+            market_data,
+            df,
+            content_text,
+            package_level,
+            ai_recommendations
+        )
+
+        st.success("✅ تم إنشاء التقرير بنجاح.")
+
+        st.download_button(
+            label="📥 تحميل التقرير PDF",
+            data=pdf_buffer,
+            file_name=f"تقرير_استثماري_{city}_{property_type}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
 
 # ========== الواجهة الرئيسية ==========
 st.markdown("""
