@@ -1243,7 +1243,12 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 ai_engine = AIIntelligence()
                 ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
             
-            pdf_buffer = create_professional_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
+          # استيراد الدالة الصحيحة أولاً (أضف في الأعلى مع باقي الاستيرادات)
+from report_pdf_generator import create_pdf_from_content
+
+# ثم غير السطر إلى:
+content_text = "تقرير تحليل عقاري متقدم"  # أو استخدم build_report_content إذا موجودة
+pdf_buffer = create_pdf_from_content(user_info, market_data, real_data, content_text, chosen_pkg, ai_recommendations)
             
             st.session_state.pdf_data = pdf_buffer.getvalue()
             st.session_state.report_generated = True
