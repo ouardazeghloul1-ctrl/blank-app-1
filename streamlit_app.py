@@ -24,8 +24,13 @@ from bidi.algorithm import get_display
 import paypalrestsdk
 from dotenv import load_dotenv
 import os
-# في قسم الـ imports في الأعلى (بعد السطر 30)، أضف:
+
+# ========== الأنظمة الذكية الجديدة ==========
 from report_pdf_generator import create_pdf_from_content
+from smart_report_system import SmartReportSystem
+from user_profiler import UserProfiler
+from premium_pdf_builder import PremiumPDFBuilder
+from market_intelligence import MarketIntelligence
 
 # ========== إعداد الصفحة - يجب أن يكون أول أمر ==========
 st.set_page_config(
@@ -714,425 +719,89 @@ class AIIntelligence:
             return "سيولة متوسطة - بيع خلال 3-6 أشهر"
         else:
             return "سيولة منخفضة - يحتاج صبر واستراتيجية تسعير ذكية"
-# ========== نظام الرسومات البيانية المحسن ==========
-def create_analysis_charts(market_data, real_data, user_info):
-    charts = []
-
-    # ✅ تنظيف الأسعار قبل أي شيء
-    if real_data is not None and not real_data.empty:
-        real_data = real_data.copy()
-        real_data["السعر"] = pd.to_numeric(real_data["السعر"], errors="coerce")
-        real_data = real_data.dropna(subset=["السعر"])
-
-    if real_data is None or real_data.empty:
-        fig, ax = plt.subplots(figsize=(10,6))
-        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
-        ax.axis('off')
-        return [fig]
-
-    charts.append(create_price_distribution_chart(real_data, user_info))
-    charts.append(create_area_analysis_chart(real_data, user_info))
-    charts.append(create_forecast_chart(market_data, user_info))
-    charts.append(create_market_comparison_chart(market_data, real_data))
-    charts.append(create_returns_analysis_chart(real_data, user_info))
-
-    return charts
-
-
-def create_price_distribution_chart(real_data, user_info):
-    # ✅ إذا لا توجد بيانات نرجع رسم فارغ بدل كسر التقرير
-    if real_data is None or real_data.empty:
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14)
-        ax.axis('off')
-        return fig
-
-    # ✅ تنظيف عمود السعر
-    real_data = real_data.copy()
-    real_data["السعر"] = pd.to_numeric(real_data["السعر"], errors="coerce")
-    real_data = real_data.dropna(subset=["السعر"])
-
-    # إذا بعد التنظيف أصبحت فارغة
-    if real_data.empty:
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.text(0.5, 0.5, "لا توجد بيانات صالحة للعرض", ha='center', va='center', fontsize=14)
-        ax.axis('off')
-        return fig
-
-    # ✅ الرسم دون ألوان
-    fig, ax = plt.subplots(figsize=(10, 6))
-    prices = real_data["السعر"] / 1000  # تحويل للألف فقط لأجل الوضوح
-
-    ax.hist(prices, bins=15)  # بدون ألوان
-    ax.set_xlabel("السعر (ألف ريال)")
-    ax.set_ylabel("عدد العقارات")
-
-    # ✅ عنوان واضح بدون arabic_text
-    title_property = user_info.get("property_type", "عقار")
-    title_city = user_info.get("city", "المدينة")
-    ax.set_title(f"توزيع أسعار {title_property} في {title_city}")
-
-    plt.tight_layout()
-    return fig
-
-
-
-def create_area_analysis_chart(real_data, user_info):
-    if real_data is None or real_data.empty:
-        fig, ax = plt.subplots(figsize=(10,6))
-        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#d4af37')
-        ax.axis('off')
-        return fig
-
-    real_data["السعر"] = pd.to_numeric(real_data["السعر"], errors="coerce")
-    real_data = real_data.dropna(subset=["السعر"])
-
-    fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
-    area_prices = real_data.groupby('المنطقة')['السعر'].mean().nlargest(8) / 1000
-    bars = ax.bar(range(len(area_prices)), area_prices.values, color='#d4af37', alpha=0.8)
-    ax.set_xlabel(arabic_text('المناطق'), fontsize=12)
-    ax.set_ylabel(arabic_text('متوسط السعر (ألف ريال)'), fontsize=12)
-    ax.set_title(arabic_text('أعلى المناطق سعراً'), fontsize=14, color='#d4af37')
-    ax.set_xticks(range(len(area_prices)))
-    ax.set_xticklabels([arabic_text(idx) for idx in area_prices.index], rotation=45, ha='right')
-
-    for bar, price in zip(bars, area_prices.values):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 5, f'{price:,.0f}', ha='center', fontsize=10)
-
-    plt.tight_layout()
-    return fig
-
-
-def create_forecast_chart(market_data, user_info):
-    if market_data is None or len(market_data) == 0:
-        fig, ax = plt.subplots(figsize=(10,6))
-        ax.text(0.5, 0.5, "لا توجد بيانات كافية للتوقعات", ha='center', va='center', fontsize=14, color='#d4af37')
-        ax.axis('off')
-        return fig
-
-    fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
-    months = [arabic_text('الحالي'), arabic_text('3 أشهر'), arabic_text('6 أشهر'), arabic_text('سنة')]
-    growth_rates = [0, 3, 6, 12]
-
-    current_price = market_data.get('السعر_الحالي', None)
-    growth_rate = market_data.get('معدل_النمو_الشهري', None)
-
-    if current_price is not None and growth_rate is not None:
-        future_prices = [current_price * (1 + growth_rate * rate / 100) for rate in growth_rates]
-        ax.plot(months, future_prices, marker='o', linewidth=3, markersize=8, color='#d4af37', markerfacecolor='gold')
-        ax.set_xlabel(arabic_text('الفترة الزمنية'), fontsize=12)
-        ax.set_ylabel(arabic_text('السعر المتوقع (ريال/م²)'), fontsize=12)
-        ax.set_title(arabic_text('التوقعات المستقبلية للأسعار'), fontsize=14, color='#d4af37')
-        ax.grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    return fig
-
-
-def create_returns_analysis_chart(real_data, user_info):
-    if real_data is None or real_data.empty:
-        fig, ax = plt.subplots(figsize=(10,6))
-        ax.text(0.5, 0.5, "لا توجد بيانات كافية للعرض", ha='center', va='center', fontsize=14, color='#667eea')
-        ax.axis('off')
-        return fig
-
-    fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
-    returns = real_data['العائد_المتوقع']
-    ax.hist(returns, bins=10, color='#667eea', alpha=0.7, edgecolor='#764ba2')
-    ax.set_xlabel(arabic_text('العائد المتوقع (%)'), fontsize=12)
-    ax.set_ylabel(arabic_text('عدد العقارات'), fontsize=12)
-    ax.set_title(arabic_text('توزيع العوائد المتوقعة'), fontsize=14, color='#667eea')
-    ax.grid(True, alpha=0.3)
-
-    avg_return = returns.mean()
-    ax.axvline(avg_return, color='red', linestyle='--', linewidth=2)
-    ax.text(avg_return, max(ax.get_ylim())*0.95, f'المتوسط: {avg_return:.1f}%', color='red', ha='center')
-
-    plt.tight_layout()
-    return fig
-import pandas as pd
-import numpy as np
-
-def build_report_content(df, package):
-    """
-    إنشاء نص التقرير اعتمادًا على البيانات والباقة.
-    """
-
-    avg_price = df['السعر'].mean()
-    avg_area = df['المساحة'].mean()
-    price_per_meter = avg_price / avg_area if avg_area else 0
-    top_areas = df['المنطقة'].value_counts().head(5)
-
-    content = f"""
-📊 **تقرير تحليل عقاري محترف**
-
-تم تحليل بيانات العقارات الخاصة بك لإعطاء صورة واضحة عن السوق الحالي
-واختيار القرار الاستثماري الأفضل لك.
-
----
-
-### ✅ **نظرة عامة على السوق**
-- متوسط السعر: **{avg_price:,.0f} ريال**
-- متوسط المساحة: **{avg_area:,.0f} م²**
-- متوسط سعر المتر: **{price_per_meter:,.0f} ريال**
-- أكثر المناطق نشاطًا:
-"""
-
-    for area, count in top_areas.items():
-        content += f"- **{area}** — {count} عقار\n"
-
-    content += "\n---\n"
-
-    if package == "free":
-        content += """
-## 🎯 توصية مبدئية
-إذا تبحث عن **سكن شخصي** → اختار مناطق متوسطة الأسعار.
-وإذا الهدف **استثمار** → مساحات صغيرة في مواقع حيوية.
-"""
-
-    elif package == "silver":
-        content += """
-## 💼 تحليل الباقة الفضية
-يتوقع ارتفاع الأسعار بنسبة **4% → 8%** خلال 18 شهرًا في المناطق النشطة.
-⭐ الاستراتيجية:
-شراء عقار قبل اكتمال البنية التحتية لزيادة الربح.
-"""
-
-    elif package == "gold":
-        content += """
-## 🥇 تحليل الباقة الذهبية
-- توقع ارتفاع السوق **12% → 27%** خلال 5 سنوات.
-⚠️ تحليل المخاطر:
-- مخاطر الركود: منخفضة
-- مخاطر ارتفاع التكلفة: متوسطة
-"""
-
-    elif package == "diamond":
-        content += """
-## 💎 الباقة الماسية
-تحليل شامل بين 5 دول + خطة استثمار لسبع سنوات.
-🎯 “الأرباح الأعلى تأتي من صبر المستثمر".
-"""
-
-    content += "\n---\n📌 تم إنشاء التقرير اعتمادًا على بيانات حقيقية ومعايير تحليل احترافية."
-
-    return content
-
-
-# ========== نظام إنشاء التقارير مع المحتوى الثري ==========
-
-from io import BytesIO
-from matplotlib.backends.backend_pdf import PdfPages
-import matplotlib.pyplot as plt
-from datetime import datetime
-def create_analysis_charts(market_data, real_data, user_info):
-    charts = []
-
-    # ----- 1) توزيع الأسعار -----
-    fig1 = plt.figure(figsize=(8, 5))
-    plt.hist(real_data['price'], bins=12)
-    plt.title(arabic_text("توزيع أسعار العقارات"))
-    plt.xlabel(arabic_text("السعر"))
-    plt.ylabel(arabic_text("عدد العقارات"))
-    charts.append(fig1)
-
-    # ----- 2) توزيع المساحات -----
-    fig2 = plt.figure(figsize=(8, 5))
-    plt.hist(real_data['area'], bins=12)
-    plt.title(arabic_text("توزيع مساحات العقارات"))
-    plt.xlabel(arabic_text("المساحة م²"))
-    plt.ylabel(arabic_text("عدد العقارات"))
-    charts.append(fig2)
-
-    # ----- 3) علاقة السعر بالمساحة -----
-    fig3 = plt.figure(figsize=(8, 5))
-    plt.scatter(real_data['area'], real_data['price'])
-    plt.title(arabic_text("العلاقة بين السعر والمساحة"))
-    plt.xlabel(arabic_text("المساحة م²"))
-    plt.ylabel(arabic_text("السعر"))
-    charts.append(fig3)
-
-    return charts
-
-def create_professional_pdf(user_info, market_data, real_data, package_level, ai_recommendations=None):
-    """
-    إنشاء تقرير PDF احترافي لجميع الباقات:
-    مجانية، فضية، ذهبية، ماسية.
-    """
-    buffer = BytesIO()
-    total_pages = {
-        "مجانية": 8,
-        "فضية": 15,
-        "ذهبية": 20,
-        "ماسية": 25
-    }.get(package_level, 8)
-
-    with PdfPages(buffer) as pdf:
-        # -------------------- صفحة الغلاف --------------------
-        fig = plt.figure(figsize=(8.27, 11.69), facecolor='#1a1a1a')
-        plt.axis('off')
-        plt.text(0.5, 0.85, arabic_text('تقرير Warda Intelligence الفاخر'), fontsize=28,
-                 ha='center', va='center', weight='bold', color='#d4af37')
-        plt.text(0.5, 0.78, arabic_text('التحليل الاستثماري الذهبي'), fontsize=20,
-                 ha='center', va='center', style='italic', color='#ffd700')
-        intro_text = arabic_text(f"""تقرير استثماري حصري مقدم إلى {user_info['user_type']} المحترم.
-هذا التقرير يمثل دراسة شاملة لسوق العقارات في مدينة {user_info['city']}.
-نوع العقار: {user_info['property_type']}, مساحة {user_info['area']} م².
-عدد العقارات المحللة: {len(real_data)}.
-الباقة: {package_level}.
-تم إعداده في {datetime.now().strftime('%Y-%m-%d %H:%M')}.""")
-        plt.text(0.5, 0.55, intro_text, fontsize=12, ha='center', va='center', color='white',
-                 bbox=dict(boxstyle="round,pad=1", facecolor="#2d2d2d", edgecolor='#d4af37', linewidth=2))
-        plt.text(0.5, 0.35, arabic_text("بيانات حقيقية مباشرة | تحليل ذكاء اصطناعي"),
-                 fontsize=14, ha='center', va='center', color='#00d8a4', weight='bold')
-        plt.text(0.5, 0.3, arabic_text("Warda Intelligence - شريكك الموثوق في الاستثمار العقاري"),
-                 fontsize=14, ha='center', va='center', color='#d4af37', style='italic')
-        pdf.savefig(fig, facecolor='#1a1a1a', edgecolor='none')
-        plt.close()
-
-        # -------------------- الملخص التنفيذي --------------------
-        fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
-        plt.axis('off')
-        summary_text = arabic_text(f"""يوفر هذا التقرير تحليلاً عميقًا لسوق العقارات في مدينة {user_info['city']}
-استناداً إلى بيانات حقيقية تم جمعها من {len(real_data)} عقار فعلي.
-العائد التأجيري المتوقع: {market_data.get('العائد_التأجيري',0):.1f}%
-معدل النمو الشهري: {market_data.get('معدل_النمو_الشهري',0):.1f}%""")
-        plt.text(0.05, 0.9, summary_text, fontsize=14, ha='left', va='top')
-        pdf.savefig(fig, facecolor='white', edgecolor='none')
-        plt.close()
-
-        # -------------------- الرسوم البيانية --------------------
-        if package_level in ["فضية", "ذهبية", "ماسية"]:
-            charts = create_analysis_charts(market_data, real_data, user_info)
-            for chart in charts:
-                pdf.savefig(chart, facecolor='white', edgecolor='none')
-                plt.close()
-
-        # -------------------- توصيات الذكاء الاصطناعي --------------------
-        if package_level in ["ذهبية", "ماسية"] and ai_recommendations:
-            fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
-            plt.axis('off')
-            ai_text = arabic_text(f"""ملف المخاطر: {ai_recommendations.get('ملف_المخاطر','-')}
-الاستراتيجية المقترحة: {ai_recommendations.get('استراتيجية_الاستثمار','-')}
-التوقيت المثالي: {ai_recommendations.get('التوقيت_المثالي','-')}
-مستوى الثقة: {ai_recommendations.get('مؤشرات_الثقة', {}).get('مستوى_الثقة','-')}""")
-            plt.text(0.05, 0.9, ai_text, fontsize=14, ha='left', va='top')
-            pdf.savefig(fig, facecolor='white', edgecolor='none')
-            plt.close()
-
-        # -------------------- الصفحات الإضافية للباقات المميزة --------------------
-        for page_num in range(len(charts)+3, total_pages+1):
-            fig = plt.figure(figsize=(8.27, 11.69), facecolor='white')
-            plt.axis('off')
-            plt.text(0.5, 0.5, arabic_text(f"صفحة تحليل إضافية رقم {page_num}"), fontsize=16,
-                     ha='center', va='center', color='#b30000')
-            pdf.savefig(fig, facecolor='white', edgecolor='none')
-            plt.close()
-
-    buffer.seek(0)
-    return buffer  # Streamlit يمكنه التعامل مع BytesIO مباشرة
-
 
 # ========== توليد بيانات السوق المتقدمة ==========
-# استبدل دالة generate_advanced_market_data
 def generate_advanced_market_data(city, property_type, status, real_data):
-    if not real_data.empty and 'السعر' in real_data.columns and 'المساحة' in real_data.columns:
-        try:
+    """نسخة محسنة من تحليل بيانات السوق"""
+    try:
+        if not real_data.empty and 'السعر' in real_data.columns and 'المساحة' in real_data.columns:
             # تنظيف ومعالجة البيانات
-            real_data = real_data.dropna(subset=['السعر', 'المساحة'])
-            real_data['السعر'] = pd.to_numeric(real_data['السعر'], errors='coerce')
-            real_data['المساحة'] = pd.to_numeric(real_data['المساحة'].str.extract('(\d+)')[0], errors='coerce')
-            real_data = real_data.dropna()
+            real_data_clean = real_data.dropna(subset=['السعر', 'المساحة']).copy()
+            real_data_clean['السعر'] = pd.to_numeric(real_data_clean['السعر'], errors='coerce')
+            real_data_clean['المساحة'] = pd.to_numeric(real_data_clean['المساحة'].astype(str).str.extract('(\d+)')[0], errors='coerce')
+            real_data_clean = real_data_clean.dropna()
 
-            if not real_data.empty:
-                avg_area = real_data['المساحة'].mean()
-                avg_price = float(real_data['السعر'].mean() / avg_area)
-                min_price = float(real_data['السعر'].min() / avg_area * 0.7)
-                max_price = float(real_data['السعر'].max() / avg_area * 1.3)
-                property_count = len(real_data)
-                avg_return = float(random.uniform(6.0, 10.0))
+            if not real_data_clean.empty:
+                avg_area = real_data_clean['المساحة'].mean()
+                avg_price = float(real_data_clean['السعر'].mean() / avg_area) if avg_area else 6000
+                min_price = float(real_data_clean['السعر'].min() / avg_area * 0.7) if avg_area else 4200
+                max_price = float(real_data_clean['السعر'].max() / avg_area * 1.3) if avg_area else 9000
+                property_count = len(real_data_clean)
+                avg_return = float(real_data_clean['العائد_المتوقع'].mean()) if 'العائد_المتوقع' in real_data_clean.columns else random.uniform(6.0, 10.0)
             else:
                 avg_price = 6000
                 min_price = 4200
                 max_price = 9000
                 property_count = 100
                 avg_return = 7.5
-        except Exception as e:
-            print(f"خطأ في معالجة البيانات: {e}")
-            avg_price = 6000
-            min_price = 4200
-            max_price = 9000
-            property_count = 100
-            avg_return = 7.5
-    else:
-        base_prices = {
-            "الرياض": {"شقة": 6250, "فيلا": 5714, "أرض": 3000, "محل تجاري": 12000},
-            "جدة": {"شقة": 5909, "فيلا": 5625, "أرض": 2889, "محل تجاري": 12222},
-            "الدمام": {"شقة": 5500, "فيلا": 5000, "أرض": 2750, "محل تجاري": 11250},
-            "مكة المكرمة": {"شقة": 7000, "فيلا": 6333, "أرض": 3500, "محل تجاري": 16250},
-            "المدينة المنورة": {"شقة": 6476, "فيلا": 5968, "أرض": 3214, "محل تجاري": 13529}
+        else:
+            # بيانات افتراضية مبنية على إحصائيات حقيقية
+            base_prices = {
+                "الرياض": {"شقة": 6250, "فيلا": 5714, "أرض": 3000, "محل تجاري": 12000},
+                "جدة": {"شقة": 5909, "فيلا": 5625, "أرض": 2889, "محل تجاري": 12222},
+                "الدمام": {"شقة": 5500, "فيلا": 5000, "أرض": 2750, "محل تجاري": 11250},
+                "مكة المكرمة": {"شقة": 7000, "فيلا": 6333, "أرض": 3500, "محل تجاري": 16250},
+                "المدينة المنورة": {"شقة": 6476, "فيلا": 5968, "أرض": 3214, "محل تجاري": 13529}
+            }
+            avg_price = float(base_prices.get(city, {}).get(property_type, 6000))
+            min_price = float(avg_price * 0.7)
+            max_price = float(avg_price * 1.5)
+            property_count = random.randint(80, 150)
+            avg_return = float(random.uniform(6.5, 9.5))
+        
+        price_multiplier = 1.15 if status == "للبيع" else 0.85 if status == "للشراء" else 1.0
+        
+        city_growth = {
+            "الرياض": (2.8, 5.5),
+            "جدة": (2.5, 5.0),
+            "الدمام": (2.0, 4.2),
+            "مكة المكرمة": (3.0, 6.0),
+            "المدينة المنورة": (2.7, 5.3)
         }
-        avg_price = float(base_prices.get(city, {}).get(property_type, 6000))
-        min_price = float(avg_price * 0.7)
-        max_price = float(avg_price * 1.5)
-        property_count = random.randint(80, 150)
-        avg_return = float(random.uniform(6.5, 9.5))
-    
-    price_multiplier = 1.15 if status == "للبيع" else 0.85 if status == "للشراء" else 1.0
-    
-    city_growth = {
-        "الرياض": (2.8, 5.5),
-        "جدة": (2.5, 5.0),
-        "الدمام": (2.0, 4.2),
-        "مكة المكرمة": (3.0, 6.0),
-        "المدينة المنورة": (2.7, 5.3)
-    }
-    growth_range = city_growth.get(city, (2.2, 4.5))
-    
-    return {
-        'السعر_الحالي': float(avg_price * price_multiplier),
-        'متوسط_السوق': float(avg_price),
-        'أعلى_سعر': float(max_price),
-        'أقل_سعر': float(min_price),
-        'حجم_التداول_شهري': int(property_count),
-        'معدل_النمو_الشهري': float(random.uniform(*growth_range)),
-        'عرض_العقارات': int(property_count),
-        'طالب_الشراء': int(property_count * random.uniform(1.4, 1.8)),
-        'معدل_الإشغال': float(random.uniform(88, 96)),
-        'العائد_التأجيري': float(avg_return),
-        'مؤشر_السيولة': float(random.uniform(78, 92)),
-        'عدد_العقارات_الحقيقية': int(len(real_data))
-    }
-# استبدل جزء إنشاء التقرير
-if st.button("🎯 إنشاء التقرير المتقدم (PDF)", use_container_width=True):
-    with st.spinner("🔄 جاري إنشاء التقرير الاحترافي... قد يستغرق بضع ثوانٍ"):
-        user_info = {
-            "user_type": "مستثمر",
-            "city": city,
-            "property_type": property_type,
-            "area": int(df['المساحة'].mean()) if 'المساحة' in df.columns else 0
+        growth_range = city_growth.get(city, (2.2, 4.5))
+        
+        return {
+            'السعر_الحالي': float(avg_price * price_multiplier),
+            'متوسط_السوق': float(avg_price),
+            'أعلى_سعر': float(max_price),
+            'أقل_سعر': float(min_price),
+            'حجم_التداول_شهري': int(property_count),
+            'معدل_النمو_الشهري': float(random.uniform(*growth_range)),
+            'عرض_العقارات': int(property_count),
+            'طالب_الشراء': int(property_count * random.uniform(1.4, 1.8)),
+            'معدل_الإشغال': float(random.uniform(88, 96)),
+            'العائد_التأجيري': float(avg_return),
+            'مؤشر_السيولة': float(random.uniform(78, 92)),
+            'عدد_العقارات_الحقيقية': int(len(real_data) if not real_data.empty else property_count)
         }
-
-        content_text = build_report_content(df, package_level.lower())
-
-        pdf_buffer = create_pdf_from_content(
-            user_info,
-            market_data,
-            df,
-            content_text,
-            package_level,
-            ai_recommendations
-        )
-
-        st.success("✅ تم إنشاء التقرير بنجاح.")
-
-        st.download_button(
-            label="📥 تحميل التقرير PDF",
-            data=pdf_buffer,
-            file_name=f"تقرير_استثماري_{city}_{property_type}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+        
+    except Exception as e:
+        print(f"خطأ في generate_advanced_market_data: {e}")
+        # بيانات افتراضية آمنة
+        return {
+            'السعر_الحالي': 6000.0,
+            'متوسط_السوق': 6000.0,
+            'أعلى_سعر': 9000.0,
+            'أقل_سعر': 4200.0,
+            'حجم_التداول_شهري': 100,
+            'معدل_النمو_الشهري': 2.5,
+            'عرض_العقارات': 100,
+            'طالب_الشراء': 150,
+            'معدل_الإشغال': 92.0,
+            'العائد_التأجيري': 7.5,
+            'مؤشر_السيولة': 85.0,
+            'عدد_العقارات_الحقيقية': 100
+        }
 
 # ========== الواجهة الرئيسية ==========
 st.markdown("""
@@ -1180,7 +849,7 @@ with col2:
     """, unsafe_allow_html=True)
     
     st.markdown("**المميزات الحصرية:**")
-    for i, feature in enumerate(PACKAGES[chosen_pkg]["features"][:8]):  # عرض أول 8 مميزات
+    for i, feature in enumerate(PACKAGES[chosen_pkg]["features"][:8]):
         st.write(f"🎯 {feature}")
 
 # ========== نظام الدفع ==========
@@ -1218,80 +887,132 @@ if st.session_state.get("paid", False):
 st.markdown("---")
 st.markdown("### 🚀 إنشاء التقرير")
 
-st.markdown("---")
-st.markdown("### 🚀 إنشاء التقرير")
-
 if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
     with st.spinner("🔄 جاري إنشاء التقرير الاحترافي... قد يستغرق بضع ثوانٍ"):
         try:
+            # 1. جمع البيانات الحقيقية
             scraper = RealEstateScraper()
             real_data = scraper.get_real_data(city, property_type, property_count)
+            
+            # 2. تحليل السوق المتقدم
             market_data = generate_advanced_market_data(city, property_type, status, real_data)
             
+            # 3. معلومات المستخدم
             user_info = {
                 "user_type": user_type,
                 "city": city, 
                 "property_type": property_type,
                 "area": area,
                 "package": chosen_pkg,
-                "property_count": property_count
+                "property_count": property_count,
+                "status": status
             }
             
+            # 4. تحليل الذكاء الاصطناعي للباقات المميزة
             ai_recommendations = None
+            market_insights = None
+            
             if chosen_pkg in ["ذهبية", "ماسية"]:
                 ai_engine = AIIntelligence()
                 ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
-
-            content_text = f"""
+                
+                # ذكاء السوق المتقدم
+                market_intel = MarketIntelligence()
+                market_insights = market_intel.advanced_market_analysis(real_data, user_info)
+            
+            # 5. تحليل احتياجات المستخدم
+            user_profiler = UserProfiler()
+            user_profile = user_profiler.analyze_user_profile(user_info, market_data, real_data)
+            
+            # 6. إنشاء التقرير الذكي
+            smart_system = SmartReportSystem()
+            smart_report_content = smart_system.generate_smart_report(user_info, market_data, real_data, chosen_pkg)
+            
+            # 7. إنشاء PDF حسب الباقة
+            pdf_buffer = None
+            if chosen_pkg in ["فضية", "ذهبية", "ماسية"]:
+                # استخدام النظام الفاخر للباقات المميزة
+                premium_builder = PremiumPDFBuilder()
+                pdf_buffer = premium_builder.create_premium_pdf(
+                    user_info, market_data, real_data, chosen_pkg, ai_recommendations
+                )
+            else:
+                # الباقة المجانية - استخدام النظام الأساسي
+                content_text = f"""
 تقرير تحليل عقاري متقدم - {city}
 نوع العقار: {property_type}  
 الباقة: {chosen_pkg}
 تم إنشاء التقرير في {datetime.now().strftime('%Y-%m-%d')}
 """
+                pdf_buffer = create_pdf_from_content(
+                    user_info,
+                    market_data, 
+                    real_data,
+                    content_text,
+                    chosen_pkg,
+                    ai_recommendations
+                )
             
-            pdf_buffer = create_pdf_from_content(
-                user_info,
-                market_data, 
-                real_data,
-                content_text,
-                chosen_pkg,
-                ai_recommendations
-            )
-            
+            # 8. حفظ حالة التقرير
             st.session_state.pdf_data = pdf_buffer.getvalue()
             st.session_state.report_generated = True
             st.session_state.real_data = real_data
             st.session_state.market_data = market_data
             st.session_state.ai_recommendations = ai_recommendations
+            st.session_state.user_profile = user_profile
+            st.session_state.market_insights = market_insights
+            st.session_state.smart_report_content = smart_report_content
             
-            st.success("✅ تم إنشاء التقرير الاحترافي بنجاح!")
+            st.success("✅ تم إنشاء التقرير الذكي بنجاح!")
             st.balloons()
             
-        except Exception as e:
-            st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
-            st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم")
-            
-            st.session_state.pdf_data = pdf_buffer.getvalue()
-            st.session_state.report_generated = True
-            st.session_state.real_data = real_data
-            st.session_state.market_data = market_data
-            st.session_state.ai_recommendations = ai_recommendations
-            
-            st.success("✅ تم إنشاء التقرير الاحترافي بنجاح!")
-            st.balloons()
+            # عرض عينة من التحليل
+            with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
+                st.write("### 👤 تحليل احتياجاتك")
+                st.write(f"**الفئة:** {user_profile['user_type']}")
+                st.write(f"**الاحتياج الأساسي:** {user_profile['primary_need']}")
+                
+                st.write("### 🎯 أبرز التوصيات")
+                for i, recommendation in enumerate(user_profile.get('recommendations', [])[:3], 1):
+                    st.write(f"{i}. {recommendation}")
+                    
+                if market_insights and 'investment_opportunities' in market_insights:
+                    st.write(f"### 💎 أفضل الفرص ({len(market_insights['investment_opportunities'])} فرصة)")
+                    for opp in market_insights['investment_opportunities'][:2]:
+                        st.write(f"• {opp['property']} - عائد {opp['roi']}%")
         
         except Exception as e:
             st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
-            st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم")
+            st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني")
 
 if st.session_state.get('report_generated', False):
     st.markdown("---")
     st.markdown("## 📊 التقرير النهائي الجاهز للطباعة")
     
+    # عرض تحليلات إضافية للباقات المميزة
+    if chosen_pkg in ["ذهبية", "ماسية"] and st.session_state.get('market_insights'):
+        with st.expander("🔍 التحليلات المتقدمة (الباقة الذهبية+)", expanded=True):
+            insights = st.session_state.market_insights
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write("### 📈 توقعات السوق")
+                if 'future_predictions' in insights and isinstance(insights['future_predictions'], list):
+                    for pred in insights['future_predictions'][:6]:
+                        st.write(f"• الشهر {pred['month']}: {pred['change_percent']:+.1f}%")
+            
+            with col2:
+                st.write("### 🎯 أفضل الفرص")
+                if 'investment_opportunities' in insights:
+                    for opp in insights['investment_opportunities'][:3]:
+                        st.write(f"• {opp['property']} - درجة {opp['score']:.0f}")
+    
+    # زر تحميل التقرير
     st.download_button(
         label="📥 تحميل التقرير PDF",
         data=st.session_state.pdf_data,
-        file_name=f"تقرير_Warda_Intelligence_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+        file_name=f"تقرير_Warda_Intelligence_{city}_{property_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
         mime="application/pdf",
         use_container_width=True,
         key="download_report"
@@ -1300,7 +1021,7 @@ if st.session_state.get('report_generated', False):
     st.info("""
     **🎉 التقرير جاهز للطباعة والتقديم:**
     - تصميم احترافي مناسب للعروض التقديمية
-    - محتوى عربي منظم وواضح
+    - محتوى عربي منظم وواضح  
     - مناسب للتقديم للشركات والمستثمرين
     - يحتوي على جميع التحليلات المطلوبة
     - تقرير متكامل يستحق الاستثمار
@@ -1308,6 +1029,7 @@ if st.session_state.get('report_generated', False):
     - رسومات بيانية احترافية
     - تحليلات متقدمة لا توجد في أي منصة أخرى
     """)
+
 # ========== لوحة المسؤول ==========
 admin_password = st.sidebar.text_input("كلمة مرور المسؤول:", type="password")
 if admin_password == "WardaAdmin2024":
@@ -1374,7 +1096,12 @@ if query_params.get('promo'):
             
             ai_engine = AIIntelligence()
             ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
-            pdf_buffer = create_professional_pdf(user_info, market_data, real_data, free_package, ai_recommendations)
+            
+            # استخدام النظام الفاخر للتقرير المجاني
+            premium_builder = PremiumPDFBuilder()
+            pdf_buffer = premium_builder.create_premium_pdf(
+                user_info, market_data, real_data, free_package, ai_recommendations
+            )
             
             st.download_button(
                 label="📥 تحميل التقرير الذهبي PDF",
@@ -1404,6 +1131,12 @@ if 'market_data' not in st.session_state:
     st.session_state.market_data = {}
 if 'ai_recommendations' not in st.session_state:
     st.session_state.ai_recommendations = None
+if 'user_profile' not in st.session_state:
+    st.session_state.user_profile = None
+if 'market_insights' not in st.session_state:
+    st.session_state.market_insights = None
+if 'smart_report_content' not in st.session_state:
+    st.session_state.smart_report_content = None
 if 'paid' not in st.session_state:
     st.session_state.paid = False
 
