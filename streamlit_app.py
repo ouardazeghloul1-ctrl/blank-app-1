@@ -893,22 +893,20 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             # 1. جمع البيانات الحقيقية
             scraper = RealEstateScraper()
             real_data = scraper.get_real_data(city, property_type, property_count)
-# 🔍🔍🔍 اضافة جديدة هنا - ابدأ النسخ من هنا 🔍🔍🔍
-st.success("✅ تم جمع البيانات بنجاح!")
-st.write("**🔍 فحص سريع للبيانات:**")
-st.write(f"عدد العقارات: {len(real_data)}")
-st.write(f"الأعمدة: {list(real_data.columns)}")
-if not real_data.empty:
-    st.write("**عينة من البيانات:**")
-    st.dataframe(real_data.head(2))
-else:
-    st.error("❌ لا توجد بيانات! المشكلة في جمع البيانات")
-    return
-# 🔍🔍🔍 نهاية الاضافة - انتهى النسخ 🔍🔍🔍
-
-# 2. تحليل السوق المتقدم
-market_data = generate_advanced_market_data(city, property_type, status, real_data)
             
+            # 🔍🔍🔍 اضافة جديدة هنا - ابدأ النسخ من هنا 🔍🔍🔍
+            st.success("✅ تم جمع البيانات بنجاح!")
+            st.write("**🔍 فحص سريع للبيانات:**")
+            st.write(f"عدد العقارات: {len(real_data)}")
+            st.write(f"الأعمدة: {list(real_data.columns)}")
+            if not real_data.empty:
+                st.write("**عينة من البيانات:**")
+                st.dataframe(real_data.head(2))
+            else:
+                st.error("❌ لا توجد بيانات! المشكلة في جمع البيانات")
+                return
+            # 🔍🔍🔍 نهاية الاضافة - انتهى النسخ 🔍🔍🔍
+
             # 2. تحليل السوق المتقدم
             market_data = generate_advanced_market_data(city, property_type, status, real_data)
             
@@ -980,6 +978,10 @@ market_data = generate_advanced_market_data(city, property_type, status, real_da
             
             st.success("✅ تم إنشاء التقرير الذكي بنجاح!")
             st.balloons()
+            
+        except Exception as e:
+            st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
+            st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني")
             
             # عرض عينة من التحليل
             with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
