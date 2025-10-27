@@ -1239,39 +1239,38 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             }
             
             ai_recommendations = None
-if chosen_pkg in ["ذهبية", "ماسية"]:
-    ai_engine = AIIntelligence()
-    ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
+            if chosen_pkg in ["ذهبية", "ماسية"]:
+                ai_engine = AIIntelligence()
+                ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
 
-try:
-    content_text = f"""
+            content_text = f"""
 تقرير تحليل عقاري متقدم - {city}
 نوع العقار: {property_type}  
 الباقة: {chosen_pkg}
 تم إنشاء التقرير في {datetime.now().strftime('%Y-%m-%d')}
 """
-    
-    pdf_buffer = create_pdf_from_content(
-        user_info,
-        market_data, 
-        real_data,
-        content_text,
-        chosen_pkg,
-        ai_recommendations
-    )
-    
-    st.session_state.pdf_data = pdf_buffer.getvalue()
-    st.session_state.report_generated = True
-    st.session_state.real_data = real_data
-    st.session_state.market_data = market_data
-    st.session_state.ai_recommendations = ai_recommendations
-    
-    st.success("✅ تم إنشاء التقرير الاحترافي بنجاح!")
-    st.balloons()
-
-except Exception as e:
-    st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
-    st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم")
+            
+            pdf_buffer = create_pdf_from_content(
+                user_info,
+                market_data, 
+                real_data,
+                content_text,
+                chosen_pkg,
+                ai_recommendations
+            )
+            
+            st.session_state.pdf_data = pdf_buffer.getvalue()
+            st.session_state.report_generated = True
+            st.session_state.real_data = real_data
+            st.session_state.market_data = market_data
+            st.session_state.ai_recommendations = ai_recommendations
+            
+            st.success("✅ تم إنشاء التقرير الاحترافي بنجاح!")
+            st.balloons()
+            
+        except Exception as e:
+            st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
+            st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم")
             
             st.session_state.pdf_data = pdf_buffer.getvalue()
             st.session_state.report_generated = True
