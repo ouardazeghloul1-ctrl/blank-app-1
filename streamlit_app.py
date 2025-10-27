@@ -959,7 +959,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             }
             
             # 4. إنشاء PDF
-            from report_pdf_generator import create_pdf_from_content
+           from integrated_pdf_system import create_integrated_pdf
             
             content_text = f"""
 تقرير {chosen_pkg} - {city}
