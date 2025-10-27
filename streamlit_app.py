@@ -891,9 +891,8 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
     with st.spinner("🔄 جاري إنشاء التقرير الاحترافي... قد يستغرق بضع ثوانٍ"):
         try:
             # 1. جمع البيانات الحقيقية
-scraper = RealEstateScraper()
-real_data = scraper.get_real_data(city, property_type, property_count)
-
+            scraper = RealEstateScraper()
+            real_data = scraper.get_real_data(city, property_type, property_count)
 # 🔍🔍🔍 اضافة جديدة هنا - ابدأ النسخ من هنا 🔍🔍🔍
 st.success("✅ تم جمع البيانات بنجاح!")
 st.write("**🔍 فحص سريع للبيانات:**")
