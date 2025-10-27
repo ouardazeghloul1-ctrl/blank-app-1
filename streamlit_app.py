@@ -26,13 +26,13 @@ from dotenv import load_dotenv
 import os
 
 # ========== الأنظمة الذكية الجديدة ==========
-from report_pdf_generator import create_pdf_from_content
+from integrated_pdf_system import create_integrated_pdf
 from smart_report_system import SmartReportSystem
 from user_profiler import UserProfiler
 # حل بديل للملفات المعطلة
 class PremiumPDFBuilder:
     def create_premium_pdf(self, user_info, market_data, real_data, package_level, ai_recommendations):
-        from report_pdf_generator import create_pdf_from_content
+        from integrated_pdf_system import create_integrated_pdf
         
         # محتوى فاخر لكل الباقات
         content = self._create_premium_content(user_info, market_data, real_data, package_level, ai_recommendations)
