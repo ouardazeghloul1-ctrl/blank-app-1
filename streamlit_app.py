@@ -29,7 +29,42 @@ import os
 from report_pdf_generator import create_pdf_from_content
 from smart_report_system import SmartReportSystem
 from user_profiler import UserProfiler
-from premium_pdf_builder import PremiumPDFBuilder
+# حل بديل للملفات المعطلة
+class PremiumPDFBuilder:
+    def create_premium_pdf(self, user_info, market_data, real_data, package_level, ai_recommendations):
+        from report_pdf_generator import create_pdf_from_content
+        
+        # محتوى فاخر لكل الباقات
+        content = self._create_premium_content(user_info, market_data, real_data, package_level, ai_recommendations)
+        return create_pdf_from_content(user_info, market_data, real_data, content, package_level, ai_recommendations)
+    
+    def _create_premium_content(self, user_info, market_data, real_data, package_level, ai_recommendations):
+        return f"""
+🌟 تقرير {package_level} الفاخر - Warda Intelligence 🌟
+
+المدينة: {user_info['city']}
+نوع العقار: {user_info['property_type']}
+الباقة: {package_level}
+التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+📊 التحليل المتقدم:
+• عدد العقارات: {len(real_data)}
+• متوسط السعر: {real_data['السعر'].mean():,.0f} ريال
+• أفضل المناطق: {', '.join(real_data['المنطقة'].value_counts().head(3).index.tolist())}
+• العوائد المتوقعة: {real_data['العائد_المتوقع'].mean():.1f}%
+
+🎯 التوصيات الذكية:
+1. الاستثمار في المناطق الناشئة
+2. التنويع بين العقارات
+3. الاستفادة من فرص النمو
+
+📈 توقعات السوق:
+• النمو: {market_data.get('معدل_النمو_الشهري', 2.5):.1f}% شهرياً
+• السيولة: {market_data.get('مؤشر_السيولة', 85):.0f}%
+
+🏆 خلاصة الاستثمار:
+{user_info['user_type']} يمكنه تحقيق عوائد ممتازة في سوق {user_info['city']}
+"""
 from market_intelligence import MarketIntelligence
 
 # ========== إعداد الصفحة - يجب أن يكون أول أمر ==========
