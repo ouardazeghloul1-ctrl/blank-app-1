@@ -1022,7 +1022,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             
             # 7. إنشاء PDF حسب الباقة
                       # 7. إنشاء PDF حسب الباقة مع المحتوى المناسب
-            from report_pdf_generator import create_pdf_from_content
+            from integrated_pdf_system import create_integrated_pdf
 
             # تحديد محتوى كل باقة
             package_content = {
