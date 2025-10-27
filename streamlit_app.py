@@ -923,24 +923,68 @@ st.markdown("---")
 st.markdown("### 🚀 إنشاء التقرير")
 
 if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
-    with st.spinner("🔄 جاري إنشاء التقرير الاحترافي... قد يستغرق بضع ثوانٍ"):
+    with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
         try:
-            # 1. جمع البيانات الحقيقية
+            # 1. جمع البيانات
             scraper = RealEstateScraper()
             real_data = scraper.get_real_data(city, property_type, property_count)
             
-            # 🔍🔍🔍 اضافة جديدة هنا - ابدأ النسخ من هنا 🔍🔍🔍
-            st.success("✅ تم جمع البيانات بنجاح!")
-            st.write("**🔍 فحص سريع للبيانات:**")
-            st.write(f"عدد العقارات: {len(real_data)}")
-            st.write(f"الأعمدة: {list(real_data.columns)}")
-            if not real_data.empty:
-                st.write("**عينة من البيانات:**")
-                st.dataframe(real_data.head(2))
-            else:
-                st.error("❌ لا توجد بيانات! المشكلة في جمع البيانات")
-                st.stop()
-            # 🔍🔍🔍 نهاية الاضافة - انتهى النسخ 🔍🔍🔍
+            # فحص البيانات
+            if real_data.empty:
+                st.error("❌ لا توجد بيانات! جاري استخدام بيانات تجريبية...")
+                # بيانات تجريبية
+                real_data = pd.DataFrame({
+                    'العقار': ['شقة نموذجية 1', 'شقة نموذجية 2'],
+                    'السعر': [1000000, 1200000],
+                    'المساحة': [120, 150],
+                    'المنطقة': [city, city],
+                    'المدينة': [city, city],
+                    'نوع_العقار': [property_type, property_type],
+                    'العائد_المتوقع': [7.5, 8.2],
+                    'سعر_المتر': [8333, 8000]
+                })
+            
+            # 2. تحليل السوق
+            market_data = generate_advanced_market_data(city, property_type, status, real_data)
+            
+            # 3. معلومات المستخدم
+            user_info = {
+                "user_type": user_type,
+                "city": city, 
+                "property_type": property_type,
+                "area": area,
+                "package": chosen_pkg,
+                "property_count": property_count,
+                "status": status
+            }
+            
+            # 4. إنشاء PDF
+            from report_pdf_generator import create_pdf_from_content
+            
+            content_text = f"""
+تقرير {chosen_pkg} - {city}
+نوع العقار: {property_type}
+تم الإنشاء: {datetime.now().strftime('%Y-%m-%d')}
+
+تحليل {len(real_data)} عقار في {city}
+متوسط الأسعار: {real_data['السعر'].mean():,.0f} ريال
+العوائد المتوقعة: {real_data['العائد_المتوقع'].mean():.1f}%
+"""
+            
+            pdf_buffer = create_pdf_from_content(
+                user_info, market_data, real_data, content_text, chosen_pkg, None
+            )
+            
+            # حفظ التقرير
+            st.session_state.pdf_data = pdf_buffer.getvalue()
+            st.session_state.report_generated = True
+            st.session_state.real_data = real_data
+            
+            st.success("✅ تم إنشاء التقرير بنجاح!")
+            st.balloons()
+            
+        except Exception as e:
+            st.error(f"⚠️ خطأ: {str(e)}")
 
             # 2. تحليل السوق المتقدم
             market_data = generate_advanced_market_data(city, property_type, status, real_data)
