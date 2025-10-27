@@ -951,9 +951,6 @@ def create_analysis_charts(market_data, real_data, user_info):
     charts.append(fig3)
 
     return charts
-   
-if "price" in real_data.columns:
-    real_data.rename(columns={"price": "السعر"}, inplace=True)
 
 def create_professional_pdf(user_info, market_data, real_data, package_level, ai_recommendations=None):
     """
