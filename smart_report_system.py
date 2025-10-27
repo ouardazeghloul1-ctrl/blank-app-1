@@ -126,6 +126,61 @@ class SmartReportSystem:
         
         return self._format_report(report_content, package_level, "فرد")
     
+    def _broker_report(self, user_info, market_data, real_data, package_level):
+        """تقرير الوسيط العقاري"""
+        report_content = {
+            "title": "تقرير الوسيط العقاري - فرص السوق والمنافسة",
+            "sections": []
+        }
+        
+        # 🏢 تحليل المنافسين
+        competition = self._analyze_competition(real_data)
+        report_content["sections"].append({
+            "title": "🏢 تحليل المنافسة في السوق",
+            "content": competition
+        })
+        
+        # 💼 فرص الوساطة
+        brokerage_opportunities = self._find_brokerage_opportunities(real_data)
+        report_content["sections"].append({
+            "title": "💼 أفضل فرص الوساطة",
+            "content": brokerage_opportunities
+        })
+        
+        return self._format_report(report_content, package_level, "وسيط عقاري")
+    
+    def _developer_report(self, user_info, market_data, real_data, package_level):
+        """تقرير شركة التطوير"""
+        report_content = {
+            "title": "تقرير شركة التطوير - دراسات الجدوى والفرص",
+            "sections": []
+        }
+        
+        # 📊 دراسة الجدوى
+        feasibility = self._feasibility_analysis(real_data, user_info)
+        report_content["sections"].append({
+            "title": "📊 دراسة الجدوى الأولية",
+            "content": feasibility
+        })
+        
+        return self._format_report(report_content, package_level, "شركة تطوير")
+    
+    def _opportunity_seeker_report(self, user_info, market_data, real_data, package_level):
+        """تقرير الباحث عن فرصة"""
+        report_content = {
+            "title": "تقرير الباحث عن فرصة - اكتشاف الفرص الاستثنائية",
+            "sections": []
+        }
+        
+        # 💎 فرص استثنائية
+        exceptional_opportunities = self._find_exceptional_opportunities(real_data)
+        report_content["sections"].append({
+            "title": "💎 الفرص الاستثنائية",
+            "content": exceptional_opportunities
+        })
+        
+        return self._format_report(report_content, package_level, "باحث عن فرصة")
+    
     def _analyze_roi(self, real_data, market_data):
         """تحليل العائد على الاستثمار"""
         if real_data.empty:
@@ -224,6 +279,159 @@ class SmartReportSystem:
             analysis = "🔍 نوصي بتعديل معايير البحث أو زيادة الميزانية قليلاً"
         
         return analysis
+    
+    def _analyze_competition(self, real_data):
+        """تحليل المنافسة للوسيط العقاري"""
+        if real_data.empty:
+            return "لا توجد بيانات كافية لتحليل المنافسة"
+        
+        area_competition = real_data['المنطقة'].value_counts()
+        analysis = "🏢 **تحليل المنافسة في المناطق:**\n\n"
+        
+        for area, count in area_competition.head(5).items():
+            analysis += f"• **{area}**: {count} عقار متاح\n"
+        
+        analysis += f"\n💡 **إجمالي العقارات في السوق:** {len(real_data)} عقار"
+        return analysis
+    
+    def _find_brokerage_opportunities(self, real_data):
+        """اكتشاف فرص الوساطة"""
+        if real_data.empty:
+            return "لا توجد بيانات كافية لتحديد فرص الوساطة"
+        
+        # عقارات ذات أسعار تنافسية
+        competitive_prices = real_data[
+            real_data['سعر_المتر'] < real_data['سعر_المتر'].mean()
+        ]
+        
+        opportunities = "💼 **أفضل فرص الوساطة:**\n\n"
+        
+        if not competitive_prices.empty:
+            for _, prop in competitive_prices.head(3).iterrows():
+                opportunities += f"""
+                **{prop['العقار']}**
+                • السعر: {prop['السعر']:,.0f} ريال
+                • سعر المتر: {prop['سعر_المتر']:,.0f} ريال
+                • ميزة تنافسية في التسعير
+                """
+        else:
+            opportunities = "🔍 التركيز على التسويق الذكي والعروض المميزة"
+        
+        return opportunities
+    
+    def _feasibility_analysis(self, real_data, user_info):
+        """دراسة الجدوى لشركات التطوير"""
+        user_city = user_info.get('city', 'الرياض')
+        property_type = user_info.get('property_type', 'شقة')
+        
+        city_data = real_data[real_data['المدينة'] == user_city]
+        
+        if not city_data.empty:
+            avg_price = city_data['السعر'].mean()
+            avg_roi = city_data['العائد_المتوقع'].mean()
+            
+            analysis = f"""
+            📊 **دراسة الجدوى الأولية - {user_city}**
+            
+            • **متوسط أسعار السوق:** {avg_price:,.0f} ريال
+            • **متوسط العوائد:** {avg_roi:.1f}%
+            • **حجم السوق:** {len(city_data)} عقار
+            • **نوع العقار:** {property_type}
+            
+            💡 **التوصية:** {'السوق واعد للاستثمار' if avg_roi > 7 else 'يحتاج دراسة متعمقة'}
+            """
+        else:
+            analysis = "لا توجد بيانات كافية لدراسة الجدوى في هذه المدينة"
+        
+        return analysis
+    
+    def _find_exceptional_opportunities(self, real_data):
+        """اكتشاف فرص استثنائية"""
+        if real_data.empty:
+            return "لا توجد بيانات كافية لاكتشاف الفرص"
+        
+        # عقارات ذات عوائد عالية جداً
+        high_return = real_data[real_data['العائد_المتوقع'] > real_data['العائد_المتوقع'].quantile(0.8)]
+        
+        opportunities = "💎 **الفرص الاستثنائية:**\n\n"
+        
+        if not high_return.empty:
+            for _, prop in high_return.head(3).iterrows():
+                opportunities += f"""
+                ⭐ **{prop['العقار']}**
+                • العائد: {prop['العائد_المتوقع']}% 
+                • المنطقة: {prop['المنطقة']}
+                • فرصة نادرة بعائد مرتفع
+                """
+        else:
+            opportunities = "🔍 ركز على العقارات ذات القيمة المضافة والتحسينات"
+        
+        return opportunities
+    
+    def _analyze_risks(self, real_data, market_data):
+        """تحليل المخاطر"""
+        if real_data.empty:
+            return "لا توجد بيانات كافية لتحليل المخاطر"
+        
+        risk_distribution = real_data['مستوى_الخطورة'].value_counts()
+        analysis = "🛡️ **تحليل توزيع المخاطر:**\n\n"
+        
+        for risk, count in risk_distribution.items():
+            analysis += f"• **{risk}**: {count} عقار\n"
+        
+        return analysis
+    
+    def _optimal_selling_timing(self, market_data):
+        """توقيت البيع الأمثل"""
+        growth = market_data.get('معدل_النمو_الشهري', 0)
+        
+        if growth > 3:
+            return "⏰ **التوقيت ممتاز للبيع** - السوق في ذروة النمو والأسعار مرتفعة"
+        elif growth > 1.5:
+            return "⏰ **التوقيت جيد للبيع** - استفد من استقرار السوق"
+        else:
+            return "⏰ **انتظر 3-6 أشهر** - السوق في مرحلة تصحيح"
+    
+    def _value_improvement_tips(self, user_info, real_data):
+        """نصائح لتحسين قيمة العقار"""
+        return """
+        🔧 **نصائح لتحسين قيمة العقار:**
+        
+        • تجديد الواجهة الخارجية والداخلية
+        • تحسين كفاءة الطاقة (عزل، نوافذ مزدوجة)
+        • إضافة مرافق ترفيهية (جيم، مسابح)
+        • تحسين الإضاءة والتهوية
+        • الصيانة الدورية للأنظمة
+        """
+    
+    def _financing_analysis(self, user_info, market_data):
+        """تحليل خيارات التمويل"""
+        return """
+        💰 **خيارات التمويل المتاحة:**
+        
+        • **التمويل العقاري:** حتى 90% من قيمة العقار
+        • **القروض الشخصية:** لتمويل التحسينات
+        • **الشراكة الاستثمارية:** تقليل المخاطر
+        • **التأجير التمويلي:** خيار مرن للشركات
+        """
+    
+    def _compare_housing_options(self, real_data):
+        """مقارنة خيارات السكن"""
+        if real_data.empty:
+            return "لا توجد بيانات للمقارنة"
+        
+        options = "📊 **مقارنة خيارات السكن:**\n\n"
+        
+        # تحليل حسب نوع العقار
+        property_analysis = real_data.groupby('نوع_العقار').agg({
+            'السعر': 'mean',
+            'العائد_المتوقع': 'mean'
+        }).round(2)
+        
+        for prop_type, data in property_analysis.iterrows():
+            options += f"• **{prop_type}**: {data['السعر']:,.0f} ريال - عائد {data['العائد_المتوقع']}%\n"
+        
+        return options
     
     def _format_report(self, report_content, package_level, user_type):
         """تنسيق التقرير النهائي"""
