@@ -971,9 +971,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
 العوائد المتوقعة: {real_data['العائد_المتوقع'].mean():.1f}%
 """
             
-            pdf_buffer = create_pdf_from_content(
-                user_info, market_data, real_data, content_text, chosen_pkg, None
-            )
+            pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
             
             # حفظ التقرير
             st.session_state.pdf_data = pdf_buffer.getvalue()
