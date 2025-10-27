@@ -24,6 +24,8 @@ from bidi.algorithm import get_display
 import paypalrestsdk
 from dotenv import load_dotenv
 import os
+# في قسم الـ imports في الأعلى (بعد السطر 30)، أضف:
+from report_pdf_generator import create_pdf_from_content
 
 # ========== إعداد الصفحة - يجب أن يكون أول أمر ==========
 st.set_page_config(
