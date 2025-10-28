@@ -959,19 +959,9 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             }
             
             # 4. إنشاء PDF
-           from integrated_pdf_system import create_integrated_pdf
+           from enhanced_pdf import create_enhanced_pdf
             
-            content_text = f"""
-تقرير {chosen_pkg} - {city}
-نوع العقار: {property_type}
-تم الإنشاء: {datetime.now().strftime('%Y-%m-%d')}
-
-تحليل {len(real_data)} عقار في {city}
-متوسط الأسعار: {real_data['السعر'].mean():,.0f} ريال
-العوائد المتوقعة: {real_data['العائد_المتوقع'].mean():.1f}%
-"""
-            
-            pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
+pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
             
             # حفظ التقرير
             st.session_state.pdf_data = pdf_buffer.getvalue()
