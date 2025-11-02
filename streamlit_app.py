@@ -24,6 +24,9 @@ from bidi.algorithm import get_display
 import paypalrestsdk
 from dotenv import load_dotenv
 import os
+from ultimate_report_system import UltimateReportSystem
+from premium_content_generator import PremiumContentGenerator
+from advanced_charts import AdvancedCharts
 
 # ========== الأنظمة الذكية الجديدة ==========
 from integrated_pdf_system import create_integrated_pdf
