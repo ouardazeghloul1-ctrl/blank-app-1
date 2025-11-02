@@ -6,16 +6,15 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import arabic_reshaper
 from bidi.algorithm import get_display
-
 class SmartReportSystem:
     def __init__(self):
         self.user_profiles = {
             "مستثمر": self._investor_report,
-            "مالك عقار": self._property_owner_report, 
-            "فرد": self._individual_report,
-            "وسيط عقاري": self._broker_report,
+            "وسيط عقاري": self._broker_report, 
             "شركة تطوير": self._developer_report,
-            "باحث عن فرصة": self._opportunity_seeker_report
+            "فرد": self._individual_report,
+            "باحث عن فرصة": self._opportunity_seeker_report,
+            "مالك عقار": self._property_owner_report
         }
         
         self.package_features = {
@@ -24,17 +23,80 @@ class SmartReportSystem:
             "ذهبية": {"pages": 60, "analysis_depth": "premium", "charts": 15},
             "ماسية": {"pages": 90, "analysis_depth": "vip", "charts": 25}
         }
-        
-        # 🆕 إضافة نظام المحتوى الموسع لكل فئة
-        self.extended_content = {
-            "مستثمر": self._extended_investor_content,
-            "مالك عقار": self._extended_owner_content,
-            "فرد": self._extended_individual_content,
-            "وسيط عقاري": self._extended_broker_content,
-            "شركة تطوير": self._extended_developer_content,
-            "باحث عن فرصة": self._extended_opportunity_content
-        }
     
+    # 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽
+    # 🔽 اضع الدوال الجديدة هنا - بعد __init__ وقبل دوال التقرير 🔽
+    # 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽
+    
+    def _analyze_risks(self, real_data, market_data):
+        """تحليل المخاطر"""
+        if real_data.empty:
+            return "لا توجد بيانات كافية لتحليل المخاطر"
+        
+        risk_counts = real_data['مستوى_الخطورة'].value_counts()
+        return f"""
+        • المخاطر المنخفضة: {risk_counts.get('منخفض', 0)} عقار
+        • المخاطر المتوسطة: {risk_counts.get('متوسط', 0)} عقار
+        • المخاطر المرتفعة: {risk_counts.get('مرتفع', 0)} عقار
+        """
+
+    def _find_investment_opportunities(self, real_data):
+        """اكتشاف فرص الاستثمار"""
+        if real_data.empty:
+            return "لا توجد فرص استثمارية متاحة"
+        
+        best_opportunities = real_data.nlargest(3, 'العائد_المتوقع')
+        result = ""
+        for _, opp in best_opportunities.iterrows():
+            result += f"• {opp['العقار']} - عائد {opp['العائد_المتوقع']}%\n"
+        return result
+
+    def _analyze_roi(self, real_data, market_data):
+        """تحليل العوائد"""
+        if real_data.empty:
+            return "لا توجد بيانات لتحليل العوائد"
+        
+        avg_roi = real_data['العائد_المتوقع'].mean()
+        return f"متوسط العوائد: {avg_roi:.1f}%"
+
+    def _property_valuation(self, real_data, user_info):
+        """تقييم العقار"""
+        return "تحليل تقييم العقار المتقدم"
+
+    def _optimal_selling_timing(self, market_data):
+        """التوقيت الأمثل للبيع"""
+        return "تحليل التوقيت الأمثل للبيع"
+
+    def _value_improvement_tips(self, user_info, real_data):
+        """نصائح تحسين القيمة"""
+        return "نصائح متقدمة لتحسين قيمة العقار"
+
+    def _find_suitable_living_areas(self, real_data, user_info):
+        """البحث عن مناطق سكن مناسبة"""
+        return "تحليل المناطق السكنية المناسبة"
+
+    def _financing_analysis(self, user_info, market_data):
+        """تحليل التمويل"""
+        return "تحليل خيارات التمويل المتاحة"
+
+    def _compare_housing_options(self, real_data):
+        """مقارنة خيارات السكن"""
+        return "مقارنة متقدمة بين خيارات السكن"
+    
+    # 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼
+    # 🔼 انتهت الدوال الجديدة - هنا تبدأ دوال التقرير الأصلية 🔼
+    # 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼
+    
+    def generate_smart_report(self, user_info, market_data, real_data, package_level):
+        """إنشاء التقرير الذكي حسب الفئة والباقة"""
+        user_type = user_info.get('user_type', 'مستثمر')
+        report_generator = self.user_profiles.get(user_type, self._investor_report)
+        
+        return report_generator(user_info, market_data, real_data, package_level)
+    
+    def _investor_report(self, user_info, market_data, real_data, package_level):
+        """تقرير المستثمر - يركز على العوائد والمخاطر"""
+        # ... الكود الحالي يبقى كما هو ...
     def arabic_text(self, text):
         """تحويل النص العربي للعرض الصحيح"""
         return get_display(arabic_reshaper.reshape(str(text)))
