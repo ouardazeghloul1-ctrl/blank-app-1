@@ -924,7 +924,6 @@ if st.session_state.get("paid", False):
 # ========== إنشاء التقرير ==========
 st.markdown("---")
 st.markdown("### 🚀 إنشاء التقرير")
-
 if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
     with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
         try:
@@ -961,23 +960,17 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 "status": status
             }
             
-            # 4. إنشاء PDF
-                     # 4. إنشاء PDF
-            from enhanced_pdf import create_enhanced_pdf
-            
+            # 4. استخدام النظام الجديد
             ultimate_system = UltimateReportSystem()
-premium_generator = PremiumContentGenerator()
-
-# إنشاء التقرير الأساسي
-base_report = ultimate_system.create_ultimate_report(user_info, market_data, real_data, chosen_pkg)
-
-# توسيع التقرير لملء الصفحات
-full_report = premium_generator.generate_for_package(base_report, chosen_pkg, user_info)
-
-# إنشاء PDF (باستخدام النظام الحالي)
-pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
+            premium_generator = PremiumContentGenerator()
+            base_report = ultimate_system.create_ultimate_report(user_info, market_data, real_data, chosen_pkg)
+            full_report = premium_generator.generate_for_package(base_report, chosen_pkg, user_info)
             
-            # حفظ التقرير
+            # 5. إنشاء PDF
+            from enhanced_pdf import create_enhanced_pdf
+            pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
+            
+            # 6. حفظ التقرير
             st.session_state.pdf_data = pdf_buffer.getvalue()
             st.session_state.report_generated = True
             st.session_state.real_data = real_data
@@ -987,6 +980,8 @@ pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, 
             
         except Exception as e:
             st.error(f"⚠️ خطأ: {str(e)}")
+
+
 
             # 2. تحليل السوق المتقدم
             market_data = generate_advanced_market_data(city, property_type, status, real_data)
