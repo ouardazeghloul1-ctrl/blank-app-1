@@ -12,7 +12,8 @@ class UltimateReportSystem:
     
     def create_ultimate_report(self, user_info, market_data, real_data, package_level):
         user_type = user_info.get('user_type', 'مستثمر')
-        return self.all_categories[user_type](user_info, market_data, real_data, package_level)
+        report_generator = self.all_categories.get(user_type, self._create_investor_report)
+        return report_generator(user_info, market_data, real_data, package_level)
     
     def _create_investor_report(self, user_info, market_data, real_data, package_level):
         return f"""
@@ -20,17 +21,13 @@ class UltimateReportSystem:
         
         💰 **التحليل المالي:**
         • العوائد المتوقعة: {real_data['العائد_المتوقع'].mean():.1f}%
-        • أفضل 3 مناطق: {', '.join(real_data['المنطقة'].value_counts().head(3).index.tolist())}
+        • أفضل المناطق: {', '.join(real_data['المنطقة'].value_counts().head(3).index.tolist())}
         • حجم السوق: {len(real_data)} عقار
         
         🎯 **الفرص الذهبية:**
         1. الاستثمار في المناطق الناشئة
-        2. الشراء في أوقات الذروة
+        2. الشراء في أوقات الذروة  
         3. التنويع بين العقارات
-        
-        📊 **مؤشرات الأداء:**
-        • النمو الشهري: {market_data.get('معدل_النمو_الشهري', 2.5)}%
-        • السيولة: {market_data.get('مؤشر_السيولة', 85)}%
         """
     
     def _create_broker_report(self, user_info, market_data, real_data, package_level):
@@ -44,11 +41,44 @@ class UltimateReportSystem:
         💰 **استراتيجيات التسعير:**
         • متوسط السوق: {real_data['السعر'].mean():,.0f} ريال
         • نطاق الأسعار: {real_data['السعر'].min():,.0f} - {real_data['السعر'].max():,.0f}
-        
-        📈 **نصائح البيع:**
-        1. التركيز على {real_data['المنطقة'].mode()[0]}
-        2. تسعير تنافسي
-        3. عرض الصور والمقاطع
         """
     
-    # وسأضيف نفس الشيء للفئات الأربع الأخرى...
+    def _create_developer_report(self, user_info, market_data, real_data, package_level):
+        return f"""
+        🏗️ **تقرير شركة التطوير - {user_info['city']}**
+        
+        📊 **تحليل السوق للتطوير:**
+        • الطلب على {user_info['property_type']}: {len(real_data)} عقار
+        • متوسط الأسعار: {real_data['السعر'].mean():,.0f} ريال
+        • المناطق الواعدة: {', '.join(real_data['المنطقة'].value_counts().head(3).index.tolist())}
+        """
+    
+    def _create_individual_report(self, user_info, market_data, real_data, package_level):
+        return f"""
+        🏠 **تقرير الباحث عن سكن - {user_info['city']}**
+        
+        🏡 **المناطق المناسبة:**
+        • المناطق المتوسطة السعر: {real_data['المنطقة'].mode()[0]}
+        • متوسط الأسعار: {real_data['السعر'].mean():,.0f} ريال
+        • المساحات المتاحة: 80-200 م²
+        """
+    
+    def _create_opportunity_report(self, user_info, market_data, real_data, package_level):
+        return f"""
+        💎 **تقرير الباحث عن فرص - {user_info['city']}**
+        
+        🎯 **الفرص المميزة:**
+        • العقارات ذات العوائد العالية: {real_data['العائد_المتوقع'].max():.1f}%
+        • المناطق الصاعدة: {real_data['المنطقة'].value_counts().index[1]}
+        • أسعار منافسة: {real_data['السعر'].min():,.0f} ريال
+        """
+    
+    def _create_owner_report(self, user_info, market_data, real_data, package_level):
+        return f"""
+        🏡 **تقرير مالك العقار - {user_info['city']}**
+        
+        💰 **تقييم القيمة:**
+        • القيمة السوقية: {real_data['السعر'].mean():,.0f} ريال
+        • أفضل وقت للبيع: خلال 3-6 أشهر
+        • نصائح لزيادة القيمة: تجديد الواجهة، تحسين الخدمات
+        """
