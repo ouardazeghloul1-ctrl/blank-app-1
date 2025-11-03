@@ -63,7 +63,7 @@ class EnhancedPDFGenerator:
             story.extend(basic_sections)
 
               # 🎯 التركيز: حساب الصفحات الحالية وإضافة محتوى إضافي
-             current_pages = 2  # الغلاف + صفحة أولى
+            current_pages = 2  # الغلاف + صفحة أولى
             
             while current_pages < target_pages:
                 additional_content = self._create_additional_section(current_pages, user_info, market_data, real_data, package_level)
