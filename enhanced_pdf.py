@@ -50,18 +50,20 @@ class EnhancedPDFGenerator:
             
             story = []
             target_pages = self.package_pages.get(package_level, 15)
-            
-            print(f"🎯 إنشاء تقرير {package_level} - مستهدف {target_pages} صفحة")
-            story.extend(self._create_enhanced_cover(user_info, package_level))
-story.append(PageBreak())
-additional_content = self._create_premium_content(user_info, market_data, real_data, package_level)
-story.extend(additional_content)
-story.append(PageBreak())
-basic_sections = self._create_basic_sections(user_info, market_data, real_data)
-story.extend(basic_sections)
-            
-            # 🎯 التركيز: حساب الصفحات الحالية وإضافة محتوى إضافي
-            current_pages = 2  # الغلاف + صفحة أولى
+             print(f"🎯 إنشاء تقرير {package_level} - مستهدف {target_pages} صفحة")
+
+             story.extend(self._create_enhanced_cover(user_info, package_level))
+             story.append(PageBreak())
+
+             additional_content = self._create_premium_content(user_info, market_data, real_data, package_level)
+             story.extend(additional_content)
+             story.append(PageBreak())
+
+             basic_sections = self._create_basic_sections(user_info, market_data, real_data)
+             story.extend(basic_sections)
+
+              # 🎯 التركيز: حساب الصفحات الحالية وإضافة محتوى إضافي
+             current_pages = 2  # الغلاف + صفحة أولى
             
             while current_pages < target_pages:
                 additional_content = self._create_additional_section(current_pages, user_info, market_data, real_data, package_level)
