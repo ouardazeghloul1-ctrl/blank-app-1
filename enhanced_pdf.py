@@ -50,7 +50,7 @@ class EnhancedPDFGenerator:
             
             story = []
             target_pages = self.package_pages.get(package_level, 15)
-             print(f"🎯 إنشاء تقرير {package_level} - مستهدف {target_pages} صفحة")
+            print(f"🎯 إنشاء تقرير {package_level} - مستهدف {target_pages} صفحة")
 
              story.extend(self._create_enhanced_cover(user_info, package_level))
              story.append(PageBreak())
