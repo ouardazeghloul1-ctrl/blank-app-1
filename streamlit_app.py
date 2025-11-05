@@ -1018,7 +1018,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
         ai_recommendations = None
         market_insights = None
             
-            if chosen_pkg in ["ذهبية", "ماسية"]:
+ if chosen_pkg in ["ذهبية", "ماسية"]:
     ai_engine = AIIntelligence()
     try:
         ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
