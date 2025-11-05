@@ -1024,11 +1024,10 @@ if chosen_pkg in ["ذهبية", "ماسية"]:
     except Exception as e:
         ai_recommendations = None
         st.warning(f"⚠️ لم يتم توليد توصيات الذكاء الاصطناعي بسبب: {e}")
-                
-                # ذكاء السوق المتقدم
-     market_intel = MarketIntelligence()
-     market_insights = market_intel.advanced_market_analysis(real_data, user_info)
-            
+    
+    # ذكاء السوق المتقدم
+    market_intel = MarketIntelligence()
+    market_insights = market_intel.advanced_market_analysis(real_data, user_info)
             # 5. تحليل احتياجات المستخدم
             user_profiler = UserProfiler()
             user_profile = user_profiler.analyze_user_profile(user_info, market_data, real_data)
