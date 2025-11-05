@@ -985,8 +985,6 @@ try:
 except Exception as e:
     st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {e}")
     pdf_buffer = None
-
-
             
 
             
