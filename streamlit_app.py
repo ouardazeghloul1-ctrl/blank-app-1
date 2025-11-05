@@ -980,7 +980,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             full_report = premium_generator.generate_for_package(base_report, chosen_pkg, user_info)
             
             # 5. إنشاء PDF
-           if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
+ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
     with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
         try:
             # 1. جمع البيانات
