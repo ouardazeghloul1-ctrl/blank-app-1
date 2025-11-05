@@ -1041,7 +1041,7 @@ smart_report_content = smart_system.generate_smart_report(user_info, market_data
 from integrated_pdf_system import create_integrated_pdf
 
             # تحديد محتوى كل باقة
-            package_content = {
+package_content = {
                 "مجانية": f"""
     تقرير تحليل عقاري متقدم - {city}
     نوع العقار: {property_type}
