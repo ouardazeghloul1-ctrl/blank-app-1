@@ -27,6 +27,17 @@ import os
 from ultimate_report_system import UltimateReportSystem
 from premium_content_generator import PremiumContentGenerator
 from advanced_charts import AdvancedCharts
+def safe_mode(series, default="غير محدد"):
+    try:
+        if series is None:
+            return default
+        s = series.dropna()
+        if s.empty:
+            return default
+        modes = s.mode()
+        return modes.iloc[0] if not modes.empty else default
+    except:
+        return default
 
 # ========== الأنظمة الذكية الجديدة ==========
 from integrated_pdf_system import create_integrated_pdf
