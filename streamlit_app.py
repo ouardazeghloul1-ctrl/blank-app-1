@@ -1025,17 +1025,17 @@ if chosen_pkg in ["ذهبية", "ماسية"]:
         ai_recommendations = None
         st.warning(f"⚠️ لم يتم توليد توصيات الذكاء الاصطناعي بسبب: {e}")
     
-    # ذكاء السوق المتقدم
-    market_intel = MarketIntelligence()
-    market_insights = market_intel.advanced_market_analysis(real_data, user_info)
-            # 5. تحليل احتياجات المستخدم
-            user_profiler = UserProfiler()
-            user_profile = user_profiler.analyze_user_profile(user_info, market_data, real_data)
-            
-            # 6. إنشاء التقرير الذكي
-            smart_system = SmartReportSystem()
-            smart_report_content = smart_system.generate_smart_report(user_info, market_data, real_data, chosen_pkg)
-            
+   # ذكاء السوق المتقدم
+market_intel = MarketIntelligence()
+market_insights = market_intel.advanced_market_analysis(real_data, user_info)
+
+# 5. تحليل احتياجات المستخدم
+user_profiler = UserProfiler()
+user_profile = user_profiler.analyze_user_profile(user_info, market_data, real_data)
+
+# 6. إنشاء التقرير الذكي
+smart_system = SmartReportSystem()
+smart_report_content = smart_system.generate_smart_report(user_info, market_data, real_data, chosen_pkg)
             # 7. إنشاء PDF حسب الباقة
                       # 7. إنشاء PDF حسب الباقة مع المحتوى المناسب
             from integrated_pdf_system import create_integrated_pdf
