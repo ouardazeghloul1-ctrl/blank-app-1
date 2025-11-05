@@ -1143,17 +1143,17 @@ Original file line number	Diff line number	Diff line change
     """
             }
 
-            # استخدام المحتوى المناسب للباقة
-            content_text = package_content.get(chosen_pkg, package_content["مجانية"])
+           # استخدام المحتوى المناسب للباقة
+content_text = package_content.get(chosen_pkg, package_content["مجانية"])
 
-            pdf_buffer = create_pdf_from_content(
-                user_info,
-                market_data, 
-                real_data,
-                content_text,
-                chosen_pkg,
-                ai_recommendations
-            )
+pdf_buffer = create_pdf_from_content(
+    user_info,
+    market_data, 
+    real_data,
+    content_text,
+    chosen_pkg,
+    ai_recommendations
+)
             
             # 8. حفظ حالة التقرير
             st.session_state.pdf_data = pdf_buffer.getvalue()
