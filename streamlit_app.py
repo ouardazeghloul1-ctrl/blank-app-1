@@ -1097,9 +1097,22 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
     التحليل: ذكاء اصطناعي متقدم
 
     🤖 تحليل الذكاء الاصطناعي:
+    Commits on Nov 5, 2025
+Update streamlit_app.py
+
+@ouardazeghloul1-ctrl
+ouardazeghloul1-ctrl authored 2 minutes ago
+ Showing  with 3 additions and 2 deletions.
+  5 changes: 3 additions & 2 deletions5  
+streamlit_app.py
+Original file line number	Diff line number	Diff line change
+@@ -1097,8 +1097,9 @@ def generate_advanced_market_data(city, property_type, status, real_data):
+    التحليل: ذكاء اصطناعي متقدم
+    🤖 تحليل الذكاء الاصطناعي:
     • ملف المخاطر: {(ai_recommendations or {}).get('ملف_المخاطر', 'منخفض إلى متوسط')}
     • التوقيت المثالي: {(ai_recommendations or {}).get('التوقيت_المثالي', 'جيد للاستثمار')}
-
+    📊 التحليل الشامل:
+    • حجم السوق: {len(real_data)} عقار
 
     📊 التحليل الشامل:
     • حجم السوق: {len(real_data)} عقار
