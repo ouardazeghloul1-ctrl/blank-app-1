@@ -1015,8 +1015,8 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             }
             
             # 4. تحليل الذكاء الاصطناعي للباقات المميزة
-            ai_recommendations = None
-            market_insights = None
+        ai_recommendations = None
+        market_insights = None
             
             if chosen_pkg in ["ذهبية", "ماسية"]:
                 ai_engine = AIIntelligence()
