@@ -980,12 +980,14 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             full_report = premium_generator.generate_for_package(base_report, chosen_pkg, user_info)
             
             # 5. إنشاء PDF
-            try:
-            pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
-        except Exception as e:
-            st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {e}")
-            pdf_buffer = None
+try:
+    pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
+except Exception as e:
+    st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {e}")
+    pdf_buffer = None
 
+
+            
 
             
             # 6. حفظ التقرير
