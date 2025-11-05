@@ -1004,7 +1004,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
         market_data = generate_advanced_market_data(city, property_type, status, real_data)
             
             # 3. معلومات المستخدم
-            user_info = {
+        user_info = {
                 "user_type": user_type,
                 "city": city, 
                 "property_type": property_type,
