@@ -1026,8 +1026,8 @@ if chosen_pkg in ["ذهبية", "ماسية"]:
         st.warning(f"⚠️ لم يتم توليد توصيات الذكاء الاصطناعي بسبب: {e}")
                 
                 # ذكاء السوق المتقدم
-                market_intel = MarketIntelligence()
-                market_insights = market_intel.advanced_market_analysis(real_data, user_info)
+         market_intel = MarketIntelligence()
+         market_insights = market_intel.advanced_market_analysis(real_data, user_info)
             
             # 5. تحليل احتياجات المستخدم
             user_profiler = UserProfiler()
