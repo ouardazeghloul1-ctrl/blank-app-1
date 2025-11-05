@@ -980,12 +980,60 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             full_report = premium_generator.generate_for_package(base_report, chosen_pkg, user_info)
             
             # 5. إنشاء PDF
-            try:
-                pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
-            except Exception as e:
-                st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {e}")
-                pdf_buffer = None
-
+           if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
+    with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
+        try:
+            # 1. جمع البيانات
+            scraper = RealEstateScraper()
+            real_data = scraper.get_real_data(city, property_type, property_count)
+            
+            if real_data.empty:
+                st.error("❌ لا توجد بيانات! جاري استخدام بيانات تجريبية...")
+                real_data = pd.DataFrame({
+                    'العقار': ['شقة نموذجية 1', 'شقة نموذجية 2'],
+                    'السعر': [1000000, 1200000],
+                    'المساحة': [120, 150],
+                    'المنطقة': [city, city],
+                    'المدينة': [city, city],
+                    'نوع_العقار': [property_type, property_type],
+                    'العائد_المتوقع': [7.5, 8.2],
+                    'سعر_المتر': [8333, 8000],
+                    'مستوى_الخطورة': ['منخفض', 'متوسط']
+                })
+            
+            # 2. تحليل السوق
+            market_data = generate_advanced_market_data(city, property_type, status, real_data)
+            
+            # 3. معلومات المستخدم
+            user_info = {
+                "user_type": user_type,
+                "city": city, 
+                "property_type": property_type,
+                "area": area,
+                "package": chosen_pkg,
+                "property_count": property_count,
+                "status": status
+            }
+            
+            # 4. تحليل الذكاء الاصطناعي للباقات المميزة
+            ai_recommendations = None
+            market_insights = None
+            
+            if chosen_pkg in ["ذهبية", "ماسية"]:
+                ai_engine = AIIntelligence()
+                try:
+                    ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
+                except Exception as e:
+                    ai_recommendations = None
+                    st.warning(f"⚠️ لم يتم توليد توصيات الذكاء الاصطناعي بسبب: {e}")
+                
+                # ذكاء السوق المتقدم
+                market_intel = MarketIntelligence()
+                market_insights = market_intel.advanced_market_analysis(real_data, user_info)
+            
+            # 5. إنشاء PDF
+            from enhanced_pdf import create_enhanced_pdf
+            pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
             
             # 6. حفظ التقرير
             st.session_state.pdf_data = pdf_buffer.getvalue()
@@ -997,179 +1045,6 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             
         except Exception as e:
             st.error(f"⚠️ خطأ: {str(e)}")
-        f"ملف المخاطر: {(ai_recommendations or {}).get('ملف_المخاطر', 'منخفض إلى متوسط')}\n"
-        f"التوقيت المثالي: {(ai_recommendations or {}).get('التوقيت_المثالي', 'جيد للاستثمار')}\n"
-
-            # 2. تحليل السوق المتقدم
-        market_data = generate_advanced_market_data(city, property_type, status, real_data)
-            
-            # 3. معلومات المستخدم
-        user_info = {
-                "user_type": user_type,
-                "city": city, 
-                "property_type": property_type,
-                "area": area,
-                "package": chosen_pkg,
-                "property_count": property_count,
-                "status": status
-            }
-            
-            # 4. تحليل الذكاء الاصطناعي للباقات المميزة
-        ai_recommendations = None
-        market_insights = None
-if chosen_pkg in ["ذهبية", "ماسية"]:
-    ai_engine = AIIntelligence()
-    try:
-        ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
-    except Exception as e:
-        ai_recommendations = None
-        st.warning(f"⚠️ لم يتم توليد توصيات الذكاء الاصطناعي بسبب: {e}")
-    
-   # ذكاء السوق المتقدم
-market_intel = MarketIntelligence()
-market_insights = market_intel.advanced_market_analysis(real_data, user_info)
-
-# 5. تحليل احتياجات المستخدم
-user_profiler = UserProfiler()
-user_profile = user_profiler.analyze_user_profile(user_info, market_data, real_data)
-
-# 6. إنشاء التقرير الذكي
-smart_system = SmartReportSystem()
-smart_report_content = smart_system.generate_smart_report(user_info, market_data, real_data, chosen_pkg)
-            # 7. إنشاء PDF حسب الباقة
-                      # 7. إنشاء PDF حسب الباقة مع المحتوى المناسب
-from integrated_pdf_system import create_integrated_pdf
-
-            # تحديد محتوى كل باقة
-package_content = {
-                "مجانية": f"""
-    تقرير تحليل عقاري متقدم - {city}
-    نوع العقار: {property_type}
-    الباقة: {chosen_pkg}
-    تاريخ الإنشاء: {datetime.now().strftime('%Y-%m-%d')}
-
-    📊 الملخص التنفيذي:
-    • عدد العقارات المحللة: {len(real_data)}
-    • متوسط السعر: {real_data['السعر'].mean():,.0f} ريال
-    • أفضل المناطق: {', '.join(real_data['المنطقة'].value_counts().head(2).index.tolist())}
-
-    🎯 التوصيات الأساسية:
-    1. التركيز على المناطق ذات الأسعار التنافسية
-    2. مراقبة اتجاهات السوق الشهرية
-    3. دراسة خيارات التمويل المتاحة
-    """,
-
-                "فضية": f"""
-    تقرير {chosen_pkg} المتقدم - {city} 🥈
-
-    المدينة: {city}
-    نوع العقار: {property_type} 
-    الباقة: {chosen_pkg} (35 صفحة)
-    عدد العقارات: {len(real_data)}
-
-    📈 التحليل المتقدم:
-    • متوسط السعر: {real_data['السعر'].mean():,.0f} ريال
-    • نطاق الأسعار: {real_data['السعر'].min():,.0f} - {real_data['السعر'].max():,.0f} ريال
-    • العوائد المتوقعة: {real_data['العائد_المتوقع'].mean():.1f}%
-    • أفضل 5 مناطق: {', '.join(real_data['المنطقة'].value_counts().head(5).index.tolist())}
-
-    🎯 التوصيات الاستثمارية:
-    1. الاستثمار في {safe_mode(real_data.get('المنطقة'), city)}
-    2. التركيز على عقارات المساحة المتوسطة
-    3. الاستفادة من معدل النمو {market_data.get('معدل_النمو_الشهري', 2.5):.1f}%
-
-    📊 توقعات 18 شهراً:
-    • الشهر 6: +{(market_data.get('معدل_النمو_الشهري', 2.5) * 6):.1f}%
-    • الشهر 12: +{(market_data.get('معدل_النمو_الشهري', 2.5) * 12):.1f}%
-    • الشهر 18: +{(market_data.get('معدل_النمو_الشهري', 2.5) * 18):.1f}%
-    """,
-
-                "ذهبية": f"""
-    تقرير {chosen_pkg} الفاخر - {city} 🥇
-
-    المدينة: {city}
-    نوع العقار: {property_type}
-    الباقة: {chosen_pkg} (60 صفحة)
-    التحليل: ذكاء اصطناعي متقدم
-
-    🤖 تحليل الذكاء الاصطناعي:
-    Commits on Nov 5, 2025
-Update streamlit_app.py
-
-@ouardazeghloul1-ctrl
-ouardazeghloul1-ctrl authored 2 minutes ago
- Showing  with 3 additions and 2 deletions.
-  5 changes: 3 additions & 2 deletions5  
-streamlit_app.py
-Original file line number	Diff line number	Diff line change
-@@ -1097,8 +1097,9 @@ def generate_advanced_market_data(city, property_type, status, real_data):
-    التحليل: ذكاء اصطناعي متقدم
-    🤖 تحليل الذكاء الاصطناعي:
-    • ملف المخاطر: {(ai_recommendations or {}).get('ملف_المخاطر', 'منخفض إلى متوسط')}
-    • التوقيت المثالي: {(ai_recommendations or {}).get('التوقيت_المثالي', 'جيد للاستثمار')}
-    📊 التحليل الشامل:
-    • حجم السوق: {len(real_data)} عقار
-
-    📊 التحليل الشامل:
-    • حجم السوق: {len(real_data)} عقار
-    • التوزيع الجغرافي: {real_data['المنطقة'].nunique()} منطقة
-    • متوسط العوائد: {real_data['العائد_المتوقع'].mean():.1f}%
-    • السيولة السوقية: {market_data.get('مؤشر_السيولة', 85):.0f}%
-
-    🎯 استراتيجية الخمس سنوات:
-    • السنة 1: التركيز على {safe_mode(real_data.get('المنطقة'), city)}
-    • السنة 2-3: التوسع في المناطق الناشئة  
-    • السنة 4-5: تنويع المحفظة الاستثمارية
-    """,
-
-                "ماسية": f"""
-    تقرير {chosen_pkg} الشامل - {city} 💎
-
-    المدينة: {city}
-    نوع العقار: {property_type}  
-    الباقة: {chosen_pkg} (90 صفحة)
-    المستوى: تحليل استراتيجي متكامل
-
-    🌟 التحليل الشامل:
-    • التحليل الجغرافي: {real_data['المنطقة'].nunique()} منطقة
-    • التحليل النوعي: جميع أنواع {property_type}
-    • التحليل الزمني: توقعات 7 سنوات
-    • التحليل المقارن: 5 دول خليجية
-
-    📈 المؤشرات الاستراتيجية:
-    • الحصة السوقية: تحليل {len(real_data)} عقار
-    • مؤشرات النمو: {market_data.get('معدل_النمو_الشهري', 2.5):.1f}% شهرياً
-    • العوائد المركبة: {real_data['العائد_المتوقع'].mean():.1f}% سنوياً
-    """
-            }
-
-           # استخدام المحتوى المناسب للباقة
-content_text = package_content.get(chosen_pkg, package_content["مجانية"])
-
-pdf_buffer = create_pdf_from_content(
-    user_info,
-    market_data, 
-    real_data,
-    content_text,
-    chosen_pkg,
-    ai_recommendations
-)
-            
-           # 8. حفظ حالة التقرير
-st.session_state.pdf_data = pdf_buffer.getvalue()
-st.session_state.report_generated = True
-st.session_state.real_data = real_data
-st.session_state.market_data = market_data
-st.session_state.ai_recommendations = ai_recommendations
-st.session_state.user_profile = user_profile
-st.session_state.market_insights = market_insights
-st.session_state.smart_report_content = smart_report_content
-
-st.success("✅ تم إنشاء التقرير الذكي بنجاح!")
-st.balloons()
-      except Exception as e:
-    st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
-    st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني")
     
     # عرض عينة من التحليل
     with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
