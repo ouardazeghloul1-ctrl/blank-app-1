@@ -1038,7 +1038,7 @@ smart_system = SmartReportSystem()
 smart_report_content = smart_system.generate_smart_report(user_info, market_data, real_data, chosen_pkg)
             # 7. إنشاء PDF حسب الباقة
                       # 7. إنشاء PDF حسب الباقة مع المحتوى المناسب
-            from integrated_pdf_system import create_integrated_pdf
+from integrated_pdf_system import create_integrated_pdf
 
             # تحديد محتوى كل باقة
             package_content = {
