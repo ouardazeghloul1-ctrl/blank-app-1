@@ -1016,7 +1016,12 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             
             if chosen_pkg in ["ذهبية", "ماسية"]:
                 ai_engine = AIIntelligence()
-                ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
+                try:
+             ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
+             except Exception as e:
+             ai_recommendations = None
+             st.warning(f"⚠️ لم يتم توليد توصيات الذكاء الاصطناعي بسبب: {e}")
+
                 
                 # ذكاء السوق المتقدم
                 market_intel = MarketIntelligence()
