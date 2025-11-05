@@ -1155,19 +1155,18 @@ pdf_buffer = create_pdf_from_content(
     ai_recommendations
 )
             
-            # 8. حفظ حالة التقرير
-            st.session_state.pdf_data = pdf_buffer.getvalue()
-            st.session_state.report_generated = True
-            st.session_state.real_data = real_data
-            st.session_state.market_data = market_data
-            st.session_state.ai_recommendations = ai_recommendations
-            st.session_state.user_profile = user_profile
-            st.session_state.market_insights = market_insights
-            st.session_state.smart_report_content = smart_report_content
-            
-            st.success("✅ تم إنشاء التقرير الذكي بنجاح!")
-            st.balloons()
-            
+           # 8. حفظ حالة التقرير
+st.session_state.pdf_data = pdf_buffer.getvalue()
+st.session_state.report_generated = True
+st.session_state.real_data = real_data
+st.session_state.market_data = market_data
+st.session_state.ai_recommendations = ai_recommendations
+st.session_state.user_profile = user_profile
+st.session_state.market_insights = market_insights
+st.session_state.smart_report_content = smart_report_content
+
+st.success("✅ تم إنشاء التقرير الذكي بنجاح!")
+st.balloons()
         except Exception as e:
             st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
             st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني")
