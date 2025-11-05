@@ -1167,7 +1167,7 @@ st.session_state.smart_report_content = smart_report_content
 
 st.success("✅ تم إنشاء التقرير الذكي بنجاح!")
 st.balloons()
-        except Exception as e:
+except Exception as e:
     st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
     st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني")
     
