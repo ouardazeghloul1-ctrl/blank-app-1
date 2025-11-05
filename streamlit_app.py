@@ -1001,7 +1001,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
         f"التوقيت المثالي: {(ai_recommendations or {}).get('التوقيت_المثالي', 'جيد للاستثمار')}\n"
 
             # 2. تحليل السوق المتقدم
-            market_data = generate_advanced_market_data(city, property_type, status, real_data)
+        market_data = generate_advanced_market_data(city, property_type, status, real_data)
             
             # 3. معلومات المستخدم
             user_info = {
