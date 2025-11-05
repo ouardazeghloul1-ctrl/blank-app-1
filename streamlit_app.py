@@ -1168,27 +1168,23 @@ st.session_state.smart_report_content = smart_report_content
 st.success("✅ تم إنشاء التقرير الذكي بنجاح!")
 st.balloons()
         except Exception as e:
-            st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
-            st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني")
-            
-            # عرض عينة من التحليل
-            with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
-                st.write("### 👤 تحليل احتياجاتك")
-                st.write(f"**الفئة:** {user_profile['user_type']}")
-                st.write(f"**الاحتياج الأساسي:** {user_profile['primary_need']}")
-                
-                st.write("### 🎯 أبرز التوصيات")
-                for i, recommendation in enumerate(user_profile.get('recommendations', [])[:3], 1):
-                    st.write(f"{i}. {recommendation}")
-                    
-                if market_insights and 'investment_opportunities' in market_insights:
-                    st.write(f"### 💎 أفضل الفرص ({len(market_insights['investment_opportunities'])} فرصة)")
-                    for opp in market_insights['investment_opportunities'][:2]:
-                        st.write(f"• {opp['property']} - عائد {opp['roi']}%")
+    st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
+    st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني")
+    
+    # عرض عينة من التحليل
+    with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
+        st.write("### 👤 تحليل احتياجاتك")
+        st.write(f"**الفئة:** {user_profile['user_type']}")
+        st.write(f"**الاحتياج الأساسي:** {user_profile['primary_need']}")
         
-        except Exception as e:
-            st.error(f"⚠️ حدث خطأ أثناء إنشاء التقرير: {str(e)}")
-            st.info("يرجى المحاولة مرة أخرى أو التواصل مع الدعم الفني")
+        st.write("### 🎯 أبرز التوصيات")
+        for i, recommendation in enumerate(user_profile.get('recommendations', [])[:3], 1):
+            st.write(f"{i}. {recommendation}")
+            
+        if market_insights and 'investment_opportunities' in market_insights:
+            st.write(f"### 💎 أفضل الفرص ({len(market_insights['investment_opportunities'])} فرصة)")
+            for opp in market_insights['investment_opportunities'][:2]:
+                st.write(f"• {opp['property']} - عائد {opp['roi']}%")
 
 if st.session_state.get('report_generated', False):
     st.markdown("---")
