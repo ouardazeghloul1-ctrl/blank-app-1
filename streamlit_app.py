@@ -943,42 +943,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             # 1. جمع البيانات
             scraper = RealEstateScraper()
             real_data = scraper.get_real_data(city, property_type, property_count)
-            
-            # فحص البيانات
-            if real_data.empty:
-                st.error("❌ لا توجد بيانات! جاري استخدام بيانات تجريبية...")
-                # بيانات تجريبية
-                real_data = pd.DataFrame({
-                    'العقار': ['شقة نموذجية 1', 'شقة نموذجية 2'],
-                    'السعر': [1000000, 1200000],
-                    'المساحة': [120, 150],
-                    'المنطقة': [city, city],
-                    'المدينة': [city, city],
-                    'نوع_العقار': [property_type, property_type],
-                    'العائد_المتوقع': [7.5, 8.2],
-                    'سعر_المتر': [8333, 8000]
-                })
-            
-            # 2. تحليل السوق
-            market_data = generate_advanced_market_data(city, property_type, status, real_data)
-            
-            # 3. معلومات المستخدم
-            user_info = {
-                "user_type": user_type,
-                "city": city, 
-                "property_type": property_type,
-                "area": area,
-                "package": chosen_pkg,
-                "property_count": property_count,
-                "status": status
-            }
-            
-            # 4. استخدام النظام الجديد
-            ultimate_system = UltimateReportSystem()
-            premium_generator = PremiumContentGenerator()
-            base_report = ultimate_system.create_ultimate_report(user_info, market_data, real_data, chosen_pkg)
-            full_report = premium_generator.generate_for_package(base_report, chosen_pkg, user_info)
-            
+               
             # 5. إنشاء PDF 
 if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
     with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
