@@ -1027,7 +1027,8 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
         st.write(f"**الاحتياج الأساسي:** {user_profile['primary_need']}")
         
         st.write("### 🎯 أبرز التوصيات")
-        recommendations_list = user_profile.get('recommendations', []) if user_profile else []
+        user_profile = st.session_state.get('user_profile', {})
+        recommendations_list = user_profile.get('recommendations', [])
         for i, recommendation in enumerate(recommendations_list[:3], 1):
             st.write(f"{i}. {recommendation}")
     
