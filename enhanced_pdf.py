@@ -354,7 +354,7 @@ class EnhancedPDFGenerator:
         
         النتائج:
         • عدد العقارات المحللة: {len(real_data) if not real_data.empty else 0}
-        • متوسط السعر: {real_data['السعر'].mean():,.0f if not real_data.empty else 'N/A'} ريال
+        • متوسط السعر: {safe_num(real_data['السعر'].mean()) if not real_data.empty else 'N/A'} ريال
         • متوسط العائد: {real_data['العائد_المتوقع'].mean():.1f if not real_data.empty else 'N/A'}%
         
         التوصيات:
