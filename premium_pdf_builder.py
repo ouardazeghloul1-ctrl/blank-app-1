@@ -285,8 +285,8 @@ class PremiumPDFBuilder:
             
             feasibility_text = f"""
             <b>مؤشرات الجدوى:</b><br/>
-            • متوسط العائد على الاستثمار: {roi:.1f}%<br/>
-            • فترة استرداد رأس المال: {payback_period:.1f} سنة<br/>
+            • متوسط العائد على الاستثمار: {safe_num(roi, '.1f')}%<br/>
+            • فترة استرداد رأس المال: {safe_num(payback_period, '.1f')} سنة<br/>
             • مؤشر الربحية: {'ممتاز' if roi > 8 else 'جيد' if roi > 6 else 'متوسط'}<br/>
             <br/>
             <b>التوصية:</b> {'مشروع مجدي' if roi > 7 else 'يحتاج دراسة إضافية'}
