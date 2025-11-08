@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import math
-
 def safe_num(val, fmt=",.0f", default="N/A"):
     """ترجع قيمة منسقة أو قيمة افتراضية إذا كان val غير صالح."""
     try:
@@ -25,6 +24,7 @@ def safe_num(val, fmt=",.0f", default="N/A"):
         return format(val, fmt)
     except Exception:
         return default
+
 class PremiumPDFBuilder:
     def __init__(self):
         self.styles = getSampleStyleSheet()
@@ -58,24 +58,23 @@ class PremiumPDFBuilder:
         return get_display(arabic_reshaper.reshape(str(text)))
     
     def create_premium_pdf(self, user_info, market_data, real_data, package_level, ai_recommendations=None):
-    """إنشاء تقرير PDF فاخر للباقات المميزة"""
-    buffer = BytesIO()
-    
-    # 🎯🎯🎯 اضافة جديدة - ابدأ النسخ من هنا 🎯🎯🎯
-    print(f"🎯 إنشاء تقرير للباقة: {package_level}")
-    print(f"📊 بيانات المستخدم: {user_info}")
-    print(f"📈 بيانات السوق: {market_data}")
-    print(f"🏠 عدد العقارات: {len(real_data) if not real_data.empty else 'لا توجد بيانات'}")
-    # 🎯🎯🎯 نهاية الاضافة - انتهى النسخ 🎯🎯🎯
-    
-    if package_level == "فضية":
-        return self._create_silver_pdf(user_info, market_data, real_data, buffer)
-    elif package_level == "ذهبية":
-        return self._create_gold_pdf(user_info, market_data, real_data, ai_recommendations, buffer)
-    elif package_level == "ماسية":
-        return self._create_diamond_pdf(user_info, market_data, real_data, ai_recommendations, buffer)
-    else:
-        return self._create_basic_pdf(user_info, market_data, real_data, buffer)
+        """إنشاء تقرير PDF فاخر للباقات المميزة"""
+        buffer = BytesIO()
+        
+        print(f"🎯 إنشاء تقرير للباقة: {package_level}")
+        print(f"📊 بيانات المستخدم: {user_info}")
+        print(f"📈 بيانات السوق: {market_data}")
+        print(f"🏠 عدد العقارات: {len(real_data) if not real_data.empty else 'لا توجد بيانات'}")
+        
+        if package_level == "فضية":
+            return self._create_silver_pdf(user_info, market_data, real_data, buffer)
+        elif package_level == "ذهبية":
+            return self._create_gold_pdf(user_info, market_data, real_data, ai_recommendations, buffer)
+        elif package_level == "ماسية":
+            return self._create_diamond_pdf(user_info, market_data, real_data, ai_recommendations, buffer)
+        else:
+            return self._create_basic_pdf(user_info, market_data, real_data, buffer)
+
     
     def _create_silver_pdf(self, user_info, market_data, real_data, buffer):
         """تقرير الباقة الفضية - 35 صفحة"""
