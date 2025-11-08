@@ -70,7 +70,7 @@ class UltimateReportSystem:
         🎯 **الفرص المميزة:**
         • العقارات ذات العوائد العالية: {real_data['العائد_المتوقع'].max():.1f}%
         • المناطق الصاعدة: {real_data['المنطقة'].value_counts().index[1]}
-        • أسعار منافسة: {real_data['السعر'].min():,.0f} ريال
+        • أسعار منافسة: {safe_num(real_data['السعر'].min())} ريال      
         """
     
     def _create_owner_report(self, user_info, market_data, real_data, package_level):
