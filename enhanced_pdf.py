@@ -196,7 +196,7 @@ class EnhancedPDFGenerator:
         if package_level in ["فضية", "ذهبية", "ماسية"]:
             base_content += f"""
             <b>المؤشرات الرئيسية:</b><br/>
-            • متوسط أسعار السوق: {real_data['السعر'].mean():,.0f} ريال<br/>
+            • متوسط أسعار السوق: {safe_num(real_data['السعر'].mean())} ريال<br/>
             • متوسط العوائد: {real_data['العائد_المتوقع'].mean():.1f}%<br/>
             • معدل النمو الشهري: {market_data.get('معدل_النمو_الشهري', 2.5):.1f}%<br/>
             • مؤشر السيولة: {market_data.get('مؤشر_السيولة', 85):.0f}%<br/><br/>
