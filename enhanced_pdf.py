@@ -266,9 +266,9 @@ class EnhancedPDFGenerator:
                 
                 table_data.append([
                     area,
-                    f"{avg_price:,.0f}",
-                    f"{min_price:,.0f}", 
-                    f"{max_price:,.0f}",
+                    f"{safe_num(avg_price)}",
+                    f"{safe_num(min_price)}", 
+                    f"{safe_num(max_price)}",
                     str(count)
                 ])
             
