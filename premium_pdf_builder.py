@@ -252,7 +252,7 @@ class PremiumPDFBuilder:
             
             for area, count in top_areas.items():
                 avg_price = real_data[real_data['المنطقة'] == area]['السعر'].mean()
-                analysis_text += f"• {area}: {count} عقار - متوسط السعر {avg_price:,.0f} ريال<br/>"
+                analysis_text += f"• {area}: {count} عقار - متوسط السعر {safe_num(avg_price)} ريال<br/>"
         else:
             analysis_text = "لا توجد بيانات كافية لتحليل المنافسة"
         
