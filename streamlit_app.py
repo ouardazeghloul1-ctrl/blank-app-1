@@ -1025,7 +1025,7 @@ with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
     user_profile = st.session_state.get('user_profile', {})
     
     st.write("### 👤 تحليل احتياجاتك")
-    st.write(f"**الفئة:** {user_profile.get('user_type', 'غير محدد')}")
+    st.write(f"**الفئة:** {user_profile.get('user_type') if user_profile else 'غير محدد'}")
     st.write(f"**الاحتياج الأساسي:** {user_profile.get('primary_need', 'غير محدد')}")
 
     st.write("### 🎯 أبرز التوصيات")
