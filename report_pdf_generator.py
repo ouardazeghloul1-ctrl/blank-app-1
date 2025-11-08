@@ -140,7 +140,7 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
         
         النتائج:
         • عدد العقارات المحللة: {len(real_data) if not real_data.empty else 0}
-        • متوسط السعر: {real_data['السعر'].mean():,.0f} ريال
+        • متوسط السعر: {safe_num(real_data['السعر'].mean())} ريال
         • متوسط العائد: {real_data['العائد_المتوقع'].mean():.1f}%
         
         التوصيات:
