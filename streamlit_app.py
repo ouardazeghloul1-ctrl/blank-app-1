@@ -943,14 +943,6 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             # 1. جمع البيانات
             scraper = RealEstateScraper()
             real_data = scraper.get_real_data(city, property_type, property_count)
-               
-            # 5. إنشاء PDF 
-if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
-    with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
-        try:
-            # 1. جمع البيانات
-            scraper = RealEstateScraper()
-            real_data = scraper.get_real_data(city, property_type, property_count)
             
             if real_data.empty:
                 st.error("❌ لا توجد بيانات! جاري استخدام بيانات تجريبية...")
