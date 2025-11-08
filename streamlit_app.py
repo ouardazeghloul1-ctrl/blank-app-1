@@ -1023,11 +1023,11 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
     # عرض عينة من التحليل
     with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
         st.write("### 👤 تحليل احتياجاتك")
+        user_profile = st.session_state.get('user_profile', {})
         st.write(f"**الفئة:** {st.session_state.get('user_profile', {}).get('user_type', 'غير محدد')}")
-        st.write(f"**الاحتياج الأساسي:** {user_profile['primary_need']}")
+        st.write(f"**الاحتياج الأساسي:** {user_profile.get('primary_need', 'غير محدد')}")  # ← استخدم get 
         
         st.write("### 🎯 أبرز التوصيات")
-        user_profile = st.session_state.get('user_profile', {})
         recommendations_list = user_profile.get('recommendations', [])
         for i, recommendation in enumerate(recommendations_list[:3], 1):
              st.write(f"{i}. {recommendation}")
