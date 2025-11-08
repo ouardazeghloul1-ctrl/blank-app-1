@@ -297,7 +297,7 @@ class SmartReportSystem:
         months = [3, 6, 12, 18]
         for months_ahead in months:
             growth_factor = (1 + current_growth/100) ** months_ahead
-            forecast += f"• بعد {months_ahead} شهر: +{(growth_factor-1)*100:.1f}%\n"
+            forecast += f"• بعد {months_ahead} شهر: +{safe_num((growth_factor-1)*100, '.1f')}%\n"
         
         forecast += """
         🎯 **الاستراتيجية المقترحة:**
