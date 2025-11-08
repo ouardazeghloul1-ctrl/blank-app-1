@@ -1023,7 +1023,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
     # عرض عينة من التحليل
     with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
         st.write("### 👤 تحليل احتياجاتك")
-        st.write(f"**الفئة:** {user_profile['user_type']}")
+       st.write(f"**الفئة:** {user_profile.get('user_type', 'غير محدد') if user_profile else 'غير محدد'}")
         st.write(f"**الاحتياج الأساسي:** {user_profile['primary_need']}")
         
         st.write("### 🎯 أبرز التوصيات")
