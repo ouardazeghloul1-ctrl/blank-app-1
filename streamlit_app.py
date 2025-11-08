@@ -1021,24 +1021,23 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             st.error(f"⚠️ خطأ: {str(e)}")
     
     # عرض عينة من التحليل
-    with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
-        st.write("### 👤 تحليل احتياجاتك")
-        user_profile = st.session_state.get('user_profile', {})
-        st.write(f"**الفئة:** {st.session_state.get('user_profile', {}).get('user_type', 'غير محدد')}")
-        st.write(f"**الاحتياج الأساسي:** {user_profile.get('primary_need', 'غير محدد')}")  # ← استخدم get 
-        
-        st.write("### 🎯 أبرز التوصيات")
-        recommendations_list = user_profile.get('recommendations', [])
-        for i, recommendation in enumerate(recommendations_list[:3], 1):
-             st.write(f"{i}. {recommendation}")
+with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
+    user_profile = st.session_state.get('user_profile', {})
+    
+    st.write("### 👤 تحليل احتياجاتك")
+    st.write(f"**الفئة:** {user_profile.get('user_type', 'غير محدد')}")
+    st.write(f"**الاحتياج الأساسي:** {user_profile.get('primary_need', 'غير محدد')}")
 
-        market_insights = st.session_state.get('market_insights', {})
+    st.write("### 🎯 أبرز التوصيات")
+    recommendations_list = user_profile.get('recommendations', [])
+    for i, recommendation in enumerate(recommendations_list[:3], 1):
+        st.write(f"{i}. {recommendation}")
 
-        if market_insights and 'investment_opportunities' in market_insights:
-             st.write(f"### 💎 أفضل الفرص ({len(market_insights['investment_opportunities'])} فرصة)")
-             for opp in market_insights['investment_opportunities'][:2]:
-                 st.write(f"• {opp['property']} - عائد {opp['roi']}%")
-
+    market_insights = st.session_state.get('market_insights', {})
+    if market_insights and 'investment_opportunities' in market_insights:
+        st.write(f"### 💎 أفضل الفرص ({len(market_insights['investment_opportunities'])} فرصة)")
+        for opp in market_insights['investment_opportunities'][:2]:
+            st.write(f"• {opp.get('property', 'غير محدد')} - عائد {opp.get('roi', 0)}%")
 
 if st.session_state.get('report_generated', False):
     st.markdown("---")
