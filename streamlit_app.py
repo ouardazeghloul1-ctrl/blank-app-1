@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import math
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -38,8 +39,6 @@ def safe_mode(series, default="غير محدد"):
         return modes.iloc[0] if not modes.empty else default
     except:
         return default
-import math
-
 def safe_num(val, fmt=",.0f", default="N/A"):
     """ترجع قيمة منسقة أو قيمة افتراضية إذا كان val غير صالح."""
     try:
