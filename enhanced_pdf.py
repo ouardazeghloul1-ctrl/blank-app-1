@@ -5,7 +5,20 @@ import pandas as pd
 import numpy as np
 import arabic_reshaper
 from bidi.algorithm import get_display
+import math
 
+def safe_num(val, fmt=",.0f", default="N/A"):
+    """ترجع قيمة منسقة أو قيمة افتراضية إذا كان val غير صالح."""
+    try:
+        if val is None:
+            return default
+        if isinstance(val, (list, tuple, set)):
+            return default
+        if isinstance(val, float) and math.isnan(val):
+            return default
+        return format(val, fmt)
+    except Exception:
+        return default
 class EnhancedPDFGenerator:
     def __init__(self):
         # التركيز على العدد الدقيق للصفحات
