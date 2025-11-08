@@ -188,8 +188,8 @@ class PremiumPDFBuilder:
             summary_text = f"""
             <b>أبرز المؤشرات:</b><br/>
             • متوسط أسعار السوق: {safe_num(avg_price)} ريال<br/>
-            • متوسط العوائد: {avg_roi:.1f}% سنوياً<br/>
-            • معدل نمو السوق: {market_growth:.1f}% شهرياً<br/>
+            • متوسط العوائد: {safe_num(avg_roi, '.1f')}% سنوياً<br/>
+            • معدل نمو السوق: {safe_num(market_growth, '.1f')}% شهرياً<br/>
             • عدد العقارات المحللة: {len(real_data)} عقار<br/>
             <br/>
             <b>التوقعات العامة:</b><br/>
