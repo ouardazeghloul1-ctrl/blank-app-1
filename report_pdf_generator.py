@@ -86,9 +86,9 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
             
             stats_data = [
                 ['المؤشر', 'القيمة'],
-                ['متوسط السعر', f"{real_data['السعر'].mean():,.0f} ريال"],
-                ['أعلى سعر', f"{real_data['السعر'].max():,.0f} ريال"],
-                ['أقل سعر', f"{real_data['السعر'].min():,.0f} ريال"],
+                ['متوسط السعر', f"{safe_num(real_data['السعر'].mean())} ريال"],
+                ['أعلى سعر', f"{safe_num(real_data['السعر'].max())} ريال"],
+                ['أقل سعر', f"{safe_num(real_data['السعر'].min())} ريال"],
                 ['متوسط العائد', f"{real_data['العائد_المتوقع'].mean():.1f}%"],
                 ['عدد العقارات', str(len(real_data))]
             ]
