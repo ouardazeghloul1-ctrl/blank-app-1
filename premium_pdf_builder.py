@@ -202,7 +202,7 @@ class PremiumPDFBuilder:
             • حجم السوق: {len(real_data)} عقار<br/>
             • توزيع المناطق: {real_data['المنطقة'].nunique()} منطقة<br/>
             • متوسط المساحة: {real_data['المساحة'].mean():.0f} م²<br/>
-            • نطاق الأسعار: {real_data['السعر'].min():,.0f} - {real_data['السعر'].max():,.0f} ريال<br/>
+            • نطاق الأسعار: {safe_num(real_data['السعر'].min())} - {safe_num(real_data['السعر'].max())} ريال<br/>
             """
         else:
             analysis_text = "لا توجد بيانات كافية لتحليل السوق"
