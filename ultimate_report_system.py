@@ -39,8 +39,8 @@ class UltimateReportSystem:
         • التوزيع الجغرافي: {real_data['المنطقة'].nunique()} منطقة
         
         💰 **استراتيجيات التسعير:**
-        • متوسط السوق: {real_data['السعر'].mean():,.0f} ريال
-        • نطاق الأسعار: {real_data['السعر'].min():,.0f} - {real_data['السعر'].max():,.0f}
+       • متوسط السوق: {safe_num(real_data['السعر'].mean())} ريال
+       • نطاق الأسعار: {safe_num(real_data['السعر'].min())} - {safe_num(real_data['السعر'].max())}
         """
     
     def _create_developer_report(self, user_info, market_data, real_data, package_level):
