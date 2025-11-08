@@ -38,6 +38,24 @@ def safe_mode(series, default="غير محدد"):
         return modes.iloc[0] if not modes.empty else default
     except:
         return default
+import math
+
+def safe_num(val, fmt=",.0f", default="N/A"):
+    """ترجع قيمة منسقة أو قيمة افتراضية إذا كان val غير صالح."""
+    try:
+        if val is None:
+            return default
+        # لو سلسلة قيم أو إطار بيانات، لا نستعمل هنا
+        if isinstance(val, (list, tuple, set)):
+            return default
+        # لو float و NaN
+        if isinstance(val, float) and math.isnan(val):
+            return default
+        # تنسيق آمن
+        return format(val, fmt)
+    except Exception:
+        return default
+
 
 # ========== الأنظمة الذكية الجديدة ==========
 from integrated_pdf_system import create_integrated_pdf
