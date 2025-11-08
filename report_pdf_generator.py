@@ -61,7 +61,7 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
         if not real_data.empty:
             summary_text = f"""
             تم تحليل <b>{len(real_data)}</b> عقار في مدينة <b>{user_info.get('city', '')}</b>.
-            متوسط أسعار السوق: <b>{real_data['السعر'].mean():,.0f} ريال</b>
+            متوسط أسعار السوق: <b>{safe_num(real_data['السعر'].mean())} ريال</b> 
             متوسط العوائد المتوقعة: <b>{real_data['العائد_المتوقع'].mean():.1f}%</b>
             """
             story.append(Paragraph(summary_text, arabic_style))
