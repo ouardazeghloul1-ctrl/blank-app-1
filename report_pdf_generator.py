@@ -1,7 +1,20 @@
 from io import BytesIO
 from datetime import datetime
 import pandas as pd
+import math
 
+def safe_num(val, fmt=",.0f", default="N/A"):
+    """ترجع قيمة منسقة أو قيمة افتراضية إذا كان val غير صالح."""
+    try:
+        if val is None:
+            return default
+        if isinstance(val, (list, tuple, set)):
+            return default
+        if isinstance(val, float) and math.isnan(val):
+            return default
+        return format(val, fmt)
+    except Exception:
+        return default
 def create_pdf_from_content(user_info, market_data, real_data, content_text, package_level, ai_recommendations):
     """
     نسخة عربية مضمونة 100% - بدون أخطاء
