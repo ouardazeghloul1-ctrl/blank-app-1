@@ -1061,7 +1061,7 @@ if st.session_state.get('report_generated', False):
                 st.write("### 🎯 أفضل الفرص")
                 if 'investment_opportunities' in insights:
                     for opp in insights['investment_opportunities'][:3]:
-                        st.write(f"• {opp['property']} - درجة {opp['score']:.0f}")
+                        st.write(f"• {opp['property']} - درجة {safe_num(opp['score'], '.0f')}")
     
     # زر تحميل التقرير
     st.download_button(
