@@ -1030,12 +1030,15 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
         user_profile = st.session_state.get('user_profile', {})
         recommendations_list = user_profile.get('recommendations', [])
         for i, recommendation in enumerate(recommendations_list[:3], 1):
-            st.write(f"{i}. {recommendation}")
-    
-if market_insights and 'investment_opportunities' in market_insights:
-    st.write(f"### 💎 أفضل الفرص ({len(market_insights['investment_opportunities'])} فرصة)")
-    for opp in market_insights['investment_opportunities'][:2]:
-        st.write(f"• {opp['property']} - عائد {opp['roi']}%")
+             st.write(f"{i}. {recommendation}")
+
+        market_insights = st.session_state.get('market_insights', {})
+
+        if market_insights and 'investment_opportunities' in market_insights:
+             st.write(f"### 💎 أفضل الفرص ({len(market_insights['investment_opportunities'])} فرصة)")
+             for opp in market_insights['investment_opportunities'][:2]:
+                 st.write(f"• {opp['property']} - عائد {opp['roi']}%")
+
 
 if st.session_state.get('report_generated', False):
     st.markdown("---")
