@@ -212,7 +212,8 @@ class EnhancedPDFGenerator:
             • متوسط أسعار السوق: {safe_num(real_data['السعر'].mean())} ريال<br/>
             • متوسط العوائد: {real_data['العائد_المتوقع'].mean():.1f}%<br/>
             • معدل النمو الشهري: {market_data.get('معدل_النمو_الشهري', 2.5):.1f}%<br/>
-            • مؤشر السيولة: {f"{market_data.get('مؤشر_السيولة', 85):.0f}" if market_data else 'N/A'}%<br/><br/>
+            • مؤشر السيولة: {safe_num(market_data.get('مؤشر_السيولة', 85))}%<br/><br/>
+
             """
         
         if package_level in ["ذهبية", "ماسية"]:
