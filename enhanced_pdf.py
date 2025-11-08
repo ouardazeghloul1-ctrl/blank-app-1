@@ -211,7 +211,7 @@ class EnhancedPDFGenerator:
             <b>المؤشرات الرئيسية:</b><br/>
             • متوسط أسعار السوق: {safe_num(real_data['السعر'].mean())} ريال<br/>
             • متوسط العوائد: {safe_num(real_data['العائد_المتوقع'].mean(), '.1f')}%<br/>
-            • معدل النمو الشهري: {market_data.get('معدل_النمو_الشهري', 2.5):.1f}%<br/>
+            • معدل النمو الشهري: {safe_num(market_data.get('معدل_النمو_الشهري', 2.5), '.1f')}%<br/>
             • مؤشر السيولة: {safe_num(market_data.get('مؤشر_السيولة', 85))}%<br/><br/>
 
             """
