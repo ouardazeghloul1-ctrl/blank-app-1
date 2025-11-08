@@ -214,7 +214,7 @@ class PremiumPDFBuilder:
             <b>مؤشرات السوق الرئيسية:</b><br/>
             • حجم السوق: {len(real_data)} عقار<br/>
             • توزيع المناطق: {real_data['المنطقة'].nunique()} منطقة<br/>
-            • متوسط المساحة: {real_data['المساحة'].mean():.0f} م²<br/>
+            • متوسط المساحة: {safe_num(real_data['المساحة'].mean(), '.0f')} م²<br/>
             • نطاق الأسعار: {safe_num(real_data['السعر'].min())} - {safe_num(real_data['السعر'].max())} ريال<br/>
             """
         else:
