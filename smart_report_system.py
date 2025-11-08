@@ -71,7 +71,7 @@ class SmartReportSystem:
             return "لا توجد بيانات لتحليل العوائد"
         
         avg_roi = real_data['العائد_المتوقع'].mean()
-        return f"متوسط العوائد: {avg_roi:.1f}%"
+        return f"متوسط العوائد: {safe_num(avg_roi, '.1f')}%"
 
     def _property_valuation(self, real_data, user_info):
         """تقييم العقار"""
