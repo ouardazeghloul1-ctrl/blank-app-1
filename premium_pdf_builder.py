@@ -11,7 +11,20 @@ from reportlab.lib import colors
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import math
 
+def safe_num(val, fmt=",.0f", default="N/A"):
+    """ترجع قيمة منسقة أو قيمة افتراضية إذا كان val غير صالح."""
+    try:
+        if val is None:
+            return default
+        if isinstance(val, (list, tuple, set)):
+            return default
+        if isinstance(val, float) and math.isnan(val):
+            return default
+        return format(val, fmt)
+    except Exception:
+        return default
 class PremiumPDFBuilder:
     def __init__(self):
         self.styles = getSampleStyleSheet()
