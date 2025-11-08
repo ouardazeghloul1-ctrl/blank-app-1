@@ -228,7 +228,7 @@ class PremiumPDFBuilder:
             increase = ((future_price / current_avg_price) - 1) * 100
             
             forecast_text += f"""
-            • بعد {months_ahead} شهر: {future_price:,.0f} ريال (+{increase:.1f}%)<br/>
+            • بعد {months_ahead} شهر: {safe_num(future_price)} ريال (+{safe_num(increase, fmt='.1f')}%)<br/>
             """
         
         forecast_text += f"""
