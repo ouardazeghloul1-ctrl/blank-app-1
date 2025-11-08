@@ -28,6 +28,7 @@ import os
 from ultimate_report_system import UltimateReportSystem
 from premium_content_generator import PremiumContentGenerator
 from advanced_charts import AdvancedCharts
+from user_profiler import UserProfiler
 def safe_mode(series, default="غير محدد"):
     try:
         if series is None:
@@ -978,22 +979,21 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             # 2. تحليل السوق
             market_data = generate_advanced_market_data(city, property_type, status, real_data)
             
-            # 3. معلومات المستخدم
-            user_info = {
-                "user_type": user_type,
-                "city": city, 
-                "property_type": property_type,
-                "area": area,
-                "package": chosen_pkg,
-                "property_count": property_count,
-                "status": status
-            }
-            
-            # 4. تحليل الذكاء الاصطناعي للباقات المميزة
-            ai_recommendations = None
-            market_insights = None
-            
-            if chosen_pkg in ["ذهبية", "ماسية"]:
+          # 3. معلومات المستخدم
+           user_info = {
+                  "user_type": user_type,
+                  "city": city, 
+                  "property_type": property_type,
+                  "area": area,
+                  "package": chosen_pkg,
+                  "property_count": property_count,
+                  "status": status
+}
+
+# 🎯🎯🎯 أضف هذا السطر - تحليل احتياجات المستخدم 🎯🎯🎯
+           profiler = UserProfiler()
+           st.session_state.user_profile = profiler.analyze_user_profile(user_info, market_data, real_data)
+           if chosen_pkg in ["ذهبية", "ماسية"]:
                 ai_engine = AIIntelligence()
                 try:
                     ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
