@@ -1070,34 +1070,139 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
     # بعد سطر العرض الحالي، أضفي هذا الكود:
 
 # 🎯 نظام الفرص الذكية - للباقات المميزة
-if chosen_pkg in ["ذهبية", "ماسية", "ماسية متميزة"]:
-    with st.expander("💎 الفرص الاستثمارية الذكية", expanded=True):
-        from smart_opportunities import SmartOpportunityFinder
+if st.session_state.get('report_generated', False):
+    st.markdown("---")
+    st.markdown("## 📊 التقرير النهائي الجاهز للطباعة")
+    
+    # عرض عينة من التحليل
+    with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
+        user_profile = st.session_state.get('user_profile', {})
         
-        opportunity_finder = SmartOpportunityFinder()
-        smart_opportunities = opportunity_finder.analyze_all_opportunities(user_info, market_data, real_data)
+        st.write("### 👤 تحليل احتياجاتك")
+        st.write(f"**الفئة:** {user_type}")  # ✅ التغيير هنا فقط
+        st.write(f"**المدينة:** {city}")     # ✅ إضافة جديدة
+        st.write(f"**الاحتياج الأساسي:** {user_profile.get('primary_need', 'غير محدد')}")  # ✅ ابقي كما هو
+
+        st.write("### 🎯 أبرز التوصيات")
+        recommendations_list = user_profile.get('recommendations', [])
+        for i, recommendation in enumerate(recommendations_list[:3], 1):
+            st.write(f"{i}. {recommendation}")
+
+        market_insights = st.session_state.get('market_insights', {})
+        if market_insights and 'investment_opportunities' in market_insights:
+            st.write(f"### 💎 أفضل الفرص ({len(market_insights['investment_opportunities'])} فرصة)")
+            for opp in market_insights['investment_opportunities'][:2]:
+                st.write(f"• {opp.get('property', 'غير محدد')} - عائد {opp.get('roi', 0)}%")
+    
+    # 🚀 نظام البيانات الحية - لجميع الباقات
+    with st.expander("📊 البيانات الحية المباشرة", expanded=True):
+        from live_data_system import LiveDataSystem
         
-        st.write("### 🎯 أفضل الفرص المكتشفة")
+        live_system = LiveDataSystem()
+        live_system.update_live_data(real_data)
+        live_summary = live_system.get_live_data_summary(city)
         
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.write("#### 🏘️ عقارات مخفضة")
-            for opp in smart_opportunities['عقارات_مخفضة'][:3]:
-                st.write(f"**{opp['العقار']}**")
-                st.write(f"📍 {opp['المنطقة']} | 💰 {opp['الخصم']} خصم")
-                st.write(f"📊 عائد {opp['العائد_المتوقع']}% | ⚖️ {opp['مستوى_الخطورة']}")
-                st.write("---")
+            st.metric("مؤشر الطلب", f"{live_summary['مؤشرات_حية']['مؤشر_الطلب']}%")
+            st.metric("سرعة البيع", live_summary['مؤشرات_حية']['سرعة_البيع'])
         
         with col2:
-            st.write("#### 📈 مناطق صاعدة") 
-            for area in smart_opportunities['مناطق_صاعدة'][:3]:
-                st.write(f"**{area['المنطقة']}**")
-                st.write(f"🎯 {area['درجة_النمو']} درجة نمو")
-                st.write(f"📊 {area['متوسط_العائد']}% عائد | 🏠 {area['عدد_العقارات']} عقار")
-                st.write("---")
+            st.metric("التغير اليومي", live_summary['مؤشرات_حية']['التغير_اليومي'])
+            st.metric("حجم المعاملات", live_summary['مؤشرات_حية']['حجم_المعاملات'])
         
-        st.write(f"### ⏰ توقيت الاستثمار: {smart_opportunities['توقيت_الاستثمار']}")
+        with col3:
+            st.info(f"**حالة السوق:** {live_summary['حالة_السوق']}")
+            st.success(f"**التوصية:** {live_summary['توصية_فورية']}")
+        
+        st.caption(f"🕒 آخر تحديث: {live_summary['آخر_تحديث']}")
+
+    # 💰 نظام مقارنة التمويل - للباقات المميزة
+    if chosen_pkg in ["ذهبية", "ماسية", "ماسية متميزة"]:
+        with st.expander("🏦 مقارنة التمويل الذكي", expanded=True):
+            from finance_comparison import FinanceComparator
+            
+            # حساب سعر العقار التقريبي
+            avg_price = real_data['السعر'].mean() if not real_data.empty else 1000000
+            property_price = avg_price * (area / 120)  # تعديل حسب المساحة
+            
+            finance_comp = FinanceComparator()
+            finance_report = finance_comp.generate_financing_report(user_info, property_price)
+            
+            st.write("### 🏆 أفضل خيارات التمويل لك")
+            
+            # عرض أفضل 3 خيارات
+            for i, option in enumerate(finance_report['خيارات_التمويل'][:3], 1):
+                with st.container():
+                    st.write(f"#### {i}. {option['اسم_البنك']} ({option['نوع_التمويل']})")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.write(f"**نسبة الفائدة:** {option['نسبة_الفائدة']}")
+                        st.write(f"**القسط الشهري:** {option['القسط_الشهري']}")
+                    
+                    with col2:
+                        st.write(f"**التمويل المتاح:** {option['التمويل_المتاح']}")
+                        st.write(f"**مدة التمويل:** {option['مدة_التمويل']}")
+                    
+                    with col3:
+                        st.write(f"**المميزات:** {option['مميزات']}")
+                        st.write(f"**المعالجة:** {option['مدة_المعالجة']}")
+                    
+                    st.write("---")
+            
+            # حاسبة التمويل
+            st.write("### 🧮 حاسبة التمويل السريعة")
+            calc_info = finance_report['حاسبة_التمويل']
+            st.write(f"**سعر العقار التقريبي:** {calc_info['سعر_العقار']}")
+            st.write(f"**التمويل المتوقع:** {calc_info['التمويل_المتاح']}")
+            st.write(f"**المقدم المطلوب:** {calc_info['المقدم_المطلوب']}")
+            
+            st.success(f"💡 {finance_report['نصيحة_التمويل']}")
+
+    # 💎 نظام الفرص الذكية المحسن - للباقات المميزة
+    if chosen_pkg in ["ذهبية", "ماسية", "ماسية متميزة"]:
+        with st.expander("💎 الفرص الاستثمارية الذكية", expanded=True):
+            from smart_opportunities import SmartOpportunityFinder
+            
+            opportunity_finder = SmartOpportunityFinder()
+            smart_opportunities = opportunity_finder.analyze_all_opportunities(user_info, market_data, real_data)
+            
+            # استخدام أعمدة متساوية لمظهر أفضل
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write("#### 🏘️ أفضل العقارات المخفضة")
+                if smart_opportunities['عقارات_مخفضة']:
+                    for i, opp in enumerate(smart_opportunities['عقارات_مخفضة'][:3], 1):
+                        with st.container():
+                            st.write(f"**{i}. {opp['العقار']}**")
+                            st.write(f"📍 {opp['المنطقة']} | 🏷️ {opp['الخصم']} خصم")
+                            st.write(f"📈 عائد {opp['العائد_المتوقع']}% | ⚖️ {opp['مستوى_الخطورة']}")
+                            st.write(f"💰 {opp['السعر_الحالي']:,.0f} ريال")
+                            st.write("---")
+                else:
+                    st.info("🔍 جاري البحث عن فرص مخفضة...")
+            
+            with col2:
+                st.write("#### 📈 المناطق الأكثر نمواً")
+                if smart_opportunities['مناطق_صاعدة']:
+                    for i, area in enumerate(smart_opportunities['مناطق_صاعدة'][:3], 1):
+                        with st.container():
+                            st.write(f"**{i}. {area['المنطقة']}**")
+                            st.write(f"🎯 {area['درجة_النمو']}/3.0 درجة نمو")
+                            st.write(f"📊 {area['متوسط_العائد']}% عائد | 🏠 {area['عدد_العقارات']} عقار")
+                            st.write(f"💰 متوسط السعر: {area['متوسط_السعر']:,.0f} ريال/م²")
+                            st.write("---")
+                else:
+                    st.info("🔍 جاري تحليل المناطق الصاعدة...")
+            
+            # توقيت الاستثمار
+            st.write(f"### ⏰ توقيت الاستثمار: {smart_opportunities['توقيت_الاستثمار']}")
+            
+            # ملخص الفرص
+            st.success(f"🎯 {smart_opportunities['ملخص_الفرص']}")
     # زر تحميل التقرير
     st.download_button(
         label="📥 تحميل التقرير PDF",
