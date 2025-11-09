@@ -29,6 +29,10 @@ from ultimate_report_system import UltimateReportSystem
 from premium_content_generator import PremiumContentGenerator
 from advanced_charts import AdvancedCharts
 from user_profiler import UserProfiler
+# استيراد الأنظمة الجديدة
+from smart_opportunities import SmartOpportunityFinder
+from finance_comparison import FinanceComparator
+from live_data_system import LiveDataSystem
 def safe_mode(series, default="غير محدد"):
     try:
         if series is None:
