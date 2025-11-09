@@ -1031,8 +1031,9 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
         user_profile = st.session_state.get('user_profile', {})
         
         st.write("### 👤 تحليل احتياجاتك")
-        st.write(f"**الفئة:** {user_profile.get('user_type', 'غير محدد')}")
-        st.write(f"**الاحتياج الأساسي:** {user_profile.get('primary_need', 'غير محدد')}")
+        st.write(f"**الفئة:** {user_type}")  # ✅ التغيير هنا فقط
+        st.write(f"**المدينة:** {city}")     # ✅ إضافة جديدة
+        st.write(f"**الاحتياج الأساسي:** {user_profile.get('primary_need', 'غير محدد')}")  # ✅ ابقي كما هو
 
         st.write("### 🎯 أبرز التوصيات")
         recommendations_list = user_profile.get('recommendations', [])
