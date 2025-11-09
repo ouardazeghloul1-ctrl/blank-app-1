@@ -1008,7 +1008,8 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             
             # 5. إنشاء PDF
             from enhanced_pdf import create_enhanced_pdf
-            pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, ai_recommendations)
+            smart_content = st.session_state.get('smart_report_content')
+            pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, smart_content)
             
             # 6. حفظ التقرير
             st.session_state.pdf_data = pdf_buffer.getvalue()
