@@ -1067,24 +1067,37 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 st.write(f"• {opp.get('property', 'غير محدد')} - عائد {opp.get('roi', 0)}%")
     
     # عرض تحليلات إضافية للباقات المميزة
-    if chosen_pkg in ["ذهبية", "ماسية"] and st.session_state.get('market_insights'):
-        with st.expander("🔍 التحليلات المتقدمة (الباقة الذهبية+)", expanded=True):
-            insights = st.session_state.market_insights
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.write("### 📈 توقعات السوق")
-                if 'future_predictions' in insights and isinstance(insights['future_predictions'], list):
-                    for pred in insights['future_predictions'][:6]:
-                        st.write(f"• الشهر {pred['month']}: {pred['change_percent']:+.1f}%")
-            
-            with col2:
-                st.write("### 🎯 أفضل الفرص")
-                if 'investment_opportunities' in insights:
-                    for opp in insights['investment_opportunities'][:3]:
-                        st.write(f"• {opp['property']} - درجة {safe_num(opp['score'], '.0f')}")
-    
+    # بعد سطر العرض الحالي، أضفي هذا الكود:
+
+# 🎯 نظام الفرص الذكية - للباقات المميزة
+if chosen_pkg in ["ذهبية", "ماسية", "ماسية متميزة"]:
+    with st.expander("💎 الفرص الاستثمارية الذكية", expanded=True):
+        from smart_opportunities import SmartOpportunityFinder
+        
+        opportunity_finder = SmartOpportunityFinder()
+        smart_opportunities = opportunity_finder.analyze_all_opportunities(user_info, market_data, real_data)
+        
+        st.write("### 🎯 أفضل الفرص المكتشفة")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("#### 🏘️ عقارات مخفضة")
+            for opp in smart_opportunities['عقارات_مخفضة'][:3]:
+                st.write(f"**{opp['العقار']}**")
+                st.write(f"📍 {opp['المنطقة']} | 💰 {opp['الخصم']} خصم")
+                st.write(f"📊 عائد {opp['العائد_المتوقع']}% | ⚖️ {opp['مستوى_الخطورة']}")
+                st.write("---")
+        
+        with col2:
+            st.write("#### 📈 مناطق صاعدة") 
+            for area in smart_opportunities['مناطق_صاعدة'][:3]:
+                st.write(f"**{area['المنطقة']}**")
+                st.write(f"🎯 {area['درجة_النمو']} درجة نمو")
+                st.write(f"📊 {area['متوسط_العائد']}% عائد | 🏠 {area['عدد_العقارات']} عقار")
+                st.write("---")
+        
+        st.write(f"### ⏰ توقيت الاستثمار: {smart_opportunities['توقيت_الاستثمار']}")
     # زر تحميل التقرير
     st.download_button(
         label="📥 تحميل التقرير PDF",
