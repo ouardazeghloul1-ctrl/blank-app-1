@@ -991,8 +991,9 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
 }
 
 # 🎯🎯🎯 أضف هذا السطر - تحليل احتياجات المستخدم 🎯🎯🎯
-             profiler = UserProfiler()
-             st.session_state.user_profile = profiler.analyze_user_profile(user_info, market_data, real_data)
+             from smart_report_system import SmartReportSystem
+             smart_system = SmartReportSystem()
+             st.session_state.smart_report_content = smart_system.generate_smart_report(user_info, market_data, real_data, chosen_pkg)
            if chosen_pkg in ["ذهبية", "ماسية"]:
                 ai_engine = AIIntelligence()
                 try:
