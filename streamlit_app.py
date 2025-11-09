@@ -980,7 +980,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             market_data = generate_advanced_market_data(city, property_type, status, real_data)
             
 # 3. معلومات المستخدم
-user_info = {
+            user_info = {
                   "user_type": user_type,
                   "city": city, 
                   "property_type": property_type,
@@ -991,8 +991,8 @@ user_info = {
 }
 
 # 🎯🎯🎯 أضف هذا السطر - تحليل احتياجات المستخدم 🎯🎯🎯
-profiler = UserProfiler()
-st.session_state.user_profile = profiler.analyze_user_profile(user_info, market_data, real_data)
+             profiler = UserProfiler()
+             st.session_state.user_profile = profiler.analyze_user_profile(user_info, market_data, real_data)
            if chosen_pkg in ["ذهبية", "ماسية"]:
                 ai_engine = AIIntelligence()
                 try:
