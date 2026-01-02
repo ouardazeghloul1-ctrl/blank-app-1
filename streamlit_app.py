@@ -968,10 +968,9 @@ st.markdown("### 🚀 إنشاء التقرير")
 if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
     with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
         try:
-            # 1. جمع البيانات
             scraper = RealEstateScraper()
             real_data = scraper.get_real_data(city, property_type, property_count)
-            
+
             if real_data.empty:
                 st.error("❌ لا توجد بيانات! جاري استخدام بيانات تجريبية...")
                 real_data = pd.DataFrame({
@@ -985,52 +984,51 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                     'سعر_المتر': [8333, 8000],
                     'مستوى_الخطورة': ['منخفض', 'متوسط']
                 })
-            
-            # 2. تحليل السوق
-            market_data = generate_advanced_market_data(city, property_type, status, real_data)
-            
-# 3. معلومات المستخدم
-            user_info = {
-                  "user_type": user_type,
-                  "city": city, 
-                  "property_type": property_type,
-                  "area": area,
-                  "package": chosen_pkg,
-                  "property_count": property_count,
-                  "status": status
-}
 
-# 🎯🎯🎯 أضف هذا السطر - تحليل احتياجات المستخدم 🎯🎯🎯
-             from smart_report_system import SmartReportSystem
-             smart_system = SmartReportSystem()
-             st.session_state.smart_report_content = smart_system.generate_smart_report(user_info, market_data, real_data, chosen_pkg)
-           if chosen_pkg in ["ذهبية", "ماسية"]:
+            market_data = generate_advanced_market_data(
+                city, property_type, status, real_data
+            )
+
+            user_info = {
+                "user_type": user_type,
+                "city": city,
+                "property_type": property_type,
+                "area": area,
+                "package": chosen_pkg,
+                "property_count": property_count,
+                "status": status
+            }
+
+            smart_system = SmartReportSystem()
+            st.session_state.smart_report_content = smart_system.generate_smart_report(
+                user_info, market_data, real_data, chosen_pkg
+            )
+
+            if chosen_pkg in ["ذهبية", "ماسية", "ماسية متميزة"]:
                 ai_engine = AIIntelligence()
-                try:
-                    ai_recommendations = ai_engine.generate_ai_recommendations(user_info, market_data, real_data)
-                except Exception as e:
-                    ai_recommendations = None
-                    st.warning(f"⚠️ لم يتم توليد توصيات الذكاء الاصطناعي بسبب: {e}")
-                
-                # ذكاء السوق المتقدم
-                market_intel = MarketIntelligence()
-                market_insights = market_intel.advanced_market_analysis(real_data, user_info)
-            
-            # 5. إنشاء PDF
+                st.session_state.ai_recommendations = ai_engine.generate_ai_recommendations(
+                    user_info, market_data, real_data
+                )
+
             from enhanced_pdf import create_enhanced_pdf
-            smart_content = st.session_state.get('smart_report_content')
-            pdf_buffer = create_enhanced_pdf(user_info, market_data, real_data, chosen_pkg, smart_content)
-            
-            # 6. حفظ التقرير
+            pdf_buffer = create_enhanced_pdf(
+                user_info,
+                market_data,
+                real_data,
+                chosen_pkg,
+                st.session_state.smart_report_content
+            )
+
             st.session_state.pdf_data = pdf_buffer.getvalue()
             st.session_state.report_generated = True
             st.session_state.real_data = real_data
-            
+
             st.success("✅ تم إنشاء التقرير بنجاح!")
             st.balloons()
-            
+
         except Exception as e:
-            st.error(f"⚠️ خطأ: {str(e)}")
+            st.error(f"⚠️ خطأ أثناء إنشاء التقرير: {e}")
+
     
     if st.session_state.get('report_generated', False):
        st.markdown("---")
