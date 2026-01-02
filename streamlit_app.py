@@ -1029,31 +1029,6 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
         except Exception as e:
             st.error(f"⚠️ خطأ أثناء إنشاء التقرير: {e}")
 
-    
-    if st.session_state.get('report_generated', False):
-       st.markdown("---")
-       st.markdown("## 📊 التقرير النهائي الجاهز للطباعة")
-    
-    # عرض عينة من التحليل
-    with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
-        user_profile = st.session_state.get('user_profile', {})
-        
-        st.write("### 👤 تحليل احتياجاتك")
-        st.write(f"**الفئة:** {user_type}")  # ✅ التغيير هنا فقط
-        st.write(f"**المدينة:** {city}")     # ✅ إضافة جديدة
-        st.write(f"**الاحتياج الأساسي:** {user_profile.get('primary_need', 'غير محدد')}")  # ✅ ابقي كما هو
-
-        st.write("### 🎯 أبرز التوصيات")
-        recommendations_list = user_profile.get('recommendations', [])
-        for i, recommendation in enumerate(recommendations_list[:3], 1):
-            st.write(f"{i}. {recommendation}")
-
-        market_insights = st.session_state.get('market_insights', {})
-        if market_insights and 'investment_opportunities' in market_insights:
-            st.write(f"### 💎 أفضل الفرص ({len(market_insights['investment_opportunities'])} فرصة)")
-            for opp in market_insights['investment_opportunities'][:2]:
-                st.write(f"• {opp.get('property', 'غير محدد')} - عائد {opp.get('roi', 0)}%")
-    
     # عرض تحليلات إضافية للباقات المميزة
     # بعد سطر العرض الحالي، أضفي هذا الكود:
 
