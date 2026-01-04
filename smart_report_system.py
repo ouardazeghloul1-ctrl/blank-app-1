@@ -22,7 +22,21 @@ def safe_num(val, fmt=",.0f", default="N/A"):
         return default
 
 class SmartReportSystem:
-    def __init__(self):
+    def __init__(self, user_data):
+        self.user_data = user_data
+        self.city = user_data.get("city")
+        self.plan = user_data.get("plan")
+        self.category = user_data.get("category")
+
+        # ===== أضيفي هذه الأسطر فقط =====
+        self._extended_broker_text = ""
+        self._extended_investor_text = ""
+        self._extended_developer_text = ""
+        self._extended_individual_text = ""
+        self._extended_opportunity_text = ""
+        self._extended_owner_text = ""
+        # ===== نهاية الإضافة =====
+        
         self.user_profiles = {
             "مستثمر": self._investor_report,
             "وسيط عقاري": self._broker_report, 
@@ -82,15 +96,80 @@ class SmartReportSystem:
             "باحث عن فرصة": self._extended_opportunity_content,
             "مالك عقار": self._extended_owner_content
         }
+        
+        # 🔹 الخطوة 1: توحيد مصدر الفئة (أهم خطوة) - ✅ هذا ممتاز
+        self.category_map = {
+            "investor": "مستثمر",
+            "broker": "وسيط عقاري",
+            "developer": "شركة تطوير",
+            "individual": "فرد",
+            "opportunity": "باحث عن فرصة",
+            "owner": "مالك عقار"
+        }
+        
+        self.normalized_category = self.category_map.get(self.category, "مستثمر")
     
-    def _get_city_insight(self, city):
-        """الحصول على تحليل المدينة"""
-        return self.city_insights.get(city, {
-            "growth_trend": 2.0,
-            "strength": "الموقع الاستراتيجي والبنية التحتية",
-            "opportunity": "الفرص الاستثمارية المتعددة",
-            "description": "مدينة واعدة ذات إمكانات نمو عالية"
-        })
+    # 🧠 3️⃣ ثبّتي توليد المحتوى حسب الفئة
+    def generate_report(self):
+        """دالة generate_report المطلوبة"""
+        
+        # الحصول على الفئة الموحدة
+        normalized_category = self.category_map.get(self.category, self.category)
+        
+        # ===== أضيفي هذا المقطع مع الأسماء الجديدة =====
+        if self.category == "broker":
+            self._extended_broker_text = self.generate_broker_content()
+
+        elif self.category == "investor":
+            self._extended_investor_text = self.generate_investor_content()
+
+        elif self.category == "developer":
+            self._extended_developer_text = self.generate_developer_content()
+
+        elif self.category == "individual":
+            self._extended_individual_text = self.generate_individual_content()
+
+        elif self.category == "opportunity":
+            self._extended_opportunity_text = self.generate_opportunity_content()
+
+        elif self.category == "owner":
+            self._extended_owner_text = self.generate_owner_content()
+        # ===== نهاية المقطع =====
+        
+        # المحتوى الأساسي
+        base_content = f"التقرير الأساسي للفئة: {normalized_category}\n"
+        
+        # 🛡️ 4️⃣ اجمعي المحتوى بأمان مع الأسماء الجديدة
+        report = (
+            base_content
+            + getattr(self, "_extended_broker_text", "")
+            + getattr(self, "_extended_investor_text", "")
+            + getattr(self, "_extended_developer_text", "")
+            + getattr(self, "_extended_individual_text", "")
+            + getattr(self, "_extended_opportunity_text", "")
+            + getattr(self, "_extended_owner_text", "")
+        )
+        
+        return report
+    
+    # دعامي دعمية للدوال المطلوبة (سأضعها فارغة حالياً كما طلبت)
+    def generate_broker_content(self):
+        return "محتويات الوسيط\n"
+    
+    def generate_investor_content(self):
+        return "محتويات المستثمر\n"
+    
+    def generate_developer_content(self):
+        return "محتويات المطور\n"
+    
+    def generate_individual_content(self):
+        return "محتويات الفرد\n"
+    
+    def generate_opportunity_content(self):
+        return "محتويات الفرصة\n"
+    
+    def generate_owner_content(self):
+        return "محتويات المالك\n"
     
     # 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽 🔽
     # 🔽 الدوال الجديدة محسنة بلغة الخبراء مع دعم المدن 🔽
@@ -355,27 +434,54 @@ class SmartReportSystem:
     # 🔼 انتهت الدوال الجديدة المحسنة - هنا تبدأ دوال التقرير الأصلية 🔼
     # 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼 🔼
     
+    def _get_city_insight(self, city):
+        """الحصول على تحليل المدينة"""
+        return self.city_insights.get(city, {
+            "growth_trend": 2.0,
+            "strength": "الموقع الاستراتيجي والبنية التحتية",
+            "opportunity": "الفرص الاستثمارية المتعددة",
+            "description": "مدينة واعدة ذات إمكانات نمو عالية"
+        })
+    
     def arabic_text(self, text):
         """تحويل النص العربي للعرض الصحيح"""
         return get_display(arabic_reshaper.reshape(str(text)))
     
     def generate_smart_report(self, user_info, market_data, real_data, package_level):
         """إنشاء التقرير الذكي حسب الفئة والباقة"""
-        user_type = user_info.get('user_type', 'مستثمر')
+        # 🔹 الخطوة 2: إصلاح خطأ اختيار الفئة داخل generate_smart_report
+        
+        # ❌ احذفي هذا السطر:
+        # user_type = user_info.get('user_type', 'مستثمر')
+        
+        # ✅ واستبدليه مباشرة بهذا:
+        user_type = self.normalized_category
+        
         report_generator = self.user_profiles.get(user_type, self._investor_report)
         
         return report_generator(user_info, market_data, real_data, package_level)
     
     def generate_extended_report(self, user_info, market_data, real_data, package_level):
         """🆕 إنشاء تقرير موسع يملأ عدد الصفحات المطلوب"""
-        user_type = user_info.get('user_type', 'مستثمر')
+        # 🔹 الخطوة 3: تثبيت الإصلاح داخل generate_extended_report
+        
+        # ✅ هذا الجزء صحيح كما هو:
+        normalized_type = self.category_map.get(
+            user_info.get("category", self.category),
+            "مستثمر"
+        )
+        
         target_pages = self.package_features.get(package_level, {}).get('pages', 15)
         
         # الحصول على المحتوى الأساسي
         basic_report = self.generate_smart_report(user_info, market_data, real_data, package_level)
         
-        # الحصول على المحتوى الموسع
-        extended_generator = self.extended_content.get(user_type, self._extended_investor_content)
+        # ✅ اعتمدي فقط normalized_type
+        extended_generator = self.extended_content.get(
+            normalized_type,
+            self._extended_investor_content
+        )
+        
         extended_content = extended_generator(user_info, market_data, real_data, package_level, target_pages)
         
         # دمج المحتوى
@@ -1043,37 +1149,16 @@ class SmartReportSystem:
 
 # اختبار النظام المحدث
 if __name__ == "__main__":
-    smart_system = SmartReportSystem()
-    
-    # بيانات تجريبية
-    sample_user = {
-        "user_type": "مستثمر",
-        "city": "الرياض", 
-        "property_type": "شقة",
-        "area": 120
+    # إنشاء بيانات تجريبية للمستخدم
+    sample_user_data = {
+        "city": "الرياض",
+        "plan": "ذهبية", 
+        "category": "investor"
     }
     
-    sample_market = {
-        "معدل_النمو_الشهري": 2.5,
-        "العائد_التأجيري": 7.8,
-        "مؤشر_السيولة": 85,
-        "أسعار_التمويل": {'بنكي': 4.5, 'صندوق': 3.5, 'إسلامي': 4.2}
-    }
+    smart_system = SmartReportSystem(sample_user_data)
     
-    sample_data = pd.DataFrame({
-        'العقار': ['شقة النخيل', 'فيلا الربوة', 'شقة العليا', 'شقة الملك فهد', 'فيلا العروبة'],
-        'المدينة': ['الرياض', 'الرياض', 'الرياض', 'الرياض', 'الرياض'],
-        'المنطقة': ['النخيل', 'الربوة', 'العليا', 'الملك فهد', 'العروبة'],
-        'نوع_العقار': ['شقة', 'فيلا', 'شقة', 'شقة', 'فيلا'],
-        'السعر': [850000, 2500000, 920000, 780000, 2200000],
-        'المساحة': [120, 350, 110, 100, 320],
-        'سعر_المتر': [7083, 7142, 8363, 7800, 6875],
-        'العائد_المتوقع': [8.5, 6.2, 9.1, 7.8, 5.9],
-        'مستوى_الخطورة': ['منخفض', 'متوسط', 'منخفض', 'منخفض', 'مرتفع']
-    })
-    
-    # اختبار التقرير الموسع
-    extended_report = smart_system.generate_extended_report(sample_user, sample_market, sample_data, "ذهبية")
-    print("✅ تم إنشاء التقرير الذكي الموسع بنجاح!")
-    print(f"📄 طول التقرير: {len(extended_report)} حرف")
-    print(extended_report[:1500] + "...")  # عرض جزء من التقرير
+    # اختبار دالة generate_report المضافة
+    report = smart_system.generate_report()
+    print("✅ تم إنشاء التقرير بنجاح!")
+    print(f"📄 محتوى التقرير: {report}")
