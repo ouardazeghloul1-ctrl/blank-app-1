@@ -89,6 +89,9 @@ except ImportError:
     class SmartReportSystem:
         def generate_smart_report(self, user_info, market_data, real_data, chosen_pkg):
             return "تقرير ذكي تجريبي"
+        
+        def generate_extended_report(self, user_info, market_data, real_data, chosen_pkg):
+            return "تقرير ممتد تجريبي"
 
 # حل بديل للملفات المعطلة
 class PremiumPDFBuilder:
@@ -485,6 +488,16 @@ PACKAGES = {
             "📚 مكتبة الاستثمار العقاري المتميزة"
         ]
     }
+}
+
+# ========== خريطة تصنيف المستخدمين ==========
+USER_CATEGORIES = {
+    "مستثمر": "investor",
+    "وسيط عقاري": "broker", 
+    "شركة تطوير": "developer",
+    "فرد": "individual",
+    "باحث عن فرصة": "opportunity",
+    "مالك عقار": "owner"
 }
 
 # ========== نظام السكرابر المحسن مع البيانات الحقيقية ==========
@@ -1040,8 +1053,23 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 "status": status
             }
 
-            smart_system = SmartReportSystem()
-            st.session_state.smart_report_content = smart_system.generate_smart_report(
+            # 🔧 الإصلاح الرئيسي: تصنيف المستخدم الذكي
+            user_category = USER_CATEGORIES.get(user_type, "investor")
+            
+            user_data = {
+                "city": city,
+                "plan": chosen_pkg,
+                "category": user_category,
+                "user_type": user_type,
+                "user_category_ar": user_type,
+                "property_type": property_type,
+                "area": area
+            }
+            
+            smart_system = SmartReportSystem(user_data)
+            
+            # 🔧 إصلاح السطر 332
+            st.session_state.smart_report_content = smart_system.generate_extended_report(
                 user_info, market_data, real_data, chosen_pkg
             )
 
@@ -1075,7 +1103,8 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             st.session_state.pdf_data = pdf_buffer.getvalue()
             st.session_state.report_generated = True
             st.session_state.real_data = real_data
-            st.session_state.user_info = user_info  # 🔧 إضافة هذا السطر لحل الخطأ 4
+            st.session_state.user_info = user_info
+            st.session_state.market_data = market_data
 
             st.success("✅ تم إنشاء التقرير بنجاح!")
             st.balloons()
@@ -1183,7 +1212,7 @@ if st.session_state.get('report_generated', False):
         with st.expander("💎 الفرص الاستثمارية الذكية", expanded=True):
             try:
                 opportunity_finder = SmartOpportunityFinder()
-                smart_opportunities = opportunity_finder.analyze_all_opportunities(user_info, market_data, st.session_state.real_data)
+                smart_opportunities = opportunity_finder.analyze_all_opportunities(user_info, st.session_state.market_data, st.session_state.real_data)
                 
                 # استخدام أعمدة متساوية لمظهر أفضل
                 col1, col2 = st.columns(2)
@@ -1346,7 +1375,7 @@ if 'market_data' not in st.session_state:
     st.session_state.market_data = {}
 if 'ai_recommendations' not in st.session_state:
     st.session_state.ai_recommendations = None
-if 'user_info' not in st.session_state:  # 🔧 إضافة هذا
+if 'user_info' not in st.session_state:
     st.session_state.user_info = {}
 if 'market_insights' not in st.session_state:
     st.session_state.market_insights = None
