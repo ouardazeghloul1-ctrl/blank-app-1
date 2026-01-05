@@ -1,4 +1,4 @@
-# enhanced_pdf.py - الإصدار المصحح مع دعم جميع المدن
+ enhanced_pdf.py - الإصدار المصحح مع دعم جميع المدن
 from io import BytesIO
 from datetime import datetime
 import pandas as pd
