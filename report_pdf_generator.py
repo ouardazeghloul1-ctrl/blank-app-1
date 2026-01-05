@@ -10,7 +10,7 @@ from bidi.algorithm import get_display
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-# ✅ الخطوة 1: دالة معالجة العربية (للنصوص العربية فقط)
+# ✅ دالة معالجة العربية
 def ar(text):
     """تحويل النص العربي للعرض الصحيح - للنصوص العربية الصرفة فقط"""
     if not text:
@@ -41,7 +41,7 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
     """
     try:
         from reportlab.lib.pagesizes import A4
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.units import cm
         from reportlab.lib import colors
@@ -170,30 +170,38 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
         
         story.append(Spacer(1, 1.5*cm))
         
-        # ✅ 5. الإحصائيات الرئيسية (جدول)
+        # ✅ 5. الإحصائيات الرئيسية (جدول) - 🔧 التعديل الرئيسي هنا
         if not real_data.empty:
             story.append(Paragraph(ar("الإحصائيات الرئيسية"), subtitle_style))
             
+            # 🔧 تغيير: فصل الأرقام عن النصوص العربية
             stats_data = [
                 [ar('المؤشر'), ar('القيمة')],
-                [ar('متوسط السعر'), f"{safe_num(real_data['السعر'].mean())} ريال"],
-                [ar('أعلى سعر'), f"{safe_num(real_data['السعر'].max())} ريال"],
-                [ar('أقل سعر'), f"{safe_num(real_data['السعر'].min())} ريال"],
-                [ar('متوسط العائد'), f"{safe_num(real_data['العائد_المتوقع'].mean(), '.1f')}%"],
+                [ar('متوسط السعر'), safe_num(real_data['السعر'].mean()) + " ريال"],
+                [ar('أعلى سعر'), safe_num(real_data['السعر'].max()) + " ريال"],
+                [ar('أقل سعر'), safe_num(real_data['السعر'].min()) + " ريال"],
+                [ar('متوسط العائد'), safe_num(real_data['العائد_المتوقع'].mean(), '.1f') + "%"],
                 [ar('عدد العقارات'), str(len(real_data))]
             ]
             
             table = Table(stats_data, colWidths=[6*cm, 6*cm])
+            
+            # 🔧 التعديل الحاسم: استبدال هذا التنسيق تماماً
             table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E4053')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                
+                # ✅ العناوين العربية فقط
                 ('FONTNAME', (0, 0), (-1, 0), 'Amiri'),
-                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                
+                # ✅ الأرقام كلها بخط لاتيني
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                
+                ('FONTSIZE', (0, 0), (-1, -1), 12),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F2F4F4')),
-                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#D5D8DC')),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica')
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#D5D8DC'))
             ]))
             
             story.append(table)
