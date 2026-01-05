@@ -28,10 +28,28 @@ import os
 from ultimate_report_system import UltimateReportSystem
 from premium_content_generator import PremiumContentGenerator
 from advanced_charts import AdvancedCharts
-from user_profiler import UserProfiler
 
 # ✅ النظام الموحد لإنشاء PDF
 from report_pdf_generator import create_pdf_from_content
+
+# 🔧 استيراد النظام الذكي للتقارير - الإصدار المحسّن
+try:
+    # محاولة استيراد النظام الذكي
+    from smart_report_system import SmartReportSystem
+    SMART_SYSTEM_LOADED = True
+except ImportError as e:
+    # إذا فشل الاستيراد، نستخدم البديل
+    SMART_SYSTEM_LOADED = False
+    
+    class SmartReportSystem:
+        def __init__(self, user_data):
+            self.user_data = user_data
+        
+        def generate_smart_report(self, user_info, market_data, real_data, chosen_pkg):
+            return f"📊 تقرير ذكي تجريبي - {user_info.get('city', 'غير محدد')} - {chosen_pkg}"
+        
+        def generate_extended_report(self, user_info, market_data, real_data, chosen_pkg):
+            return self.generate_smart_report(user_info, market_data, real_data, chosen_pkg)
 
 # استيراد الأنظمة الجديدة
 try:
@@ -42,7 +60,7 @@ except ImportError:
     # تعريف بديل إذا لم تكن الملفات موجودة
     class SmartOpportunityFinder:
         def analyze_all_opportunities(self, user_info, market_data, real_data):
-            return {'عقارات_مخفضة': [], 'مناطق_صادة': [], 'توقيت_الاستثمار': 'محايد', 'ملخص_الفرص': 'تحتاج بيانات أكثر'}
+            return {'عقارات_مخفضة': [], 'مناطق_صاعدة': [], 'توقيت_الاستثمار': 'محايد', 'ملخص_الفرص': 'تحتاج بيانات أكثر'}
     
     class FinanceComparator:
         def generate_financing_report(self, user_info, property_price):
@@ -52,19 +70,6 @@ except ImportError:
         def update_live_data(self, real_data): pass
         def get_live_data_summary(self, city): 
             return {'مؤشرات_حية': {}, 'حالة_السوق': 'غير متوفر', 'توصية_فورية': 'تحتاج بيانات', 'آخر_تحديث': datetime.now().strftime('%H:%M')}
-
-# استيراد الأنظمة الذكية
-try:
-    from smart_report_system import SmartReportSystem
-    from user_profiler import UserProfiler
-except ImportError:
-    # تعريف بديل
-    class SmartReportSystem:
-        def generate_smart_report(self, user_info, market_data, real_data, chosen_pkg):
-            return "تقرير ذكي تجريبي"
-        
-        def generate_extended_report(self, user_info, market_data, real_data, chosen_pkg):
-            return "تقرير ممتد تجريبي"
 
 try:
     from market_intelligence import MarketIntelligence
@@ -812,12 +817,11 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                     ai_recommendations=st.session_state.get("ai_recommendations")
                 )
             except Exception as e:
-                st.warning(f"⚠️ استخدام PDF بديل بسبب خطأ: {e}")
+                st.warning(f"⚠️ استخدام PDF بديل: {e}")
                 # خطة طوارئ: PDF بسيط
                 from io import BytesIO
                 buffer = BytesIO()
-                content = f"تقرير Warda Intelligence - {city} - {chosen_pkg}\n\n{st.session_state.smart_report_content}"
-                buffer.write(content.encode('utf-8'))
+                buffer.write(st.session_state.smart_report_content.encode('utf-8'))
                 buffer.seek(0)
                 pdf_buffer = buffer
 
