@@ -37,7 +37,7 @@ def safe_num(val, fmt=",.0f", default="N/A"):
 
 def create_pdf_from_content(user_info, market_data, real_data, content_text, package_level, ai_recommendations=None):
     """
-    نسخة عربية مضمونة 100% - النصوص العربية والأرقام منفصلة
+    نسخة عربية مضمونة 100% - باستخدام Paragraph في كل خلية جدول
     """
     try:
         from reportlab.lib.pagesizes import A4
@@ -84,6 +84,16 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
             fontSize=12,
             leading=18,
             alignment=2,
+            textColor=colors.black
+        )
+        
+        arabic_table_style = ParagraphStyle(
+            'ArabicTable',
+            parent=styles['Normal'],
+            fontName='Amiri',
+            fontSize=11,
+            leading=16,
+            alignment=1,  # CENTER للجدول
             textColor=colors.black
         )
         
@@ -170,36 +180,50 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
         
         story.append(Spacer(1, 1.5*cm))
         
-        # ✅ 5. الإحصائيات الرئيسية (جدول) - 🔧 التعديل الرئيسي هنا
+        # ✅ 5. الإحصائيات الرئيسية (جدول) - 🔧 التعديل الحاسم
         if not real_data.empty:
             story.append(Paragraph(ar("الإحصائيات الرئيسية"), subtitle_style))
             
-            # 🔧 تغيير: فصل الأرقام عن النصوص العربية
+            # 🔧 🔥 التعديل النهائي: كل خلية في الجدول عبارة عن Paragraph
             stats_data = [
-                [ar('المؤشر'), ar('القيمة')],
-                [ar('متوسط السعر'), safe_num(real_data['السعر'].mean()) + " ريال"],
-                [ar('أعلى سعر'), safe_num(real_data['السعر'].max()) + " ريال"],
-                [ar('أقل سعر'), safe_num(real_data['السعر'].min()) + " ريال"],
-                [ar('متوسط العائد'), safe_num(real_data['العائد_المتوقع'].mean(), '.1f') + "%"],
-                [ar('عدد العقارات'), str(len(real_data))]
+                [
+                    Paragraph(ar('المؤشر'), arabic_table_style),
+                    Paragraph(ar('القيمة'), arabic_table_style)
+                ],
+                [
+                    Paragraph(ar('متوسط السعر'), arabic_table_style),
+                    Paragraph(f"{safe_num(real_data['السعر'].mean())} ريال", arabic_table_style)
+                ],
+                [
+                    Paragraph(ar('أعلى سعر'), arabic_table_style),
+                    Paragraph(f"{safe_num(real_data['السعر'].max())} ريال", arabic_table_style)
+                ],
+                [
+                    Paragraph(ar('أقل سعر'), arabic_table_style),
+                    Paragraph(f"{safe_num(real_data['السعر'].min())} ريال", arabic_table_style)
+                ],
+                [
+                    Paragraph(ar('متوسط العائد'), arabic_table_style),
+                    Paragraph(f"{safe_num(real_data['العائد_المتوقع'].mean(), '.1f')}%", arabic_table_style)
+                ],
+                [
+                    Paragraph(ar('عدد العقارات'), arabic_table_style),
+                    Paragraph(str(len(real_data)), arabic_table_style)
+                ]
             ]
             
             table = Table(stats_data, colWidths=[6*cm, 6*cm])
             
-            # 🔧 التعديل الحاسم: استبدال هذا التنسيق تماماً
+            # ✅ تنسيق بسيط للجدول
             table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E4053')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                
-                # ✅ العناوين العربية فقط
-                ('FONTNAME', (0, 0), (-1, 0), 'Amiri'),
-                
-                # ✅ الأرقام كلها بخط لاتيني
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                
-                ('FONTSIZE', (0, 0), (-1, -1), 12),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTSIZE', (0, 0), (-1, -1), 11),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F2F4F4')),
                 ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#D5D8DC'))
             ]))
