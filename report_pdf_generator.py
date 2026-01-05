@@ -10,12 +10,16 @@ from bidi.algorithm import get_display
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-# ✅ دالة معالجة العربية
+# ✅ دالة معالجة العربية - معدلة لتفادي تفكك الكلمات
 def ar(text):
-    """تحويل النص العربي للعرض الصحيح - للنصوص العربية الصرفة فقط"""
+    """تحويل النص العربي للعرض الصحيح - فقط للفقرات الطويلة"""
     if not text:
         return ""
     try:
+        # تحسين: لا نستخدم ar() للنصوص القصيرة
+        if len(text.strip()) < 10:  # النصوص القصيرة لا تحتاج reshaping
+            return text
+            
         clean_text = str(text)
         reshaped = arabic_reshaper.reshape(clean_text)
         return get_display(reshaped)
@@ -37,11 +41,11 @@ def safe_num(val, fmt=",.0f", default="N/A"):
 
 def create_pdf_from_content(user_info, market_data, real_data, content_text, package_level, ai_recommendations=None):
     """
-    نسخة عربية مضمونة 100% - باستخدام Paragraph في كل خلية جدول
+    نسخة عربية محسنة - بدون تفكك الكلمات
     """
     try:
         from reportlab.lib.pagesizes import A4
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.units import cm
         from reportlab.lib import colors
@@ -50,7 +54,6 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
         font_path = "Amiri-Regular.ttf"
         
         if not os.path.exists(font_path):
-            # خطة طوارئ
             buffer = BytesIO()
             emergency_content = f"""
             ⚠️ تنبيه: ملف الخط العربي غير موجود
@@ -76,14 +79,16 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm)
         styles = getSampleStyleSheet()
         
-        # ✅ أنماط النص
+        # ✅ أنماط النص - محسنة
         arabic_style = ParagraphStyle(
             'Arabic',
             parent=styles['Normal'],
             fontName='Amiri',
             fontSize=12,
             leading=18,
-            alignment=2,
+            alignment=2,  # محاذاة لليمين
+            rightToLeft=1,  # ✅ هذا مهم لمنع تفكك الكلمات
+            wordWrap='CJK',  # ✅ هذا يحسن التفاف الكلمات العربية
             textColor=colors.black
         )
         
@@ -93,7 +98,9 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
             fontName='Amiri',
             fontSize=11,
             leading=16,
-            alignment=1,  # CENTER للجدول
+            alignment=1,  # CENTER
+            rightToLeft=1,  # ✅ هذا مهم للجدول
+            wordWrap='CJK',
             textColor=colors.black
         )
         
@@ -103,6 +110,7 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
             fontName='Amiri',
             fontSize=18,
             alignment=2,
+            rightToLeft=1,
             textColor=colors.HexColor('#1A5276'),
             spaceAfter=20,
             spaceBefore=20
@@ -114,6 +122,7 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
             fontName='Amiri',
             fontSize=14,
             alignment=2,
+            rightToLeft=1,
             textColor=colors.HexColor('#2874A6'),
             spaceAfter=15
         )
@@ -121,100 +130,90 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
         story = []
         
         # ✅ 1. العنوان الرئيسي
-        story.append(Paragraph(ar("تقرير وردة الذكاء العقاري"), title_style))
+        story.append(Paragraph("تقرير وردة الذكاء العقاري", title_style))
         story.append(Spacer(1, 1*cm))
         
-        # ✅ 2. معلومات التقرير - كل سطر منفصل
-        story.append(Paragraph(ar("معلومات التقرير"), subtitle_style))
-        story.append(Paragraph(ar("المدينة:"), arabic_style))
-        story.append(Paragraph(user_info.get('city', 'غير محدد'), arabic_style))
+        # ✅ 2. معلومات التقرير - سطور كاملة بدون تفكك
+        story.append(Paragraph("معلومات التقرير", subtitle_style))
         
-        story.append(Paragraph(ar("نوع العقار:"), arabic_style))
-        story.append(Paragraph(user_info.get('property_type', 'غير محدد'), arabic_style))
+        # 🔧 التعديل المهم: نصوص كاملة، ليس كلمات منفصلة
+        city = user_info.get('city', 'غير محدد')
+        property_type = user_info.get('property_type', 'غير محدد')
         
-        story.append(Paragraph(ar("الباقة:"), arabic_style))
-        story.append(Paragraph(package_level, arabic_style))
+        story.append(Paragraph(f"المدينة: {city}", arabic_style))
+        story.append(Paragraph(f"نوع العقار: {property_type}", arabic_style))
+        story.append(Paragraph(f"الباقة: {package_level}", arabic_style))
+        story.append(Paragraph(f"التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M')}", arabic_style))
         
-        story.append(Paragraph(ar("التاريخ:"), arabic_style))
-        story.append(Paragraph(datetime.now().strftime('%Y-%m-%d %H:%M'), arabic_style))
-        
-        story.append(Paragraph(ar("عدد العقارات المحللة:"), arabic_style))
         property_count = len(real_data) if not real_data.empty else 0
-        story.append(Paragraph(str(property_count), arabic_style))
+        story.append(Paragraph(f"عدد العقارات المحللة: {property_count}", arabic_style))
         
         story.append(Spacer(1, 1.5*cm))
         
         # ✅ 3. الملخص التنفيذي
-        story.append(Paragraph(ar("الملخص التنفيذي"), subtitle_style))
+        story.append(Paragraph("الملخص التنفيذي", subtitle_style))
         
         if not real_data.empty:
-            story.append(Paragraph(ar("تم تحليل"), arabic_style))
-            story.append(Paragraph(str(len(real_data)), arabic_style))
-            story.append(Paragraph(ar("عقار في مدينة"), arabic_style))
-            story.append(Paragraph(user_info.get('city', ''), arabic_style))
-            
-            story.append(Spacer(1, 0.5*cm))
-            
-            story.append(Paragraph(ar("متوسط أسعار السوق:"), arabic_style))
-            story.append(Paragraph(safe_num(real_data['السعر'].mean()) + " ريال", arabic_style))
-            
-            story.append(Paragraph(ar("متوسط العوائد المتوقعة:"), arabic_style))
-            story.append(Paragraph(safe_num(real_data['العائد_المتوقع'].mean(), '.1f') + "%", arabic_style))
+            # ✅ نصوص كاملة، ليس كلمات منفصلة
+            summary_text = f"""
+            تم تحليل {len(real_data)} عقار في مدينة {city}. 
+            متوسط أسعار السوق: {safe_num(real_data['السعر'].mean())} ريال.
+            متوسط العوائد المتوقعة: {safe_num(real_data['العائد_المتوقع'].mean(), '.1f')}%.
+            """
+            story.append(Paragraph(summary_text, arabic_style))
         else:
-            story.append(Paragraph(ar("لا توجد بيانات عقارية متاحة للتحليل"), arabic_style))
+            story.append(Paragraph("لا توجد بيانات عقارية متاحة للتحليل", arabic_style))
         
         story.append(Spacer(1, 1.5*cm))
         
         # ✅ 4. التوصيات الاستثمارية
-        story.append(Paragraph(ar("التوصيات الاستثمارية"), subtitle_style))
+        story.append(Paragraph("التوصيات الاستثمارية", subtitle_style))
         
-        recommendations = [
-            ar("1. الاستثمار في المناطق ذات النمو المرتفع"),
-            ar("2. التنويع بين أنواع العقارات"),
-            ar("3. متابعة اتجاهات السوق باستمرار"),
-            ar("4. الاستفادة من فرص النمو الحالية")
-        ]
-        
-        for rec in recommendations:
-            story.append(Paragraph(rec, arabic_style))
+        # ✅ نصوص كاملة، ليس نقاط منفصلة
+        recommendations = """
+        1. الاستثمار في المناطق ذات النمو المرتفع في سوق العقارات السعودي.
+        2. التنويع بين أنواع العقارات المختلفة لتحقيق عوائد مستقرة.
+        3. متابعة اتجاهات السوق باستمرار من خلال أدوات التحليل المتقدمة.
+        4. الاستفادة من فرص النمو الحالية في المناطق الواعدة.
+        """
+        story.append(Paragraph(recommendations, arabic_style))
         
         story.append(Spacer(1, 1.5*cm))
         
-        # ✅ 5. الإحصائيات الرئيسية (جدول) - 🔧 التعديل الحاسم
+        # ✅ 5. الإحصائيات الرئيسية (جدول)
         if not real_data.empty:
-            story.append(Paragraph(ar("الإحصائيات الرئيسية"), subtitle_style))
+            story.append(Paragraph("الإحصائيات الرئيسية", subtitle_style))
             
-            # 🔧 🔥 التعديل النهائي: كل خلية في الجدول عبارة عن Paragraph
+            # ✅ جدول مع نصوص كاملة
             stats_data = [
                 [
-                    Paragraph(ar('المؤشر'), arabic_table_style),
-                    Paragraph(ar('القيمة'), arabic_table_style)
+                    Paragraph("المؤشر", arabic_table_style),
+                    Paragraph("القيمة", arabic_table_style)
                 ],
                 [
-                    Paragraph(ar('متوسط السعر'), arabic_table_style),
+                    Paragraph("متوسط السعر", arabic_table_style),
                     Paragraph(f"{safe_num(real_data['السعر'].mean())} ريال", arabic_table_style)
                 ],
                 [
-                    Paragraph(ar('أعلى سعر'), arabic_table_style),
+                    Paragraph("أعلى سعر", arabic_table_style),
                     Paragraph(f"{safe_num(real_data['السعر'].max())} ريال", arabic_table_style)
                 ],
                 [
-                    Paragraph(ar('أقل سعر'), arabic_table_style),
+                    Paragraph("أقل سعر", arabic_table_style),
                     Paragraph(f"{safe_num(real_data['السعر'].min())} ريال", arabic_table_style)
                 ],
                 [
-                    Paragraph(ar('متوسط العائد'), arabic_table_style),
+                    Paragraph("متوسط العائد", arabic_table_style),
                     Paragraph(f"{safe_num(real_data['العائد_المتوقع'].mean(), '.1f')}%", arabic_table_style)
                 ],
                 [
-                    Paragraph(ar('عدد العقارات'), arabic_table_style),
+                    Paragraph("عدد العقارات", arabic_table_style),
                     Paragraph(str(len(real_data)), arabic_table_style)
                 ]
             ]
             
             table = Table(stats_data, colWidths=[6*cm, 6*cm])
             
-            # ✅ تنسيق بسيط للجدول
             table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E4053')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -233,19 +232,14 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
         story.append(Spacer(1, 2*cm))
         
         # ✅ 6. الخاتمة
-        story.append(Paragraph(ar("خاتمة التقرير"), subtitle_style))
+        story.append(Paragraph("خاتمة التقرير", subtitle_style))
         
-        story.append(Paragraph(ar("هذا التقرير الشامل يقدم تحليلاً مفصلاً لسوق العقارات"), arabic_style))
-        story.append(Paragraph(ar("ويحتوي على توصيات استثمارية ذكية مدعومة بالبيانات"), arabic_style))
-        story.append(Spacer(1, 0.5*cm))
-        story.append(Paragraph(ar("وردة الذكاء العقاري"), arabic_style))
-        story.append(Paragraph(ar("شريكك في القرارات الاستثمارية"), arabic_style))
-        
-        story.append(Spacer(1, 1*cm))
-        
-        # ✅ 7. نوع الباقة
-        story.append(Paragraph(ar("نوع الباقة:"), arabic_style))
-        story.append(Paragraph(package_level, arabic_style))
+        conclusion = """
+        هذا التقرير الشامل يقدم تحليلاً مفصلاً لسوق العقارات السعودي، 
+        ويحتوي على توصيات استثمارية ذكية مدعومة بالبيانات الحقيقية. 
+        وردة الذكاء العقاري - شريكك الموثوق في القرارات الاستثمارية.
+        """
+        story.append(Paragraph(conclusion, arabic_style))
         
         # ✅ بناء PDF
         doc.build(story)
@@ -254,7 +248,6 @@ def create_pdf_from_content(user_info, market_data, real_data, content_text, pac
         
     except Exception as e:
         print(f"PDF Error: {e}")
-        # خطة طوارئ
         buffer = BytesIO()
         
         emergency_content = f"""
