@@ -1,4 +1,4 @@
-# smart_report_system.py - النظام الذكي للتقارير حسب الفئة والباقة
+smart_report_system.py - النظام الذكي للتقارير حسب الفئة والباقة
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
