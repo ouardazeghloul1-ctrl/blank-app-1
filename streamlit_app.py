@@ -1,4 +1,9 @@
 import streamlit as st
+import streamlit as st
+
+# هذي السطر يحذف الكاش تلقائي
+st.cache_data.clear()
+st.cache_resource.clear()
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
