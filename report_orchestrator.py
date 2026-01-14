@@ -2,7 +2,21 @@
 
 from reportlab.platypus import Paragraph, Spacer, PageBreak
 from reportlab.lib.units import cm
-from report_pdf_generator import ar
+from arabic_reshaper import reshape
+from bidi.algorithm import get_display
+
+
+def ar(text):
+    """
+    دالة لمعالجة النصوص العربية (نفس الدالة الموجودة في report_pdf_generator)
+    """
+    if not text:
+        return ""
+    try:
+        reshaped = reshape(str(text))
+        return get_display(reshaped)
+    except Exception:
+        return str(text)
 
 
 def build_report_story(
