@@ -153,34 +153,92 @@ def create_pdf_from_content(
         story.append(Spacer(1, 0.3 * cm))
 
     # =========================
-    # 3️⃣ CHARTS SECTION (🔥 المرحلة 1)
+    # 3️⃣ CHARTS SECTION (FIXED – ROOT SOLUTION)
     # =========================
-    story.append(PageBreak())
-    story.append(Paragraph(ar("التحليل البياني المتقدم"), title_style))
-    story.append(Spacer(1, 1 * cm))
 
     charts_engine = AdvancedCharts()
 
     charts = charts_engine.generate_all_charts(
-        market_data=market_data,
-        real_data=real_data,
-        user_info=user_info
+        df=market_data,   # ✅ هذا هو المفتاح
+        user_info=user_info,
+        real_data=real_data
     )
 
-    for chart_title, fig in charts.items():
-        # حفظ الرسم مؤقتًا
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-            fig.savefig(tmp.name, dpi=200, bbox_inches="tight")
-            img_path = tmp.name
+    # لا نفتح قسم الرسومات إلا إذا كان فيه محتوى فعلي
+    if charts and isinstance(charts, dict):
 
         story.append(PageBreak())
-        story.append(Paragraph(ar(chart_title), subtitle_style))
-        story.append(Spacer(1, 0.5 * cm))
-        story.append(Image(img_path, width=16 * cm, height=9 * cm))
+        story.append(Paragraph(ar("التحليل البياني المتقدم"), title_style))
+        story.append(Spacer(1, 1 * cm))
+
+        for chapter, figures in charts.items():
+            if not figures:
+                continue
+
+            # عنوان الفصل
+            story.append(Paragraph(ar(chapter.replace("_", " ").title()), subtitle_style))
+            story.append(Spacer(1, 0.5 * cm))
+
+            for fig in figures:
+                try:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                        # ✅ الطريقة الصحيحة لتحويل Plotly إلى صورة
+                        if hasattr(fig, 'write_image'):
+                            fig.write_image(tmp.name, width=1200, height=700, scale=2)
+                        else:
+                            # Fallback for any other chart type
+                            import plotly.io as pio
+                            pio.write_image(fig, tmp.name, width=1200, height=700, scale=2)
+                        img_path = tmp.name
+
+                    story.append(Image(img_path, width=16 * cm, height=9 * cm))
+                    story.append(Spacer(1, 0.5 * cm))
+
+                except Exception as e:
+                    print(f"[Chart Render Error] {e}")
+                    # وضع نص بديل في حالة فشل الرسم
+                    story.append(Paragraph(ar(f"لم يتمكن النظام من عرض الرسم البياني: {str(e)[:50]}"), body_style))
+                    story.append(Spacer(1, 0.5 * cm))
+
+    else:
+        print("[PDF] No charts generated – skipping chart section")
+        # لا نضيف صفحة بيضاء إذا لم توجد رسوم
 
     # =========================
-    # 4️⃣ BUILD
+    # 4️⃣ AI RECOMMENDATIONS SECTION (إذا وجدت)
     # =========================
-    doc.build(story)
+    if ai_recommendations and isinstance(ai_recommendations, list) and len(ai_recommendations) > 0:
+        story.append(PageBreak())
+        story.append(Paragraph(ar("التوصيات الذكية المتقدمة"), title_style))
+        story.append(Spacer(1, 1 * cm))
+
+        for i, rec in enumerate(ai_recommendations, 1):
+            story.append(Paragraph(ar(f"{i}. {rec}"), body_style))
+            story.append(Spacer(1, 0.3 * cm))
+
+    # =========================
+    # 5️⃣ FOOTER PAGE
+    # =========================
+    story.append(PageBreak())
+    story.append(Spacer(1, 8 * cm))
+    story.append(Paragraph(ar("نهاية التقرير"), subtitle_style))
+    story.append(Spacer(1, 1 * cm))
+    story.append(Paragraph(ar("ورد الذكاء العقاري"), body_style))
+    story.append(Paragraph(ar("نُشر هذا التقرير بتاريخ: " + datetime.now().strftime("%Y-%m-%d %H:%M")), body_style))
+    story.append(Paragraph(ar("جميع الحقوق محفوظة © 2024"), body_style))
+
+    # =========================
+    # 6️⃣ BUILD
+    # =========================
+    try:
+        doc.build(story)
+    except Exception as e:
+        # في حالة فشل البناء، نعيد buffer نظيف
+        print(f"[PDF Build Error] {e}")
+        buffer = BytesIO()
+        buffer.write(f"خطأ في إنشاء الـ PDF: {str(e)}".encode("utf-8"))
+        buffer.seek(0)
+        return buffer
+
     buffer.seek(0)
     return buffer
