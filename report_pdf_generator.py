@@ -129,44 +129,56 @@ def create_pdf_from_content(
     story.append(PageBreak())
 
     # =========================
-    # 2️⃣ TEXT CONTENT (الفصول)
+    # 2️⃣ TEXT CONTENT (الفصول) - الإصدار المحسن
     # =========================
-    lines = content_text.split("\n")
-    for line in lines:
-        clean = line.strip()
 
-        if clean == "":
-            story.append(Spacer(1, 0.6 * cm))
-            continue
+    # 🔴 إذا كان المحتوى Story جاهز (من report_orchestrator)
+    if isinstance(content_text, list):
+        story.extend(content_text)
+        print(f"✅ تم إضافة Story جاهز ({len(content_text)} عنصر)")
 
-        if clean.startswith("الفصل"):
-            story.append(PageBreak())
-            story.append(Paragraph(ar(clean), title_style))
-            story.append(Spacer(1, 1 * cm))
-            continue
+    # 🟡 إذا كان المحتوى نصيًا (Smart / ملخص)
+    elif isinstance(content_text, str):
+        print(f"📝 معالجة نص تقرير ({len(content_text)} حرف)")
+        lines = content_text.split("\n")
+        for line in lines:
+            clean = line.strip()
 
-        if clean[:2].isdigit():
-            story.append(Paragraph(ar(clean), subtitle_style))
-            continue
+            if clean == "":
+                story.append(Spacer(1, 0.6 * cm))
+                continue
 
-        story.append(Paragraph(ar(clean), body_style))
-        story.append(Spacer(1, 0.3 * cm))
+            if clean.startswith("الفصل"):
+                story.append(PageBreak())
+                story.append(Paragraph(ar(clean), title_style))
+                story.append(Spacer(1, 1 * cm))
+                continue
+
+            if clean[:2].isdigit():
+                story.append(Paragraph(ar(clean), subtitle_style))
+                continue
+
+            story.append(Paragraph(ar(clean), body_style))
+            story.append(Spacer(1, 0.3 * cm))
+    
+    else:
+        print(f"⚠️ نوع غير معروف للمحتوى: {type(content_text)}")
+        story.append(Paragraph(ar("عذرًا، لم يتم العثور على محتوى التقرير."), body_style))
 
     # =========================
-    # 3️⃣ CHARTS SECTION (FIXED – ROOT SOLUTION)
+    # 3️⃣ CHARTS SECTION
     # =========================
 
     charts_engine = AdvancedCharts()
 
     charts = charts_engine.generate_all_charts(
-        df=market_data,   # ✅ هذا هو المفتاح
+        df=market_data,
         user_info=user_info,
         real_data=real_data
     )
 
     # لا نفتح قسم الرسومات إلا إذا كان فيه محتوى فعلي
     if charts and isinstance(charts, dict):
-
         story.append(PageBreak())
         story.append(Paragraph(ar("التحليل البياني المتقدم"), title_style))
         story.append(Spacer(1, 1 * cm))
@@ -207,7 +219,15 @@ def create_pdf_from_content(
     # =========================
     # 4️⃣ AI RECOMMENDATIONS SECTION (إذا وجدت)
     # =========================
-    if ai_recommendations and isinstance(ai_recommendations, list) and len(ai_recommendations) > 0:
+    if ai_recommendations and isinstance(ai_recommendations, dict) and len(ai_recommendations) > 0:
+        story.append(PageBreak())
+        story.append(Paragraph(ar("التوصيات الذكية المتقدمة"), title_style))
+        story.append(Spacer(1, 1 * cm))
+
+        for key, value in ai_recommendations.items():
+            story.append(Paragraph(ar(f"🎯 {key}: {value}"), body_style))
+            story.append(Spacer(1, 0.3 * cm))
+    elif ai_recommendations and isinstance(ai_recommendations, list) and len(ai_recommendations) > 0:
         story.append(PageBreak())
         story.append(Paragraph(ar("التوصيات الذكية المتقدمة"), title_style))
         story.append(Spacer(1, 1 * cm))
@@ -231,7 +251,9 @@ def create_pdf_from_content(
     # 6️⃣ BUILD
     # =========================
     try:
+        print(f"📄 جاري بناء PDF مع {len(story)} عنصر...")
         doc.build(story)
+        print("✅ تم بناء PDF بنجاح")
     except Exception as e:
         # في حالة فشل البناء، نعيد buffer نظيف
         print(f"[PDF Build Error] {e}")
