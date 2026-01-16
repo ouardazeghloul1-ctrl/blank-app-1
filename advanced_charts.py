@@ -218,55 +218,72 @@ class AdvancedCharts:
         return fig
 
     # ======================================================
-    # المحرك الخفي – النسخة المحسنة
+    # المحرك الخفي – الحل الجذري
     # ======================================================
 
     def generate_all_charts(self, df=None, **kwargs):
         """
         المحرك الخفي الكامل
-        يولّد جميع الرسومات للفصول 1 → 8 فقط
-        الفصل 9 و10 بدون رسومات (قرار استشاري)
+        يُرجع الرسومات منظمة حسب الفصول
+        Contract ثابت مع PDF / Dashboard / App
         """
 
         if df is None:
             print("[AdvancedCharts] No dataframe provided, charts skipped")
-            return []
-
-        charts = []
+            return {}
 
         try:
-            charts += [
-                self.chapter_1_price_distribution(df),
-                self.chapter_1_price_vs_area(df),
-                self.chapter_1_future_scenarios(df),
+            charts_by_chapter = {
+                "chapter_1": [
+                    self.chapter_1_price_distribution(df),
+                    self.chapter_1_price_vs_area(df),
+                    self.chapter_1_future_scenarios(df),
+                ],
 
-                self.chapter_2_price_concentration(df),
-                self.chapter_2_price_volatility(df),
-                self.chapter_2_overpricing_risk(df),
+                "chapter_2": [
+                    self.chapter_2_price_concentration(df),
+                    self.chapter_2_price_volatility(df),
+                    self.chapter_2_overpricing_risk(df),
+                ],
 
-                self.chapter_3_value_map(df),
-                self.chapter_3_affordable_pockets(df),
-                self.chapter_3_size_opportunities(df),
+                "chapter_3": [
+                    self.chapter_3_value_map(df),
+                    self.chapter_3_affordable_pockets(df),
+                    self.chapter_3_size_opportunities(df),
+                ],
 
-                self.chapter_4_investment_allocation_logic(df),
-                self.chapter_4_action_matrix(df),
+                "chapter_4": [
+                    self.chapter_4_investment_allocation_logic(df),
+                    self.chapter_4_action_matrix(df),
+                ],
 
-                self.chapter_5_price_positioning(df),
-                self.chapter_5_entry_timing_signal(df),
+                "chapter_5": [
+                    self.chapter_5_price_positioning(df),
+                    self.chapter_5_entry_timing_signal(df),
+                ],
 
-                self.chapter_6_capital_allocation_by_risk(df),
-                self.chapter_6_capital_balance_curve(df),
+                "chapter_6": [
+                    self.chapter_6_capital_allocation_by_risk(df),
+                    self.chapter_6_capital_balance_curve(df),
+                ],
 
-                self.chapter_7_exit_pressure_zones(df),
-                self.chapter_7_hold_vs_exit_signal(df),
+                "chapter_7": [
+                    self.chapter_7_exit_pressure_zones(df),
+                    self.chapter_7_hold_vs_exit_signal(df),
+                ],
 
-                self.chapter_8_anomaly_detection(df),
-                self.chapter_8_signal_intensity(df),
-            ]
+                "chapter_8": [
+                    self.chapter_8_anomaly_detection(df),
+                    self.chapter_8_signal_intensity(df),
+                ],
+            }
 
         except Exception as e:
             print(f"[AdvancedCharts Error] {e}")
-            return []
+            return {}
 
-        charts = [fig for fig in charts if fig is not None]
-        return charts
+        # تنظيف: إزالة أي None
+        for k, figs in charts_by_chapter.items():
+            charts_by_chapter[k] = [f for f in figs if f is not None]
+
+        return charts_by_chapter
