@@ -25,6 +25,15 @@ from bidi.algorithm import get_display
 import paypalrestsdk
 from dotenv import load_dotenv
 import os
+
+# ✅ استيراد report_orchestrator أولاً وبشكل صحيح
+from report_orchestrator import build_report_story
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER
+from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
 from ultimate_report_system import UltimateReportSystem
 from premium_content_generator import PremiumContentGenerator
 from advanced_charts import AdvancedCharts
@@ -783,7 +792,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 "status": status
             }
 
-            # 🔧 إنشاء التقرير الذكي
+            # 🔧 إنشاء التقرير الذكي (للعرض فقط)
             user_category = USER_CATEGORIES.get(user_type, "investor")
             user_data = {
                 "city": city,
@@ -806,18 +815,58 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                     user_info, market_data, real_data
                 )
 
-            # ✅ نظام PDF الموحد والمضمون
+            # ✅ نظام PDF الموحد والمضمون - الإصدار المحسن
             try:
+                # 1. إنشاء الأنماط الأساسية
+                styles = getSampleStyleSheet()
+                
+                custom_styles = {
+                    "body": ParagraphStyle(
+                        name="ArabicBody",
+                        parent=styles["Normal"],
+                        fontSize=12,
+                        leading=18,
+                        alignment=TA_RIGHT,
+                        rightIndent=20,
+                        leftIndent=20,
+                        spaceAfter=6
+                    ),
+                    "title": ParagraphStyle(
+                        name="ArabicTitle",
+                        parent=styles["Title"],
+                        fontSize=24,
+                        alignment=TA_CENTER,
+                        textColor=colors.HexColor("#b30000"),
+                        spaceAfter=30
+                    ),
+                    "subtitle": ParagraphStyle(
+                        name="ArabicSubtitle",
+                        parent=styles["Heading2"],
+                        fontSize=18,
+                        alignment=TA_RIGHT,
+                        textColor=colors.HexColor("#b30000"),
+                        spaceBefore=20,
+                        spaceAfter=15
+                    )
+                }
+                
+                # 2. بناء التقرير الكامل من report_orchestrator
+                st.info("🔄 جاري بناء التقرير الماسي الكامل...")
+                full_report_content = build_report_story(user_info, custom_styles)
+                st.success(f"✅ تم بناء التقرير بنجاح ({len(full_report_content)} عنصر)")
+                
+                # 3. إنشاء PDF بالمحتوى الكامل
                 pdf_buffer = create_pdf_from_content(
                     user_info=user_info,
                     market_data=market_data,
                     real_data=real_data,
-                    content_text=st.session_state.smart_report_content,
+                    content_text=full_report_content,  # ✅ التقرير الكامل
                     package_level=chosen_pkg,
                     ai_recommendations=st.session_state.get("ai_recommendations")
                 )
+                
             except Exception as e:
-                st.warning(f"⚠️ استخدام PDF بديل: {e}")
+                st.error(f"❌ خطأ في إنشاء التقرير الكامل: {e}")
                 # خطة طوارئ: PDF بسيط
                 from io import BytesIO
                 buffer = BytesIO()
