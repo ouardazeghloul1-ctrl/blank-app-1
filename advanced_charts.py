@@ -221,63 +221,52 @@ class AdvancedCharts:
     # المحرك الخفي – النسخة المحسنة
     # ======================================================
 
-    def generate_all_charts(self, df, **kwargs):
+    def generate_all_charts(self, df=None, **kwargs):
         """
         المحرك الخفي الكامل
         يولّد جميع الرسومات للفصول 1 → 8 فقط
         الفصل 9 و10 بدون رسومات (قرار استشاري)
-        
-        يقبل أي arguments إضافية (مثل market_data)
-        لضمان التوافق مع PDF / Streamlit / AI Pipelines
         """
+
+        if df is None:
+            print("[AdvancedCharts] No dataframe provided, charts skipped")
+            return []
 
         charts = []
 
         try:
             charts += [
-                # ========= الفصل 1 =========
                 self.chapter_1_price_distribution(df),
                 self.chapter_1_price_vs_area(df),
                 self.chapter_1_future_scenarios(df),
 
-                # ========= الفصل 2 =========
                 self.chapter_2_price_concentration(df),
                 self.chapter_2_price_volatility(df),
                 self.chapter_2_overpricing_risk(df),
 
-                # ========= الفصل 3 =========
                 self.chapter_3_value_map(df),
                 self.chapter_3_affordable_pockets(df),
                 self.chapter_3_size_opportunities(df),
 
-                # ========= الفصل 4 =========
                 self.chapter_4_investment_allocation_logic(df),
                 self.chapter_4_action_matrix(df),
 
-                # ========= الفصل 5 =========
                 self.chapter_5_price_positioning(df),
                 self.chapter_5_entry_timing_signal(df),
 
-                # ========= الفصل 6 =========
                 self.chapter_6_capital_allocation_by_risk(df),
                 self.chapter_6_capital_balance_curve(df),
 
-                # ========= الفصل 7 =========
                 self.chapter_7_exit_pressure_zones(df),
                 self.chapter_7_hold_vs_exit_signal(df),
 
-                # ========= الفصل 8 =========
                 self.chapter_8_anomaly_detection(df),
                 self.chapter_8_signal_intensity(df),
             ]
 
         except Exception as e:
-            # في حالة أي خطأ: نُرجع قائمة فارغة
-            # ليتم إيقاف توليد الـ PDF بدل إنشاء ملف تالف
             print(f"[AdvancedCharts Error] {e}")
             return []
 
-        # فلترة أمان: نضمن أن كل عنصر Figure صالح
         charts = [fig for fig in charts if fig is not None]
-
         return charts
