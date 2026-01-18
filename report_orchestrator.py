@@ -7,14 +7,11 @@ Report Orchestrator
 - advanced_charts
 - واجهة العرض (Streamlit / PDF)
 
-إصدار: 1.0.1 (Package normalization fix)
+إصدار: 1.1.0 (Chart-Key Safe)
 """
 
 # ===================== IMPORTS =====================
-from report_content_builder import (
-    build_complete_report,
-    PACKAGE_ALIASES
-)
+from report_content_builder import build_complete_report
 from advanced_charts import AdvancedCharts
 
 # ===================== INITIALIZATION =====================
@@ -28,55 +25,34 @@ def build_report_story(user_info, dataframe=None):
     بدون أي منطق محتوى داخلي
     """
 
-    # --------------------------------------------------
-    # 🔒 توحيد اسم الباقة (عربي / إنجليزي → تقني)
-    # --------------------------------------------------
-    raw_package = user_info.get("package", "free")
-    normalized_package = PACKAGE_ALIASES.get(raw_package)
-
-    if not normalized_package:
-        raise ValueError(
-            f"نوع الباقة غير مدعوم: {raw_package}. "
-            f"الباقات المدعومة: {', '.join(PACKAGE_ALIASES.keys())}"
-        )
-
-    # فرض الاسم التقني داخل النظام
-    user_info["package"] = normalized_package
-
-    # --------------------------------------------------
     # 1️⃣ بناء التقرير المفلتر حسب الباقة
-    # --------------------------------------------------
     report = build_complete_report(user_info)
 
-    # --------------------------------------------------
     # 2️⃣ توليد الرسومات (إن وُجدت بيانات)
-    # --------------------------------------------------
     charts_by_chapter = {}
     if dataframe is not None:
         charts_by_chapter = charts_engine.generate_all_charts(dataframe)
 
-    # --------------------------------------------------
-    # 3️⃣ ربط الرسومات بالبلوكات
-    # --------------------------------------------------
-    for chapter in report["chapters"]:
-        chapter_key = f"chapter_{chapter['chapter_number']}"
+    # 3️⃣ فهرسة كل الرسومات بواسطة chart_key (الحل الجذري)
+    chart_index = {}
 
+    for chapter_key, figs in charts_by_chapter.items():
+        for fig in figs:
+            if fig is None:
+                continue
+            meta = getattr(fig, "meta", {})
+            chart_key = meta.get("chart_key")
+            if chart_key:
+                chart_index[chart_key] = fig
+
+    # 4️⃣ ربط الرسومات بالبلوكات باستخدام chart_key فقط
+    for chapter in report["chapters"]:
         for block in chapter["blocks"]:
             if block.get("type") == "chart":
-                chart_key = block.get("chart_key")
+                block_chart_key = block.get("chart_key")
+                block["figure"] = chart_index.get(block_chart_key)
 
-                chart_obj = None
-                if chapter_key in charts_by_chapter:
-                    for fig in charts_by_chapter[chapter_key]:
-                        if fig.layout.title.text == block.get("title"):
-                            chart_obj = fig
-                            break
-
-                block["figure"] = chart_obj
-
-    # --------------------------------------------------
-    # 4️⃣ إخراج التقرير النهائي
-    # --------------------------------------------------
+    # 5️⃣ إخراج التقرير النهائي
     return {
         "meta": {
             "package": report["package"],
@@ -101,6 +77,7 @@ def render_report_streamlit(report_data, st):
 **الباقة:** {meta['package_name']}  
 **عدد الفصول:** {meta['stats']['total_chapters']}  
 **عدد الصفحات المتوقعة:** {meta['stats']['estimated_pages']}  
+**عدد الرسومات:** {meta['stats']['total_charts']}  
 """)
 
     # عرض الفصول
@@ -111,10 +88,11 @@ def render_report_streamlit(report_data, st):
         for block in chapter["blocks"]:
             block_type = block.get("type")
 
-            # العناوين
+            # تجاهل عنوان الفصل (عُرض بالفعل)
             if block_type == "chapter_title":
                 continue
 
+            # محتوى نصي
             elif block_type in [
                 "chapter_context",
                 "main_content",
@@ -128,12 +106,13 @@ def render_report_streamlit(report_data, st):
             ]:
                 st.markdown(block.get("content", ""))
 
+            # الرسومات
             elif block_type == "chart":
                 fig = block.get("figure")
                 if fig is not None:
                     st.plotly_chart(fig, use_container_width=True)
                 else:
-                    st.info("📉 الرسم غير متاح لعدم كفاية البيانات.")
+                    st.info("📉 الرسم غير متاح لعدم كفاية البيانات أو الأعمدة المطلوبة.")
 
     return True
 
@@ -142,7 +121,7 @@ def render_report_streamlit(report_data, st):
 if __name__ == "__main__":
     # اختبار سريع بدون Streamlit
     test_user = {
-        "package": "ماسية",  # ← عربي أو إنجليزي كلاهما يعمل الآن
+        "package": "ذهبية",  # عربي أو إنجليزي – كلاهما مدعوم
         "نوع_العقار": "شقق سكنية",
         "المدينة": "الرياض"
     }
@@ -150,7 +129,6 @@ if __name__ == "__main__":
     report = build_report_story(test_user, dataframe=None)
 
     print("✅ التقرير بُني بنجاح")
-    print("الباقة التقنية:", report["meta"]["package"])
-    print("اسم الباقة:", report["meta"]["package_name"])
+    print("الباقة:", report["meta"]["package_name"])
     print("الفصول:", len(report["chapters"]))
     print("الرسومات:", report["meta"]["stats"]["total_charts"])
