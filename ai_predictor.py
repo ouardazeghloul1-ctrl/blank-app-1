@@ -1,50 +1,119 @@
+# ai_predictor.py
+# ================================
+# محرك التنبؤ والتحليل الذكي
+# مستقل عن الواجهة (Streamlit / PDF)
+# ================================
+
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
-import matplotlib.pyplot as plt
-import streamlit as st
+
+
+REQUIRED_COLUMNS = ["price", "area"]
+
+
+def _normalize_dataframe(df):
+    """
+    توحيد شكل البيانات:
+    - يقبل dict أو DataFrame
+    - يعيد DataFrame نظيف أو None
+    """
+    if df is None:
+        return None
+
+    # إذا كان dict نحوله إلى DataFrame
+    if isinstance(df, dict):
+        try:
+            df = pd.DataFrame(df)
+        except Exception:
+            return None
+
+    if not isinstance(df, pd.DataFrame):
+        return None
+
+    if df.empty:
+        return None
+
+    return df.copy()
+
 
 def analyze_results(df):
-    df = df.copy()
+    """
+    تحليل تنبؤي بسيط قائم على المساحة والسعر
+    يعيد:
+    - predictions_df (DataFrame)
+    - meta (dict معلومات تشخيصية)
+    """
 
-    # تنظيف سريع
-    df = df.dropna(subset=["السعر", "المساحة"])
-    if df.empty or df["السعر"].isna().all() or df["المساحة"].isna().all():
-        st.error("⚠️ لا توجد بيانات كافية للتحليل في الملف. تحقق من استخراج الأسعار والمساحات.")
-        return pd.DataFrame()
+    df = _normalize_dataframe(df)
 
-    # تحويل المساحة لأرقام
-    df["Area(m²)"] = df["المساحة"].astype(str).str.extract('(\d+)').astype(float)
+    if df is None:
+        return None, {
+            "status": "no_data",
+            "message": "لا توجد بيانات صالحة للتحليل"
+        }
+
+    # 🔎 التحقق من الأعمدة المطلوبة
+    if not all(col in df.columns for col in REQUIRED_COLUMNS):
+        return None, {
+            "status": "missing_columns",
+            "message": f"الأعمدة المطلوبة غير موجودة: {REQUIRED_COLUMNS}"
+        }
+
+    # تنظيف البيانات
+    df = df.dropna(subset=REQUIRED_COLUMNS)
+    if df.empty:
+        return None, {
+            "status": "empty_after_cleaning",
+            "message": "البيانات غير كافية بعد التنظيف"
+        }
+
+    # تحويل المساحة إلى أرقام
+    df["area"] = (
+        df["area"]
+        .astype(str)
+        .str.extract(r"(\d+\.?\d*)")[0]
+        .astype(float)
+    )
+
+    df = df.dropna(subset=["area", "price"])
+    if df.empty:
+        return None, {
+            "status": "invalid_numeric_data",
+            "message": "المساحة أو السعر غير صالحين للتحليل"
+        }
 
     # حساب سعر المتر
-    df["Price_per_m²"] = df["السعر"] / df["Area(m²)"]
+    df["price_per_sqm"] = df["price"] / df["area"]
 
     # تدريب النموذج
-    X = np.array(df["Area(m²)"]).reshape(-1, 1)
-    y = np.array(df["السعر"])
-    model = LinearRegression().fit(X, y)
+    X = df[["area"]].values
+    y = df["price"].values
 
-    # توقعات مستقبلية لأحجام مختلفة
-    future_areas = np.linspace(df["Area(m²)"].min(), df["Area(m²)"].max(), 10).reshape(-1, 1)
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # نطاق التنبؤ
+    future_areas = np.linspace(
+        df["area"].min(),
+        df["area"].max(),
+        10
+    ).reshape(-1, 1)
+
     future_prices = model.predict(future_areas)
 
-    # إنشاء جدول النتائج
-    prediction_df = pd.DataFrame({
-        "Area(m²)": future_areas.flatten(),
-        "Predicted Price ($)": future_prices.astype(int)
+    predictions_df = pd.DataFrame({
+        "area": future_areas.flatten(),
+        "predicted_price": future_prices.round(0).astype(int)
     })
 
-    # ✅ وضع الشرط هنا قبل الرسم
-    if df["السعر"].empty:
-        st.warning("⚠️ لا توجد أسعار كافية لعرض التحليل.")
-        return prediction_df
+    meta = {
+        "status": "ok",
+        "rows_used": len(df),
+        "min_area": float(df["area"].min()),
+        "max_area": float(df["area"].max()),
+        "model": "LinearRegression",
+        "confidence_note": "تنبؤ استرشادي وليس توصية استثمارية مباشرة"
+    }
 
-    # الرسم
-    fig, ax = plt.subplots()
-    ax.hist(df["السعر"], bins=10)
-    ax.set_title("توزيع أسعار العقارات")
-    ax.set_xlabel("السعر ($)")
-    ax.set_ylabel("عدد العقارات")
-    st.pyplot(fig)
-
-    return prediction_df
+    return predictions_df, meta
