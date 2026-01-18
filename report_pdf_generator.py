@@ -2,7 +2,6 @@
 from io import BytesIO
 from datetime import datetime
 import os
-import math
 import tempfile
 
 import arabic_reshaper
@@ -24,13 +23,23 @@ from advanced_charts import AdvancedCharts
 
 
 # =========================
-# Arabic helper
+# Arabic helper - بسيطة جداً كما كانت
 # =========================
 def ar(text):
+    """
+    دالة بسيطة: تأخذ نصاً عربياً وتعطيه شكلاً صحيحاً
+    لا تحلل، لا تتخمين، لا ذكاء
+    """
     if not text:
         return ""
-    reshaped = arabic_reshaper.reshape(str(text))
-    return get_display(reshaped)
+    
+    # حاول معالجة النص العربي، وإلا ارجع النص كما هو
+    try:
+        reshaped = arabic_reshaper.reshape(str(text))
+        return get_display(reshaped)
+    except Exception:
+        # إذا فشلت المعالجة، ارجع النص كما هو
+        return str(text)
 
 
 # =========================
@@ -47,7 +56,7 @@ def create_pdf_from_content(
     buffer = BytesIO()
 
     # -------------------------------------------------
-    # 1) LOAD AMIRI FONT (SMART PATH RESOLUTION)
+    # 1) LOAD AMIRI FONT
     # -------------------------------------------------
     FONT_CANDIDATES = [
         "Amiri-Regular.ttf",
@@ -84,10 +93,22 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    body_style = ParagraphStyle(
+    # ستايل للنصوص العربية
+    arabic_style = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
         fontName="Amiri",
+        fontSize=12,
+        leading=18,
+        alignment=TA_RIGHT,
+        spaceAfter=6
+    )
+
+    # ستايل للقيم والأرقام (لا معالجة عربية)
+    value_style = ParagraphStyle(
+        "ValueStyle",
+        parent=styles["Normal"],
+        fontName="Amiri",  # نفس الخط لكن لا معالجة
         fontSize=12,
         leading=18,
         alignment=TA_RIGHT,
@@ -118,32 +139,54 @@ def create_pdf_from_content(
     story = []
 
     # -------------------------------------------------
-    # 3) COVER PAGE (NO EMPTY PAGE BEFORE IT)
+    # 3) COVER PAGE - فصل يدوي صريح
     # -------------------------------------------------
     story.append(Spacer(1, 5 * cm))
     story.append(Paragraph(ar("تقرير وردة الذكاء العقاري"), title_style))
     story.append(Spacer(1, 1 * cm))
-
-    story.append(Paragraph(ar(f"المدينة: {user_info.get('city', '')}"), body_style))
-    story.append(Paragraph(ar(f"نوع العقار: {user_info.get('property_type', '')}"), body_style))
-    story.append(Paragraph(ar(f"الباقة: {package_level}"), body_style))
-    story.append(Paragraph(ar(f"التاريخ: {datetime.now().strftime('%Y-%m-%d')}"), body_style))
-
-    story.append(PageBreak())
+    
+    # ✅ فصل صريح: نص عربي + قيمة منفصلة
+    story.append(Paragraph(ar("المدينة:"), arabic_style))
+    story.append(Paragraph(str(user_info.get('city', '')), value_style))
+    
+    story.append(Paragraph(ar("نوع العقار:"), arabic_style))
+    story.append(Paragraph(str(user_info.get('property_type', '')), value_style))
+    
+    story.append(Paragraph(ar("الباقة:"), arabic_style))
+    story.append(Paragraph(str(package_level), value_style))
+    
+    story.append(Paragraph(ar("التاريخ:"), arabic_style))
+    story.append(Paragraph(datetime.now().strftime('%Y-%m-%d'), value_style))
+    
+    # فاصل كبير بدلاً من PageBreak فوري
+    story.append(Spacer(1, 3 * cm))
 
     # -------------------------------------------------
-    # 4) TEXT CONTENT (FROM report_orchestrator)
+    # 4) TEXT CONTENT - حل مؤقت بسيط
     # -------------------------------------------------
     if isinstance(content_text, list):
+        # إذا كان content_text قائمة من Paragraphs جاهزة
         story.extend(content_text)
     elif isinstance(content_text, str):
-        for line in content_text.split("\n"):
+        # ✅ حل بسيط ومضمون:
+        # نعرض كل المحتوى كقيمة واحدة (بدون معالجة عربية)
+        # ونترك تنظيفه للمرحلة القادمة (orchestrator)
+        
+        # نقسم إلى أسطر للحفاظ على التنسيق
+        lines = content_text.split("\n")
+        for line in lines:
             line = line.strip()
             if not line:
                 story.append(Spacer(1, 0.3 * cm))
                 continue
-            story.append(Paragraph(ar(line), body_style))
-
+            
+            # ❌ لا نحلل، لا نتخمين
+            # ✅ نعرض الخط كما هو (سيتحمله ReportLab)
+            story.append(Paragraph(line, value_style))
+    
+    # فاصل قبل الرسومات
+    story.append(Spacer(1, 2 * cm))
+    
     # -------------------------------------------------
     # 5) CHARTS
     # -------------------------------------------------
@@ -156,6 +199,7 @@ def create_pdf_from_content(
         )
 
         if charts:
+            # PageBreak فقط إذا كان هناك محتوى كافٍ
             story.append(PageBreak())
             story.append(Paragraph(ar("التحليل البياني المتقدم"), title_style))
 
@@ -164,6 +208,7 @@ def create_pdf_from_content(
                     continue
 
                 story.append(Spacer(1, 0.5 * cm))
+                # ✅ نص عربي صرف فقط
                 story.append(Paragraph(ar(chapter.replace("_", " ")), subtitle_style))
 
                 for fig in figures:
@@ -172,26 +217,34 @@ def create_pdf_from_content(
                         story.append(Image(tmp.name, width=16 * cm, height=9 * cm))
                         story.append(Spacer(1, 0.5 * cm))
     except Exception as e:
-        story.append(Paragraph(ar("تعذر تحميل الرسومات البيانية"), body_style))
+        story.append(Paragraph(ar("تعذر تحميل الرسومات البيانية"), arabic_style))
+        story.append(Paragraph(str(e), value_style))
 
     # -------------------------------------------------
-    # 6) AI RECOMMENDATIONS
+    # 6) AI RECOMMENDATIONS - فصل يدوي صريح
     # -------------------------------------------------
     if ai_recommendations:
-        story.append(PageBreak())
+        # نضيف عنوان القسم أولاً
         story.append(Paragraph(ar("التوصيات الذكية المتقدمة"), title_style))
-
+        story.append(Spacer(1, 1 * cm))
+        
+        # إذا كان هناك توصيات كثيرة، نضيف PageBreak
+        if isinstance(ai_recommendations, dict) and len(ai_recommendations) > 3:
+            story.append(PageBreak())
+        
         if isinstance(ai_recommendations, dict):
             for k, v in ai_recommendations.items():
-                story.append(Paragraph(ar(f"{k}: {v}"), body_style))
-
+                # ✅ فصل صريح: عنوان + محتوى
+                story.append(Paragraph(ar(str(k)), subtitle_style))
+                story.append(Paragraph(str(v), value_style))
+                story.append(Spacer(1, 0.5 * cm))
+    
     # -------------------------------------------------
-    # 7) FOOTER
+    # 7) FOOTER - بدون PageBreak غير ضروري
     # -------------------------------------------------
-    story.append(PageBreak())
-    story.append(Spacer(1, 6 * cm))
+    story.append(Spacer(1, 4 * cm))
     story.append(Paragraph(ar("نهاية التقرير"), subtitle_style))
-    story.append(Paragraph(ar("Warda Intelligence © 2024"), body_style))
+    story.append(Paragraph(ar("Warda Intelligence © 2024"), arabic_style))
 
     # -------------------------------------------------
     # 8) BUILD
