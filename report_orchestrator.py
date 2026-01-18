@@ -7,11 +7,14 @@ Report Orchestrator
 - advanced_charts
 - واجهة العرض (Streamlit / PDF)
 
-إصدار: 1.0.0
+إصدار: 1.0.1 (Package normalization fix)
 """
 
 # ===================== IMPORTS =====================
-from report_content_builder import build_complete_report
+from report_content_builder import (
+    build_complete_report,
+    PACKAGE_ALIASES
+)
 from advanced_charts import AdvancedCharts
 
 # ===================== INITIALIZATION =====================
@@ -25,15 +28,36 @@ def build_report_story(user_info, dataframe=None):
     بدون أي منطق محتوى داخلي
     """
 
+    # --------------------------------------------------
+    # 🔒 توحيد اسم الباقة (عربي / إنجليزي → تقني)
+    # --------------------------------------------------
+    raw_package = user_info.get("package", "free")
+    normalized_package = PACKAGE_ALIASES.get(raw_package)
+
+    if not normalized_package:
+        raise ValueError(
+            f"نوع الباقة غير مدعوم: {raw_package}. "
+            f"الباقات المدعومة: {', '.join(PACKAGE_ALIASES.keys())}"
+        )
+
+    # فرض الاسم التقني داخل النظام
+    user_info["package"] = normalized_package
+
+    # --------------------------------------------------
     # 1️⃣ بناء التقرير المفلتر حسب الباقة
+    # --------------------------------------------------
     report = build_complete_report(user_info)
 
+    # --------------------------------------------------
     # 2️⃣ توليد الرسومات (إن وُجدت بيانات)
+    # --------------------------------------------------
     charts_by_chapter = {}
     if dataframe is not None:
         charts_by_chapter = charts_engine.generate_all_charts(dataframe)
 
+    # --------------------------------------------------
     # 3️⃣ ربط الرسومات بالبلوكات
+    # --------------------------------------------------
     for chapter in report["chapters"]:
         chapter_key = f"chapter_{chapter['chapter_number']}"
 
@@ -41,7 +65,6 @@ def build_report_story(user_info, dataframe=None):
             if block.get("type") == "chart":
                 chart_key = block.get("chart_key")
 
-                # البحث عن الرسم المطابق
                 chart_obj = None
                 if chapter_key in charts_by_chapter:
                     for fig in charts_by_chapter[chapter_key]:
@@ -51,7 +74,9 @@ def build_report_story(user_info, dataframe=None):
 
                 block["figure"] = chart_obj
 
+    # --------------------------------------------------
     # 4️⃣ إخراج التقرير النهائي
+    # --------------------------------------------------
     return {
         "meta": {
             "package": report["package"],
@@ -117,7 +142,7 @@ def render_report_streamlit(report_data, st):
 if __name__ == "__main__":
     # اختبار سريع بدون Streamlit
     test_user = {
-        "package": "gold",
+        "package": "ماسية",  # ← عربي أو إنجليزي كلاهما يعمل الآن
         "نوع_العقار": "شقق سكنية",
         "المدينة": "الرياض"
     }
@@ -125,5 +150,7 @@ if __name__ == "__main__":
     report = build_report_story(test_user, dataframe=None)
 
     print("✅ التقرير بُني بنجاح")
+    print("الباقة التقنية:", report["meta"]["package"])
+    print("اسم الباقة:", report["meta"]["package_name"])
     print("الفصول:", len(report["chapters"]))
     print("الرسومات:", report["meta"]["stats"]["total_charts"])
