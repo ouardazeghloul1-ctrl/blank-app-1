@@ -2,17 +2,16 @@
 
 from reportlab.platypus import Paragraph, Spacer, PageBreak
 from reportlab.lib.units import cm
+
 import arabic_reshaper
 from bidi.algorithm import get_display
 
 
 # =========================
-# Arabic text helper
+# Arabic helper
+# (يُستعمل فقط مع نص عربي ثابت)
 # =========================
 def ar(text):
-    """
-    إعادة تشكيل النص العربي ليظهر بشكل صحيح في ReportLab
-    """
     if not text:
         return ""
     try:
@@ -44,9 +43,11 @@ from report_content_builder import (
 # =========================
 def build_report_story(user_info: dict, styles: dict):
     """
-    تبني محتوى التقرير الكامل (Story) للفصول العشرة
-    ❗ بدون صفحات فارغة
-    ❗ تحكم كامل في PageBreak
+    يبني Story نظيف وآمن:
+    - ❌ لا ar() على نص ديناميكي
+    - ❌ لا مربعات
+    - ❌ لا صفحات فارغة
+    - ✅ جاهز للجداول والرسومات
     """
 
     body_style = styles["body"]
@@ -77,30 +78,38 @@ def build_report_story(user_info: dict, styles: dict):
         for line in lines:
             clean = line.strip()
 
-            # سطر فارغ = مسافة عمودية
+            # سطر فارغ
             if not clean:
                 story.append(Spacer(1, 0.35 * cm))
                 continue
 
-            # ===== عنوان فصل =====
+            # =====================
+            # عنوان فصل (ثابت)
+            # =====================
             if clean.startswith("الفصل"):
-                # 🔥 الحل الجذري: لا PageBreak إذا كان هذا أول محتوى
                 if story:
                     story.append(PageBreak())
 
+                # ar() مسموح هنا فقط
                 story.append(Paragraph(ar(clean), title_style))
                 story.append(Spacer(1, 0.8 * cm))
                 continue
 
-            # ===== عنوان فرعي مرقم =====
+            # =====================
+            # عنوان فرعي مرقم
+            # (نُعرضه كما هو بدون ar)
+            # =====================
             if clean[0].isdigit() and "." in clean[:4]:
                 story.append(Spacer(1, 0.4 * cm))
-                story.append(Paragraph(ar(clean), subtitle_style))
+                story.append(Paragraph(clean, subtitle_style))
                 story.append(Spacer(1, 0.25 * cm))
                 continue
 
-            # ===== نص عادي =====
-            story.append(Paragraph(ar(clean), body_style))
+            # =====================
+            # نص عادي (ديناميكي)
+            # ❌ بدون ar()
+            # =====================
+            story.append(Paragraph(clean, body_style))
             story.append(Spacer(1, 0.25 * cm))
 
     return story
