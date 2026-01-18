@@ -1,115 +1,129 @@
-# report_orchestrator.py
+"""
+Report Orchestrator
+-------------------
+محرك تنسيق وبناء التقرير النهائي
+يربط بين:
+- report_content_builder
+- advanced_charts
+- واجهة العرض (Streamlit / PDF)
 
-from reportlab.platypus import Paragraph, Spacer, PageBreak
-from reportlab.lib.units import cm
+إصدار: 1.0.0
+"""
 
-import arabic_reshaper
-from bidi.algorithm import get_display
+# ===================== IMPORTS =====================
+from report_content_builder import build_complete_report
+from advanced_charts import AdvancedCharts
 
-
-# =========================
-# Arabic helper
-# (يُستعمل فقط مع نص عربي ثابت)
-# =========================
-def ar(text):
-    if not text:
-        return ""
-    try:
-        reshaped = arabic_reshaper.reshape(str(text))
-        return get_display(reshaped)
-    except Exception:
-        return str(text)
+# ===================== INITIALIZATION =====================
+charts_engine = AdvancedCharts()
 
 
-# =========================
-# Import chapter builders
-# =========================
-from report_content_builder import (
-    chapter_1_text,
-    chapter_2_text,
-    chapter_3_text,
-    chapter_4_text,
-    chapter_5_text,
-    chapter_6_text,
-    chapter_7_text,
-    chapter_8_text,
-    chapter_9_text,
-    chapter_10_text
-)
-
-
-# =========================
-# MAIN ORCHESTRATOR
-# =========================
-def build_report_story(user_info: dict, styles: dict):
+# ===================== CORE ORCHESTRATOR =====================
+def build_report_story(user_info, dataframe=None):
     """
-    يبني Story نظيف وآمن:
-    - ❌ لا ar() على نص ديناميكي
-    - ❌ لا مربعات
-    - ❌ لا صفحات فارغة
-    - ✅ جاهز للجداول والرسومات
+    يبني التقرير النهائي الجاهز للعرض
+    بدون أي منطق محتوى داخلي
     """
 
-    body_style = styles["body"]
-    title_style = styles["title"]
-    subtitle_style = styles["subtitle"]
+    # 1️⃣ بناء التقرير المفلتر حسب الباقة
+    report = build_complete_report(user_info)
 
-    chapters = [
-        chapter_1_text(user_info),
-        chapter_2_text(user_info),
-        chapter_3_text(user_info),
-        chapter_4_text(user_info),
-        chapter_5_text(user_info),
-        chapter_6_text(user_info),
-        chapter_7_text(user_info),
-        chapter_8_text(user_info),
-        chapter_9_text(user_info),
-        chapter_10_text(user_info),
-    ]
+    # 2️⃣ توليد الرسومات (إن وُجدت بيانات)
+    charts_by_chapter = {}
+    if dataframe is not None:
+        charts_by_chapter = charts_engine.generate_all_charts(dataframe)
 
-    story = []
+    # 3️⃣ ربط الرسومات بالبلوكات
+    for chapter in report["chapters"]:
+        chapter_key = f"chapter_{chapter['chapter_number']}"
 
-    for chapter_text in chapters:
-        if not chapter_text:
-            continue
+        for block in chapter["blocks"]:
+            if block.get("type") == "chart":
+                chart_key = block.get("chart_key")
 
-        lines = chapter_text.split("\n")
+                # البحث عن الرسم المطابق
+                chart_obj = None
+                if chapter_key in charts_by_chapter:
+                    for fig in charts_by_chapter[chapter_key]:
+                        if fig.layout.title.text == block.get("title"):
+                            chart_obj = fig
+                            break
 
-        for line in lines:
-            clean = line.strip()
+                block["figure"] = chart_obj
 
-            # سطر فارغ
-            if not clean:
-                story.append(Spacer(1, 0.35 * cm))
+    # 4️⃣ إخراج التقرير النهائي
+    return {
+        "meta": {
+            "package": report["package"],
+            "package_name": report["package_name"],
+            "stats": report["stats"]
+        },
+        "chapters": report["chapters"]
+    }
+
+
+# ===================== STREAMLIT RENDER =====================
+def render_report_streamlit(report_data, st):
+    """
+    عرض التقرير داخل Streamlit
+    """
+
+    st.title("📊 التقرير الاستثماري العقاري المتقدم")
+
+    # معلومات عامة
+    meta = report_data["meta"]
+    st.markdown(f"""
+**الباقة:** {meta['package_name']}  
+**عدد الفصول:** {meta['stats']['total_chapters']}  
+**عدد الصفحات المتوقعة:** {meta['stats']['estimated_pages']}  
+""")
+
+    # عرض الفصول
+    for chapter in report_data["chapters"]:
+        st.markdown("---")
+        st.header(chapter["chapter_title"])
+
+        for block in chapter["blocks"]:
+            block_type = block.get("type")
+
+            # العناوين
+            if block_type == "chapter_title":
                 continue
 
-            # =====================
-            # عنوان فصل (ثابت)
-            # =====================
-            if clean.startswith("الفصل"):
-                if story:
-                    story.append(PageBreak())
+            elif block_type in [
+                "chapter_context",
+                "main_content",
+                "advanced_analysis",
+                "scenarios",
+                "international_analysis",
+                "chapter_conclusion",
+                "final_conclusion",
+                "how_to_read",
+                "key_indicators"
+            ]:
+                st.markdown(block.get("content", ""))
 
-                # ar() مسموح هنا فقط
-                story.append(Paragraph(ar(clean), title_style))
-                story.append(Spacer(1, 0.8 * cm))
-                continue
+            elif block_type == "chart":
+                fig = block.get("figure")
+                if fig is not None:
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("📉 الرسم غير متاح لعدم كفاية البيانات.")
 
-            # =====================
-            # عنوان فرعي مرقم
-            # (نُعرضه كما هو بدون ar)
-            # =====================
-            if clean[0].isdigit() and "." in clean[:4]:
-                story.append(Spacer(1, 0.4 * cm))
-                story.append(Paragraph(clean, subtitle_style))
-                story.append(Spacer(1, 0.25 * cm))
-                continue
+    return True
 
-            # =====================
-            # نص عادي (ديناميكي)
-            # ❌ بدون ar()
-            # =====================
-            story.append(Paragraph(clean, body_style))
-            story.append(Spacer(1, 0.25 * cm))
 
-    return story
+# ===================== QUICK TEST =====================
+if __name__ == "__main__":
+    # اختبار سريع بدون Streamlit
+    test_user = {
+        "package": "gold",
+        "نوع_العقار": "شقق سكنية",
+        "المدينة": "الرياض"
+    }
+
+    report = build_report_story(test_user, dataframe=None)
+
+    print("✅ التقرير بُني بنجاح")
+    print("الفصول:", len(report["chapters"]))
+    print("الرسومات:", report["meta"]["stats"]["total_charts"])
