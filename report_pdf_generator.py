@@ -23,22 +23,15 @@ from advanced_charts import AdvancedCharts
 
 
 # =========================
-# Arabic helper - بسيطة جداً كما كانت
+# Arabic helper (واحد فقط – نهائي)
 # =========================
 def ar(text):
-    """
-    دالة بسيطة: تأخذ نصاً عربياً وتعطيه شكلاً صحيحاً
-    لا تحلل، لا تتخمين، لا ذكاء
-    """
     if not text:
         return ""
-    
-    # حاول معالجة النص العربي، وإلا ارجع النص كما هو
     try:
         reshaped = arabic_reshaper.reshape(str(text))
         return get_display(reshaped)
     except Exception:
-        # إذا فشلت المعالجة، ارجع النص كما هو
         return str(text)
 
 
@@ -56,31 +49,26 @@ def create_pdf_from_content(
     buffer = BytesIO()
 
     # -------------------------------------------------
-    # 1) LOAD AMIRI FONT
+    # FONT
     # -------------------------------------------------
-    FONT_CANDIDATES = [
+    font_path = None
+    for p in [
         "Amiri-Regular.ttf",
-        os.path.join("fonts", "Amiri-Regular.ttf"),
+        "fonts/Amiri-Regular.ttf",
         os.path.join(os.getcwd(), "Amiri-Regular.ttf"),
         os.path.join(os.getcwd(), "fonts", "Amiri-Regular.ttf"),
-    ]
-
-    font_path = None
-    for path in FONT_CANDIDATES:
-        if os.path.exists(path):
-            font_path = path
+    ]:
+        if os.path.exists(p):
+            font_path = p
             break
 
     if not font_path:
-        raise FileNotFoundError(
-            "❌ Amiri-Regular.ttf غير موجود. "
-            "ضع الملف في نفس مجلد main.py أو داخل مجلد fonts/"
-        )
+        raise FileNotFoundError("❌ Amiri-Regular.ttf غير موجود")
 
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
     # -------------------------------------------------
-    # 2) DOCUMENT
+    # DOCUMENT
     # -------------------------------------------------
     doc = SimpleDocTemplate(
         buffer,
@@ -93,7 +81,6 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    # ستايل للنصوص العربية
     arabic_style = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -101,18 +88,17 @@ def create_pdf_from_content(
         fontSize=12,
         leading=18,
         alignment=TA_RIGHT,
-        spaceAfter=6
+        spaceAfter=8
     )
 
-    # ستايل للقيم والأرقام (لا معالجة عربية)
     value_style = ParagraphStyle(
         "ValueStyle",
         parent=styles["Normal"],
-        fontName="Amiri",  # نفس الخط لكن لا معالجة
+        fontName="Amiri",
         fontSize=12,
         leading=18,
         alignment=TA_RIGHT,
-        spaceAfter=6
+        spaceAfter=8
     )
 
     title_style = ParagraphStyle(
@@ -121,7 +107,7 @@ def create_pdf_from_content(
         fontName="Amiri",
         fontSize=22,
         alignment=TA_CENTER,
-        textColor=colors.HexColor("#b30000"),
+        textColor=colors.HexColor("#7a0000"),
         spaceAfter=30
     )
 
@@ -131,75 +117,59 @@ def create_pdf_from_content(
         fontName="Amiri",
         fontSize=16,
         alignment=TA_RIGHT,
-        textColor=colors.HexColor("#7a0000"),
-        spaceBefore=20,
+        textColor=colors.HexColor("#9c1c1c"),
+        spaceBefore=18,
         spaceAfter=12
     )
 
     story = []
 
     # -------------------------------------------------
-    # 3) COVER PAGE - فصل يدوي صريح
+    # COVER
     # -------------------------------------------------
     story.append(Spacer(1, 5 * cm))
     story.append(Paragraph(ar("تقرير وردة الذكاء العقاري"), title_style))
     story.append(Spacer(1, 1 * cm))
-    
-    # ✅ فصل صريح: نص عربي + قيمة منفصلة
+
     story.append(Paragraph(ar("المدينة:"), arabic_style))
-    story.append(Paragraph(str(user_info.get('city', '')), value_style))
-    
+    story.append(Paragraph(str(user_info.get("city", "")), value_style))
+
     story.append(Paragraph(ar("نوع العقار:"), arabic_style))
-    story.append(Paragraph(str(user_info.get('property_type', '')), value_style))
-    
+    story.append(Paragraph(str(user_info.get("property_type", "")), value_style))
+
     story.append(Paragraph(ar("الباقة:"), arabic_style))
     story.append(Paragraph(str(package_level), value_style))
-    
+
     story.append(Paragraph(ar("التاريخ:"), arabic_style))
-    story.append(Paragraph(datetime.now().strftime('%Y-%m-%d'), value_style))
-    
-    # فاصل كبير بدلاً من PageBreak فوري
-    story.append(Spacer(1, 3 * cm))
+    story.append(Paragraph(datetime.now().strftime("%Y-%m-%d"), value_style))
+
+    story.append(PageBreak())
 
     # -------------------------------------------------
-    # 4) TEXT CONTENT - حل مؤقت بسيط
+    # CONTENT TEXT (الإصلاح الحقيقي هنا)
     # -------------------------------------------------
-    if isinstance(content_text, list):
-        # إذا كان content_text قائمة من Paragraphs جاهزة
-        story.extend(content_text)
-    elif isinstance(content_text, str):
-        # ✅ حل بسيط ومضمون:
-        # نعرض كل المحتوى كقيمة واحدة (بدون معالجة عربية)
-        # ونترك تنظيفه للمرحلة القادمة (orchestrator)
-        
-        # نقسم إلى أسطر للحفاظ على التنسيق
-        lines = content_text.split("\n")
-        for line in lines:
-            line = line.strip()
-            if not line:
-                story.append(Spacer(1, 0.3 * cm))
+    if isinstance(content_text, str):
+        paragraphs = content_text.split("\n\n")
+        for p in paragraphs:
+            clean = p.strip()
+            if not clean:
                 continue
-            
-            # ❌ لا نحلل، لا نتخمين
-            # ✅ نعرض الخط كما هو (سيتحمله ReportLab)
-            story.append(Paragraph(line, value_style))
-    
-    # فاصل قبل الرسومات
-    story.append(Spacer(1, 2 * cm))
-    
+
+            # عنوان فصل
+            if clean.startswith("الفصل"):
+                story.append(PageBreak())
+                story.append(Paragraph(ar(clean), subtitle_style))
+            else:
+                story.append(Paragraph(ar(clean), arabic_style))
+
     # -------------------------------------------------
-    # 5) CHARTS
+    # CHARTS
     # -------------------------------------------------
     try:
         charts_engine = AdvancedCharts()
-        charts = charts_engine.generate_all_charts(
-            df=market_data,
-            user_info=user_info,
-            real_data=real_data
-        )
+        charts = charts_engine.generate_all_charts(df=market_data)
 
         if charts:
-            # PageBreak فقط إذا كان هناك محتوى كافٍ
             story.append(PageBreak())
             story.append(Paragraph(ar("التحليل البياني المتقدم"), title_style))
 
@@ -207,8 +177,6 @@ def create_pdf_from_content(
                 if not figures:
                     continue
 
-                story.append(Spacer(1, 0.5 * cm))
-                # ✅ نص عربي صرف فقط
                 story.append(Paragraph(ar(chapter.replace("_", " ")), subtitle_style))
 
                 for fig in figures:
@@ -217,38 +185,28 @@ def create_pdf_from_content(
                         story.append(Image(tmp.name, width=16 * cm, height=9 * cm))
                         story.append(Spacer(1, 0.5 * cm))
     except Exception as e:
-        story.append(Paragraph(ar("تعذر تحميل الرسومات البيانية"), arabic_style))
+        story.append(Paragraph(ar("تعذر تحميل الرسومات"), arabic_style))
         story.append(Paragraph(str(e), value_style))
 
     # -------------------------------------------------
-    # 6) AI RECOMMENDATIONS - فصل يدوي صريح
+    # AI RECOMMENDATIONS
     # -------------------------------------------------
     if ai_recommendations:
-        # نضيف عنوان القسم أولاً
+        story.append(PageBreak())
         story.append(Paragraph(ar("التوصيات الذكية المتقدمة"), title_style))
-        story.append(Spacer(1, 1 * cm))
-        
-        # إذا كان هناك توصيات كثيرة، نضيف PageBreak
-        if isinstance(ai_recommendations, dict) and len(ai_recommendations) > 3:
-            story.append(PageBreak())
-        
-        if isinstance(ai_recommendations, dict):
-            for k, v in ai_recommendations.items():
-                # ✅ فصل صريح: عنوان + محتوى
-                story.append(Paragraph(ar(str(k)), subtitle_style))
-                story.append(Paragraph(str(v), value_style))
-                story.append(Spacer(1, 0.5 * cm))
-    
+
+        for k, v in ai_recommendations.items():
+            story.append(Paragraph(ar(str(k)), subtitle_style))
+            story.append(Paragraph(ar(str(v)), arabic_style))
+            story.append(Spacer(1, 0.5 * cm))
+
     # -------------------------------------------------
-    # 7) FOOTER - بدون PageBreak غير ضروري
+    # FOOTER
     # -------------------------------------------------
-    story.append(Spacer(1, 4 * cm))
+    story.append(PageBreak())
     story.append(Paragraph(ar("نهاية التقرير"), subtitle_style))
     story.append(Paragraph(ar("Warda Intelligence © 2024"), arabic_style))
 
-    # -------------------------------------------------
-    # 8) BUILD
-    # -------------------------------------------------
     doc.build(story)
     buffer.seek(0)
     return buffer
