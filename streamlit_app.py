@@ -26,20 +26,23 @@ import paypalrestsdk
 from dotenv import load_dotenv
 import os
 
-# ✅ استيراد report_orchestrator أولاً وبشكل صحيح
-from report_orchestrator import build_report_story
+# ✅ استيراد الأنماط والخطوط لـ ReportLab
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 from reportlab.lib import colors
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
+# ✅ استيراد الأنظمة المتخصصة
 from ultimate_report_system import UltimateReportSystem
 from premium_content_generator import PremiumContentGenerator
 from advanced_charts import AdvancedCharts
 
 # ✅ النظام الموحد لإنشاء PDF
 from report_pdf_generator import create_pdf_from_content
+
+# ✅ استيراد report_content_builder (النظام الأساسي للمحتوى)
+from report_content_builder import build_complete_report
 
 # 🔧 استيراد النظام الذكي للتقارير - الإصدار المحسّن
 try:
@@ -817,50 +820,41 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
 
             # ✅ نظام PDF الموحد والمضمون - الإصدار المحسن
             try:
-                # 1. إنشاء الأنماط الأساسية
-                styles = getSampleStyleSheet()
+                # =====================================
+                # 🧠 بناء المحتوى النصي الحقيقي للتقرير
+                # =====================================
                 
-                custom_styles = {
-                    "body": ParagraphStyle(
-                        name="ArabicBody",
-                        parent=styles["Normal"],
-                        fontSize=12,
-                        leading=18,
-                        alignment=TA_RIGHT,
-                        rightIndent=20,
-                        leftIndent=20,
-                        spaceAfter=6
-                    ),
-                    "title": ParagraphStyle(
-                        name="ArabicTitle",
-                        parent=styles["Title"],
-                        fontSize=24,
-                        alignment=TA_CENTER,
-                        textColor=colors.HexColor("#b30000"),
-                        spaceAfter=30
-                    ),
-                    "subtitle": ParagraphStyle(
-                        name="ArabicSubtitle",
-                        parent=styles["Heading2"],
-                        fontSize=18,
-                        alignment=TA_RIGHT,
-                        textColor=colors.HexColor("#b30000"),
-                        spaceBefore=20,
-                        spaceAfter=15
-                    )
-                }
+                base_report = build_complete_report(user_info)
                 
-                # 2. بناء التقرير الكامل من report_orchestrator
-                st.info("🔄 جاري بناء التقرير الماسي الكامل...")
-                full_report_content = build_report_story(user_info, custom_styles)
-                st.success(f"✅ تم بناء التقرير بنجاح ({len(full_report_content)} عنصر)")
+                # تحويل الفصول إلى نص واحد مع تحسين العناوين
+                content_text = ""
+                
+                for chapter in base_report["chapters"]:
+                    content_text += f"\n\nالفصل: {chapter['chapter_title']}\n"
+                    content_text += "-" * 40 + "\n"
+                    
+                    for block in chapter["blocks"]:
+                        if "content" in block and isinstance(block["content"], str):
+                            content_text += block["content"] + "\n\n"
+                
+                # =====================================
+                # 💎 توسيع المحتوى حسب الباقة
+                # =====================================
+                premium_generator = PremiumContentGenerator()
+                final_content_text = premium_generator.generate_for_package(
+                    content_text,
+                    chosen_pkg,
+                    user_info
+                )
+                
+                st.info(f"📝 تم بناء محتوى التقرير: {len(final_content_text.split())} كلمة")
                 
                 # 3. إنشاء PDF بالمحتوى الكامل
                 pdf_buffer = create_pdf_from_content(
                     user_info=user_info,
-                    market_data=market_data,
+                    market_data=real_data,   # مهم: DataFrame حقيقي
                     real_data=real_data,
-                    content_text=full_report_content,  # ✅ التقرير الكامل
+                    content_text=final_content_text,  # ✅ نص طويل
                     package_level=chosen_pkg,
                     ai_recommendations=st.session_state.get("ai_recommendations")
                 )
