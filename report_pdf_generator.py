@@ -1,4 +1,3 @@
-# report_pdf_generator.py
 from io import BytesIO
 from datetime import datetime
 import os
@@ -33,6 +32,16 @@ def ar(text):
         return get_display(reshaped)
     except Exception:
         return str(text)
+
+
+# =========================
+# Cover Line Function
+# =========================
+def cover_line(label, value, style):
+    return Paragraph(
+        ar(f"{label}: {value}"),
+        style
+    )
 
 
 # =========================
@@ -131,34 +140,28 @@ def create_pdf_from_content(
     story.append(Paragraph(ar("تقرير وردة الذكاء العقاري"), title_style))
     story.append(Spacer(1, 1 * cm))
 
-    story.append(Paragraph(ar("المدينة:"), arabic_style))
-    story.append(Paragraph(str(user_info.get("city", "")), value_style))
-
-    story.append(Paragraph(ar("نوع العقار:"), arabic_style))
-    story.append(Paragraph(str(user_info.get("property_type", "")), value_style))
-
-    story.append(Paragraph(ar("الباقة:"), arabic_style))
-    story.append(Paragraph(str(package_level), value_style))
-
-    story.append(Paragraph(ar("التاريخ:"), arabic_style))
-    story.append(Paragraph(datetime.now().strftime("%Y-%m-%d"), value_style))
-
-    story.append(PageBreak())
+    story.append(cover_line("المدينة", user_info.get("city", ""), arabic_style))
+    story.append(cover_line("نوع العقار", user_info.get("property_type", ""), arabic_style))
+    story.append(cover_line("الباقة", package_level, arabic_style))
+    story.append(cover_line("التاريخ", datetime.now().strftime("%Y-%m-%d"), arabic_style))
+    
+    # ⚠️ PageBreak تم حذفه هنا تمامًا - هذا كان يسبب صفحة فارغة
 
     # -------------------------------------------------
-    # CONTENT TEXT (الإصلاح الحقيقي هنا)
+    # CONTENT TEXT (التعديل النهائي - الأهم)
     # -------------------------------------------------
     if isinstance(content_text, str):
-        paragraphs = content_text.split("\n\n")
-        for p in paragraphs:
-            clean = p.strip()
+        lines = content_text.split("\n")
+        for line in lines:
+            clean = line.strip()
             if not clean:
+                story.append(Spacer(1, 0.4 * cm))
                 continue
 
-            # عنوان فصل
             if clean.startswith("الفصل"):
-                story.append(PageBreak())
+                story.append(Spacer(1, 1 * cm))
                 story.append(Paragraph(ar(clean), subtitle_style))
+                story.append(Spacer(1, 0.6 * cm))
             else:
                 story.append(Paragraph(ar(clean), arabic_style))
 
@@ -201,9 +204,10 @@ def create_pdf_from_content(
             story.append(Spacer(1, 0.5 * cm))
 
     # -------------------------------------------------
-    # FOOTER
+    # FOOTER (التعديل النهائي)
     # -------------------------------------------------
-    story.append(PageBreak())
+    # ⚠️ PageBreak تم حذفه هنا أيضًا
+    story.append(Spacer(1, 3 * cm))
     story.append(Paragraph(ar("نهاية التقرير"), subtitle_style))
     story.append(Paragraph(ar("Warda Intelligence © 2024"), arabic_style))
 
