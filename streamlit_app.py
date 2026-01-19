@@ -849,12 +849,12 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 
                 st.info(f"📝 تم بناء محتوى التقرير: {len(final_content_text.split())} كلمة")
                 
-                # 3. إنشاء PDF بالمحتوى الكامل
+                # 3. إنشاء PDF بالمحتوى الكامل - التصحيح المهم هنا
                 pdf_buffer = create_pdf_from_content(
                     user_info=user_info,
-                    market_data=real_data,   # مهم: DataFrame حقيقي
-                    real_data=real_data,
-                    content_text=final_content_text,  # ✅ نص طويل
+                    market_data=market_data,  # ✅ dict مؤشرات السوق (تصحيح مهم)
+                    real_data=real_data,      # ✅ DataFrame العقارات
+                    content_text=final_content_text,
                     package_level=chosen_pkg,
                     ai_recommendations=st.session_state.get("ai_recommendations")
                 )
