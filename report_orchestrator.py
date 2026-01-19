@@ -1,8 +1,8 @@
 """
 Report Orchestrator
 -------------------
-Gatekeeper حقيقي للتقرير
-يفرض Data Contract واضح على كل النظام
+Gatekeeper نهائي للتقرير
+يحوّل البلوكات إلى محتوى نصي نظيف وجاهز للـ PDF
 """
 
 # ===================== IMPORTS =====================
@@ -17,11 +17,6 @@ charts_engine = AdvancedCharts()
 
 # ===================== DATA GATE =====================
 def normalize_dataframe(data):
-    """
-    البوابة الوحيدة للبيانات في النظام
-    - dict → DataFrame
-    - None / فاسد → None
-    """
     if data is None:
         return None
 
@@ -39,10 +34,6 @@ def normalize_dataframe(data):
 
 
 def ensure_required_columns(df):
-    """
-    يضمن الأعمدة التي تحتاجها الرسومات
-    بدون كسر التطبيق
-    """
     if df is None:
         return None
 
@@ -66,72 +57,100 @@ def ensure_required_columns(df):
     return df
 
 
+# ===================== BLOCK → TEXT =====================
+def blocks_to_text(report):
+    """
+    يحوّل كل الفصول والبلوكات إلى نص متسلسل للـ PDF
+    """
+    lines = []
+
+    for chapter in report["chapters"]:
+        lines.append(chapter["chapter_title"])
+        lines.append("")
+
+        for block in chapter["blocks"]:
+            block_type = block.get("type")
+
+            if block_type == "chart":
+                continue  # الرسومات تُدار لاحقًا
+
+            content = block.get("content")
+            if not content:
+                continue
+
+            if isinstance(content, str):
+                lines.append(content.strip())
+                lines.append("")
+
+    return "\n".join(lines)
+
+
 # ===================== CORE ORCHESTRATOR =====================
 def build_report_story(user_info, dataframe=None):
     """
-    يبني التقرير النهائي
-    🔒 يفرض DataFrame قبل أي تحليل أو رسم
+    يبني تقريرًا جاهزًا:
+    - نص متسلسل
+    - رسومات مربوطة
     """
 
-    # 1️⃣ المحتوى النصي (آمن)
+    # 1️⃣ بناء المحتوى
     report = build_complete_report(user_info)
 
-    # 2️⃣ تطبيع البيانات
+    # 2️⃣ تحويل البلوكات إلى نص
+    content_text = blocks_to_text(report)
+
+    # 3️⃣ البيانات
     df = normalize_dataframe(dataframe)
     df = ensure_required_columns(df)
 
-    # 3️⃣ توليد الرسومات (إن أمكن)
+    # 4️⃣ الرسومات
     charts_by_chapter = {}
     if df is not None:
         charts_by_chapter = charts_engine.generate_all_charts(df)
 
-    # 4️⃣ فهرسة الرسومات بـ chart_key (حل نهائي)
+    # 5️⃣ ربط الرسومات
     chart_index = {}
 
     for chapter_key, figs in charts_by_chapter.items():
         for fig in figs:
-            if not fig or not fig.layout or not fig.layout.title:
-                continue
+            if fig and fig.layout and fig.layout.title:
+                title = fig.layout.title.text
+                for key in [
+                    "chapter_1_price_distribution",
+                    "chapter_1_price_vs_area",
+                    "chapter_1_future_scenarios",
+                    "chapter_2_price_concentration",
+                    "chapter_2_price_volatility",
+                    "chapter_2_overpricing_risk",
+                    "chapter_3_value_map",
+                    "chapter_3_affordable_pockets",
+                    "chapter_3_size_opportunities",
+                    "chapter_4_investment_allocation_logic",
+                    "chapter_4_action_matrix",
+                    "chapter_5_price_positioning",
+                    "chapter_5_entry_timing_signal",
+                    "chapter_6_capital_allocation_by_risk",
+                    "chapter_6_capital_balance_curve",
+                    "chapter_7_exit_pressure_zones",
+                    "chapter_7_hold_vs_exit_signal",
+                    "chapter_8_anomaly_detection",
+                    "chapter_8_signal_intensity",
+                ]:
+                    if key.replace("_", " ")[:12] in title:
+                        chart_index[key] = fig
 
-            title = fig.layout.title.text
-
-            # الربط الصريح
-            for key in [
-                "chapter_1_price_distribution",
-                "chapter_1_price_vs_area",
-                "chapter_1_future_scenarios",
-                "chapter_2_price_concentration",
-                "chapter_2_price_volatility",
-                "chapter_2_overpricing_risk",
-                "chapter_3_value_map",
-                "chapter_3_affordable_pockets",
-                "chapter_3_size_opportunities",
-                "chapter_4_investment_allocation_logic",
-                "chapter_4_action_matrix",
-                "chapter_5_price_positioning",
-                "chapter_5_entry_timing_signal",
-                "chapter_6_capital_allocation_by_risk",
-                "chapter_6_capital_balance_curve",
-                "chapter_7_exit_pressure_zones",
-                "chapter_7_hold_vs_exit_signal",
-                "chapter_8_anomaly_detection",
-                "chapter_8_signal_intensity",
-            ]:
-                if key.replace("_", " ")[:10] in title:
-                    chart_index[key] = fig
-
-    # 5️⃣ ربط الرسومات بالبلوكات
     for chapter in report["chapters"]:
         for block in chapter["blocks"]:
             if block.get("type") == "chart":
                 block["figure"] = chart_index.get(block.get("chart_key"))
 
-    # 6️⃣ إخراج نظيف
+    # 6️⃣ إخراج نهائي نظيف
     return {
         "meta": {
             "package": report["package"],
             "package_name": report["package_name"],
             "stats": report["stats"],
         },
-        "chapters": report["chapters"],
+        "content_text": content_text,
+        "charts": charts_by_chapter,
     }
