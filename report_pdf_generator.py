@@ -1,7 +1,6 @@
 from io import BytesIO
 from datetime import datetime
 import os
-import tempfile
 
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -111,17 +110,6 @@ def create_pdf_from_content(
         spaceAfter=14
     )
 
-    placeholder_style = ParagraphStyle(
-        "Placeholder",
-        parent=styles["Normal"],
-        fontName="Amiri",
-        fontSize=11,
-        alignment=TA_CENTER,
-        textColor=colors.grey,
-        spaceBefore=20,
-        spaceAfter=20
-    )
-
     story = []
 
     # -------------------------------------------------
@@ -136,6 +124,7 @@ def create_pdf_from_content(
     story.append(Paragraph(ar(f"الباقة: {package_level}"), body_style))
     story.append(Paragraph(ar(f"التاريخ: {datetime.now().strftime('%Y-%m-%d')}"), body_style))
 
+    # الغلاف يجب أن ينتهي بـ PageBreak
     story.append(PageBreak())
 
     # -------------------------------------------------
@@ -144,6 +133,7 @@ def create_pdf_from_content(
     if isinstance(content_text, str):
         lines = content_text.split("\n")
         paragraph_counter = 0
+        first_chapter = True
 
         for line in lines:
             clean = line.strip()
@@ -153,18 +143,15 @@ def create_pdf_from_content(
                 continue
 
             if clean.startswith("الفصل"):
-                story.append(PageBreak())
-                story.append(Paragraph(ar(clean), chapter_style))
+                if not first_chapter:
+                    story.append(PageBreak())
+                first_chapter = False
 
-                # Placeholder للرسم بعد عنوان الفصل
-                story.append(Spacer(1, 0.6 * cm))
-                story.append(
-                    Paragraph(
-                        ar("⬛ مساحة مخصصة لرسم تحليلي أو جدول توضيحي"),
-                        placeholder_style
-                    )
-                )
-                story.append(Spacer(1, 0.6 * cm))
+                story.append(Paragraph(ar(clean), chapter_style))
+                
+                # فراغ بصري فقط بدون نص تقني
+                story.append(Spacer(1, 1.2 * cm))
+                
                 paragraph_counter = 0
                 continue
 
