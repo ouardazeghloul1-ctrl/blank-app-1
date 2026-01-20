@@ -149,8 +149,12 @@ def create_pdf_from_content(
 
                 story.append(Paragraph(ar(clean), chapter_style))
                 
-                # فراغ بصري فقط بدون نص تقني
-                story.append(Spacer(1, 1.2 * cm))
+                # فراغ مزدوج خفيف بعد عنوان الفصل
+                story.append(Spacer(1, 0.4 * cm))
+                story.append(Spacer(1, 0.2 * cm))
+                
+                # فراغ أكبر لمكان الرسومات (بدون نص)
+                story.append(Spacer(1, 2 * cm))
                 
                 paragraph_counter = 0
                 continue
@@ -158,8 +162,8 @@ def create_pdf_from_content(
             story.append(Paragraph(ar(clean), body_style))
             paragraph_counter += 1
 
-            # فراغ ذكي كل 3 فقرات
-            if paragraph_counter % 3 == 0:
+            # فراغ ذكي كل 2 فقرة (للمحتوى الثقيل فكريًا)
+            if paragraph_counter % 2 == 0:
                 story.append(Spacer(1, 0.6 * cm))
 
     # -------------------------------------------------
