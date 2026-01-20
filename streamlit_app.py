@@ -826,15 +826,16 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 
                 base_report = build_complete_report(user_info)
                 
-                # تحويل الفصول إلى نص واحد مع تحسين العناوين
+                # تحويل الفصول إلى نص واحد مع تحسين العناوين - التعديل النهائي هنا
                 content_text = ""
                 
                 for chapter in base_report["chapters"]:
-                    content_text += f"\n\nالفصل: {chapter['chapter_title']}\n"
-                    content_text += "-" * 40 + "\n"
-                    
                     for block in chapter["blocks"]:
-                        if "content" in block and isinstance(block["content"], str):
+                        if block.get("type") == "chapter_title":
+                            content_text += f"\n\n{block['content']}\n"
+                            content_text += "-" * 40 + "\n"
+
+                        elif "content" in block and isinstance(block["content"], str):
                             content_text += block["content"] + "\n\n"
                 
                 # =====================================
