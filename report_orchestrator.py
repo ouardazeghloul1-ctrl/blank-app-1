@@ -14,7 +14,6 @@ import numpy as np
 # ===================== INITIALIZATION =====================
 charts_engine = AdvancedCharts()
 
-
 # ===================== DATA GATE =====================
 def normalize_dataframe(data):
     if data is None:
@@ -60,7 +59,8 @@ def ensure_required_columns(df):
 # ===================== BLOCK → TEXT =====================
 def blocks_to_text(report):
     """
-    يحوّل كل الفصول والبلوكات إلى نص متسلسل للـ PDF
+    يحوّل البلوكات إلى نص متسلسل للـ PDF
+    مع فراغ ذكي بعد كل عنوان فصل (لمكان الرسومات)
     """
     lines = []
 
@@ -72,13 +72,16 @@ def blocks_to_text(report):
             if not content:
                 continue
 
+            # عنوان الفصل
             if block_type == "chapter_title":
                 lines.append(content.strip())
-                lines.append("")  # سطر فارغ بعد العنوان
+                lines.append("")        # فراغ خفيف
+                lines.append("")        # فراغ إضافي (مكان الرسومات)
                 continue
 
+            # تجاهل أي بلوك رسومات نصيًا
             if block_type == "chart":
-                continue  # الرسومات تُدار لاحقًا
+                continue
 
             if isinstance(content, str):
                 lines.append(content.strip())
@@ -91,62 +94,26 @@ def blocks_to_text(report):
 def build_report_story(user_info, dataframe=None):
     """
     يبني تقريرًا جاهزًا:
-    - نص متسلسل
-    - رسومات مربوطة
+    - نص متسلسل نظيف
+    - بنية رسومات جاهزة
     """
 
-    # 1️⃣ بناء المحتوى
+    # 1️⃣ بناء المحتوى الحقيقي
     report = build_complete_report(user_info)
 
     # 2️⃣ تحويل البلوكات إلى نص
     content_text = blocks_to_text(report)
 
-    # 3️⃣ البيانات
+    # 3️⃣ تطبيع البيانات
     df = normalize_dataframe(dataframe)
     df = ensure_required_columns(df)
 
-    # 4️⃣ الرسومات
+    # 4️⃣ توليد الرسومات (إن وُجدت بيانات)
     charts_by_chapter = {}
     if df is not None:
         charts_by_chapter = charts_engine.generate_all_charts(df)
 
-    # 5️⃣ ربط الرسومات
-    chart_index = {}
-
-    for chapter_key, figs in charts_by_chapter.items():
-        for fig in figs:
-            if fig and fig.layout and fig.layout.title:
-                title = fig.layout.title.text
-                for key in [
-                    "chapter_1_price_distribution",
-                    "chapter_1_price_vs_area",
-                    "chapter_1_future_scenarios",
-                    "chapter_2_price_concentration",
-                    "chapter_2_price_volatility",
-                    "chapter_2_overpricing_risk",
-                    "chapter_3_value_map",
-                    "chapter_3_affordable_pockets",
-                    "chapter_3_size_opportunities",
-                    "chapter_4_investment_allocation_logic",
-                    "chapter_4_action_matrix",
-                    "chapter_5_price_positioning",
-                    "chapter_5_entry_timing_signal",
-                    "chapter_6_capital_allocation_by_risk",
-                    "chapter_6_capital_balance_curve",
-                    "chapter_7_exit_pressure_zones",
-                    "chapter_7_hold_vs_exit_signal",
-                    "chapter_8_anomaly_detection",
-                    "chapter_8_signal_intensity",
-                ]:
-                    if key.replace("_", " ")[:12] in title:
-                        chart_index[key] = fig
-
-    for chapter in report["chapters"]:
-        for block in chapter["blocks"]:
-            if block.get("type") == "chart":
-                block["figure"] = chart_index.get(block.get("chart_key"))
-
-    # 6️⃣ إخراج نهائي نظيف
+    # 5️⃣ إخراج نظيف
     return {
         "meta": {
             "package": report["package"],
