@@ -22,7 +22,7 @@ from advanced_charts import AdvancedCharts
 
 
 # =========================
-# Arabic helper (واحد فقط – نهائي)
+# Arabic helper (نهائي)
 # =========================
 def ar(text):
     if not text:
@@ -32,16 +32,6 @@ def ar(text):
         return get_display(reshaped)
     except Exception:
         return str(text)
-
-
-# =========================
-# Cover Line Function
-# =========================
-def cover_line(label, value, style):
-    return Paragraph(
-        ar(f"{label}: {value}"),
-        style
-    )
 
 
 # =========================
@@ -90,24 +80,14 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    arabic_style = ParagraphStyle(
+    body_style = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=12,
         leading=18,
         alignment=TA_RIGHT,
-        spaceAfter=8
-    )
-
-    value_style = ParagraphStyle(
-        "ValueStyle",
-        parent=styles["Normal"],
-        fontName="Amiri",
-        fontSize=12,
-        leading=18,
-        alignment=TA_RIGHT,
-        spaceAfter=8
+        spaceAfter=6
     )
 
     title_style = ParagraphStyle(
@@ -120,15 +100,26 @@ def create_pdf_from_content(
         spaceAfter=30
     )
 
-    subtitle_style = ParagraphStyle(
-        "ArabicSubtitle",
+    chapter_style = ParagraphStyle(
+        "ArabicChapter",
         parent=styles["Heading2"],
         fontName="Amiri",
         fontSize=16,
         alignment=TA_RIGHT,
         textColor=colors.HexColor("#9c1c1c"),
-        spaceBefore=18,
-        spaceAfter=12
+        spaceBefore=24,
+        spaceAfter=14
+    )
+
+    placeholder_style = ParagraphStyle(
+        "Placeholder",
+        parent=styles["Normal"],
+        fontName="Amiri",
+        fontSize=11,
+        alignment=TA_CENTER,
+        textColor=colors.grey,
+        spaceBefore=20,
+        spaceAfter=20
     )
 
     story = []
@@ -137,59 +128,57 @@ def create_pdf_from_content(
     # COVER
     # -------------------------------------------------
     story.append(Spacer(1, 5 * cm))
-    story.append(Paragraph(ar("تقرير وردة الذكاء العقاري"), title_style))
+    story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title_style))
     story.append(Spacer(1, 1 * cm))
 
-    story.append(cover_line("المدينة", user_info.get("city", ""), arabic_style))
-    story.append(cover_line("نوع العقار", user_info.get("property_type", ""), arabic_style))
-    story.append(cover_line("الباقة", package_level, arabic_style))
-    story.append(cover_line("التاريخ", datetime.now().strftime("%Y-%m-%d"), arabic_style))
-    
-    # ⚠️ PageBreak تم حذفه هنا تمامًا - هذا كان يسبب صفحة فارغة
+    story.append(Paragraph(ar(f"المدينة: {user_info.get('city', '')}"), body_style))
+    story.append(Paragraph(ar(f"نوع العقار: {user_info.get('property_type', '')}"), body_style))
+    story.append(Paragraph(ar(f"الباقة: {package_level}"), body_style))
+    story.append(Paragraph(ar(f"التاريخ: {datetime.now().strftime('%Y-%m-%d')}"), body_style))
+
+    story.append(PageBreak())
 
     # -------------------------------------------------
-    # CONTENT TEXT (التعديل النهائي - الأهم)
+    # CONTENT TEXT (منظم + فراغات)
     # -------------------------------------------------
     if isinstance(content_text, str):
         lines = content_text.split("\n")
+        paragraph_counter = 0
+
         for line in lines:
             clean = line.strip()
+
             if not clean:
                 story.append(Spacer(1, 0.4 * cm))
                 continue
 
             if clean.startswith("الفصل"):
-                story.append(Spacer(1, 1 * cm))
-                story.append(Paragraph(ar(clean), subtitle_style))
+                story.append(PageBreak())
+                story.append(Paragraph(ar(clean), chapter_style))
+
+                # Placeholder للرسم بعد عنوان الفصل
                 story.append(Spacer(1, 0.6 * cm))
-            else:
-                story.append(Paragraph(ar(clean), arabic_style))
+                story.append(
+                    Paragraph(
+                        ar("⬛ مساحة مخصصة لرسم تحليلي أو جدول توضيحي"),
+                        placeholder_style
+                    )
+                )
+                story.append(Spacer(1, 0.6 * cm))
+                paragraph_counter = 0
+                continue
+
+            story.append(Paragraph(ar(clean), body_style))
+            paragraph_counter += 1
+
+            # فراغ ذكي كل 3 فقرات
+            if paragraph_counter % 3 == 0:
+                story.append(Spacer(1, 0.6 * cm))
 
     # -------------------------------------------------
-    # CHARTS
+    # CHARTS (لاحقًا – غير مفعل الآن فعليًا)
     # -------------------------------------------------
-    try:
-        charts_engine = AdvancedCharts()
-        charts = charts_engine.generate_all_charts(df=market_data)
-
-        if charts:
-            story.append(PageBreak())
-            story.append(Paragraph(ar("التحليل البياني المتقدم"), title_style))
-
-            for chapter, figures in charts.items():
-                if not figures:
-                    continue
-
-                story.append(Paragraph(ar(chapter.replace("_", " ")), subtitle_style))
-
-                for fig in figures:
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                        fig.write_image(tmp.name, width=1200, height=700, scale=2)
-                        story.append(Image(tmp.name, width=16 * cm, height=9 * cm))
-                        story.append(Spacer(1, 0.5 * cm))
-    except Exception as e:
-        story.append(Paragraph(ar("تعذر تحميل الرسومات"), arabic_style))
-        story.append(Paragraph(str(e), value_style))
+    # تم ترك البنية جاهزة بدون إجبار الرسومات الآن
 
     # -------------------------------------------------
     # AI RECOMMENDATIONS
@@ -199,17 +188,16 @@ def create_pdf_from_content(
         story.append(Paragraph(ar("التوصيات الذكية المتقدمة"), title_style))
 
         for k, v in ai_recommendations.items():
-            story.append(Paragraph(ar(str(k)), subtitle_style))
-            story.append(Paragraph(ar(str(v)), arabic_style))
-            story.append(Spacer(1, 0.5 * cm))
+            story.append(Paragraph(ar(str(k)), chapter_style))
+            story.append(Paragraph(ar(str(v)), body_style))
+            story.append(Spacer(1, 0.6 * cm))
 
     # -------------------------------------------------
-    # FOOTER (التعديل النهائي)
+    # FOOTER
     # -------------------------------------------------
-    # ⚠️ PageBreak تم حذفه هنا أيضًا
     story.append(Spacer(1, 3 * cm))
-    story.append(Paragraph(ar("نهاية التقرير"), subtitle_style))
-    story.append(Paragraph(ar("Warda Intelligence © 2024"), arabic_style))
+    story.append(Paragraph(ar("نهاية التقرير"), chapter_style))
+    story.append(Paragraph(ar("Warda Intelligence © 2024"), body_style))
 
     doc.build(story)
     buffer.seek(0)
