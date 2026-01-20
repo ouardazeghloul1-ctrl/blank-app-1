@@ -65,18 +65,20 @@ def blocks_to_text(report):
     lines = []
 
     for chapter in report["chapters"]:
-        lines.append(chapter["chapter_title"])
-        lines.append("")
-
         for block in chapter["blocks"]:
             block_type = block.get("type")
+            content = block.get("content")
+
+            if not content:
+                continue
+
+            if block_type == "chapter_title":
+                lines.append(content.strip())
+                lines.append("")  # سطر فارغ بعد العنوان
+                continue
 
             if block_type == "chart":
                 continue  # الرسومات تُدار لاحقًا
-
-            content = block.get("content")
-            if not content:
-                continue
 
             if isinstance(content, str):
                 lines.append(content.strip())
@@ -149,7 +151,6 @@ def build_report_story(user_info, dataframe=None):
         "meta": {
             "package": report["package"],
             "package_name": report["package_name"],
-            "stats": report["stats"],
         },
         "content_text": content_text,
         "charts": charts_by_chapter,
