@@ -29,6 +29,27 @@ PACKAGE_ALIASES = {
 }
 
 # =========================
+# PACKAGE RULES - تقسيم المحتوى حسب الباقة
+# =========================
+PACKAGE_RULES = {
+    "free": {
+        "chapters": [1, 2],
+    },
+    "silver": {
+        "chapters": [1, 2, 3, 4],
+    },
+    "gold": {
+        "chapters": [1, 2, 3, 4, 5, 6],
+    },
+    "diamond": {
+        "chapters": [1, 2, 3, 4, 5, 6, 7, 8],
+    },
+    "diamond_plus": {
+        "chapters": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    },
+}
+
+# =========================
 # CHAPTER 1 – REALISTIC SCENARIO
 # =========================
 def chapter_1_blocks(user_info):
@@ -318,7 +339,7 @@ def chapter_2_blocks(user_info):
 
 الخروج هو الاختبار الحقيقي لأي قرار.
 والخطر الحقيقي هو:
-أن تمتلك أصلًا لا تعرف كيف، ولا متى، ولا لمن ستبيعه.
+أن تمتلك أصلًا لا تعرف كيف، ولا متتى، ولا لمن ستبيعه.
 """
         },
         {
@@ -1440,7 +1461,7 @@ def chapter_8_blocks(user_info):
 • ملاحظة واعية
 • واحترام لما لا يقوله السوق صراحة
 
-في الفصل القادم، سنأخذ هذه البصيرة
+في الفصل التالي، سنأخذ هذه البصيرة
 ونحوّلها إلى شيء عملي جدًا: كيف تحوّل البيانات إلى قرارات… لا إلى حيرة.
 """
         },
@@ -1895,7 +1916,12 @@ def build_complete_report(user_info):
         "chapters": [],
     }
 
+    allowed_chapters = PACKAGE_RULES[package]["chapters"]
+
     for idx, fn in enumerate(chapters_funcs, 1):
+        if idx not in allowed_chapters:
+            continue
+
         blocks = fn(user_info)  # الحصول على كل الـ blocks
         if blocks:
             report["chapters"].append(
