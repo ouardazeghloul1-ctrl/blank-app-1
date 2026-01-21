@@ -93,10 +93,12 @@ def blocks_to_text(report):
                         lines.append("")
                         continue
 
-                    # الحل النهائي بالـ regex
-                    if not re.search(r"[A-Za-z\u0600-\u06FF0-9]", clean):
+                    # ✅ الحل النهائي: إزالة جميع أنواع الخطوط الزخرفية
+                    # هذا سيزيل: ------------ , ________ , –––––––– , الخ
+                    if re.fullmatch(r'[-–—_=\s]*', clean):
                         continue
 
+                    # ✅ يحافظ على النقاط التعدادية •
                     lines.append(clean)
 
                 lines.append("")
