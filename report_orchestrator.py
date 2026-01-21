@@ -60,7 +60,8 @@ def ensure_required_columns(df):
 # ===================== BLOCK → TEXT =====================
 def blocks_to_text(report):
     """
-    يحوّل كل الفصول والبلوكات إلى نص متسلسل للـ PDF
+    يحوّل كل الفصول والبلوكات إلى نص متسلسل نظيف وجاهز للـ PDF
+    مع تنظيف السطور الزخرفية (----)
     """
     lines = []
 
@@ -72,22 +73,30 @@ def blocks_to_text(report):
             if not content:
                 continue
 
+            # عنوان الفصل
             if block_type == "chapter_title":
                 lines.append(content.strip())
-                lines.append("")  # سطر فارغ بعد العنوان
+                lines.append("")
                 continue
 
             if block_type == "chart":
-                continue  # الرسومات تُدار لاحقًا
+                continue
 
             if isinstance(content, str):
-                clean = content.strip()
+                # 🔑 هنا الحل الحقيقي: تنظيف سطر بسطر
+                for raw_line in content.splitlines():
+                    clean = raw_line.strip()
 
-                # ❌ حذف أي سطر زخرفي (شرطات / مسافات فقط)
-                if clean and all(c in "-–_ " for c in clean):
-                    continue
+                    # ❌ حذف أي سطر زخرفي (شرطات فقط)
+                    if not clean:
+                        lines.append("")
+                        continue
 
-                lines.append(clean)
+                    if all(c in "-–_ " for c in clean):
+                        continue
+
+                    lines.append(clean)
+
                 lines.append("")
 
     return "\n".join(lines)
