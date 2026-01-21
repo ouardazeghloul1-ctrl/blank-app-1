@@ -10,6 +10,7 @@ from report_content_builder import build_complete_report
 from advanced_charts import AdvancedCharts
 import pandas as pd
 import numpy as np
+import re  # إضافة الـ regex
 
 # ===================== INITIALIZATION =====================
 charts_engine = AdvancedCharts()
@@ -87,12 +88,13 @@ def blocks_to_text(report):
                 for raw_line in content.splitlines():
                     clean = raw_line.strip()
 
-                    # ❌ حذف أي سطر زخرفي (شرطات فقط)
+                    # ❌ حذف أي سطر لا يحتوي حروف أو أرقام (زخرفة فقط)
                     if not clean:
                         lines.append("")
                         continue
 
-                    if all(c in "-–_ " for c in clean):
+                    # الحل النهائي بالـ regex
+                    if not re.search(r"[A-Za-z\u0600-\u06FF0-9]", clean):
                         continue
 
                     lines.append(clean)
