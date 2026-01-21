@@ -832,8 +832,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 for chapter in base_report["chapters"]:
                     for block in chapter["blocks"]:
                         if block.get("type") == "chapter_title":
-                            content_text += f"\n\n{block['content']}\n"
-                            content_text += "-" * 40 + "\n"
+                            content_text += f"\n\n{block['content']}\n\n" 
 
                         elif "content" in block and isinstance(block["content"], str):
                             content_text += block["content"] + "\n\n"
