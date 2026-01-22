@@ -43,15 +43,21 @@ def plotly_to_image(fig, width_cm, height_cm):
     if fig is None:
         return None
 
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-        pio.write_image(
-            fig,
-            tmp.name,
-            format="png",
-            width=int(width_cm * 37.8),
-            height=int(height_cm * 37.8),
-        )
-        return Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            pio.write_image(
+                fig,
+                tmp.name,
+                format="png",
+                width=int(width_cm * 37.8),
+                height=int(height_cm * 37.8),
+                engine="kaleido"  # 🔥 مهم جدًا لـ Streamlit Cloud
+            )
+            return Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
+    except Exception as e:
+        # ❌ لا نكسر إنشاء التقرير لو فشل رسم
+        print("⚠️ فشل توليد رسم:", e)
+        return None
 
 
 # =========================
