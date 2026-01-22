@@ -831,14 +831,6 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
 
                 # ✅ هذا السطر هو الأهم
                 st.session_state["charts_by_chapter"] = charts_by_chapter
-
-                
-                
-                
-               
-                
-                # ✅ حفظ الرسومات في session_state للاستخدام لاحقًا
-                st.session_state["charts_by_chapter"] = story["charts"]
                 
                 st.info(f"📝 تم بناء محتوى التقرير الذكي: {len(final_content_text.split())} كلمة")
                 
