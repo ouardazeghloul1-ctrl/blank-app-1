@@ -10,7 +10,8 @@ from report_content_builder import build_complete_report
 from advanced_charts import AdvancedCharts
 import pandas as pd
 import numpy as np
-import re  # إضافة الـ regex
+import re
+from datetime import datetime
 
 # ===================== INITIALIZATION =====================
 charts_engine = AdvancedCharts()
@@ -129,47 +130,10 @@ def build_report_story(user_info, dataframe=None):
     if df is not None:
         charts_by_chapter = charts_engine.generate_all_charts(df)
 
-    # 5️⃣ ربط الرسومات
-    chart_index = {}
-
-    for chapter_key, figs in charts_by_chapter.items():
-        for fig in figs:
-            if fig and fig.layout and fig.layout.title:
-                title = fig.layout.title.text
-                for key in [
-                    "chapter_1_price_distribution",
-                    "chapter_1_price_vs_area",
-                    "chapter_1_future_scenarios",
-                    "chapter_2_price_concentration",
-                    "chapter_2_price_volatility",
-                    "chapter_2_overpricing_risk",
-                    "chapter_3_value_map",
-                    "chapter_3_affordable_pockets",
-                    "chapter_3_size_opportunities",
-                    "chapter_4_investment_allocation_logic",
-                    "chapter_4_action_matrix",
-                    "chapter_5_price_positioning",
-                    "chapter_5_entry_timing_signal",
-                    "chapter_6_capital_allocation_by_risk",
-                    "chapter_6_capital_balance_curve",
-                    "chapter_7_exit_pressure_zones",
-                    "chapter_7_hold_vs_exit_signal",
-                    "chapter_8_anomaly_detection",
-                    "chapter_8_signal_intensity",
-                ]:
-                    if key.replace("_", " ")[:12] in title:
-                        chart_index[key] = fig
-
-    for chapter in report["chapters"]:
-        for block in chapter["blocks"]:
-            if block.get("type") == "chart":
-                block["figure"] = chart_index.get(block.get("chart_key"))
-
     # 6️⃣ إخراج نهائي نظيف
     return {
         "meta": {
-            "package": report["package"],
-            "package_name": report["package_name"],
+            "generated_at": datetime.now().isoformat()
         },
         "content_text": content_text,
         "charts": charts_by_chapter,
