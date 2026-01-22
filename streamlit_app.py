@@ -41,9 +41,6 @@ from advanced_charts import AdvancedCharts
 # ✅ النظام الموحد لإنشاء PDF
 from report_pdf_generator import create_pdf_from_content
 
-# ✅ استيراد report_content_builder (النظام الأساسي للمحتوى)
-from report_content_builder import build_complete_report
-
 # 🔧 استيراد النظام الذكي للتقارير - الإصدار المحسّن
 try:
     # محاولة استيراد النظام الذكي
@@ -821,39 +818,26 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             # ✅ نظام PDF الموحد والمضمون - الإصدار المحسن
             try:
                 # =====================================
-                # 🧠 بناء المحتوى النصي الحقيقي للتقرير
+                # 🧠 استخدام نظام البناء الذكي الجديد
                 # =====================================
                 
-                base_report = build_complete_report(user_info)
+                from report_orchestrator import build_report_story
                 
-                # تحويل الفصول إلى نص واحد مع تحسين العناوين - التعديل النهائي هنا
-                content_text = ""
+                story = build_report_story(user_info, real_data)
+                final_content_text = story["content_text"]
                 
-                for chapter in base_report["chapters"]:
-                    for block in chapter["blocks"]:
-                        if block.get("type") == "chapter_title":
-                            content_text += f"\n\n{block['content']}\n\n" 
-
-                        elif "content" in block and isinstance(block["content"], str):
-                            content_text += block["content"] + "\n\n"
+                # ✅ حفظ الرسومات في session_state للاستخدام لاحقًا
+                st.session_state["charts_by_chapter"] = story["charts"]
+                
+                st.info(f"📝 تم بناء محتوى التقرير الذكي: {len(final_content_text.split())} كلمة")
                 
                 # =====================================
-                # 💎 توسيع المحتوى حسب الباقة
+                # 💎 إنشاء PDF بالمحتوى الكامل
                 # =====================================
-                premium_generator = PremiumContentGenerator()
-                final_content_text = premium_generator.generate_for_package(
-                    content_text,
-                    chosen_pkg,
-                    user_info
-                )
-                
-                st.info(f"📝 تم بناء محتوى التقرير: {len(final_content_text.split())} كلمة")
-                
-                # 3. إنشاء PDF بالمحتوى الكامل - التصحيح المهم هنا
                 pdf_buffer = create_pdf_from_content(
                     user_info=user_info,
-                    market_data=market_data,  # ✅ dict مؤشرات السوق (تصحيح مهم)
-                    real_data=real_data,      # ✅ DataFrame العقارات
+                    market_data=market_data,
+                    real_data=real_data,
                     content_text=final_content_text,
                     package_level=chosen_pkg,
                     ai_recommendations=st.session_state.get("ai_recommendations")
