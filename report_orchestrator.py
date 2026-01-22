@@ -66,12 +66,15 @@ def prepare_user_info_for_content(user_info):
     if user_info is None:
         user_info = {}
     
+    # استخراج الباقة من عدة مصادر محتملة
+    package = user_info.get("package") or user_info.get("chosen_pkg") or user_info.get("باقة") or "مجانية"
+    
     # إعادة تسمية المفاتيح لتناسب report_content_builder
     prepared_info = {
         "المدينة": user_info.get("city", "المدينة"),
         "نوع_العقار": user_info.get("property_type", "العقار"),
         "نوع_الصفقة": user_info.get("status", "الاستثمار"),
-        "package": user_info.get("package", "free"),
+        "package": package,
     }
     
     return prepared_info
@@ -133,6 +136,9 @@ def build_report_story(user_info, dataframe=None):
     - رسومات مربوطة
     """
 
+    # استخراج الباقة بشكل آمن من user_info
+    package = user_info.get("package") or user_info.get("chosen_pkg") or user_info.get("باقة") or "مجانية"
+    
     # 1️⃣ بناء المحتوى
     prepared_user_info = prepare_user_info_for_content(user_info)
     report = build_complete_report(prepared_user_info)
@@ -152,7 +158,7 @@ def build_report_story(user_info, dataframe=None):
         """.format(
             user_info.get("city", "غير محدد"),
             user_info.get("property_type", "غير محدد"),
-            user_info.get("package", "غير محدد")
+            package
         )
 
     # 3️⃣ البيانات
@@ -167,8 +173,8 @@ def build_report_story(user_info, dataframe=None):
     # 5️⃣ إخراج نهائي نظيف
     return {
         "meta": {
-            "package": user_info.get("package"),
-            "package_name": user_info.get("package"),
+            "package": str(package),  # تأكيد تحويل إلى نص
+            "package_name": str(package),
             "generated_at": datetime.now().isoformat()
         },
         "content_text": content_text,
