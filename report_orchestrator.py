@@ -59,6 +59,24 @@ def ensure_required_columns(df):
     return df
 
 
+def prepare_user_info_for_content(user_info):
+    """
+    تحويل user_info إلى التنسيق الذي يتوقعه report_content_builder
+    """
+    if user_info is None:
+        user_info = {}
+    
+    # إعادة تسمية المفاتيح لتناسب report_content_builder
+    prepared_info = {
+        "المدينة": user_info.get("city", "المدينة"),
+        "نوع_العقار": user_info.get("property_type", "العقار"),
+        "نوع_الصفقة": user_info.get("status", "الاستثمار"),
+        "package": user_info.get("package", "free"),
+    }
+    
+    return prepared_info
+
+
 # ===================== BLOCK → TEXT =====================
 def blocks_to_text(report):
     """
@@ -116,10 +134,26 @@ def build_report_story(user_info, dataframe=None):
     """
 
     # 1️⃣ بناء المحتوى
-    report = build_complete_report(user_info)
+    prepared_user_info = prepare_user_info_for_content(user_info)
+    report = build_complete_report(prepared_user_info)
 
     # 2️⃣ تحويل البلوكات إلى نص
-    content_text = blocks_to_text(report)
+    if report and "chapters" in report:
+        content_text = blocks_to_text(report)
+    else:
+        content_text = """
+        الفصل الأول: مقدمة
+        هذا تقرير تجريبي لأن نظام البناء الرئيسي لم يعمل بشكل صحيح.
+        
+        الفصل الثاني: بيانات المستخدم
+        المدينة: {}
+        نوع العقار: {}
+        الباقة: {}
+        """.format(
+            user_info.get("city", "غير محدد"),
+            user_info.get("property_type", "غير محدد"),
+            user_info.get("package", "غير محدد")
+        )
 
     # 3️⃣ البيانات
     df = normalize_dataframe(dataframe)
@@ -130,7 +164,7 @@ def build_report_story(user_info, dataframe=None):
     if df is not None:
         charts_by_chapter = charts_engine.generate_all_charts(df)
 
-    # 6️⃣ إخراج نهائي نظيف
+    # 5️⃣ إخراج نهائي نظيف
     return {
         "meta": {
             "package": user_info.get("package"),
