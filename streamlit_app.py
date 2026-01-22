@@ -820,11 +820,22 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 # =====================================
                 # 🧠 استخدام نظام البناء الذكي الجديد
                 # =====================================
-                
                 from report_orchestrator import build_report_story
-                
+
+                # بناء التقرير الذكي
                 story = build_report_story(user_info, real_data)
-                final_content_text = story["content_text"]
+
+                # 🔒 حماية من أي نقص
+                final_content_text = story.get("content_text", "")
+                charts_by_chapter = story.get("charts", {})
+
+                # ✅ هذا السطر هو الأهم
+                st.session_state["charts_by_chapter"] = charts_by_chapter
+
+                
+                
+                
+               
                 
                 # ✅ حفظ الرسومات في session_state للاستخدام لاحقًا
                 st.session_state["charts_by_chapter"] = story["charts"]
