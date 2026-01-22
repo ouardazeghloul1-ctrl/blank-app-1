@@ -1,9 +1,12 @@
 from io import BytesIO
 from datetime import datetime
 import os
+import tempfile
+import streamlit as st  # ✅ تمت الإضافة هنا
 
 import arabic_reshaper
 from bidi.algorithm import get_display
+import plotly.io as pio
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -31,6 +34,24 @@ def ar(text):
         return get_display(reshaped)
     except Exception:
         return str(text)
+
+
+# =========================
+# Plotly to Image Helper
+# =========================
+def plotly_to_image(fig, width_cm, height_cm):
+    if fig is None:
+        return None
+
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        pio.write_image(
+            fig,
+            tmp.name,
+            format="png",
+            width=int(width_cm * 37.8),
+            height=int(height_cm * 37.8),
+        )
+        return Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
 
 
 # =========================
@@ -128,8 +149,10 @@ def create_pdf_from_content(
     story.append(PageBreak())
 
     # -------------------------------------------------
-    # CONTENT TEXT (منظم + فراغات)
+    # CONTENT TEXT (منظم + فراغات + رسومات حسب الفصل)
     # -------------------------------------------------
+    chapter_index = 0  # تم إضافة هذا المتغير لتتبع الفصول
+    
     if isinstance(content_text, str):
         lines = content_text.split("\n")
         paragraph_counter = 0
@@ -148,14 +171,39 @@ def create_pdf_from_content(
                 first_chapter = False
 
                 story.append(Paragraph(ar(clean), chapter_style))
-                
-                # فراغ مزدوج خفيف بعد عنوان الفصل
-                story.append(Spacer(1, 0.4 * cm))
-                story.append(Spacer(1, 0.2 * cm))
-                
-                # فراغ أكبر لمكان الرسومات (بدون نص)
-                story.append(Spacer(1, 2 * cm))
-                
+                story.append(Spacer(1, 0.3 * cm))
+
+                # -----------------------------
+                # 🖼️ إدراج الرسومات حسب الفصل
+                # -----------------------------
+                charts_by_chapter = st.session_state.get("charts_by_chapter", {})
+                chapter_index += 1
+                chapter_key = f"chapter_{chapter_index}"
+                chapter_charts = charts_by_chapter.get(chapter_key, [])
+
+                # تحديد نوع الباقة
+                premium = package_level in ["ذهبية", "ماسية", "ماسية متميزة"]
+
+                if chapter_charts:
+                    # 🔹 الرسم الرئيسي (كبير)
+                    main_chart = chapter_charts[0]
+                    img = plotly_to_image(
+                        main_chart,
+                        width_cm=14 if premium else 16,
+                        height_cm=9 if premium else 10,
+                    )
+                    if img:
+                        story.append(img)
+                        story.append(Spacer(1, 0.6 * cm))
+
+                    # 🔹 الرسومات الثانوية (للباقات العليا فقط)
+                    if premium and len(chapter_charts) > 1:
+                        for fig in chapter_charts[1:]:
+                            img = plotly_to_image(fig, width_cm=7, height_cm=5)
+                            if img:
+                                story.append(img)
+                                story.append(Spacer(1, 0.4 * cm))
+
                 paragraph_counter = 0
                 continue
 
@@ -165,11 +213,6 @@ def create_pdf_from_content(
             # فراغ ذكي كل 2 فقرة (للمحتوى الثقيل فكريًا)
             if paragraph_counter % 2 == 0:
                 story.append(Spacer(1, 0.6 * cm))
-
-    # -------------------------------------------------
-    # CHARTS (لاحقًا – غير مفعل الآن فعليًا)
-    # -------------------------------------------------
-    # تم ترك البنية جاهزة بدون إجبار الرسومات الآن
 
     # -------------------------------------------------
     # AI RECOMMENDATIONS
