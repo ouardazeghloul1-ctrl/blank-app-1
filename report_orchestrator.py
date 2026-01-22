@@ -133,6 +133,8 @@ def build_report_story(user_info, dataframe=None):
     # 6️⃣ إخراج نهائي نظيف
     return {
         "meta": {
+            "package": user_info.get("package"),
+            "package_name": user_info.get("package"),
             "generated_at": datetime.now().isoformat()
         },
         "content_text": content_text,
