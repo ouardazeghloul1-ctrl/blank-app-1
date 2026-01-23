@@ -1,204 +1,185 @@
 # advanced_charts.py
 # ============================================
-# High-End Visual Chart Engine
-# Light + Dark Blue Theme
-# Arabic + English Data Compatible
+# SAFE CHART ENGINE
+# مقاوم للبيانات المتسخة
+# لا يكسر التقرير أبدًا
 # ============================================
 
 import plotly.graph_objects as go
 import pandas as pd
-import numpy as np
 
-
-# ============================================
-# COLOR THEMES
-# ============================================
-
-LIGHT_THEME = {
-    "bg": "#FFFFFF",
-    "card": "#FFFFFF",
-    "grid": "#EDEDED",
-    "text": "#1F2937",
-    "muted": "#6B7280",
-    "primary": "#6D28D9",
-    "secondary": "#FACC15",
-    "accent": "#06B6D4",
-}
-
-DARK_THEME = {
-    "bg": "#0B1220",
-    "card": "#111827",
-    "grid": "#1F2937",
-    "text": "#E5E7EB",
-    "muted": "#9CA3AF",
-    "primary": "#8B5CF6",
-    "secondary": "#FACC15",
-    "accent": "#22D3EE",
-}
-
-
-# ============================================
-# MAIN ENGINE
-# ============================================
 
 class AdvancedCharts:
+    """
+    محرك رسومات آمن:
+    - أي خطأ في رسم → يرجع None
+    - لا يفترض نظافة البيانات
+    """
 
-    def __init__(self, theme="light"):
-        self.theme = DARK_THEME if theme == "dark" else LIGHT_THEME
+    # -----------------------------
+    # Helpers
+    # -----------------------------
+    def _has_columns(self, df, cols):
+        return all(c in df.columns for c in cols)
 
-    # ----------------------------------------
-    # 🔑 NORMALIZE COLUMNS (الحل الحاسم)
-    # ----------------------------------------
-    def _normalize_df(self, df):
-        df = df.copy()
+    def _to_numeric(self, series):
+        try:
+            return pd.to_numeric(
+                series.astype(str).str.extract(r"(\d+\.?\d*)")[0],
+                errors="coerce"
+            )
+        except Exception:
+            return None
 
-        column_map = {
-            "السعر": "price",
-            "المساحة": "area",
-            "المنطقة": "district",
-        }
-
-        for ar, en in column_map.items():
-            if ar in df.columns and en not in df.columns:
-                df[en] = df[ar]
-
-        df = df.dropna(subset=["price", "area"])
-        return df
-
-    # ----------------------------------------
-    def _layout(self, title):
+    def _base_layout(self, title):
         return dict(
-            title=dict(
-                text=title,
-                font=dict(size=18, color=self.theme["text"]),
-                x=0.02
-            ),
-            paper_bgcolor=self.theme["bg"],
-            plot_bgcolor=self.theme["card"],
-            font=dict(color=self.theme["text"]),
-            margin=dict(l=40, r=40, t=60, b=40),
-            xaxis=dict(showgrid=True, gridcolor=self.theme["grid"]),
-            yaxis=dict(showgrid=True, gridcolor=self.theme["grid"]),
+            title=dict(text=title, x=0.5),
+            template="plotly_white",
+            height=420,
+            margin=dict(l=40, r=40, t=60, b=40)
         )
 
-    # ----------------------------------------
-    def bar_prices_by_area(self, df):
-        df = self._normalize_df(df)
+    # =============================
+    # الفصل 1
+    # =============================
+    def chapter_1_price_distribution(self, df):
+        try:
+            if not self._has_columns(df, ["price"]):
+                return None
 
-        fig = go.Figure()
-        fig.add_bar(
-            x=df["area"],
-            y=df["price"],
-            marker_color=self.theme["primary"]
-        )
-        fig.update_layout(self._layout("العلاقة بين المساحة والسعر"))
-        return fig
+            price = self._to_numeric(df["price"])
+            if price is None or price.dropna().empty:
+                return None
 
-    # ----------------------------------------
-    def donut_distribution_by_area(self, df):
-        df = self._normalize_df(df)
+            fig = go.Figure()
+            fig.add_histogram(
+                x=price.dropna(),
+                nbinsx=20,
+                marker_color="#7a0000"
+            )
+            fig.update_layout(self._base_layout("توزيع الأسعار"))
+            return fig
+        except Exception:
+            return None
 
-        sizes = pd.cut(
-            df["area"],
-            bins=[0, 80, 120, 180, 1000],
-            labels=["صغير", "متوسط", "كبير", "كبير جدًا"]
-        ).value_counts()
+    def chapter_1_price_vs_area(self, df):
+        try:
+            if not self._has_columns(df, ["price", "area"]):
+                return None
 
-        fig = go.Figure(
-            data=[go.Pie(
-                labels=sizes.index,
-                values=sizes.values,
-                hole=0.6,
-                marker=dict(colors=[
-                    self.theme["primary"],
-                    self.theme["secondary"],
-                    self.theme["accent"],
-                    "#94A3B8"
-                ])
-            )]
-        )
+            price = self._to_numeric(df["price"])
+            area = self._to_numeric(df["area"])
+            mask = price.notna() & area.notna()
 
-        fig.update_layout(
-            title="توزيع العقارات حسب المساحة",
-            paper_bgcolor=self.theme["bg"],
-            font=dict(color=self.theme["text"])
-        )
-        return fig
+            if mask.sum() < 5:
+                return None
 
-    # ----------------------------------------
-    def bubble_price_area(self, df):
-        df = self._normalize_df(df)
-
-        fig = go.Figure(
-            data=[go.Scatter(
-                x=df["area"],
-                y=df["price"],
+            fig = go.Figure()
+            fig.add_scatter(
+                x=area[mask],
+                y=price[mask],
                 mode="markers",
                 marker=dict(
-                    size=(df["price"] / df["price"].max()) * 40,
-                    color=df["price"],
-                    colorscale="Plasma",
-                    opacity=0.75
+                    color="#9c1c1c",
+                    size=8,
+                    opacity=0.6
                 )
-            )]
-        )
-        fig.update_layout(self._layout("فقاعات السعر مقابل المساحة"))
-        return fig
+            )
+            fig.update_layout(self._base_layout("العلاقة بين السعر والمساحة"))
+            return fig
+        except Exception:
+            return None
 
-    # ----------------------------------------
-    def area_trend(self, df):
-        df = self._normalize_df(df).sort_values("area")
+    # =============================
+    # الفصل 2
+    # =============================
+    def chapter_2_price_trend(self, df):
+        try:
+            if not self._has_columns(df, ["price", "date"]):
+                return None
 
-        fig = go.Figure(
-            data=[go.Scatter(
-                x=df["area"],
-                y=df["price"],
-                fill="tozeroy",
-                line=dict(color=self.theme["accent"])
-            )]
-        )
-        fig.update_layout(self._layout("الاتجاه العام للأسعار"))
-        return fig
+            price = self._to_numeric(df["price"])
+            date = pd.to_datetime(df["date"], errors="coerce")
 
-    # ----------------------------------------
-    def summary_table(self, df):
-        df = self._normalize_df(df).head(10)
+            mask = price.notna() & date.notna()
+            if mask.sum() < 5:
+                return None
 
-        fig = go.Figure(
-            data=[go.Table(
-                header=dict(
-                    values=["المساحة", "السعر"],
-                    fill_color=self.theme["primary"],
-                    font=dict(color="white"),
-                    align="center"
-                ),
-                cells=dict(
-                    values=[df["area"], df["price"]],
-                    fill_color=self.theme["card"],
-                    font=dict(color=self.theme["text"]),
-                    align="center"
-                )
-            )]
-        )
+            fig = go.Figure()
+            fig.add_scatter(
+                x=date[mask],
+                y=price[mask],
+                mode="lines",
+                line=dict(color="#7a0000", width=2)
+            )
+            fig.update_layout(self._base_layout("تطور الأسعار مع الزمن"))
+            return fig
+        except Exception:
+            return None
 
-        fig.update_layout(
-            title="عينة من البيانات",
-            paper_bgcolor=self.theme["bg"]
-        )
-        return fig
+    # =============================
+    # الفصل 3
+    # =============================
+    def chapter_3_summary_table(self, df):
+        try:
+            if not self._has_columns(df, ["price", "area"]):
+                return None
 
-    # ----------------------------------------
+            price = self._to_numeric(df["price"])
+            area = self._to_numeric(df["area"])
+
+            table_df = pd.DataFrame({
+                "المساحة": area,
+                "السعر": price
+            }).dropna().head(8)
+
+            if table_df.empty:
+                return None
+
+            fig = go.Figure(
+                data=[
+                    go.Table(
+                        header=dict(
+                            values=list(table_df.columns),
+                            fill_color="#7a0000",
+                            font=dict(color="white"),
+                            align="center"
+                        ),
+                        cells=dict(
+                            values=[table_df[c] for c in table_df.columns],
+                            align="center"
+                        )
+                    )
+                ]
+            )
+            fig.update_layout(
+                title="عينة من البيانات",
+                height=300,
+                margin=dict(l=40, r=40, t=60, b=40)
+            )
+            return fig
+        except Exception:
+            return None
+
+    # =============================
+    # ENGINE
+    # =============================
     def generate_all_charts(self, df):
+        if df is None or df.empty:
+            return {}
+
+        def clean(charts):
+            return [c for c in charts if c is not None]
+
         return {
-            "chapter_1": [
-                self.bar_prices_by_area(df),
-                self.donut_distribution_by_area(df),
-            ],
-            "chapter_2": [
-                self.bubble_price_area(df),
-            ],
-            "chapter_3": [
-                self.area_trend(df),
-                self.summary_table(df),
-            ],
+            "chapter_1": clean([
+                self.chapter_1_price_distribution(df),
+                self.chapter_1_price_vs_area(df),
+            ]),
+            "chapter_2": clean([
+                self.chapter_2_price_trend(df),
+            ]),
+            "chapter_3": clean([
+                self.chapter_3_summary_table(df),
+            ]),
         }
