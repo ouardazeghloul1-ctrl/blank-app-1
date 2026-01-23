@@ -18,7 +18,7 @@ class AdvancedCharts:
         return all(col in df.columns for col in cols)
 
     def _safe(self, fig, chart_key):
-        fig.meta = {"chart_key": chart_key}
+        # ✅ حل نهائي: لا meta، لا attributes، لا مخاطرة
         return fig
 
     # ==================================================
