@@ -2,22 +2,38 @@
 Report Orchestrator
 -------------------
 Gatekeeper نهائي للتقرير
-يحوّل البلوكات إلى نص متسلسل نظيف وجاهز للـ PDF
+
+- يبني المحتوى النصي من report_content_builder
+- يربط الرسومات حسب الفصول
+- يطبق سياسة الرسومات حسب الباقات
+- يُخرج:
+    - content_text
+    - charts_by_chapter
 """
 
 # ===================== IMPORTS =====================
-from report_content_builder import build_complete_report
-from advanced_charts import AdvancedCharts
+from datetime import datetime
+import re
 import pandas as pd
 import numpy as np
-import re
-from datetime import datetime
 
-# ===================== INITIALIZATION =====================
+from report_content_builder import build_complete_report
+from advanced_charts import AdvancedCharts
+
+# ===================== VISUAL POLICY =====================
+# عدد الرسومات الداعمة المسموح بها لكل باقة
+PACKAGE_VISUAL_POLICY = {
+    "مجانية": 0,
+    "فضية": 1,
+    "ذهبية": 2,
+    "ماسية": 3,
+    "ماسية متميزة": 5,
+}
+
+# ===================== INIT =====================
 charts_engine = AdvancedCharts()
 
-
-# ===================== DATA GATE =====================
+# ===================== DATA NORMALIZATION =====================
 def normalize_dataframe(data):
     if data is None:
         return None
@@ -36,11 +52,15 @@ def normalize_dataframe(data):
 
 
 def ensure_required_columns(df):
-    if df is None:
+    """
+    نضمن وجود الأعمدة التي تحتاجها الرسومات
+    (حتى لا ينكسر أي رسم بسبب نقص بيانات)
+    """
+    if df is None or df.empty:
         return None
 
     required_defaults = {
-        "price": np.random.randint(500000, 3000000, len(df)),
+        "price": np.random.randint(500_000, 3_000_000, len(df)),
         "area": np.random.randint(80, 300, len(df)),
         "date": pd.date_range("2023-01-01", periods=len(df), freq="M"),
         "rental_yield": np.random.uniform(3.0, 8.0, len(df)),
@@ -59,68 +79,69 @@ def ensure_required_columns(df):
     return df
 
 
+# ===================== USER INFO PREP =====================
 def prepare_user_info_for_content(user_info):
     """
-    تحويل user_info إلى التنسيق الذي يتوقعه report_content_builder
+    تحويل user_info إلى الصيغة التي يتوقعها report_content_builder
     """
     if user_info is None:
         user_info = {}
-    
-    # استخراج الباقة من عدة مصادر محتملة
-    package = user_info.get("package") or user_info.get("chosen_pkg") or user_info.get("باقة") or "مجانية"
-    
-    # إعادة تسمية المفاتيح لتناسب report_content_builder
-    prepared_info = {
+
+    package = (
+        user_info.get("package")
+        or user_info.get("chosen_pkg")
+        or user_info.get("باقة")
+        or "مجانية"
+    )
+
+    prepared = {
         "المدينة": user_info.get("city", "المدينة"),
         "نوع_العقار": user_info.get("property_type", "العقار"),
         "نوع_الصفقة": user_info.get("status", "الاستثمار"),
         "package": package,
     }
-    
-    return prepared_info
+
+    return prepared
 
 
-# ===================== BLOCK → TEXT =====================
+# ===================== BLOCKS → TEXT =====================
 def blocks_to_text(report):
     """
-    يحوّل كل الفصول والبلوكات إلى نص متسلسل نظيف وجاهز للـ PDF
-    مع تنظيف السطور الزخرفية (----)
+    يحوّل بلوكات المحتوى إلى نص متسلسل نظيف
+    مع تنظيف الخطوط الزخرفية
     """
     lines = []
 
-    for chapter in report["chapters"]:
-        for block in chapter["blocks"]:
+    for chapter in report.get("chapters", []):
+        for block in chapter.get("blocks", []):
             block_type = block.get("type")
             content = block.get("content")
 
             if not content:
                 continue
 
-            # عنوان الفصل
+            # عنوان فصل
             if block_type == "chapter_title":
                 lines.append(content.strip())
                 lines.append("")
                 continue
 
+            # تجاهل أي بلوك رسم (نحن نربط الرسومات لاحقًا)
             if block_type == "chart":
                 continue
 
             if isinstance(content, str):
-                # 🔑 هنا الحل الحقيقي: تنظيف سطر بسطر
                 for raw_line in content.splitlines():
                     clean = raw_line.strip()
 
-                    # ❌ حذف أي سطر لا يحتوي حروف أو أرقام (زخرفة فقط)
                     if not clean:
                         lines.append("")
                         continue
 
-                    # ✅ الحل النهائي: إزالة جميع أنواع الخطوط الزخرفية
-                    # هذا سيزيل: ------------ , ________ , –––––––– , الخ
-                    if re.fullmatch(r'[-–—_=\s]*', clean):
+                    # إزالة الخطوط الزخرفية
+                    if re.fullmatch(r"[-–—_=\s]*", clean):
                         continue
 
-                    # ✅ يحافظ على النقاط التعدادية •
                     lines.append(clean)
 
                 lines.append("")
@@ -128,54 +149,92 @@ def blocks_to_text(report):
     return "\n".join(lines)
 
 
+# ===================== CHARTS BY PACKAGE =====================
+def generate_charts_by_package(df, package):
+    """
+    يولّد الرسومات حسب الفصول
+    ثم يطبّق سياسة الباقة:
+    - Hero دائمًا
+    - Supporting حسب الباقة
+    """
+    raw_charts = charts_engine.generate_all(df)
+    allowed_supporting = PACKAGE_VISUAL_POLICY.get(package, 0)
+
+    final = {}
+
+    for chapter_key, charts in raw_charts.items():
+        if not charts or "hero" not in charts:
+            continue
+
+        final[chapter_key] = []
+
+        # 🥇 Hero Chart (دائمًا)
+        final[chapter_key].append(charts["hero"])
+
+        # 🥈 Supporting Charts (حسب الباقة)
+        supporting = charts.get("supporting", [])
+        if supporting and allowed_supporting > 0:
+            final[chapter_key].extend(supporting[:allowed_supporting])
+
+    return final
+
+
 # ===================== CORE ORCHESTRATOR =====================
 def build_report_story(user_info, dataframe=None):
     """
-    يبني تقريرًا جاهزًا:
-    - نص متسلسل
-    - رسومات مربوطة
+    يبني تقريرًا جاهزًا للـ PDF:
+    - content_text
+    - charts_by_chapter
     """
 
-    # استخراج الباقة بشكل آمن من user_info
-    package = user_info.get("package") or user_info.get("chosen_pkg") or user_info.get("باقة") or "مجانية"
-    
-    # 1️⃣ بناء المحتوى
+    # -----------------------------
+    # PACKAGE
+    # -----------------------------
+    package = (
+        user_info.get("package")
+        or user_info.get("chosen_pkg")
+        or user_info.get("باقة")
+        or "مجانية"
+    )
+
+    # -----------------------------
+    # CONTENT
+    # -----------------------------
     prepared_user_info = prepare_user_info_for_content(user_info)
     report = build_complete_report(prepared_user_info)
 
-    # 2️⃣ تحويل البلوكات إلى نص
     if report and "chapters" in report:
         content_text = blocks_to_text(report)
     else:
-        content_text = """
-        الفصل الأول: مقدمة
-        هذا تقرير تجريبي لأن نظام البناء الرئيسي لم يعمل بشكل صحيح.
-        
-        الفصل الثاني: بيانات المستخدم
-        المدينة: {}
-        نوع العقار: {}
-        الباقة: {}
-        """.format(
-            user_info.get("city", "غير محدد"),
-            user_info.get("property_type", "غير محدد"),
-            package
-        )
+        content_text = f"""
+الفصل الأول – مقدمة
+هذا تقرير تجريبي.
 
-    # 3️⃣ البيانات
+المدينة: {user_info.get('city', 'غير محدد')}
+نوع العقار: {user_info.get('property_type', 'غير محدد')}
+الباقة: {package}
+"""
+
+    # -----------------------------
+    # DATA
+    # -----------------------------
     df = normalize_dataframe(dataframe)
     df = ensure_required_columns(df)
 
-    # 4️⃣ الرسومات
+    # -----------------------------
+    # CHARTS
+    # -----------------------------
     charts_by_chapter = {}
     if df is not None:
-        charts_by_chapter = charts_engine.generate_all_charts(df)
+        charts_by_chapter = generate_charts_by_package(df, package)
 
-    # 5️⃣ إخراج نهائي نظيف
+    # -----------------------------
+    # FINAL OUTPUT
+    # -----------------------------
     return {
         "meta": {
-            "package": str(package),  # تأكيد تحويل إلى نص
-            "package_name": str(package),
-            "generated_at": datetime.now().isoformat()
+            "package": str(package),
+            "generated_at": datetime.now().isoformat(),
         },
         "content_text": content_text,
         "charts": charts_by_chapter,
