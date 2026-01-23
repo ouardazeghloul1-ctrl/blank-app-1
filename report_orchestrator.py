@@ -8,7 +8,7 @@ from datetime import datetime
 
 
 # 🔒 ثابت – لا يُكسر
-charts_engine = AdvancedCharts(theme="light")
+charts_engine = AdvancedCharts()
 
 
 # =================================
