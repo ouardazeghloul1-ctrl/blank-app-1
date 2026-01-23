@@ -191,24 +191,29 @@ def create_pdf_from_content(
                 premium = package_level in ["ذهبية", "ماسية", "ماسية متميزة"]
 
                 if chapter_charts:
-                    # 🔹 الرسم الرئيسي (كبير)
+                    # 🥇 الرسم الرئيسي (Hero Chart)
                     main_chart = chapter_charts[0]
                     img = plotly_to_image(
                         main_chart,
-                        width_cm=14 if premium else 16,
-                        height_cm=9 if premium else 10,
+                        width_cm=16 if premium else 17,
+                        height_cm=9
                     )
                     if img:
+                        story.append(Spacer(1, 0.4 * cm))
                         story.append(img)
-                        story.append(Spacer(1, 0.6 * cm))
+                        story.append(Spacer(1, 0.8 * cm))
 
-                    # 🔹 الرسومات الثانوية (للباقات العليا فقط)
+                    # 🥈 الرسومات الثانوية (للباقات العليا فقط)
                     if premium and len(chapter_charts) > 1:
                         for fig in chapter_charts[1:]:
-                            img = plotly_to_image(fig, width_cm=7, height_cm=5)
+                            img = plotly_to_image(
+                                fig,
+                                width_cm=12,
+                                height_cm=6
+                            )
                             if img:
                                 story.append(img)
-                                story.append(Spacer(1, 0.4 * cm))
+                                story.append(Spacer(1, 0.6 * cm))
 
                 paragraph_counter = 0
                 continue
