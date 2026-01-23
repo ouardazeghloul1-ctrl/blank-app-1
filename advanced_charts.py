@@ -1,369 +1,251 @@
 import plotly.express as px
 import plotly.graph_objects as go
 
-
 class AdvancedCharts:
     """
-    AdvancedCharts
-    ----------------
-    محرك الرسومات الاستثماري المتقدم مع تحسينات جمالية احترافية
+    AdvancedCharts v2
+    Visual Decision Engine
     """
 
-    # ===================== SAFETY & BEAUTIFICATION =====================
+    # -----------------------------
+    # UTILITIES
+    # -----------------------------
+    def _has(self, df, cols):
+        return df is not None and all(c in df.columns for c in cols)
 
-    def _has_columns(self, df, cols):
-        return all(col in df.columns for col in cols)
-
-    def _beautify(self, fig):
-        """تحسين مظهر الرسومات لجعلها احترافية واستشارية"""
+    def _beautify(self, fig, title):
         if fig is None:
             return None
-            
+
         fig.update_layout(
             template="plotly_white",
-            width=900,
-            height=520,
-            margin=dict(l=40, r=40, t=80, b=50),
+            height=480,
+            margin=dict(l=40, r=40, t=70, b=40),
             title=dict(
+                text=title,
                 x=0.5,
-                font=dict(size=20, family="Arial", color="#7a0000")
+                font=dict(size=18, color="#7a0000")
             ),
-            font=dict(
-                family="Arial",
-                size=13
-            ),
-            plot_bgcolor='rgba(0,0,0,0)'
+            font=dict(size=12),
+            showlegend=False
         )
-        
-        # إخفاء الضجيج البصري وجعلها أنظف
         fig.update_xaxes(showgrid=False)
         fig.update_yaxes(showgrid=True, gridcolor="#eeeeee")
-        
         return fig
 
-    def _safe(self, fig):
-        # ✅ حل نهائي: لا meta، لا attributes، لا مخاطرة
-        return self._beautify(fig)
-
     # ==================================================
-    # الفصل 1 – السيناريو العام
+    # CHAPTER 1 – SCENARIO
     # ==================================================
+    def chapter_1(self, df):
+        charts = {}
 
-    def chapter_1_price_distribution(self, df):
-        if not self._has_columns(df, ["price"]):
-            return None
-        try:
-            fig = px.histogram(df, x="price", nbins=30,
-                               title="توزيع الأسعار – قراءة سلوكية لا رقمية")
-            return self._safe(fig)
-        except Exception:
-            return None
-
-    def chapter_1_price_vs_area(self, df):
-        if not self._has_columns(df, ["price", "area"]):
-            return None
-
-        try:
-            # 🔹 أخذ عينة ذكية لتقليل الضجيج البصري
-            sample = df.sample(
-                n=min(len(df), 180),
-                random_state=42
+        # HERO – Timeline / Area
+        if self._has(df, ["date", "price"]):
+            fig = px.area(df, x="date", y="price")
+            charts["hero"] = self._beautify(
+                fig, "المسار العام للسوق — قراءة هادئة"
             )
 
-            fig = px.scatter(
-                sample,
-                x="area",
-                y="price",
-                title="العلاقة بين المساحة والسعر — قراءة استثمارية هادئة",
-                opacity=0.55,
+        charts["supporting"] = []
+
+        # Distribution
+        if self._has(df, ["price"]):
+            fig = px.histogram(df, x="price", nbins=25)
+            charts["supporting"].append(
+                self._beautify(fig, "نطاق الأسعار السائد")
             )
 
-            # 🔹 تحسين شكل النقاط مع تدرج لوني وحجم متغير
-            fig.update_traces(
-                marker=dict(
-                    size=sample["area"] / sample["area"].max() * 14 + 4,
-                    color=sample["price"],
-                    colorscale="Reds",
-                    opacity=0.55,
-                    showscale=False,
-                    line=dict(width=0),
-                )
+        # Growth Curve
+        if self._has(df, ["date", "growth_rate"]):
+            fig = px.line(df, x="date", y="growth_rate")
+            charts["supporting"].append(
+                self._beautify(fig, "إيقاع النمو عبر الزمن")
             )
 
-            # 🔹 تبسيط المحاور (Executive Style)
-            fig.update_layout(
-                xaxis_title="المساحة (م²)",
-                yaxis_title="السعر",
+        return charts
+
+    # ==================================================
+    # CHAPTER 2 – RISKS
+    # ==================================================
+    def chapter_2(self, df):
+        charts = {}
+
+        if self._has(df, ["price"]):
+            fig = px.box(df, y="price")
+            charts["hero"] = self._beautify(
+                fig, "تمركز الأسعار — أين يتركّز الخطر"
             )
 
-            # 🔹 إزالة أي ضجيج إضافي
-            fig.update_xaxes(showgrid=False)
-            fig.update_yaxes(showgrid=True, gridcolor="#eeeeee")
+        charts["supporting"] = []
 
-            return self._safe(fig)
+        if self._has(df, ["date", "price"]):
+            fig = px.line(df, x="date", y="price")
+            charts["supporting"].append(
+                self._beautify(fig, "تذبذب السعر بمرور الوقت")
+            )
 
-        except Exception:
-            return None
+        if self._has(df, ["price", "demand_index"]):
+            fig = px.scatter(df, x="price", y="demand_index", opacity=0.5)
+            charts["supporting"].append(
+                self._beautify(fig, "مخاطر التسعير المبالغ فيه")
+            )
 
-    def chapter_1_future_scenarios(self, df):
-        try:
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=list(range(1, 11)),
-                y=[1, 1.1, 1.15, 1.2, 1.25, 1.3, 1.35, 1.4, 1.45, 1.5],
-                mode="lines",
-                name="السيناريو الواقعي",
-                line=dict(color="#7a0000", width=3)
-            ))
-            fig.update_layout(title="السيناريو الواقعي لنمو السوق (10 سنوات)")
-            return self._safe(fig)
-        except Exception:
-            return None
+        return charts
 
     # ==================================================
-    # الفصل 2 – المخاطر
+    # CHAPTER 3 – OPPORTUNITIES
     # ==================================================
+    def chapter_3(self, df):
+        charts = {}
 
-    def chapter_2_price_concentration(self, df):
-        if not self._has_columns(df, ["price"]):
-            return None
-        try:
-            fig = px.box(df, y="price",
-                         title="تمركز الأسعار – أين يتركّز الخطر؟")
-            fig.update_traces(marker_color="#7a0000")
-            return self._safe(fig)
-        except Exception:
-            return None
+        if self._has(df, ["price", "rental_yield"]):
+            fig = px.scatter(df, x="price", y="rental_yield", opacity=0.6)
+            charts["hero"] = self._beautify(
+                fig, "خريطة الفرص — القيمة مقابل العائد"
+            )
 
-    def chapter_2_price_volatility(self, df):
-        if not self._has_columns(df, ["date", "price"]):
-            return None
-        try:
-            fig = px.line(df, x="date", y="price",
-                          title="تذبذب الأسعار – الخطر غير المرئي")
-            fig.update_traces(line=dict(color="#d32f2f", width=2))
-            return self._safe(fig)
-        except Exception:
-            return None
+        charts["supporting"] = []
 
-    def chapter_2_overpricing_risk(self, df):
-        if not self._has_columns(df, ["price", "demand_index"]):
-            return None
-        try:
-            fig = px.scatter(df, x="price", y="demand_index",
-                             title="مخاطر التسعير المبالغ فيه")
-            fig.update_traces(marker=dict(color="#ff6b6b", size=10, opacity=0.7))
-            return self._safe(fig)
-        except Exception:
-            return None
+        if self._has(df, ["location_score", "price"]):
+            fig = px.scatter(df, x="location_score", y="price", opacity=0.6)
+            charts["supporting"].append(
+                self._beautify(fig, "الجيوب السعرية غير الملفتة")
+            )
+
+        if self._has(df, ["area", "rental_yield"]):
+            fig = px.scatter(df, x="area", y="rental_yield", opacity=0.6)
+            charts["supporting"].append(
+                self._beautify(fig, "المساحات ذات العائد المستقر")
+            )
+
+        return charts
 
     # ==================================================
-    # الفصل 3 – الفرص
+    # CHAPTER 4 – STRATEGY
     # ==================================================
+    def chapter_4(self, df):
+        charts = {}
 
-    def chapter_3_value_map(self, df):
-        if not self._has_columns(df, ["price", "rental_yield"]):
-            return None
-        try:
-            fig = px.scatter(df, x="price", y="rental_yield",
-                             title="خريطة القيمة – أين تختبئ الفرص؟")
-            fig.update_traces(marker=dict(color="#2e7d32", size=12, opacity=0.8))
-            return self._safe(fig)
-        except Exception:
-            return None
+        fig = px.pie(
+            names=["أمان", "استقرار", "نمو", "فرص"],
+            values=[30, 40, 20, 10]
+        )
+        charts["hero"] = self._beautify(
+            fig, "منطق توزيع الاستثمار"
+        )
 
-    def chapter_3_affordable_pockets(self, df):
-        if not self._has_columns(df, ["location_score", "price"]):
-            return None
-        try:
-            fig = px.scatter(df, x="location_score", y="price",
-                             title="الجيوب السعرية غير الملفتة")
-            fig.update_traces(marker=dict(color="#ff9800", size=10))
-            return self._safe(fig)
-        except Exception:
-            return None
+        charts["supporting"] = []
 
-    def chapter_3_size_opportunities(self, df):
-        if not self._has_columns(df, ["area", "rental_yield"]):
-            return None
-        try:
-            fig = px.scatter(df, x="area", y="rental_yield",
-                             title="المساحات المهملة ذات العائد المستقر")
-            fig.update_traces(marker=dict(color="#0097a7", size=11))
-            return self._safe(fig)
-        except Exception:
-            return None
+        fig = px.imshow(
+            [[1, 2], [3, 4]],
+            text_auto=True,
+            color_continuous_scale="Greys"
+        )
+        charts["supporting"].append(
+            self._beautify(fig, "مصفوفة القرار الاستثماري")
+        )
+
+        return charts
 
     # ==================================================
-    # الفصل 4 – الخطة
+    # CHAPTER 5 – TIMING
     # ==================================================
+    def chapter_5(self, df):
+        charts = {}
 
-    def chapter_4_investment_allocation_logic(self, df):
-        try:
-            fig = px.pie(names=["أمان", "استقرار", "نمو", "فرص"],
-                         values=[30, 40, 20, 10],
-                         title="منطق توزيع الاستثمار",
-                         color_discrete_sequence=["#4caf50", "#2196f3", "#ff9800", "#9c27b0"])
-            return self._safe(fig)
-        except Exception:
-            return None
+        if self._has(df, ["date", "price"]):
+            fig = px.line(df, x="date", y="price")
+            charts["hero"] = self._beautify(
+                fig, "تموضع السعر داخل الدورة"
+            )
 
-    def chapter_4_action_matrix(self, df):
-        try:
-            fig = px.imshow([[1, 2], [3, 4]], text_auto=True,
-                            title="مصفوفة القرار الاستثماري",
-                            color_continuous_scale="Blues")
-            return self._safe(fig)
-        except Exception:
-            return None
+        charts["supporting"] = []
 
-    # ==================================================
-    # الفصل 5 – التوقيت
-    # ==================================================
+        if self._has(df, ["date", "entry_signal"]):
+            fig = px.scatter(df, x="date", y="entry_signal")
+            charts["supporting"].append(
+                self._beautify(fig, "إشارات الدخول الهادئة")
+            )
 
-    def chapter_5_price_positioning(self, df):
-        if not self._has_columns(df, ["date", "price"]):
-            return None
-        try:
-            fig = px.line(df, x="date", y="price",
-                          title="تموضع السعر داخل الدورة")
-            fig.update_traces(line=dict(color="#673ab7", width=3))
-            return self._safe(fig)
-        except Exception:
-            return None
-
-    def chapter_5_entry_timing_signal(self, df):
-        if not self._has_columns(df, ["date", "entry_signal"]):
-            return None
-        try:
-            fig = px.scatter(df, x="date", y="entry_signal",
-                             title="إشارات الدخول الهادئة")
-            fig.update_traces(marker=dict(color="#e91e63", size=12, symbol="diamond"))
-            return self._safe(fig)
-        except Exception:
-            return None
+        return charts
 
     # ==================================================
-    # الفصل 6 – رأس المال
+    # CHAPTER 6 – CAPITAL
     # ==================================================
+    def chapter_6(self, df):
+        charts = {}
 
-    def chapter_6_capital_allocation_by_risk(self, df):
-        try:
-            fig = px.bar(x=["منخفض", "متوسط", "مرتفع"],
-                         y=[50, 30, 20],
-                         title="توزيع رأس المال حسب مستوى المخاطر",
-                         color_discrete_sequence=["#4caf50", "#ff9800", "#f44336"])
-            return self._safe(fig)
-        except Exception:
-            return None
+        fig = px.bar(
+            x=["أمان", "استقرار", "نمو", "فرص"],
+            y=[30, 40, 20, 10]
+        )
+        charts["hero"] = self._beautify(
+            fig, "طبقات توزيع رأس المال"
+        )
 
-    def chapter_6_capital_balance_curve(self, df):
-        try:
-            fig = px.line(x=[1, 2, 3, 4, 5],
-                          y=[100, 110, 120, 130, 140],
-                          title="منحنى توازن رأس المال")
-            fig.update_traces(line=dict(color="#009688", width=3))
-            return self._safe(fig)
-        except Exception:
-            return None
+        charts["supporting"] = []
 
-    # ==================================================
-    # الفصل 7 – الخروج
-    # ==================================================
+        fig = px.line(x=[1,2,3,4,5], y=[100,110,120,130,140])
+        charts["supporting"].append(
+            self._beautify(fig, "منحنى توازن رأس المال")
+        )
 
-    def chapter_7_exit_pressure_zones(self, df):
-        if not self._has_columns(df, ["price", "time_on_market"]):
-            return None
-        try:
-            fig = px.scatter(df, x="price", y="time_on_market",
-                             title="مناطق ضغط الخروج")
-            fig.update_traces(marker=dict(color="#795548", size=11, opacity=0.7))
-            return self._safe(fig)
-        except Exception:
-            return None
-
-    def chapter_7_hold_vs_exit_signal(self, df):
-        try:
-            fig = px.bar(x=["احتفاظ", "خروج"],
-                         y=[70, 30],
-                         title="إشارة الاحتفاظ مقابل الخروج",
-                         color_discrete_sequence=["#4caf50", "#f44336"])
-            return self._safe(fig)
-        except Exception:
-            return None
+        return charts
 
     # ==================================================
-    # الفصل 8 – الإشارات
+    # CHAPTER 7 – EXIT
     # ==================================================
+    def chapter_7(self, df):
+        charts = {}
 
-    def chapter_8_anomaly_detection(self, df):
-        if not self._has_columns(df, ["date", "price"]):
-            return None
-        try:
-            fig = px.scatter(df, x="date", y="price",
-                             title="اكتشاف السلوك غير الطبيعي")
-            fig.update_traces(marker=dict(color="#ff5722", size=10, symbol="star"))
-            return self._safe(fig)
-        except Exception:
-            return None
+        if self._has(df, ["price", "time_on_market"]):
+            fig = px.scatter(df, x="price", y="time_on_market", opacity=0.6)
+            charts["hero"] = self._beautify(
+                fig, "مناطق ضغط الخروج"
+            )
 
-    def chapter_8_signal_intensity(self, df):
-        if not self._has_columns(df, ["date", "signal_strength"]):
-            return None
-        try:
-            fig = px.line(df, x="date", y="signal_strength",
-                          title="شدة الإشارات المبكرة")
-            fig.update_traces(line=dict(color="#3f51b5", width=2.5))
-            return self._safe(fig)
-        except Exception:
-            return None
+        charts["supporting"] = []
+
+        fig = px.bar(x=["احتفاظ", "خروج"], y=[70, 30])
+        charts["supporting"].append(
+            self._beautify(fig, "قرار الاحتفاظ مقابل الخروج")
+        )
+
+        return charts
 
     # ==================================================
-    # ENGINE مع فلترة الرسومات الفارغة
+    # CHAPTER 8 – SIGNALS
     # ==================================================
+    def chapter_8(self, df):
+        charts = {}
 
-    def generate_all_charts(self, df):
-        if df is None or df.empty:
-            return {}
+        if self._has(df, ["date", "price"]):
+            fig = px.scatter(df, x="date", y="price", opacity=0.5)
+            charts["hero"] = self._beautify(
+                fig, "السلوك غير الطبيعي في السوق"
+            )
 
-        # دالة مساعدة لتنظيف القائمة من الرسومات الفارغة
-        def clean(charts):
-            return [c for c in charts if c is not None]
+        charts["supporting"] = []
 
+        if self._has(df, ["date", "signal_strength"]):
+            fig = px.line(df, x="date", y="signal_strength")
+            charts["supporting"].append(
+                self._beautify(fig, "شدة الإشارات المبكرة")
+            )
+
+        return charts
+
+    # ==================================================
+    # MASTER GENERATOR
+    # ==================================================
+    def generate_all(self, df):
         return {
-            "chapter_1": clean([
-                self.chapter_1_price_distribution(df),
-                self.chapter_1_price_vs_area(df),
-                self.chapter_1_future_scenarios(df),
-            ]),
-            "chapter_2": clean([
-                self.chapter_2_price_concentration(df),
-                self.chapter_2_price_volatility(df),
-                self.chapter_2_overpricing_risk(df),
-            ]),
-            "chapter_3": clean([
-                self.chapter_3_value_map(df),
-                self.chapter_3_affordable_pockets(df),
-                self.chapter_3_size_opportunities(df),
-            ]),
-            "chapter_4": clean([
-                self.chapter_4_investment_allocation_logic(df),
-                self.chapter_4_action_matrix(df),
-            ]),
-            "chapter_5": clean([
-                self.chapter_5_price_positioning(df),
-                self.chapter_5_entry_timing_signal(df),
-            ]),
-            "chapter_6": clean([
-                self.chapter_6_capital_allocation_by_risk(df),
-                self.chapter_6_capital_balance_curve(df),
-            ]),
-            "chapter_7": clean([
-                self.chapter_7_exit_pressure_zones(df),
-                self.chapter_7_hold_vs_exit_signal(df),
-            ]),
-            "chapter_8": clean([
-                self.chapter_8_anomaly_detection(df),
-                self.chapter_8_signal_intensity(df),
-            ]),
+            "chapter_1": self.chapter_1(df),
+            "chapter_2": self.chapter_2(df),
+            "chapter_3": self.chapter_3(df),
+            "chapter_4": self.chapter_4(df),
+            "chapter_5": self.chapter_5(df),
+            "chapter_6": self.chapter_6(df),
+            "chapter_7": self.chapter_7(df),
+            "chapter_8": self.chapter_8(df),
         }
