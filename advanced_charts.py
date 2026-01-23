@@ -62,13 +62,47 @@ class AdvancedCharts:
     def chapter_1_price_vs_area(self, df):
         if not self._has_columns(df, ["price", "area"]):
             return None
+
         try:
-            # رسم بدون trendline لتجنب مشكلة statsmodels
-            fig = px.scatter(df, x="area", y="price",
-                             title="العلاقة بين المساحة والسعر")
+            # 🔹 أخذ عينة ذكية لتقليل الضجيج البصري
+            sample = df.sample(
+                n=min(len(df), 180),
+                random_state=42
+            )
+
+            fig = px.scatter(
+                sample,
+                x="area",
+                y="price",
+                title="العلاقة بين المساحة والسعر — قراءة استثمارية هادئة",
+                opacity=0.55,
+            )
+
+            # 🔹 تحسين شكل النقاط مع تدرج لوني وحجم متغير
+            fig.update_traces(
+                marker=dict(
+                    size=sample["area"] / sample["area"].max() * 14 + 4,
+                    color=sample["price"],
+                    colorscale="Reds",
+                    opacity=0.55,
+                    showscale=False,
+                    line=dict(width=0),
+                )
+            )
+
+            # 🔹 تبسيط المحاور (Executive Style)
+            fig.update_layout(
+                xaxis_title="المساحة (م²)",
+                yaxis_title="السعر",
+            )
+
+            # 🔹 إزالة أي ضجيج إضافي
+            fig.update_xaxes(showgrid=False)
+            fig.update_yaxes(showgrid=True, gridcolor="#eeeeee")
+
             return self._safe(fig)
-        except Exception as e:
-            # خطة طوارئ إذا فشل الرسم
+
+        except Exception:
             return None
 
     def chapter_1_future_scenarios(self, df):
