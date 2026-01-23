@@ -1,251 +1,150 @@
-import plotly.express as px
+# advanced_charts.py
 import plotly.graph_objects as go
+import plotly.express as px
+import numpy as np
+
 
 class AdvancedCharts:
     """
-    AdvancedCharts v2
-    Visual Decision Engine
+    AdvancedCharts – Visual First Edition
+    -------------------------------------
+    محرك رسومات استثماري بصري (Dark • Gradient • Calm)
+    لا يعرف الباقة
+    لا يقرر الكمية
+    فقط يصنع رسومات جميلة ومريحة
     """
 
-    # -----------------------------
-    # UTILITIES
-    # -----------------------------
-    def _has(self, df, cols):
-        return df is not None and all(c in df.columns for c in cols)
-
-    def _beautify(self, fig, title):
-        if fig is None:
-            return None
-
-        fig.update_layout(
-            template="plotly_white",
-            height=480,
-            margin=dict(l=40, r=40, t=70, b=40),
+    # ===============================
+    # THEME
+    # ===============================
+    def _base_layout(self, title):
+        return dict(
+            template="plotly_dark",
             title=dict(
                 text=title,
                 x=0.5,
-                font=dict(size=18, color="#7a0000")
+                font=dict(size=20, color="#E6D7FF")
             ),
-            font=dict(size=12),
-            showlegend=False
+            paper_bgcolor="#0B0E14",
+            plot_bgcolor="#0B0E14",
+            margin=dict(l=40, r=40, t=80, b=50),
+            font=dict(
+                family="Tajawal, Arial",
+                size=13,
+                color="#E6D7FF"
+            ),
+            height=420
         )
-        fig.update_xaxes(showgrid=False)
-        fig.update_yaxes(showgrid=True, gridcolor="#eeeeee")
+
+    # ===============================
+    # CHART TYPES (CALM & PREMIUM)
+    # ===============================
+
+    def price_distribution_area(self, df):
+        fig = go.Figure()
+        fig.add_trace(go.Histogram(
+            x=df["price"],
+            nbinsx=30,
+            marker=dict(
+                color="rgba(168,85,247,0.55)"
+            )
+        ))
+        fig.update_layout(**self._base_layout("توزيع الأسعار — قراءة هادئة"))
         return fig
 
-    # ==================================================
-    # CHAPTER 1 – SCENARIO
-    # ==================================================
-    def chapter_1(self, df):
-        charts = {}
-
-        # HERO – Timeline / Area
-        if self._has(df, ["date", "price"]):
-            fig = px.area(df, x="date", y="price")
-            charts["hero"] = self._beautify(
-                fig, "المسار العام للسوق — قراءة هادئة"
+    def price_vs_area_bubble(self, df):
+        sample = df.sample(n=min(len(df), 160), random_state=42)
+        fig = go.Figure(
+            go.Scatter(
+                x=sample["area"],
+                y=sample["price"],
+                mode="markers",
+                marker=dict(
+                    size=sample["area"] / sample["area"].max() * 18 + 6,
+                    color=sample["price"],
+                    colorscale=[
+                        [0, "#22D3EE"],
+                        [0.5, "#A855F7"],
+                        [1, "#EC4899"]
+                    ],
+                    opacity=0.55,
+                    showscale=False
+                )
             )
-
-        charts["supporting"] = []
-
-        # Distribution
-        if self._has(df, ["price"]):
-            fig = px.histogram(df, x="price", nbins=25)
-            charts["supporting"].append(
-                self._beautify(fig, "نطاق الأسعار السائد")
-            )
-
-        # Growth Curve
-        if self._has(df, ["date", "growth_rate"]):
-            fig = px.line(df, x="date", y="growth_rate")
-            charts["supporting"].append(
-                self._beautify(fig, "إيقاع النمو عبر الزمن")
-            )
-
-        return charts
-
-    # ==================================================
-    # CHAPTER 2 – RISKS
-    # ==================================================
-    def chapter_2(self, df):
-        charts = {}
-
-        if self._has(df, ["price"]):
-            fig = px.box(df, y="price")
-            charts["hero"] = self._beautify(
-                fig, "تمركز الأسعار — أين يتركّز الخطر"
-            )
-
-        charts["supporting"] = []
-
-        if self._has(df, ["date", "price"]):
-            fig = px.line(df, x="date", y="price")
-            charts["supporting"].append(
-                self._beautify(fig, "تذبذب السعر بمرور الوقت")
-            )
-
-        if self._has(df, ["price", "demand_index"]):
-            fig = px.scatter(df, x="price", y="demand_index", opacity=0.5)
-            charts["supporting"].append(
-                self._beautify(fig, "مخاطر التسعير المبالغ فيه")
-            )
-
-        return charts
-
-    # ==================================================
-    # CHAPTER 3 – OPPORTUNITIES
-    # ==================================================
-    def chapter_3(self, df):
-        charts = {}
-
-        if self._has(df, ["price", "rental_yield"]):
-            fig = px.scatter(df, x="price", y="rental_yield", opacity=0.6)
-            charts["hero"] = self._beautify(
-                fig, "خريطة الفرص — القيمة مقابل العائد"
-            )
-
-        charts["supporting"] = []
-
-        if self._has(df, ["location_score", "price"]):
-            fig = px.scatter(df, x="location_score", y="price", opacity=0.6)
-            charts["supporting"].append(
-                self._beautify(fig, "الجيوب السعرية غير الملفتة")
-            )
-
-        if self._has(df, ["area", "rental_yield"]):
-            fig = px.scatter(df, x="area", y="rental_yield", opacity=0.6)
-            charts["supporting"].append(
-                self._beautify(fig, "المساحات ذات العائد المستقر")
-            )
-
-        return charts
-
-    # ==================================================
-    # CHAPTER 4 – STRATEGY
-    # ==================================================
-    def chapter_4(self, df):
-        charts = {}
-
-        fig = px.pie(
-            names=["أمان", "استقرار", "نمو", "فرص"],
-            values=[30, 40, 20, 10]
         )
-        charts["hero"] = self._beautify(
-            fig, "منطق توزيع الاستثمار"
-        )
+        fig.update_layout(**self._base_layout("العلاقة بين المساحة والسعر"))
+        fig.update_xaxes(title="المساحة (م²)")
+        fig.update_yaxes(title="السعر")
+        return fig
 
-        charts["supporting"] = []
+    def future_growth_area(self):
+        years = list(range(1, 11))
+        values = [1, 1.08, 1.12, 1.17, 1.22, 1.28, 1.33, 1.38, 1.44, 1.5]
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=years,
+            y=values,
+            fill="tozeroy",
+            line=dict(color="#A855F7", width=3)
+        ))
+        fig.update_layout(**self._base_layout("السيناريو الواقعي لنمو السوق (10 سنوات)"))
+        return fig
 
-        fig = px.imshow(
-            [[1, 2], [3, 4]],
-            text_auto=True,
-            color_continuous_scale="Greys"
-        )
-        charts["supporting"].append(
-            self._beautify(fig, "مصفوفة القرار الاستثماري")
-        )
-
-        return charts
-
-    # ==================================================
-    # CHAPTER 5 – TIMING
-    # ==================================================
-    def chapter_5(self, df):
-        charts = {}
-
-        if self._has(df, ["date", "price"]):
-            fig = px.line(df, x="date", y="price")
-            charts["hero"] = self._beautify(
-                fig, "تموضع السعر داخل الدورة"
+    def price_concentration_box(self, df):
+        fig = go.Figure(
+            go.Box(
+                y=df["price"],
+                boxpoints=False,
+                marker_color="#EC4899"
             )
-
-        charts["supporting"] = []
-
-        if self._has(df, ["date", "entry_signal"]):
-            fig = px.scatter(df, x="date", y="entry_signal")
-            charts["supporting"].append(
-                self._beautify(fig, "إشارات الدخول الهادئة")
-            )
-
-        return charts
-
-    # ==================================================
-    # CHAPTER 6 – CAPITAL
-    # ==================================================
-    def chapter_6(self, df):
-        charts = {}
-
-        fig = px.bar(
-            x=["أمان", "استقرار", "نمو", "فرص"],
-            y=[30, 40, 20, 10]
         )
-        charts["hero"] = self._beautify(
-            fig, "طبقات توزيع رأس المال"
-        )
+        fig.update_layout(**self._base_layout("تمركز الأسعار — مناطق الخطر"))
+        return fig
 
-        charts["supporting"] = []
+    def volatility_area(self, df):
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=df["date"],
+            y=df["price"],
+            fill="tozeroy",
+            line=dict(color="#22D3EE", width=2)
+        ))
+        fig.update_layout(**self._base_layout("تذبذب السعر عبر الزمن"))
+        return fig
 
-        fig = px.line(x=[1,2,3,4,5], y=[100,110,120,130,140])
-        charts["supporting"].append(
-            self._beautify(fig, "منحنى توازن رأس المال")
-        )
-
-        return charts
-
-    # ==================================================
-    # CHAPTER 7 – EXIT
-    # ==================================================
-    def chapter_7(self, df):
-        charts = {}
-
-        if self._has(df, ["price", "time_on_market"]):
-            fig = px.scatter(df, x="price", y="time_on_market", opacity=0.6)
-            charts["hero"] = self._beautify(
-                fig, "مناطق ضغط الخروج"
+    def value_indicator(self, value, title):
+        fig = go.Figure(
+            go.Indicator(
+                mode="gauge+number",
+                value=value,
+                gauge=dict(
+                    axis=dict(range=[0, 100]),
+                    bar=dict(color="#A855F7"),
+                    bgcolor="#0B0E14"
+                ),
+                number=dict(font=dict(color="#E6D7FF")),
+                title=dict(text=title)
             )
-
-        charts["supporting"] = []
-
-        fig = px.bar(x=["احتفاظ", "خروج"], y=[70, 30])
-        charts["supporting"].append(
-            self._beautify(fig, "قرار الاحتفاظ مقابل الخروج")
         )
+        fig.update_layout(**self._base_layout(""))
+        return fig
 
-        return charts
-
-    # ==================================================
-    # CHAPTER 8 – SIGNALS
-    # ==================================================
-    def chapter_8(self, df):
-        charts = {}
-
-        if self._has(df, ["date", "price"]):
-            fig = px.scatter(df, x="date", y="price", opacity=0.5)
-            charts["hero"] = self._beautify(
-                fig, "السلوك غير الطبيعي في السوق"
-            )
-
-        charts["supporting"] = []
-
-        if self._has(df, ["date", "signal_strength"]):
-            fig = px.line(df, x="date", y="signal_strength")
-            charts["supporting"].append(
-                self._beautify(fig, "شدة الإشارات المبكرة")
-            )
-
-        return charts
-
-    # ==================================================
-    # MASTER GENERATOR
-    # ==================================================
-    def generate_all(self, df):
+    # ===============================
+    # MAIN DISPATCHER (STABLE)
+    # ===============================
+    def generate_all_charts(self, df):
+        """
+        هذه الدالة تُستدعى كما هي من report_orchestrator
+        لا تغيّري اسمها
+        """
         return {
-            "chapter_1": self.chapter_1(df),
-            "chapter_2": self.chapter_2(df),
-            "chapter_3": self.chapter_3(df),
-            "chapter_4": self.chapter_4(df),
-            "chapter_5": self.chapter_5(df),
-            "chapter_6": self.chapter_6(df),
-            "chapter_7": self.chapter_7(df),
-            "chapter_8": self.chapter_8(df),
+            "chapter_1": [
+                self.price_distribution_area(df),
+                self.price_vs_area_bubble(df),
+                self.future_growth_area()
+            ],
+            "chapter_2": [
+                self.price_concentration_box(df),
+                self.volatility_area(df)
+            ]
         }
