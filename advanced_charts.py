@@ -1,152 +1,96 @@
 # advanced_charts.py
-# ============================================
-# SAFE CHART ENGINE
-# مقاوم للبيانات المتسخة
-# لا يكسر التقرير أبدًا
-# ============================================
-
+import plotly.express as px
 import plotly.graph_objects as go
-import pandas as pd
 
 
 class AdvancedCharts:
     """
-    محرك رسومات آمن:
-    - أي خطأ في رسم → يرجع None
-    - لا يفترض نظافة البيانات
+    نسخة بسيطة وآمنة
+    الهدف الوحيد: الرسومات تظهر بدون كسر التقرير
     """
 
-    # -----------------------------
-    # Helpers
-    # -----------------------------
     def _has_columns(self, df, cols):
-        return all(c in df.columns for c in cols)
+        return all(col in df.columns for col in cols)
 
-    def _to_numeric(self, series):
-        try:
-            return pd.to_numeric(
-                series.astype(str).str.extract(r"(\d+\.?\d*)")[0],
-                errors="coerce"
-            )
-        except Exception:
+    def _safe(self, fig):
+        if fig is None:
             return None
 
-    def _base_layout(self, title):
-        return dict(
-            title=dict(text=title, x=0.5),
+        fig.update_layout(
             template="plotly_white",
-            height=420,
-            margin=dict(l=40, r=40, t=60, b=40)
+            height=450,
+            margin=dict(l=40, r=40, t=60, b=40),
+            title=dict(x=0.5)
         )
+        return fig
 
-    # =============================
+    # =====================
     # الفصل 1
-    # =============================
+    # =====================
     def chapter_1_price_distribution(self, df):
+        if not self._has_columns(df, ["price"]):
+            return None
         try:
-            if not self._has_columns(df, ["price"]):
-                return None
-
-            price = self._to_numeric(df["price"])
-            if price is None or price.dropna().empty:
-                return None
-
-            fig = go.Figure()
-            fig.add_histogram(
-                x=price.dropna(),
-                nbinsx=20,
-                marker_color="#7a0000"
+            fig = px.histogram(
+                df,
+                x="price",
+                nbins=25,
+                title="توزيع الأسعار"
             )
-            fig.update_layout(self._base_layout("توزيع الأسعار"))
-            return fig
+            return self._safe(fig)
         except Exception:
             return None
 
     def chapter_1_price_vs_area(self, df):
+        if not self._has_columns(df, ["price", "area"]):
+            return None
         try:
-            if not self._has_columns(df, ["price", "area"]):
-                return None
-
-            price = self._to_numeric(df["price"])
-            area = self._to_numeric(df["area"])
-            mask = price.notna() & area.notna()
-
-            if mask.sum() < 5:
-                return None
-
-            fig = go.Figure()
-            fig.add_scatter(
-                x=area[mask],
-                y=price[mask],
-                mode="markers",
-                marker=dict(
-                    color="#9c1c1c",
-                    size=8,
-                    opacity=0.6
-                )
+            fig = px.scatter(
+                df,
+                x="area",
+                y="price",
+                title="العلاقة بين السعر والمساحة",
+                opacity=0.6
             )
-            fig.update_layout(self._base_layout("العلاقة بين السعر والمساحة"))
-            return fig
+            return self._safe(fig)
         except Exception:
             return None
 
-    # =============================
+    # =====================
     # الفصل 2
-    # =============================
+    # =====================
     def chapter_2_price_trend(self, df):
+        if not self._has_columns(df, ["price", "date"]):
+            return None
         try:
-            if not self._has_columns(df, ["price", "date"]):
-                return None
-
-            price = self._to_numeric(df["price"])
-            date = pd.to_datetime(df["date"], errors="coerce")
-
-            mask = price.notna() & date.notna()
-            if mask.sum() < 5:
-                return None
-
-            fig = go.Figure()
-            fig.add_scatter(
-                x=date[mask],
-                y=price[mask],
-                mode="lines",
-                line=dict(color="#7a0000", width=2)
+            fig = px.line(
+                df,
+                x="date",
+                y="price",
+                title="تطور الأسعار مع الزمن"
             )
-            fig.update_layout(self._base_layout("تطور الأسعار مع الزمن"))
-            return fig
+            return self._safe(fig)
         except Exception:
             return None
 
-    # =============================
+    # =====================
     # الفصل 3
-    # =============================
+    # =====================
     def chapter_3_summary_table(self, df):
+        if not self._has_columns(df, ["price", "area"]):
+            return None
         try:
-            if not self._has_columns(df, ["price", "area"]):
-                return None
-
-            price = self._to_numeric(df["price"])
-            area = self._to_numeric(df["area"])
-
-            table_df = pd.DataFrame({
-                "المساحة": area,
-                "السعر": price
-            }).dropna().head(8)
-
-            if table_df.empty:
-                return None
-
+            sample = df[["area", "price"]].head(10)
             fig = go.Figure(
                 data=[
                     go.Table(
                         header=dict(
-                            values=list(table_df.columns),
-                            fill_color="#7a0000",
-                            font=dict(color="white"),
+                            values=["المساحة", "السعر"],
+                            fill_color="#eeeeee",
                             align="center"
                         ),
                         cells=dict(
-                            values=[table_df[c] for c in table_df.columns],
+                            values=[sample["area"], sample["price"]],
                             align="center"
                         )
                     )
@@ -161,9 +105,9 @@ class AdvancedCharts:
         except Exception:
             return None
 
-    # =============================
+    # =====================
     # ENGINE
-    # =============================
+    # =====================
     def generate_all_charts(self, df):
         if df is None or df.empty:
             return {}
