@@ -34,7 +34,7 @@ def ar(text):
 
 
 # =========================
-# Plotly → Image (NO kaleido)
+# Plotly → Image (آمن)
 # =========================
 def plotly_to_image(fig, width_cm, height_cm):
     if fig is None:
@@ -56,9 +56,7 @@ def plotly_to_image(fig, width_cm, height_cm):
             width=width_cm * cm,
             height=height_cm * cm
         )
-
-    except Exception as e:
-        print("⚠️ فشل توليد رسم:", e)
+    except Exception:
         return None
 
 
@@ -156,15 +154,14 @@ def create_pdf_from_content(
     story.append(PageBreak())
 
     # =========================
-    # CONTENT WITH SMART CHART INSERTION
+    # CONTENT + AUTO CHARTS
     # =========================
     charts_by_chapter = st.session_state.get("charts_by_chapter", {})
     chapter_index = 0
-    chart_cursor = {}
+    first_chapter = True
 
     if isinstance(content_text, str):
         lines = content_text.split("\n")
-        first_chapter = True
 
         for line in lines:
             clean = line.strip()
@@ -180,26 +177,18 @@ def create_pdf_from_content(
                 first_chapter = False
 
                 chapter_index += 1
-                chart_cursor[chapter_index] = 0
-
                 story.append(Paragraph(ar(clean), chapter_style))
-                story.append(Spacer(1, 0.5 * cm))
-                continue
+                story.append(Spacer(1, 0.6 * cm))
 
-            # -------- SMART CHART MARKER --------
-            if clean.startswith("[CHART]"):
+                # 🔥 AUTO INSERT CHARTS (كما كان سابقًا)
                 chapter_key = f"chapter_{chapter_index}"
                 charts = charts_by_chapter.get(chapter_key, [])
-                idx = chart_cursor.get(chapter_index, 0)
 
-                if idx < len(charts):
-                    fig = charts[idx]
+                for fig in charts:
                     img = plotly_to_image(fig, width_cm=16, height_cm=8)
                     if img:
-                        story.append(Spacer(1, 0.6 * cm))
                         story.append(img)
                         story.append(Spacer(1, 0.8 * cm))
-                    chart_cursor[chapter_index] += 1
 
                 continue
 
