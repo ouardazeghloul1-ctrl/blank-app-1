@@ -1,150 +1,224 @@
 # advanced_charts.py
+# ============================================
+# High-End Visual Chart Engine
+# Light + Dark Blue Theme
+# Compatible with PDF / Streamlit / AI
+# ============================================
+
 import plotly.graph_objects as go
-import plotly.express as px
+import pandas as pd
 import numpy as np
 
 
+# ============================================
+# COLOR THEMES
+# ============================================
+
+LIGHT_THEME = {
+    "bg": "#FFFFFF",
+    "card": "#FFFFFF",
+    "grid": "#EDEDED",
+    "text": "#1F2937",
+    "muted": "#6B7280",
+    "primary": "#6D28D9",   # Purple
+    "secondary": "#FACC15", # Yellow
+    "accent": "#06B6D4",    # Cyan
+}
+
+DARK_THEME = {
+    "bg": "#0B1220",        # Dark Blue
+    "card": "#111827",
+    "grid": "#1F2937",
+    "text": "#E5E7EB",
+    "muted": "#9CA3AF",
+    "primary": "#8B5CF6",   # Soft Purple
+    "secondary": "#FACC15", # Yellow
+    "accent": "#22D3EE",    # Cyan
+}
+
+
+# ============================================
+# MAIN ENGINE
+# ============================================
+
 class AdvancedCharts:
     """
-    AdvancedCharts – Visual First Edition
-    -------------------------------------
-    محرك رسومات استثماري بصري (Dark • Gradient • Calm)
-    لا يعرف الباقة
-    لا يقرر الكمية
-    فقط يصنع رسومات جميلة ومريحة
+    يولّد رسومات احترافية عالية المستوى
+    ويعيد دائمًا plotly Figure (بدون كسر أي ملف)
     """
 
-    # ===============================
-    # THEME
-    # ===============================
-    def _base_layout(self, title):
+    def __init__(self, theme="light"):
+        self.theme = DARK_THEME if theme == "dark" else LIGHT_THEME
+
+    # ----------------------------------------
+    # BASE LAYOUT
+    # ----------------------------------------
+    def _layout(self, title):
         return dict(
-            template="plotly_dark",
             title=dict(
                 text=title,
-                x=0.5,
-                font=dict(size=20, color="#E6D7FF")
+                font=dict(size=18, color=self.theme["text"]),
+                x=0.02,
+                xanchor="left"
             ),
-            paper_bgcolor="#0B0E14",
-            plot_bgcolor="#0B0E14",
-            margin=dict(l=40, r=40, t=80, b=50),
-            font=dict(
-                family="Tajawal, Arial",
-                size=13,
-                color="#E6D7FF"
+            paper_bgcolor=self.theme["bg"],
+            plot_bgcolor=self.theme["card"],
+            font=dict(color=self.theme["text"]),
+            margin=dict(l=40, r=40, t=60, b=40),
+            xaxis=dict(
+                showgrid=True,
+                gridcolor=self.theme["grid"],
+                zeroline=False
             ),
-            height=420
+            yaxis=dict(
+                showgrid=True,
+                gridcolor=self.theme["grid"],
+                zeroline=False
+            ),
         )
 
-    # ===============================
-    # CHART TYPES (CALM & PREMIUM)
-    # ===============================
-
-    def price_distribution_area(self, df):
+    # ----------------------------------------
+    # 1️⃣ BAR CHART (فاخر – أعمدة)
+    # ----------------------------------------
+    def bar_prices_by_area(self, df):
         fig = go.Figure()
-        fig.add_trace(go.Histogram(
-            x=df["price"],
-            nbinsx=30,
-            marker=dict(
-                color="rgba(168,85,247,0.55)"
-            )
-        ))
-        fig.update_layout(**self._base_layout("توزيع الأسعار — قراءة هادئة"))
-        return fig
 
-    def price_vs_area_bubble(self, df):
-        sample = df.sample(n=min(len(df), 160), random_state=42)
-        fig = go.Figure(
-            go.Scatter(
-                x=sample["area"],
-                y=sample["price"],
-                mode="markers",
-                marker=dict(
-                    size=sample["area"] / sample["area"].max() * 18 + 6,
-                    color=sample["price"],
-                    colorscale=[
-                        [0, "#22D3EE"],
-                        [0.5, "#A855F7"],
-                        [1, "#EC4899"]
-                    ],
-                    opacity=0.55,
-                    showscale=False
-                )
-            )
-        )
-        fig.update_layout(**self._base_layout("العلاقة بين المساحة والسعر"))
-        fig.update_xaxes(title="المساحة (م²)")
-        fig.update_yaxes(title="السعر")
-        return fig
-
-    def future_growth_area(self):
-        years = list(range(1, 11))
-        values = [1, 1.08, 1.12, 1.17, 1.22, 1.28, 1.33, 1.38, 1.44, 1.5]
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=years,
-            y=values,
-            fill="tozeroy",
-            line=dict(color="#A855F7", width=3)
-        ))
-        fig.update_layout(**self._base_layout("السيناريو الواقعي لنمو السوق (10 سنوات)"))
-        return fig
-
-    def price_concentration_box(self, df):
-        fig = go.Figure(
-            go.Box(
-                y=df["price"],
-                boxpoints=False,
-                marker_color="#EC4899"
-            )
-        )
-        fig.update_layout(**self._base_layout("تمركز الأسعار — مناطق الخطر"))
-        return fig
-
-    def volatility_area(self, df):
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=df["date"],
+        fig.add_bar(
+            x=df["area"],
             y=df["price"],
-            fill="tozeroy",
-            line=dict(color="#22D3EE", width=2)
-        ))
-        fig.update_layout(**self._base_layout("تذبذب السعر عبر الزمن"))
-        return fig
-
-    def value_indicator(self, value, title):
-        fig = go.Figure(
-            go.Indicator(
-                mode="gauge+number",
-                value=value,
-                gauge=dict(
-                    axis=dict(range=[0, 100]),
-                    bar=dict(color="#A855F7"),
-                    bgcolor="#0B0E14"
-                ),
-                number=dict(font=dict(color="#E6D7FF")),
-                title=dict(text=title)
-            )
+            marker_color=self.theme["primary"],
+            name="السعر"
         )
-        fig.update_layout(**self._base_layout(""))
+
+        fig.update_layout(self._layout("العلاقة بين المساحة والسعر"))
         return fig
 
-    # ===============================
-    # MAIN DISPATCHER (STABLE)
-    # ===============================
+    # ----------------------------------------
+    # 2️⃣ DONUT / PIE (مريح جدًا نفسيًا)
+    # ----------------------------------------
+    def donut_distribution_by_area(self, df):
+        sizes = pd.cut(
+            df["area"],
+            bins=[0, 80, 120, 180, 1000],
+            labels=["صغير", "متوسط", "كبير", "كبير جدًا"]
+        ).value_counts()
+
+        fig = go.Figure(
+            data=[
+                go.Pie(
+                    labels=sizes.index,
+                    values=sizes.values,
+                    hole=0.6,
+                    marker=dict(colors=[
+                        self.theme["primary"],
+                        self.theme["secondary"],
+                        self.theme["accent"],
+                        "#94A3B8"
+                    ])
+                )
+            ]
+        )
+
+        fig.update_layout(
+            title="توزيع العقارات حسب المساحة",
+            paper_bgcolor=self.theme["bg"],
+            font=dict(color=self.theme["text"])
+        )
+        return fig
+
+    # ----------------------------------------
+    # 3️⃣ BUBBLE CHART (احترافي جدًا)
+    # ----------------------------------------
+    def bubble_price_area(self, df):
+        fig = go.Figure(
+            data=[
+                go.Scatter(
+                    x=df["area"],
+                    y=df["price"],
+                    mode="markers",
+                    marker=dict(
+                        size=df["price"] / df["price"].max() * 40,
+                        color=df["price"],
+                        colorscale="Plasma",
+                        showscale=False,
+                        opacity=0.75
+                    )
+                )
+            ]
+        )
+
+        fig.update_layout(self._layout("فقاعات السعر مقابل المساحة"))
+        return fig
+
+    # ----------------------------------------
+    # 4️⃣ AREA CHART (ريتم هادئ)
+    # ----------------------------------------
+    def area_trend(self, df):
+        df_sorted = df.sort_values("area")
+
+        fig = go.Figure(
+            data=[
+                go.Scatter(
+                    x=df_sorted["area"],
+                    y=df_sorted["price"],
+                    fill="tozeroy",
+                    line=dict(color=self.theme["accent"])
+                )
+            ]
+        )
+
+        fig.update_layout(self._layout("الاتجاه العام للأسعار"))
+        return fig
+
+    # ----------------------------------------
+    # 5️⃣ TABLE (مهم جدًا – أرقام واضحة)
+    # ----------------------------------------
+    def summary_table(self, df):
+        table_df = df[["area", "price"]].head(10)
+
+        fig = go.Figure(
+            data=[
+                go.Table(
+                    header=dict(
+                        values=["المساحة", "السعر"],
+                        fill_color=self.theme["primary"],
+                        font=dict(color="white", size=12),
+                        align="center"
+                    ),
+                    cells=dict(
+                        values=[
+                            table_df["area"],
+                            table_df["price"]
+                        ],
+                        fill_color=self.theme["card"],
+                        font=dict(color=self.theme["text"]),
+                        align="center"
+                    )
+                )
+            ]
+        )
+
+        fig.update_layout(
+            title="عينة من البيانات الفعلية",
+            paper_bgcolor=self.theme["bg"]
+        )
+        return fig
+
+    # ----------------------------------------
+    # 🔗 GENERATE ALL (متوافق مع orchestrator)
+    # ----------------------------------------
     def generate_all_charts(self, df):
-        """
-        هذه الدالة تُستدعى كما هي من report_orchestrator
-        لا تغيّري اسمها
-        """
-        return {
+        charts = {
             "chapter_1": [
-                self.price_distribution_area(df),
-                self.price_vs_area_bubble(df),
-                self.future_growth_area()
+                self.bar_prices_by_area(df),
+                self.donut_distribution_by_area(df),
             ],
             "chapter_2": [
-                self.price_concentration_box(df),
-                self.volatility_area(df)
-            ]
+                self.bubble_price_area(df),
+            ],
+            "chapter_3": [
+                self.area_trend(df),
+                self.summary_table(df),
+            ],
         }
+        return charts
