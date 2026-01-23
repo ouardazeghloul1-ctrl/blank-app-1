@@ -6,7 +6,6 @@ import streamlit as st
 
 import arabic_reshaper
 from bidi.algorithm import get_display
-import plotly.io as pio
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -35,22 +34,29 @@ def ar(text):
 
 
 # =========================
-# Plotly → Image
+# Plotly → Image (NO kaleido)
 # =========================
 def plotly_to_image(fig, width_cm, height_cm):
     if fig is None:
         return None
+
     try:
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-            pio.write_image(
-                fig,
-                tmp.name,
-                format="png",
-                width=int(width_cm * 37.8),
-                height=int(height_cm * 37.8),
-                engine="kaleido"
-            )
-            return Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
+        img_bytes = fig.to_image(
+            format="png",
+            width=int(width_cm * 37.8),
+            height=int(height_cm * 37.8)
+        )
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        tmp.write(img_bytes)
+        tmp.close()
+
+        return Image(
+            tmp.name,
+            width=width_cm * cm,
+            height=height_cm * cm
+        )
+
     except Exception as e:
         print("⚠️ فشل توليد رسم:", e)
         return None
