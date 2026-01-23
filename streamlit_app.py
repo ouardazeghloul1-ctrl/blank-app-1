@@ -782,12 +782,15 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 city, property_type, status, real_data
             )
 
+            # ✅ التصحيح الحاسم: إضافة الباقة بشكل صحيح
             user_info = {
                 "user_type": user_type,
                 "city": city,
                 "property_type": property_type,
                 "area": area,
                 "package": chosen_pkg,
+                "chosen_pkg": chosen_pkg,
+                "باقة": chosen_pkg,
                 "property_count": property_count,
                 "status": status
             }
@@ -822,14 +825,29 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 # =====================================
                 from report_orchestrator import build_report_story
 
+                # ✅ التحقق من البيانات قبل البناء
+                st.write(f"🔍 DEBUG: user_info keys = {list(user_info.keys())}")
+                st.write(f"🔍 DEBUG: package = {user_info.get('package')}")
+                st.write(f"🔍 DEBUG: chosen_pkg = {user_info.get('chosen_pkg')}")
+                
                 # بناء التقرير الذكي
                 story = build_report_story(user_info, real_data)
-
+                
+                # ✅ التحقق من القصة المبينة
+                if story:
+                    st.write(f"🔍 DEBUG: story keys = {list(story.keys())}")
+                    if "meta" in story:
+                        st.write(f"🔍 DEBUG: meta = {story['meta']}")
+                
                 # 🔒 حماية من أي نقص
                 final_content_text = story.get("content_text", "")
+                if not final_content_text or final_content_text.strip() == "":
+                    final_content_text = st.session_state.get('smart_report_content', 
+                        f"تقرير {chosen_pkg} لـ {property_type} في {city}")
+                
                 charts_by_chapter = story.get("charts", {})
-
-                # ✅ هذا السطر هو الأهم
+                
+                # ✅ هذا السطر هو الأهم - حفظ الرسومات
                 st.session_state["charts_by_chapter"] = charts_by_chapter
                 
                 st.info(f"📝 تم بناء محتوى التقرير الذكي: {len(final_content_text.split())} كلمة")
@@ -847,7 +865,9 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 )
                 
             except Exception as e:
-                st.error(f"❌ خطأ في إنشاء التقرير الكامل: {e}")
+                st.error(f"❌ خطأ في إنشاء التقرير الكامل: {str(e)[:200]}")
+                import traceback
+                st.code(traceback.format_exc())
                 # خطة طوارئ: PDF بسيط
                 from io import BytesIO
                 buffer = BytesIO()
@@ -865,7 +885,9 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
             st.balloons()
 
         except Exception as e:
-            st.error(f"⚠️ خطأ أثناء إنشاء التقرير: {e}")
+            st.error(f"⚠️ خطأ أثناء إنشاء التقرير: {str(e)[:200]}")
+            import traceback
+            st.code(traceback.format_exc())
 
 # ========== عرض النتائج ==========
 if st.session_state.get('report_generated', False):
@@ -919,6 +941,8 @@ if 'user_info' not in st.session_state:
     st.session_state.user_info = {}
 if 'smart_report_content' not in st.session_state:
     st.session_state.smart_report_content = None
+if 'charts_by_chapter' not in st.session_state:
+    st.session_state.charts_by_chapter = {}
 if 'paid' not in st.session_state:
     st.session_state.paid = False
 
