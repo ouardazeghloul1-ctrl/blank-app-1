@@ -75,6 +75,10 @@ def chapter_1_blocks(user_info):
 """
         },
         {
+            "type": "chart_marker",
+            "content": "[CHART]"
+        },
+        {
             "type": "rich_text",
             "content": f"""
 1.2 كيف نرى سوق {prop} في {city} اليوم؟
@@ -246,6 +250,10 @@ def chapter_2_blocks(user_info):
 """
         },
         {
+            "type": "chart_marker",
+            "content": "[CHART]"
+        },
+        {
             "type": "rich_text",
             "content": f"""
 أولًا: الخطر الأكبر… التفكير أن الخطر في السعر فقط
@@ -332,7 +340,7 @@ def chapter_2_blocks(user_info):
 • وبمواصفات جيدة
 • وفي موقع يبدو منطقيًا
 
-ثم تكتشف لاحقًا أن:
+ثن تكتشف لاحقًا أن:
 • السوق الثانوي له ضعيف
 • أو أن المشترين أصبحوا أكثر انتقائية
 • أو أن "الجديد" خطف الاهتمام
@@ -426,6 +434,10 @@ def chapter_3_blocks(user_info):
 الفرصة غير المرئية لا تعني فرصة سرية،
 بل تعني فرصة لم يعد السوق متحمسًا لها بما يكفي ليبالغ في تسعيرها.
 """
+        },
+        {
+            "type": "chart_marker",
+            "content": "[CHART]"
         },
         {
             "type": "rich_text",
@@ -609,6 +621,10 @@ def chapter_4_blocks(user_info):
 هذا الفصل لا يخبرك ماذا تشتري،
 بل يضع لك إطارًا تعيش به مع قرارك.
 """
+        },
+        {
+            "type": "chart_marker",
+            "content": "[CHART]"
         },
         {
             "type": "rich_text",
@@ -797,6 +813,10 @@ def chapter_5_blocks(user_info):
 """
         },
         {
+            "type": "chart_marker",
+            "content": "[CHART]"
+        },
+        {
             "type": "rich_text",
             "content": f"""
 أولًا: التنبؤ ≠ إدارة التوقيت
@@ -965,6 +985,10 @@ def chapter_6_blocks(user_info):
 هذا الفصل لا يعلّمك كيف "تربح أكثر"،
 بل كيف لا تنهار إذا أخطأت.
 """
+        },
+        {
+            "type": "chart_marker",
+            "content": "[CHART]"
         },
         {
             "type": "rich_text",
@@ -1138,6 +1162,10 @@ def chapter_7_blocks(user_info):
 """
         },
         {
+            "type": "chart_marker",
+            "content": "[CHART]"
+        },
+        {
             "type": "rich_text",
             "content": f"""
 أولًا: لماذا الخروج أصعب من الدخول؟
@@ -1166,7 +1194,7 @@ def chapter_7_blocks(user_info):
 بسعر جيد
 وعائد مقبول
 
-ثم تكتشف بعد سنوات:
+ثن تكتشف بعد سنوات:
 • السوق الثانوي ضعيف
 • الجميع يبيع نفس الشيء
 • الخروج أصعب مما توقعت
@@ -1306,6 +1334,10 @@ def chapter_8_blocks(user_info):
 السعر هو آخر ما يتغير.
 السلوك… هو الأول.
 """
+        },
+        {
+            "type": "chart_marker",
+            "content": "[CHART]"
         },
         {
             "type": "rich_text",
@@ -1497,6 +1529,10 @@ def chapter_9_blocks(user_info):
 هذا الفصل لا يضيف لك بيانات جديدة،
 بل يعلّمك كيف تستخدم ما لديك دون أن تضيع فيه.
 """
+        },
+        {
+            "type": "chart_marker",
+            "content": "[CHART]"
         },
         {
             "type": "rich_text",
@@ -1714,6 +1750,10 @@ def chapter_10_blocks(user_info):
 هذا الفصل لا يخبرك ماذا تفعل.
 بل يساعدك على التأكد أن ما ستفعله… صحيح لك.
 """
+        },
+        {
+            "type": "chart_marker",
+            "content": "[CHART]"
         },
         {
             "type": "rich_text",
