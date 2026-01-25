@@ -100,10 +100,10 @@ def create_pdf_from_content(
         fontSize=13.5,
         leading=22,
         alignment=TA_RIGHT,
-        spaceAfter=16,
-        keepWithNext=1,
+        spaceAfter=14,
         allowWidows=0,
-        allowOrphans=0
+        allowOrphans=0,
+        keepWithNext=0
     )
 
     chapter = ParagraphStyle(
@@ -114,7 +114,7 @@ def create_pdf_from_content(
         alignment=TA_RIGHT,
         textColor=colors.HexColor("#9c1c1c"),
         spaceBefore=30,
-        spaceAfter=20,
+        spaceAfter=24,
         keepWithNext=1
     )
 
@@ -138,6 +138,7 @@ def create_pdf_from_content(
     charts_by_chapter = st.session_state.get("charts_by_chapter", {})
     chapter_index = 0
     chart_cursor = {}
+    text_since_last_chart = 0
 
     lines = content_text.split("\n")
 
@@ -145,7 +146,7 @@ def create_pdf_from_content(
         clean = line.strip()
 
         if not clean:
-            story.append(Spacer(1, 0.6 * cm))
+            story.append(Spacer(1, 0.5 * cm))
             continue
 
         # -------- CHAPTER TITLE --------
@@ -153,7 +154,13 @@ def create_pdf_from_content(
             story.append(PageBreak())
             chapter_index += 1
             chart_cursor[chapter_index] = 0
+            text_since_last_chart = 0
             story.append(Paragraph(ar(clean), chapter))
+            continue
+
+        # 🚫 منع الرسومات في الفصل 9 و 10
+        if chapter_index >= 9:
+            story.append(Paragraph(ar(clean), body))
             continue
 
         charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
@@ -161,26 +168,32 @@ def create_pdf_from_content(
 
         # -------- ANCHOR CHART --------
         if clean == "[[ANCHOR_CHART]]" and cursor < len(charts):
-            img = plotly_to_image(charts[cursor], 16.5, 8.5)
-            if img:
-                story.append(Spacer(1, 1.0 * cm))
-                story.append(KeepTogether([img]))
-                story.append(Spacer(1, 1.2 * cm))
-            chart_cursor[chapter_index] += 1
+            # نضمن وجود نص كافٍ قبله
+            if text_since_last_chart >= 6:
+                img = plotly_to_image(charts[cursor], 16.5, 8.5)
+                if img:
+                    story.append(Spacer(1, 1.2 * cm))
+                    story.append(KeepTogether([img]))
+                    story.append(Spacer(1, 1.5 * cm))
+                chart_cursor[chapter_index] += 1
+                text_since_last_chart = 0
             continue
 
         # -------- RHYTHM CHART --------
         if clean == "[[RHYTHM_CHART]]" and cursor < len(charts):
-            img = plotly_to_image(charts[cursor], 15.5, 6.8)
-            if img:
-                story.append(Spacer(1, 0.8 * cm))
-                story.append(KeepTogether([img]))
-                story.append(Spacer(1, 1.0 * cm))
-            chart_cursor[chapter_index] += 1
+            if text_since_last_chart >= 4:
+                img = plotly_to_image(charts[cursor], 15.5, 6.8)
+                if img:
+                    story.append(Spacer(1, 1.0 * cm))
+                    story.append(KeepTogether([img]))
+                    story.append(Spacer(1, 1.2 * cm))
+                chart_cursor[chapter_index] += 1
+                text_since_last_chart = 0
             continue
 
         # -------- NORMAL TEXT --------
         story.append(Paragraph(ar(clean), body))
+        text_since_last_chart += 1
 
     doc.build(story)
     buffer.seek(0)
