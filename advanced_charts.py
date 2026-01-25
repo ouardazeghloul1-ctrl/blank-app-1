@@ -2,26 +2,15 @@
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 
 
 class AdvancedCharts:
     """
-    EXECUTIVE / MODERN CHARTS ENGINE
-    ✔ نفس عدد الرسومات
-    ✔ نفس البنية
-    ✔ قفزة نوعية بصرية فقط
+    SAFE & STABLE CHARTS ENGINE
+    3 رسومات لكل فصل
+    بدون أي خصائص غير مدعومة
     """
-
-    # =====================
-    # DESIGN SYSTEM (GLOBAL)
-    # =====================
-    COLORS = {
-        "primary": "#1A237E",      # أزرق تنفيذي
-        "accent": "#C62828",       # أحمر استثماري
-        "soft": "#ECEFF1",         # خلفيات هادئة
-        "success": "#2E7D32",
-        "warning": "#F9A825"
-    }
 
     # =====================
     # HELPERS
@@ -32,37 +21,19 @@ class AdvancedCharts:
     def _safe(self, fig, height=450):
         if fig is None:
             return None
-
         fig.update_layout(
             template="plotly_white",
             height=height,
-            margin=dict(l=50, r=50, t=80, b=60),
-            title=dict(
-                x=0.5,
-                font=dict(size=18, color=self.COLORS["primary"])
-            ),
-            font=dict(size=12, color="#333"),
-            plot_bgcolor="white",
-            paper_bgcolor="white",
-            hovermode="x unified"
+            margin=dict(l=40, r=40, t=70, b=50),
+            title=dict(x=0.5),
+            font=dict(size=12),
         )
-
-        fig.update_xaxes(
-            showgrid=True,
-            gridcolor="rgba(0,0,0,0.05)",
-            zeroline=False
-        )
-
-        fig.update_yaxes(
-            showgrid=True,
-            gridcolor="rgba(0,0,0,0.05)",
-            zeroline=False
-        )
-
+        fig.update_xaxes(showgrid=False)
+        fig.update_yaxes(showgrid=False)
         return fig
 
     # =====================
-    # RHYTHM CHARTS (UPGRADED)
+    # RHYTHM CHARTS (SAFE)
     # =====================
     def rhythm_price_levels(self, df, title):
         if "price" not in df.columns:
@@ -70,17 +41,14 @@ class AdvancedCharts:
 
         fig = px.bar(
             x=["أقل سعر", "متوسط", "أعلى سعر"],
-            y=[df["price"].min(), df["price"].mean(), df["price"].max()],
+            y=[
+                df["price"].min(),
+                df["price"].mean(),
+                df["price"].max()
+            ],
             title=title,
-            color_discrete_sequence=[self.COLORS["primary"]]
         )
-
-        fig.update_traces(
-            texttemplate="%{y:,.0f}",
-            textposition="outside",
-            marker_line_width=0
-        )
-
+        fig.update_traces(texttemplate="%{y:,.0f}", textposition="outside")
         fig.update_layout(showlegend=False)
         return self._safe(fig, height=360)
 
@@ -94,18 +62,11 @@ class AdvancedCharts:
             box=True,
             points=False,
             title=title,
-            color_discrete_sequence=[self.COLORS["accent"]]
         )
-
-        fig.update_traces(
-            meanline_visible=True,
-            opacity=0.85
-        )
-
         return self._safe(fig, height=360)
 
     # =====================
-    # CHAPTER 1 – CORE VISUAL
+    # CHAPTER 1
     # =====================
     def ch1_price_vs_area(self, df):
         if not self._has_columns(df, ["price", "area"]):
@@ -115,30 +76,9 @@ class AdvancedCharts:
             df,
             x="area",
             y="price",
-            opacity=0.65,
-            title="العلاقة بين المساحة والسعر — خريطة القرار",
-            color_discrete_sequence=[self.COLORS["primary"]]
+            opacity=0.6,
+            title="العلاقة بين المساحة والسعر"
         )
-
-        # ZONE: VALUE SWEET SPOT
-        fig.add_shape(
-            type="rect",
-            x0=df["area"].quantile(0.25),
-            x1=df["area"].quantile(0.75),
-            y0=df["price"].quantile(0.25),
-            y1=df["price"].quantile(0.75),
-            fillcolor="rgba(26,35,126,0.08)",
-            line_width=0
-        )
-
-        fig.add_annotation(
-            x=df["area"].median(),
-            y=df["price"].median(),
-            text="منطقة التوازن المثالي",
-            showarrow=False,
-            font=dict(size=13, color=self.COLORS["primary"])
-        )
-
         return self._safe(fig, height=520)
 
     # =====================
@@ -152,13 +92,8 @@ class AdvancedCharts:
             df.sort_values("date"),
             x="date",
             y="price",
-            title="تطور الأسعار — قراءة زمنية هادئة",
-            line_shape="spline",
-            color_discrete_sequence=[self.COLORS["primary"]]
+            title="تطور الأسعار مع الزمن"
         )
-
-        fig.update_traces(line_width=3)
-
         return self._safe(fig, height=480)
 
     # =====================
@@ -175,29 +110,21 @@ class AdvancedCharts:
                 go.Table(
                     header=dict(
                         values=["المساحة", "السعر"],
-                        fill_color=self.COLORS["soft"],
-                        font=dict(color=self.COLORS["primary"], size=13),
+                        fill_color="#eeeeee",
                         align="center"
                     ),
                     cells=dict(
                         values=[sample["area"], sample["price"]],
-                        font=dict(size=12),
                         align="center"
                     )
                 )
             ]
         )
-
-        fig.update_layout(
-            title="عينة واقعية من بيانات السوق",
-            height=420,
-            margin=dict(t=80, l=30, r=30, b=30)
-        )
-
+        fig.update_layout(title="عينة من بيانات السوق", height=420)
         return fig
 
     # =====================
-    # ENGINE (UNCHANGED COUNT)
+    # ENGINE
     # =====================
     def generate_all_charts(self, df):
         if df is None or df.empty:
