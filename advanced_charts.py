@@ -8,7 +8,8 @@ import numpy as np
 class AdvancedCharts:
     """
     FINAL – Stable & Premium Charts Engine
-    توزيع واضح، إيقاع بصري ثابت، بدون كسر التقرير
+    3 رسومات لكل فصل (1 أساسي + 2 إيقاعية)
+    بدون فوضى – بدون مفاجآت
     """
 
     # =====================
@@ -32,6 +33,32 @@ class AdvancedCharts:
         fig.update_xaxes(showgrid=False)
         fig.update_yaxes(showgrid=False)
         return fig
+
+    # =====================
+    # COMMON RHYTHM CHARTS
+    # =====================
+    def rhythm_price_levels(self, df, title):
+        if "price" not in df.columns:
+            return None
+        fig = px.bar(
+            x=["أقل سعر", "متوسط", "أعلى سعر"],
+            y=[df["price"].min(), df["price"].mean(), df["price"].max()],
+            title=title,
+            color_discrete_sequence=["#7a0000"]
+        )
+        fig.update_traces(texttemplate="%{y:,.0f}", textposition="outside")
+        fig.update_layout(showlegend=False)
+        return self._safe(fig, height=360)
+
+    def rhythm_price_distribution(self, df, title):
+        if "price" not in df.columns:
+            return None
+        fig = px.violin(
+            df, y="price", box=True, points=False,
+            title=title,
+            color_discrete_sequence=["#4a0000"]
+        )
+        return self._safe(fig, height=360)
 
     # =====================
     # CHAPTER 1 – MARKET SNAPSHOT
@@ -62,13 +89,16 @@ class AdvancedCharts:
             opacity=0.85,
         ))
 
-        fig.add_shape(type="rect", x0=clean["area"].min(), x1=clean["area"].max(),
+        fig.add_shape(type="rect",
+                      x0=clean["area"].min(), x1=clean["area"].max(),
                       y0=clean["price"].min(), y1=q1,
                       fillcolor="rgba(76,175,80,0.08)", line_width=0)
-        fig.add_shape(type="rect", x0=clean["area"].min(), x1=clean["area"].max(),
+        fig.add_shape(type="rect",
+                      x0=clean["area"].min(), x1=clean["area"].max(),
                       y0=q1, y1=q2,
                       fillcolor="rgba(255,193,7,0.08)", line_width=0)
-        fig.add_shape(type="rect", x0=clean["area"].min(), x1=clean["area"].max(),
+        fig.add_shape(type="rect",
+                      x0=clean["area"].min(), x1=clean["area"].max(),
                       y0=q2, y1=clean["price"].max(),
                       fillcolor="rgba(244,67,54,0.08)", line_width=0)
 
@@ -78,29 +108,6 @@ class AdvancedCharts:
             yaxis_title="السعر"
         )
         return self._safe(fig, height=520)
-
-    def rhythm_price_levels(self, df, title):
-        if "price" not in df.columns:
-            return None
-        fig = px.bar(
-            x=["أقل سعر", "متوسط", "أعلى سعر"],
-            y=[df["price"].min(), df["price"].mean(), df["price"].max()],
-            title=title,
-            color_discrete_sequence=["#7a0000"]
-        )
-        fig.update_traces(texttemplate="%{y:,.0f}", textposition="outside")
-        fig.update_layout(showlegend=False)
-        return self._safe(fig, height=380)
-
-    def rhythm_price_distribution(self, df, title):
-        if "price" not in df.columns:
-            return None
-        fig = px.violin(
-            df, y="price", box=True, points=False,
-            title=title,
-            color_discrete_sequence=["#4a0000"]
-        )
-        return self._safe(fig, height=380)
 
     # =====================
     # CHAPTER 2 – TREND
@@ -143,7 +150,7 @@ class AdvancedCharts:
     # =====================
     # CHAPTER 4 – STRATEGY
     # =====================
-    def ch4_strategy_matrix(self, df):
+    def ch4_strategy_matrix(self):
         np.random.seed(42)
         fig = px.scatter(
             x=np.random.rand(40),
@@ -152,13 +159,13 @@ class AdvancedCharts:
             labels={"x": "المخاطرة", "y": "العائد"},
             opacity=0.7
         )
-        return self._safe(fig, height=480)
+        return self._safe(fig, height=460)
 
     # =====================
     # CHAPTER 5 – TIMING
     # =====================
     def ch5_monthly_avg(self, df):
-        if "date" not in df.columns or "price" not in df.columns:
+        if not self._has_columns(df, ["date", "price"]):
             return None
         tmp = df.copy()
         tmp["month"] = pd.to_datetime(tmp["date"]).dt.month
@@ -185,7 +192,7 @@ class AdvancedCharts:
         return self._safe(fig, height=420)
 
     # =====================
-    # ENGINE – FINAL DISTRIBUTION (A)
+    # ENGINE – FINAL DISTRIBUTION
     # =====================
     def generate_all_charts(self, df):
         if df is None or df.empty:
@@ -203,31 +210,32 @@ class AdvancedCharts:
             "chapter_2": clean([
                 self.ch2_price_trend(df),
                 self.rhythm_price_levels(df, "مقارنة سريعة للأسعار"),
+                self.rhythm_price_distribution(df, "توزيع الأسعار عبر الزمن"),
             ]),
             "chapter_3": clean([
                 self.ch3_table_sample(df),
                 self.rhythm_price_levels(df, "مستويات الأسعار في العينة"),
+                self.rhythm_price_distribution(df, "تشتت الأسعار في السوق"),
             ]),
             "chapter_4": clean([
-                self.ch4_strategy_matrix(df),
+                self.ch4_strategy_matrix(),
                 self.rhythm_price_levels(df, "نطاقات الأسعار حسب الاستراتيجية"),
+                self.rhythm_price_distribution(df, "مرونة التسعير"),
             ]),
             "chapter_5": clean([
                 self.ch5_monthly_avg(df),
-                self.rhythm_price_distribution(df, "تذبذب الأسعار عبر الزمن"),
+                self.rhythm_price_levels(df, "مقارنة موسمية للأسعار"),
+                self.rhythm_price_distribution(df, "تذبذب الأسعار"),
             ]),
             "chapter_6": clean([
                 self.ch6_capital_pie(),
                 self.rhythm_price_levels(df, "قراءة سريعة لرأس المال"),
+                self.rhythm_price_distribution(df, "مرونة توزيع الاستثمار"),
             ]),
-            # 7–8: خفيف جدًا
-            "chapter_7": clean([
-                self.ch2_price_trend(df),
-            ]),
-            "chapter_8": clean([
-                self.ch1_price_area_density(df),
-            ]),
-            # 9–10: لا رسومات
+            # خفيف
+            "chapter_7": clean([self.ch2_price_trend(df)]),
+            "chapter_8": clean([self.ch1_price_area_density(df)]),
+            # بدون رسومات
             "chapter_9": [],
             "chapter_10": [],
         }
