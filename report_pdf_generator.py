@@ -113,10 +113,13 @@ def create_pdf_from_content(
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=13.5,
-        leading=22,            # 🔴 حل مشكلة الضغط
+        leading=22,
         alignment=TA_RIGHT,
         spaceBefore=10,
-        spaceAfter=14          # 🔴 فراغ مريح
+        spaceAfter=16,
+        splitLongWords=False,   # لا يكسر الكلمات
+        allowWidows=0,          # يمنع السطر孤
+        allowOrphans=0          # يمنع بداية فقرة孤
     )
 
     title_style = ParagraphStyle(
