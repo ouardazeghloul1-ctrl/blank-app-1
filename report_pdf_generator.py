@@ -10,7 +10,7 @@ from bidi.algorithm import get_display
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer,
-    PageBreak, Image
+    PageBreak, Image, KeepTogether
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
@@ -34,7 +34,7 @@ def ar(text):
 
 
 # =========================
-# Plotly → Image (آمن)
+# Plotly → Image
 # =========================
 def plotly_to_image(fig, width_cm, height_cm):
     if fig is None:
@@ -45,16 +45,10 @@ def plotly_to_image(fig, width_cm, height_cm):
             width=int(width_cm * 38),
             height=int(height_cm * 38)
         )
-
         tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         tmp.write(img_bytes)
         tmp.close()
-
-        return Image(
-            tmp.name,
-            width=width_cm * cm,
-            height=height_cm * cm
-        )
+        return Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
     except Exception:
         return None
 
@@ -72,9 +66,7 @@ def create_pdf_from_content(
 ):
     buffer = BytesIO()
 
-    # -------------------------
     # FONT
-    # -------------------------
     font_path = None
     for p in [
         "Amiri-Regular.ttf",
@@ -85,15 +77,11 @@ def create_pdf_from_content(
         if os.path.exists(p):
             font_path = p
             break
-
     if not font_path:
-        raise FileNotFoundError("❌ Amiri-Regular.ttf غير موجود")
+        raise FileNotFoundError("Amiri font not found")
 
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
-    # -------------------------
-    # DOCUMENT
-    # -------------------------
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
@@ -105,34 +93,17 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    # =========================
-    # STYLES (المفتاح الحقيقي)
-    # =========================
-    body_style = ParagraphStyle(
+    body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=13.5,
         leading=22,
         alignment=TA_RIGHT,
-        spaceBefore=10,
         spaceAfter=16,
-        splitLongWords=False,   # لا يكسر الكلمات
-        allowWidows=0,          # يمنع السطر孤
-        allowOrphans=0          # يمنع بداية فقرة孤
     )
 
-    title_style = ParagraphStyle(
-        "ArabicTitle",
-        parent=styles["Title"],
-        fontName="Amiri",
-        fontSize=22,
-        alignment=TA_CENTER,
-        textColor=colors.HexColor("#7a0000"),
-        spaceAfter=40
-    )
-
-    chapter_style = ParagraphStyle(
+    chapter = ParagraphStyle(
         "ArabicChapter",
         parent=styles["Heading2"],
         fontName="Amiri",
@@ -143,83 +114,74 @@ def create_pdf_from_content(
         spaceAfter=20
     )
 
+    title = ParagraphStyle(
+        "ArabicTitle",
+        parent=styles["Title"],
+        fontName="Amiri",
+        fontSize=22,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#7a0000"),
+        spaceAfter=40
+    )
+
     story = []
 
-    # =========================
     # COVER
-    # =========================
     story.append(Spacer(1, 5 * cm))
-    story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title_style))
-    story.append(Spacer(1, 1.2 * cm))
-
-    story.append(Paragraph(ar(f"المدينة: {user_info.get('city', '')}"), body_style))
-    story.append(Paragraph(ar(f"نوع العقار: {user_info.get('property_type', '')}"), body_style))
-    story.append(Paragraph(ar(f"الباقة: {package_level}"), body_style))
-    story.append(Paragraph(ar(f"التاريخ: {datetime.now().strftime('%Y-%m-%d')}"), body_style))
-
+    story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     story.append(PageBreak())
 
-    # =========================
-    # CONTENT + AUTO CHARTS
-    # =========================
     charts_by_chapter = st.session_state.get("charts_by_chapter", {})
     chapter_index = 0
-    first_chapter = True
+    paragraph_counter = 0
+    chart_cursor = {}
 
-    if isinstance(content_text, str):
-        lines = content_text.split("\n")
+    lines = content_text.split("\n")
 
-        for line in lines:
-            clean = line.strip()
+    for line in lines:
+        clean = line.strip()
 
-            if not clean:
-                story.append(Spacer(1, 0.6 * cm))
-                continue
+        if not clean:
+            story.append(Spacer(1, 0.6 * cm))
+            continue
 
-            # -------- CHAPTER TITLE --------
-            if clean.startswith("الفصل"):
-                if not first_chapter:
-                    story.append(PageBreak())
-                first_chapter = False
+        # -------- CHAPTER TITLE --------
+        if clean.startswith("الفصل"):
+            story.append(PageBreak())
+            chapter_index += 1
+            paragraph_counter = 0
+            chart_cursor[chapter_index] = 0
 
-                chapter_index += 1
-                story.append(Paragraph(ar(clean), chapter_style))
-                story.append(Spacer(1, 1.0 * cm))
+            story.append(Paragraph(ar(clean), chapter))
 
-                # 🔥 INSERT CHARTS
-                chapter_key = f"chapter_{chapter_index}"
-                charts = charts_by_chapter.get(chapter_key, [])
+            # Anchor chart (واحد فقط)
+            charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
+            if charts:
+                img = plotly_to_image(charts[0], 16.5, 8.5)
+                if img:
+                    story.append(Spacer(1, 0.8 * cm))
+                    story.append(img)
+                    story.append(Spacer(1, 1.2 * cm))
+                    chart_cursor[chapter_index] = 1
+            continue
 
-                for fig in charts:
-                    img = plotly_to_image(fig, width_cm=16.5, height_cm=8.5)
-                    if img:
-                        story.append(img)
-                        story.append(Spacer(1, 1.2 * cm))  # 🔴 تنفّس بعد الرسم
+        # -------- NORMAL TEXT --------
+        para = Paragraph(ar(clean), body)
+        story.append(para)
+        paragraph_counter += 1
 
-                continue
+        # 🔥 توزيع الرسومات كل 4 فقرات
+        charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
+        idx = chart_cursor.get(chapter_index, 0)
 
-            # -------- NORMAL TEXT --------
-            story.append(Paragraph(ar(clean), body_style))
-            story.append(Spacer(1, 0.4 * cm))
-
-    # =========================
-    # AI RECOMMENDATIONS
-    # =========================
-    if ai_recommendations:
-        story.append(PageBreak())
-        story.append(Paragraph(ar("التوصيات الذكية المتقدمة"), title_style))
-
-        for k, v in ai_recommendations.items():
-            story.append(Paragraph(ar(str(k)), chapter_style))
-            story.append(Paragraph(ar(str(v)), body_style))
-            story.append(Spacer(1, 0.8 * cm))
-
-    # =========================
-    # FOOTER
-    # =========================
-    story.append(Spacer(1, 3 * cm))
-    story.append(Paragraph(ar("نهاية التقرير"), chapter_style))
-    story.append(Paragraph(ar("Warda Intelligence © 2024"), body_style))
+        if paragraph_counter % 4 == 0 and idx < len(charts):
+            img = plotly_to_image(charts[idx], 16.5, 8.5)
+            if img:
+                story.append(Spacer(1, 0.8 * cm))
+                story.append(PageBreak())
+                story.append(img)
+                story.append(Spacer(1, 1.2 * cm))
+                chart_cursor[chapter_index] += 1
 
     doc.build(story)
     buffer.seek(0)
