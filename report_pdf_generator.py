@@ -1,8 +1,8 @@
 from io import BytesIO
-from datetime import datetime
 import os
 import tempfile
 import streamlit as st
+import re
 
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -26,44 +26,28 @@ from reportlab.pdfbase.ttfonts import TTFont
 def ar(text):
     if not text:
         return ""
-    try:
-        reshaped = arabic_reshaper.reshape(str(text))
-        return get_display(reshaped)
-    except Exception:
-        return str(text)
+    reshaped = arabic_reshaper.reshape(str(text))
+    return get_display(reshaped)
 
 
 # =========================
-# Normalize markers
+# تنظيف القوائم والمربعات
 # =========================
-def normalize_marker(text: str) -> str:
+def normalize_text(text: str) -> str:
     if not text:
         return ""
-    return (
-        text.replace("[[RYTHM_CHART]]", "[[RHYTHM_CHART]]")
-            .strip()
-    )
 
+    text = text.strip()
 
-# =========================
-# Sanitize text (remove emoji numbers)
-# =========================
-def sanitize_text(text: str) -> str:
-    if not text:
-        return ""
-    replacements = {
-        "1️⃣": "1. ",
-        "2️⃣": "2. ",
-        "3️⃣": "3. ",
-        "4️⃣": "4. ",
-        "5️⃣": "5. ",
-        "6️⃣": "6. ",
-        "7️⃣": "7. ",
-        "8️⃣": "8. ",
-        "9️⃣": "9. ",
-    }
-    for k, v in replacements.items():
-        text = text.replace(k, v)
+    # تحويل النقاط الغريبة
+    text = re.sub(r"[•◦▪▫]", "–", text)
+
+    # تحويل أرقام الإيموجي
+    text = re.sub(r"[0-9]️⃣", lambda m: m.group(0)[0] + ".", text)
+
+    # تصحيح الأخطاء الإملائية للماركر
+    text = text.replace("[[RYTHM_CHART]]", "[[RHYTHM_CHART]]")
+
     return text
 
 
@@ -73,18 +57,18 @@ def sanitize_text(text: str) -> str:
 def plotly_to_image(fig, width_cm, height_cm):
     if fig is None:
         return None
-    try:
-        img_bytes = fig.to_image(
-            format="png",
-            width=int(width_cm * 38),
-            height=int(height_cm * 38)
-        )
-        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        tmp.write(img_bytes)
-        tmp.close()
-        return Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
-    except Exception:
-        return None
+
+    img_bytes = fig.to_image(
+        format="png",
+        width=int(width_cm * 38),
+        height=int(height_cm * 38)
+    )
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    tmp.write(img_bytes)
+    tmp.close()
+
+    return Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
 
 
 # =========================
@@ -133,13 +117,12 @@ def create_pdf_from_content(
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=14,
-        leading=28,            # تنفّس أكبر
+        leading=26,
         alignment=TA_RIGHT,
-        spaceBefore=8,
+        spaceBefore=6,
         spaceAfter=22,
         allowWidows=0,
-        allowOrphans=0,
-        keepWithNext=0
+        allowOrphans=0
     )
 
     chapter = ParagraphStyle(
@@ -149,9 +132,8 @@ def create_pdf_from_content(
         fontSize=17,
         alignment=TA_RIGHT,
         textColor=colors.HexColor("#9c1c1c"),
-        spaceBefore=36,
-        spaceAfter=28,
-        keepWithNext=1
+        spaceBefore=34,
+        spaceAfter=20
     )
 
     title = ParagraphStyle(
@@ -161,14 +143,12 @@ def create_pdf_from_content(
         fontSize=22,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
-        spaceAfter=44
+        spaceAfter=42
     )
 
     story = []
 
-    # =========================
     # COVER
-    # =========================
     story.append(Spacer(1, 5 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     story.append(PageBreak())
@@ -180,8 +160,8 @@ def create_pdf_from_content(
 
     lines = content_text.split("\n")
 
-    for line in lines:
-        clean = normalize_marker(line.strip())
+    for raw in lines:
+        clean = normalize_text(raw)
 
         if not clean:
             story.append(Spacer(1, 0.9 * cm))
@@ -196,46 +176,44 @@ def create_pdf_from_content(
             story.append(Paragraph(ar(clean), chapter))
             continue
 
-        # 🚫 منع أي رسومات في الفصل 9 و 10
+        # منع الرسومات في الفصل 9 و10
         if chapter_index >= 9:
             if clean.startswith("[[") and "CHART" in clean:
                 continue
-            story.append(Paragraph(ar(sanitize_text(clean)), body))
+            story.append(Paragraph(ar(clean), body))
             continue
 
         charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
         cursor = chart_cursor.get(chapter_index, 0)
 
-        # -------- ANCHOR CHART (الرسم الأساسي) --------
+        # -------- ANCHOR --------
         if clean == "[[ANCHOR_CHART]]":
             if cursor < len(charts) and text_since_last_chart >= 6:
                 img = plotly_to_image(charts[cursor], 16.8, 8.8)
                 if img:
-                    story.append(Spacer(1, 1.6 * cm))
+                    story.append(Spacer(1, 1.5 * cm))
                     story.append(KeepTogether([img]))
-                    story.append(Spacer(1, 2.0 * cm))
+                    story.append(Spacer(1, 1.8 * cm))
                 chart_cursor[chapter_index] += 1
                 text_since_last_chart = 0
             continue
 
-        # -------- RHYTHM CHART (إيقاعي) --------
+        # -------- RHYTHM --------
         if clean == "[[RHYTHM_CHART]]":
             if cursor < len(charts) and text_since_last_chart >= 4:
                 img = plotly_to_image(charts[cursor], 15.8, 6.5)
                 if img:
                     story.append(Spacer(1, 1.3 * cm))
                     story.append(KeepTogether([img]))
-                    story.append(Spacer(1, 1.7 * cm))
+                    story.append(Spacer(1, 1.6 * cm))
                 chart_cursor[chapter_index] += 1
                 text_since_last_chart = 0
             continue
 
-        # -------- تجاهل أي marker غير معروف --------
         if clean.startswith("[[") and "CHART" in clean:
             continue
 
-        # -------- NORMAL TEXT --------
-        story.append(Paragraph(ar(sanitize_text(clean)), body))
+        story.append(Paragraph(ar(clean), body))
         text_since_last_chart += 1
 
     doc.build(story)
