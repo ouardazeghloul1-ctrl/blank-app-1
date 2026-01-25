@@ -101,6 +101,9 @@ def create_pdf_from_content(
         leading=22,
         alignment=TA_RIGHT,
         spaceAfter=16,
+        keepWithNext=1,
+        allowWidows=0,
+        allowOrphans=0
     )
 
     chapter = ParagraphStyle(
@@ -111,7 +114,8 @@ def create_pdf_from_content(
         alignment=TA_RIGHT,
         textColor=colors.HexColor("#9c1c1c"),
         spaceBefore=30,
-        spaceAfter=20
+        spaceAfter=20,
+        keepWithNext=1
     )
 
     title = ParagraphStyle(
@@ -133,7 +137,6 @@ def create_pdf_from_content(
 
     charts_by_chapter = st.session_state.get("charts_by_chapter", {})
     chapter_index = 0
-    paragraph_counter = 0
     chart_cursor = {}
 
     lines = content_text.split("\n")
@@ -149,39 +152,35 @@ def create_pdf_from_content(
         if clean.startswith("الفصل"):
             story.append(PageBreak())
             chapter_index += 1
-            paragraph_counter = 0
             chart_cursor[chapter_index] = 0
-
             story.append(Paragraph(ar(clean), chapter))
+            continue
 
-            # Anchor chart (واحد فقط)
-            charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
-            if charts:
-                img = plotly_to_image(charts[0], 16.5, 8.5)
-                if img:
-                    story.append(Spacer(1, 0.8 * cm))
-                    story.append(img)
-                    story.append(Spacer(1, 1.2 * cm))
-                    chart_cursor[chapter_index] = 1
+        charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
+        cursor = chart_cursor.get(chapter_index, 0)
+
+        # -------- ANCHOR CHART --------
+        if clean == "[[ANCHOR_CHART]]" and cursor < len(charts):
+            img = plotly_to_image(charts[cursor], 16.5, 8.5)
+            if img:
+                story.append(Spacer(1, 1.0 * cm))
+                story.append(KeepTogether([img]))
+                story.append(Spacer(1, 1.2 * cm))
+            chart_cursor[chapter_index] += 1
+            continue
+
+        # -------- RHYTHM CHART --------
+        if clean == "[[RHYTHM_CHART]]" and cursor < len(charts):
+            img = plotly_to_image(charts[cursor], 15.5, 6.8)
+            if img:
+                story.append(Spacer(1, 0.8 * cm))
+                story.append(KeepTogether([img]))
+                story.append(Spacer(1, 1.0 * cm))
+            chart_cursor[chapter_index] += 1
             continue
 
         # -------- NORMAL TEXT --------
-        para = Paragraph(ar(clean), body)
-        story.append(para)
-        paragraph_counter += 1
-
-        # 🔥 توزيع الرسومات كل 4 فقرات
-        charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
-        idx = chart_cursor.get(chapter_index, 0)
-
-        if paragraph_counter % 4 == 0 and idx < len(charts):
-            img = plotly_to_image(charts[idx], 16.5, 8.5)
-            if img:
-                story.append(Spacer(1, 0.8 * cm))
-                story.append(PageBreak())
-                story.append(img)
-                story.append(Spacer(1, 1.2 * cm))
-                chart_cursor[chapter_index] += 1
+        story.append(Paragraph(ar(clean), body))
 
     doc.build(story)
     buffer.seek(0)
