@@ -35,20 +35,14 @@ def ar(text):
 
 
 # =========================
-# Normalize markers + bullets
+# Clean bullets & junk
 # =========================
-def normalize(text: str) -> str:
+def clean_text(text: str) -> str:
     if not text:
         return ""
-    t = text.strip()
-
-    # توحيد الماركرات
-    t = t.replace("[[RYTHM_CHART]]", "[[RHYTHM_CHART]]")
-
-    # إزالة أي مربعات أو ترقيم غريب
-    t = re.sub(r"[■▪◼◾]", "", t)
-
-    return t.strip()
+    text = re.sub(r"^[\-\•\▪\▫\*]+\s*", "", text)  # remove bullets
+    text = text.replace("□", "").replace("■", "")
+    return text.strip()
 
 
 # =========================
@@ -72,7 +66,7 @@ def plotly_to_image(fig, width_cm, height_cm):
 
 
 # =========================
-# MAIN PDF GENERATOR (FINAL)
+# MAIN PDF GENERATOR
 # =========================
 def create_pdf_from_content(
     user_info,
@@ -84,9 +78,7 @@ def create_pdf_from_content(
 ):
     buffer = BytesIO()
 
-    # -------------------------
     # FONT
-    # -------------------------
     font_path = None
     for p in [
         "Amiri-Regular.ttf",
@@ -103,31 +95,24 @@ def create_pdf_from_content(
 
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
-    # -------------------------
-    # DOCUMENT
-    # -------------------------
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
         rightMargin=2.4 * cm,
         leftMargin=2.4 * cm,
-        topMargin=2.4 * cm,
-        bottomMargin=2.4 * cm
+        topMargin=2.5 * cm,
+        bottomMargin=2.5 * cm
     )
 
     styles = getSampleStyleSheet()
 
-    # =========================
-    # STYLES – PREMIUM
-    # =========================
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
         fontName="Amiri",
-        fontSize=14.2,
-        leading=27,                 # تنفّس واضح
+        fontSize=14.5,
+        leading=28,            # تنفس عالمي
         alignment=TA_RIGHT,
-        spaceBefore=6,
         spaceAfter=22,
         allowWidows=0,
         allowOrphans=0,
@@ -137,11 +122,12 @@ def create_pdf_from_content(
         "ArabicChapter",
         parent=styles["Heading2"],
         fontName="Amiri",
-        fontSize=17.5,
+        fontSize=18,
         alignment=TA_RIGHT,
         textColor=colors.HexColor("#9c1c1c"),
         spaceBefore=36,
-        spaceAfter=28,
+        spaceAfter=26,
+        keepWithNext=1
     )
 
     title = ParagraphStyle(
@@ -151,18 +137,15 @@ def create_pdf_from_content(
         fontSize=22,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
-        spaceAfter=44
+        spaceAfter=50
     )
 
     story = []
 
-    # =========================
     # COVER
-    # =========================
-    story.append(Spacer(1, 5 * cm))
+    story.append(Spacer(1, 6 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
-    story.append(Spacer(1, 1.5 * cm))
-    story.append(Paragraph(ar(f"التاريخ: {datetime.now().strftime('%Y-%m-%d')}"), body))
+    story.append(Spacer(1, 2 * cm))
     story.append(PageBreak())
 
     charts_by_chapter = st.session_state.get("charts_by_chapter", {})
@@ -171,57 +154,46 @@ def create_pdf_from_content(
     text_since_chart = 0
 
     lines = content_text.split("\n")
-    i = 0
+    buffer_block = []
 
-    while i < len(lines):
-        raw = normalize(lines[i])
-        i += 1
+    def flush_block():
+        nonlocal buffer_block
+        if buffer_block:
+            story.append(KeepTogether(buffer_block))
+            buffer_block = []
 
-        if not raw:
-            story.append(Spacer(1, 0.8 * cm))
+    for raw in lines:
+        clean = clean_text(raw)
+
+        if not clean:
+            buffer_block.append(Spacer(1, 0.7 * cm))
             continue
 
-        # =====================
-        # CHAPTER TITLE
-        # =====================
-        if raw.startswith("الفصل"):
+        # -------- CHAPTER --------
+        if clean.startswith("الفصل"):
+            flush_block()
             story.append(PageBreak())
             chapter_index += 1
             chart_cursor[chapter_index] = 0
             text_since_chart = 0
 
-            # العنوان + أول فقرة معًا (ممنوع الانفصال)
-            block = [Paragraph(ar(raw), chapter)]
-
-            # حاول جلب أول فقرة حقيقية
-            if i < len(lines):
-                peek = normalize(lines[i])
-                if peek and not peek.startswith("[["):
-                    block.append(Paragraph(ar(peek), body))
-                    i += 1
-
-            story.append(KeepTogether(block))
+            buffer_block.append(Paragraph(ar(clean), chapter))
             continue
 
-        # =====================
-        # NO CHARTS CH 9–10
-        # =====================
+        # -------- NO CHARTS IN 9–10 --------
         if chapter_index >= 9:
-            if raw.startswith("[["):
-                continue
-            story.append(Paragraph(ar(raw), body))
+            buffer_block.append(Paragraph(ar(clean), body))
             continue
 
         charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
         cursor = chart_cursor.get(chapter_index, 0)
 
-        # =====================
-        # ANCHOR CHART
-        # =====================
-        if raw == "[[ANCHOR_CHART]]":
-            if cursor < len(charts) and text_since_chart >= 6:
+        # -------- ANCHOR CHART --------
+        if clean == "[[ANCHOR_CHART]]" and cursor < len(charts):
+            if text_since_chart >= 6:
                 img = plotly_to_image(charts[cursor], 16.8, 8.8)
                 if img:
+                    flush_block()
                     story.append(Spacer(1, 1.6 * cm))
                     story.append(KeepTogether([img]))
                     story.append(Spacer(1, 2.0 * cm))
@@ -229,13 +201,12 @@ def create_pdf_from_content(
                 text_since_chart = 0
             continue
 
-        # =====================
-        # RHYTHM CHART
-        # =====================
-        if raw == "[[RHYTHM_CHART]]":
-            if cursor < len(charts) and text_since_chart >= 4:
+        # -------- RHYTHM CHART --------
+        if clean == "[[RHYTHM_CHART]]" and cursor < len(charts):
+            if text_since_chart >= 4:
                 img = plotly_to_image(charts[cursor], 15.8, 6.5)
                 if img:
+                    flush_block()
                     story.append(Spacer(1, 1.4 * cm))
                     story.append(KeepTogether([img]))
                     story.append(Spacer(1, 1.8 * cm))
@@ -243,21 +214,12 @@ def create_pdf_from_content(
                 text_since_chart = 0
             continue
 
-        # =====================
-        # IGNORE UNKNOWN MARKERS
-        # =====================
-        if raw.startswith("[["):
-            continue
-
-        # =====================
-        # NORMAL TEXT
-        # =====================
-        story.append(Paragraph(ar(raw), body))
+        # -------- NORMAL TEXT --------
+        buffer_block.append(Paragraph(ar(clean), body))
         text_since_chart += 1
 
-    # =========================
-    # BUILD
-    # =========================
+    flush_block()
+
     doc.build(story)
     buffer.seek(0)
     return buffer
