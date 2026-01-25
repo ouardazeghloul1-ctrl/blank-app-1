@@ -40,7 +40,7 @@ def ar(text):
 def clean_text(text: str) -> str:
     if not text:
         return ""
-    text = re.sub(r"^[\-\•\▪\▫\*]+\s*", "", text)  # remove bullets
+    text = re.sub(r"^[\-\•\▪\▫\*]+\s*", "", text)
     text = text.replace("□", "").replace("■", "")
     return text.strip()
 
@@ -111,7 +111,7 @@ def create_pdf_from_content(
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=14.5,
-        leading=28,            # تنفس عالمي
+        leading=28,
         alignment=TA_RIGHT,
         spaceAfter=22,
         allowWidows=0,
@@ -126,7 +126,7 @@ def create_pdf_from_content(
         alignment=TA_RIGHT,
         textColor=colors.HexColor("#9c1c1c"),
         spaceBefore=36,
-        spaceAfter=26,
+        spaceAfter=18,
         keepWithNext=1
     )
 
@@ -142,7 +142,9 @@ def create_pdf_from_content(
 
     story = []
 
-    # COVER
+    # =========================
+    # COVER (NO EMPTY PAGE)
+    # =========================
     story.append(Spacer(1, 7.5 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     story.append(PageBreak())
@@ -153,35 +155,32 @@ def create_pdf_from_content(
     text_since_chart = 0
 
     lines = content_text.split("\n")
-    buffer_block = []
-
-    def flush_block():
-        nonlocal buffer_block
-        if buffer_block:
-            story.append(KeepTogether(buffer_block))
-            buffer_block = []
 
     for raw in lines:
         clean = clean_text(raw)
 
         if not clean:
-            buffer_block.append(Spacer(1, 0.7 * cm))
+            story.append(Spacer(1, 0.8 * cm))
             continue
 
         # -------- CHAPTER --------
         if clean.startswith("الفصل"):
-            flush_block()
             story.append(PageBreak())
             chapter_index += 1
             chart_cursor[chapter_index] = 0
             text_since_chart = 0
 
-            buffer_block.append(Paragraph(ar(clean), chapter))
+            story.append(
+                KeepTogether([
+                    Paragraph(ar(clean), chapter),
+                    Spacer(1, 0.6 * cm)
+                ])
+            )
             continue
 
         # -------- NO CHARTS IN 9–10 --------
         if chapter_index >= 9:
-            buffer_block.append(Paragraph(ar(clean), body))
+            story.append(Paragraph(ar(clean), body))
             continue
 
         charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
@@ -192,9 +191,8 @@ def create_pdf_from_content(
             if text_since_chart >= 6:
                 img = plotly_to_image(charts[cursor], 16.8, 8.8)
                 if img:
-                    flush_block()
                     story.append(Spacer(1, 1.6 * cm))
-                    story.append(KeepTogether([img]))
+                    story.append(img)
                     story.append(Spacer(1, 2.0 * cm))
                 chart_cursor[chapter_index] += 1
                 text_since_chart = 0
@@ -205,19 +203,16 @@ def create_pdf_from_content(
             if text_since_chart >= 4:
                 img = plotly_to_image(charts[cursor], 15.8, 6.5)
                 if img:
-                    flush_block()
                     story.append(Spacer(1, 1.4 * cm))
-                    story.append(KeepTogether([img]))
+                    story.append(img)
                     story.append(Spacer(1, 1.8 * cm))
                 chart_cursor[chapter_index] += 1
                 text_since_chart = 0
             continue
 
         # -------- NORMAL TEXT --------
-        buffer_block.append(Paragraph(ar(clean), body))
+        story.append(Paragraph(ar(clean), body))
         text_since_chart += 1
-
-    flush_block()
 
     doc.build(story)
     buffer.seek(0)
