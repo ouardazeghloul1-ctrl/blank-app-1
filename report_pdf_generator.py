@@ -143,9 +143,8 @@ def create_pdf_from_content(
     story = []
 
     # COVER
-    story.append(Spacer(1, 6 * cm))
+    story.append(Spacer(1, 7.5 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
-    story.append(Spacer(1, 2 * cm))
     story.append(PageBreak())
 
     charts_by_chapter = st.session_state.get("charts_by_chapter", {})
