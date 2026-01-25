@@ -39,12 +39,11 @@ def ar(text):
 def plotly_to_image(fig, width_cm, height_cm):
     if fig is None:
         return None
-
     try:
         img_bytes = fig.to_image(
             format="png",
-            width=int(width_cm * 37.8),
-            height=int(height_cm * 37.8)
+            width=int(width_cm * 38),
+            height=int(height_cm * 38)
         )
 
         tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
@@ -98,22 +97,26 @@ def create_pdf_from_content(
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        rightMargin=2 * cm,
-        leftMargin=2 * cm,
-        topMargin=2 * cm,
-        bottomMargin=2 * cm
+        rightMargin=2.2 * cm,
+        leftMargin=2.2 * cm,
+        topMargin=2.2 * cm,
+        bottomMargin=2.2 * cm
     )
 
     styles = getSampleStyleSheet()
 
+    # =========================
+    # STYLES (المفتاح الحقيقي)
+    # =========================
     body_style = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
         fontName="Amiri",
-        fontSize=12,
-        leading=18,
+        fontSize=13.5,
+        leading=22,            # 🔴 حل مشكلة الضغط
         alignment=TA_RIGHT,
-        spaceAfter=6
+        spaceBefore=10,
+        spaceAfter=14          # 🔴 فراغ مريح
     )
 
     title_style = ParagraphStyle(
@@ -123,18 +126,18 @@ def create_pdf_from_content(
         fontSize=22,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
-        spaceAfter=30
+        spaceAfter=40
     )
 
     chapter_style = ParagraphStyle(
         "ArabicChapter",
         parent=styles["Heading2"],
         fontName="Amiri",
-        fontSize=16,
+        fontSize=17,
         alignment=TA_RIGHT,
         textColor=colors.HexColor("#9c1c1c"),
-        spaceBefore=24,
-        spaceAfter=14
+        spaceBefore=30,
+        spaceAfter=20
     )
 
     story = []
@@ -144,7 +147,7 @@ def create_pdf_from_content(
     # =========================
     story.append(Spacer(1, 5 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title_style))
-    story.append(Spacer(1, 1 * cm))
+    story.append(Spacer(1, 1.2 * cm))
 
     story.append(Paragraph(ar(f"المدينة: {user_info.get('city', '')}"), body_style))
     story.append(Paragraph(ar(f"نوع العقار: {user_info.get('property_type', '')}"), body_style))
@@ -167,7 +170,7 @@ def create_pdf_from_content(
             clean = line.strip()
 
             if not clean:
-                story.append(Spacer(1, 0.4 * cm))
+                story.append(Spacer(1, 0.6 * cm))
                 continue
 
             # -------- CHAPTER TITLE --------
@@ -178,22 +181,23 @@ def create_pdf_from_content(
 
                 chapter_index += 1
                 story.append(Paragraph(ar(clean), chapter_style))
-                story.append(Spacer(1, 0.6 * cm))
+                story.append(Spacer(1, 1.0 * cm))
 
-                # 🔥 AUTO INSERT CHARTS (كما كان سابقًا)
+                # 🔥 INSERT CHARTS
                 chapter_key = f"chapter_{chapter_index}"
                 charts = charts_by_chapter.get(chapter_key, [])
 
                 for fig in charts:
-                    img = plotly_to_image(fig, width_cm=16, height_cm=8)
+                    img = plotly_to_image(fig, width_cm=16.5, height_cm=8.5)
                     if img:
                         story.append(img)
-                        story.append(Spacer(1, 0.8 * cm))
+                        story.append(Spacer(1, 1.2 * cm))  # 🔴 تنفّس بعد الرسم
 
                 continue
 
             # -------- NORMAL TEXT --------
             story.append(Paragraph(ar(clean), body_style))
+            story.append(Spacer(1, 0.4 * cm))
 
     # =========================
     # AI RECOMMENDATIONS
@@ -205,7 +209,7 @@ def create_pdf_from_content(
         for k, v in ai_recommendations.items():
             story.append(Paragraph(ar(str(k)), chapter_style))
             story.append(Paragraph(ar(str(v)), body_style))
-            story.append(Spacer(1, 0.6 * cm))
+            story.append(Spacer(1, 0.8 * cm))
 
     # =========================
     # FOOTER
