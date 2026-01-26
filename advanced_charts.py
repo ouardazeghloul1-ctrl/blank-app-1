@@ -2,14 +2,14 @@
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 
 
 class AdvancedCharts:
     """
-    STABLE VERSION – Curve + Donut + Table
-    تعديل فقط على:
-    - حجم الدائرة
-    - ألوان الجدول
+    SAFE & STABLE CHARTS ENGINE
+    3 رسومات لكل فصل
+    Executive visual upgrade – بدون كسر أي شيء
     """
 
     # =====================
@@ -21,11 +21,10 @@ class AdvancedCharts:
     def _safe(self, fig, height=450):
         if fig is None:
             return None
-
         fig.update_layout(
             template="plotly_white",
             height=height,
-            margin=dict(l=60, r=60, t=80, b=60),
+            margin=dict(l=50, r=50, t=80, b=60),
             title=dict(x=0.5, font=dict(size=16)),
             font=dict(size=12),
             plot_bgcolor="white",
@@ -36,77 +35,108 @@ class AdvancedCharts:
         return fig
 
     # =====================
-    # CHAPTER 1 – CURVE (أعجبك)
+    # RHYTHM CHARTS (SAFE)
     # =====================
-    def ch1_price_curve(self, df):
-        if not self._has_columns(df, ["date", "price"]):
+    def rhythm_price_levels(self, df, title):
+        if "price" not in df.columns:
             return None
 
-        data = df.copy()
-        data["date"] = pd.to_datetime(data["date"], errors="coerce")
+        fig = px.bar(
+            x=["أقل سعر", "متوسط", "أعلى سعر"],
+            y=[df["price"].min(), df["price"].mean(), df["price"].max()],
+            title=title,
+            color_discrete_sequence=["#1A237E"],
+        )
+        fig.update_traces(texttemplate="%{y:,.0f}", textposition="outside")
+        fig.update_layout(showlegend=False)
+        return self._safe(fig, height=360)
+
+    def rhythm_price_distribution(self, df, title):
+        if "price" not in df.columns:
+            return None
+
+        fig = px.violin(
+            df,
+            y="price",
+            box=True,
+            points=False,
+            title=title,
+            color_discrete_sequence=["#3949AB"],
+        )
+        return self._safe(fig, height=360)
+
+    # =====================
+    # CHAPTER 1 – EXECUTIVE VERSION
+    # =====================
+    def ch1_price_vs_area(self, df):
+        if not self._has_columns(df, ["price", "area"]):
+            return None
+
+        data = df[["price", "area"]].copy()
         data["price"] = pd.to_numeric(data["price"], errors="coerce")
-        data = data.dropna().sort_values("date")
+        data["area"] = pd.to_numeric(data["area"], errors="coerce")
+        data = data.dropna()
 
         if data.empty:
             return None
 
-        fig = px.line(
+        fig = px.scatter(
             data,
-            x="date",
+            x="area",
             y="price",
-            title="المنحنى السعري للسوق",
-            line_shape="spline",
-            color_discrete_sequence=["#7E57C2"],
+            size="price",
+            size_max=30,
+            opacity=0.7,
+            title="خريطة القيمة الاستثمارية — المساحة مقابل السعر",
+            color_discrete_sequence=["#1A237E"],
         )
 
-        fig.update_traces(line=dict(width=4))
-
-        return self._safe(fig, height=500)
-
-    # =====================
-    # CHAPTER 2 – DONUT (مكبّرة)
-    # =====================
-    def ch2_price_donut(self, df):
-        if "price" not in df.columns:
-            return None
-
-        price = pd.to_numeric(df["price"], errors="coerce").dropna()
-        if price.empty:
-            return None
-
-        values = [
-            price.min(),
-            price.mean(),
-            price.max()
-        ]
-
-        fig = go.Figure(
-            data=[
-                go.Pie(
-                    labels=["أقل سعر", "متوسط السعر", "أعلى سعر"],
-                    values=values,
-                    hole=0.55,  # Donut
-                    textinfo="label+percent",
-                    textfont=dict(size=14),
-                    marker=dict(
-                        colors=["#81C784", "#FFD54F", "#E57373"]
-                    ),
-                )
-            ]
+        # Zones (visual only – no math risk)
+        fig.add_hrect(
+            y0=data["price"].min(),
+            y1=data["price"].median(),
+            fillcolor="rgba(46,125,50,0.06)",
+            line_width=0,
         )
 
-        fig.update_layout(
-            title="نطاق الأسعار في السوق",
+        fig.add_hrect(
+            y0=data["price"].median(),
+            y1=data["price"].max(),
+            fillcolor="rgba(251,192,45,0.05)",
+            line_width=0,
         )
 
-        # 🔴 تكبير الدائرة لتأخذ نصف الصفحة
+        fig.add_annotation(
+            x=data["area"].median(),
+            y=data["price"].median(),
+            text="منطقة القيمة والفرص",
+            showarrow=False,
+            font=dict(size=12, color="#2E7D32"),
+        )
+
         return self._safe(fig, height=520)
 
     # =====================
-    # CHAPTER 3 – TABLE (خلفية فاتحة)
+    # CHAPTER 2
+    # =====================
+    def ch2_price_trend(self, df):
+        if not self._has_columns(df, ["date", "price"]):
+            return None
+
+        fig = px.line(
+            df.sort_values("date"),
+            x="date",
+            y="price",
+            title="تطور الأسعار مع الزمن",
+            color_discrete_sequence=["#6A1B9A"],
+        )
+        return self._safe(fig, height=480)
+
+    # =====================
+    # CHAPTER 3
     # =====================
     def ch3_table_sample(self, df):
-        if not self._has_columns(df, ["area", "price"]):
+        if not self._has_columns(df, ["price", "area"]):
             return None
 
         sample = df[["area", "price"]].head(10)
@@ -116,29 +146,23 @@ class AdvancedCharts:
                 go.Table(
                     header=dict(
                         values=["المساحة", "السعر"],
-                        fill_color="#F5F5F5",   # فاتح جدًا
-                        font=dict(color="#000000", size=12),
+                        fill_color="#1A237E",
+                        font=dict(color="white", size=12),
                         align="center",
                     ),
                     cells=dict(
                         values=[sample["area"], sample["price"]],
-                        fill_color="#FFFFFF",  # أبيض
-                        font=dict(color="#111111", size=11),
                         align="center",
+                        font=dict(size=11),
                     ),
                 )
             ]
         )
-
-        fig.update_layout(
-            title="عينة ذكية من بيانات السوق",
-            height=460,
-        )
-
+        fig.update_layout(title="عينة من بيانات السوق", height=420)
         return fig
 
     # =====================
-    # ENGINE – ربط الرسومات
+    # ENGINE
     # =====================
     def generate_all_charts(self, df):
         if df is None or df.empty:
@@ -149,17 +173,32 @@ class AdvancedCharts:
 
         return {
             "chapter_1": clean([
-                self.ch1_price_curve(df),
+                self.ch1_price_vs_area(df),
+                self.rhythm_price_levels(df, "لمحة سريعة عن مستويات الأسعار"),
+                self.rhythm_price_distribution(df, "توزيع الأسعار في السوق"),
             ]),
             "chapter_2": clean([
-                self.ch2_price_donut(df),
+                self.ch2_price_trend(df),
+                self.rhythm_price_levels(df, "مقارنة سريعة للأسعار"),
+                self.rhythm_price_distribution(df, "تغيرات الأسعار"),
             ]),
             "chapter_3": clean([
                 self.ch3_table_sample(df),
+                self.rhythm_price_levels(df, "مستويات الأسعار في العينة"),
+                self.rhythm_price_distribution(df, "تشتت الأسعار"),
             ]),
-            "chapter_4": [],
-            "chapter_5": [],
-            "chapter_6": [],
+            "chapter_4": clean([
+                self.rhythm_price_levels(df, "نطاقات الأسعار"),
+                self.rhythm_price_distribution(df, "مرونة السوق"),
+            ]),
+            "chapter_5": clean([
+                self.rhythm_price_levels(df, "مقارنة زمنية"),
+                self.rhythm_price_distribution(df, "تذبذب الأسعار"),
+            ]),
+            "chapter_6": clean([
+                self.rhythm_price_levels(df, "قراءة سريعة لرأس المال"),
+                self.rhythm_price_distribution(df, "توزيع الاستثمار"),
+            ]),
             "chapter_7": [],
             "chapter_8": [],
             "chapter_9": [],
