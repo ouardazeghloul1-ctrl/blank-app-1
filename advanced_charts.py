@@ -9,7 +9,7 @@ class AdvancedCharts:
     """
     SAFE & STABLE CHARTS ENGINE
     3 رسومات لكل فصل
-    بدون أي خصائص غير مدعومة
+    Executive visual upgrade – بدون كسر أي شيء
     """
 
     # =====================
@@ -24,9 +24,11 @@ class AdvancedCharts:
         fig.update_layout(
             template="plotly_white",
             height=height,
-            margin=dict(l=40, r=40, t=70, b=50),
-            title=dict(x=0.5),
+            margin=dict(l=50, r=50, t=80, b=60),
+            title=dict(x=0.5, font=dict(size=16)),
             font=dict(size=12),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
         )
         fig.update_xaxes(showgrid=False)
         fig.update_yaxes(showgrid=False)
@@ -41,12 +43,9 @@ class AdvancedCharts:
 
         fig = px.bar(
             x=["أقل سعر", "متوسط", "أعلى سعر"],
-            y=[
-                df["price"].min(),
-                df["price"].mean(),
-                df["price"].max()
-            ],
+            y=[df["price"].min(), df["price"].mean(), df["price"].max()],
             title=title,
+            color_discrete_sequence=["#1A237E"],
         )
         fig.update_traces(texttemplate="%{y:,.0f}", textposition="outside")
         fig.update_layout(showlegend=False)
@@ -62,23 +61,59 @@ class AdvancedCharts:
             box=True,
             points=False,
             title=title,
+            color_discrete_sequence=["#3949AB"],
         )
         return self._safe(fig, height=360)
 
     # =====================
-    # CHAPTER 1
+    # CHAPTER 1 – EXECUTIVE VERSION
     # =====================
     def ch1_price_vs_area(self, df):
         if not self._has_columns(df, ["price", "area"]):
             return None
 
+        data = df[["price", "area"]].copy()
+        data["price"] = pd.to_numeric(data["price"], errors="coerce")
+        data["area"] = pd.to_numeric(data["area"], errors="coerce")
+        data = data.dropna()
+
+        if data.empty:
+            return None
+
         fig = px.scatter(
-            df,
+            data,
             x="area",
             y="price",
-            opacity=0.6,
-            title="العلاقة بين المساحة والسعر"
+            size="price",
+            size_max=30,
+            opacity=0.7,
+            title="خريطة القيمة الاستثمارية — المساحة مقابل السعر",
+            color_discrete_sequence=["#1A237E"],
         )
+
+        # Zones (visual only – no math risk)
+        fig.add_hrect(
+            y0=data["price"].min(),
+            y1=data["price"].median(),
+            fillcolor="rgba(46,125,50,0.06)",
+            line_width=0,
+        )
+
+        fig.add_hrect(
+            y0=data["price"].median(),
+            y1=data["price"].max(),
+            fillcolor="rgba(251,192,45,0.05)",
+            line_width=0,
+        )
+
+        fig.add_annotation(
+            x=data["area"].median(),
+            y=data["price"].median(),
+            text="منطقة القيمة والفرص",
+            showarrow=False,
+            font=dict(size=12, color="#2E7D32"),
+        )
+
         return self._safe(fig, height=520)
 
     # =====================
@@ -92,7 +127,8 @@ class AdvancedCharts:
             df.sort_values("date"),
             x="date",
             y="price",
-            title="تطور الأسعار مع الزمن"
+            title="تطور الأسعار مع الزمن",
+            color_discrete_sequence=["#6A1B9A"],
         )
         return self._safe(fig, height=480)
 
@@ -110,13 +146,15 @@ class AdvancedCharts:
                 go.Table(
                     header=dict(
                         values=["المساحة", "السعر"],
-                        fill_color="#eeeeee",
-                        align="center"
+                        fill_color="#1A237E",
+                        font=dict(color="white", size=12),
+                        align="center",
                     ),
                     cells=dict(
                         values=[sample["area"], sample["price"]],
-                        align="center"
-                    )
+                        align="center",
+                        font=dict(size=11),
+                    ),
                 )
             ]
         )
