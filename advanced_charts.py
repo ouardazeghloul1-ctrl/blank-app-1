@@ -58,8 +58,8 @@ class AdvancedCharts:
                 font=dict(size=20, color=self.COLORS["primary"]),
                 y=0.95
             ),
-            plot_bgcolor=self.COLORS["background"],  # تغيير: خلفية الرسم بلون فاتح
-            paper_bgcolor=self.COLORS["white"],      # خلفية الورق بيضاء
+            plot_bgcolor=self.COLORS["background"],
+            paper_bgcolor=self.COLORS["white"],
             hovermode="x unified",
             showlegend=False,
         )
@@ -136,7 +136,7 @@ class AdvancedCharts:
         )
 
         fig = self._safe(fig, height=600)
-        # إخفاء الشبكة للمخططات الكبيرة (اختياري)
+        # إخفاء الشبكة للمخططات الكبيرة
         fig.update_yaxes(showgrid=False)
         return fig
 
@@ -149,8 +149,8 @@ class AdvancedCharts:
         if len(p) < 10:
             return None
 
-        # حساب الكثافة
-        hist_y, hist_x = np.histogram(p, bins=30, density=True)
+        # حساب الكثافة - تعديل: bins من 30 إلى 20 لنعومة أنضج
+        hist_y, hist_x = np.histogram(p, bins=20, density=True)
         hist_x = (hist_x[:-1] + hist_x[1:]) / 2
 
         fig = go.Figure()
@@ -160,11 +160,15 @@ class AdvancedCharts:
                 x=hist_x,
                 y=hist_y,
                 mode="lines",
-                line=dict(color=self.COLORS["secondary"], width=3),
+                line=dict(
+                    color=self.COLORS["secondary"],
+                    width=3,
+                    shape="spline",
+                    smoothing=1.3
+                ),
                 fill="tozeroy",
                 fillcolor="rgba(106,27,154,0.15)",
-                name="كثافة الأسعار",
-                smooth=True  # إضافة: تخطيط ناعم
+                name="كثافة الأسعار"
             )
         )
 
@@ -260,7 +264,6 @@ class AdvancedCharts:
             grid={'rows': 2, 'columns': 2, 'pattern': "independent"}
         )
 
-        # تغيير: زيادة الارتفاع إلى 450 بدلاً من 400
         return self._safe(fig, height=450)
 
     # =====================
@@ -340,7 +343,12 @@ class AdvancedCharts:
                 x=df["date"],
                 y=df["price"],
                 mode="lines",
-                line=dict(color=self.COLORS["light"], width=1),
+                line=dict(
+                    color=self.COLORS["light"],
+                    width=1,
+                    shape="spline",
+                    smoothing=0.8
+                ),
                 fill="tozeroy",
                 fillcolor="rgba(165,214,167,0.2)",
                 name="منطقة التداول"
@@ -543,7 +551,7 @@ class AdvancedCharts:
         )
 
         fig = self._safe(fig, height=600)
-        # إخفاء الشبكة للمخططات الكبيرة (اختياري)
+        # إخفاء الشبكة للمخططات الكبيرة
         fig.update_yaxes(showgrid=False)
         return fig
 
@@ -742,8 +750,8 @@ class AdvancedCharts:
         if len(p) < 10:
             return None
 
-        # توزيع ناعم للخاتمة
-        hist_y, hist_x = np.histogram(p, bins=20, density=True)
+        # توزيع ناعم للخاتمة - تعديل: bins من 20 إلى 18 لإحساس إغلاق هادئ
+        hist_y, hist_x = np.histogram(p, bins=18, density=True)
         hist_x = (hist_x[:-1] + hist_x[1:]) / 2
 
         fig = go.Figure()
@@ -753,11 +761,15 @@ class AdvancedCharts:
                 x=hist_x,
                 y=hist_y,
                 mode="lines",
-                line=dict(color=self.COLORS["primary"], width=3),
+                line=dict(
+                    color=self.COLORS["primary"],
+                    width=3,
+                    shape="spline",
+                    smoothing=1.2
+                ),
                 fill="tozeroy",
                 fillcolor="rgba(27,94,32,0.08)",
-                name="التوزيع النهائي",
-                smooth=True  # إضافة: تخطيط ناعم
+                name="التوزيع النهائي"
             )
         )
 
@@ -791,52 +803,52 @@ class AdvancedCharts:
             return [x for x in lst if x is not None]
 
         return {
-            # الفصل 1: فهم السوق (تعديل: إعادة ترتيب الرسومات)
+            # الفصل 1: فهم السوق
             "chapter_1": clean([
                 self.ch1_scatter_flow(df),           # رسم كبير - العلاقة الأساسية
                 self.ch1_market_overview(df),        # رسم متوسط - نظرة عامة
                 self.ch1_price_distribution(df),     # رسم متوسط - التوزيع
             ]),
             
-            # الفصل 2: الزمن (رسم كبير + رسم متوسط)
+            # الفصل 2: الزمن
             "chapter_2": clean([
                 self.ch2_price_stream(df),           # رسم كبير
                 self.ch2_area_ribbon(df),            # رسم متوسط
             ]),
             
-            # الفصل 3: البيانات (جدول + تحليل جودة)
+            # الفصل 3: البيانات
             "chapter_3": clean([
                 self.ch3_data_table(df),             # جدول
-                self.ch3_data_quality(df),           # تحليل جودة (يبقى Bar Chart)
+                self.ch3_data_quality(df),           # تحليل جودة
             ]),
             
-            # الفصل 4: التحليل الاستراتيجي (رادار كبير)
+            # الفصل 4: التحليل الاستراتيجي
             "chapter_4": clean([
                 self.ch4_strategic_radar(df),        # رسم كبير
             ]),
             
-            # الفصل 5: الفرص (رسم كبير + رسم متوسط)
+            # الفصل 5: الفرص
             "chapter_5": clean([
                 self.ch5_opportunity_bubble(df),     # رسم كبير
                 self.ch5_value_distribution(df),     # رسم متوسط
             ]),
             
-            # الفصل 6: القرار (مؤشر تنفيذي كبير)
+            # الفصل 6: القرار
             "chapter_6": clean([
                 self.ch6_executive_gauge(df),        # رسم كبير جداً
             ]),
             
-            # الفصل 7: الملخص التنفيذي (دائرة تنفيذية كبيرة)
+            # الفصل 7: الملخص التنفيذي
             "chapter_7": clean([
                 self.ch7_executive_summary(df),      # رسم كبير
             ]),
             
-            # الفصل 8: الخاتمة (رسم هادئ)
+            # الفصل 8: الخاتمة
             "chapter_8": clean([
                 self.ch8_final_insight(df),          # رسم ختامي
             ]),
             
-            # فصول احتياطية (فارغة حسب الخطة)
+            # فصول احتياطية
             "chapter_9": [],
             "chapter_10": [],
         }
