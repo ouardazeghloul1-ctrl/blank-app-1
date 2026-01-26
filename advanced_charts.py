@@ -7,165 +7,206 @@ import numpy as np
 
 class AdvancedCharts:
     """
-    PREMIUM & SAFE CHARTS ENGINE
-    3 رسومات لكل فصل
-    Executive / Global Report Style
+    PREMIUM EXECUTIVE CHARTS ENGINE
+    مستوى عالمي – هادئ – انسيابي
+    3 رسومات لكل فصل – بدون مخاطرة
     """
 
     # =====================
-    # BRAND IDENTITY
+    # VISUAL IDENTITY
     # =====================
     COLORS = {
-        "primary": "#1A237E",      # Indigo
-        "secondary": "#3949AB",
-        "accent": "#FF7043",       # Soft orange
-        "muted": "#E8EAF6",
-        "grid": "rgba(0,0,0,0.05)",
-        "text": "#263238"
+        "emerald": "#1B5E20",
+        "mint": "#A5D6A7",
+        "plum": "#6A1B9A",
+        "lavender": "#E1BEE7",
+        "gold": "#C9A227",
+        "light_gray": "#F5F5F5",
+        "text": "#333333",
     }
 
     # =====================
     # HELPERS
     # =====================
     def _has_columns(self, df, cols):
-        return all(col in df.columns for col in cols)
+        return df is not None and all(col in df.columns for col in cols)
 
-    def _safe_layout(self, fig, height=450):
+    def _numeric(self, s):
+        return pd.to_numeric(s, errors="coerce")
+
+    def _safe(self, fig, height=460):
+        if fig is None:
+            return None
+
         fig.update_layout(
             template="plotly_white",
             height=height,
-            margin=dict(l=60, r=60, t=90, b=60),
+            margin=dict(l=70, r=70, t=90, b=70),
+            font=dict(size=13, color=self.COLORS["text"]),
             title=dict(
                 x=0.5,
-                font=dict(size=18, color=self.COLORS["primary"]),
+                font=dict(size=18, color=self.COLORS["text"]),
             ),
-            font=dict(size=13, color=self.COLORS["text"]),
-            plot_bgcolor="white",
+            plot_bgcolor=self.COLORS["light_gray"],
             paper_bgcolor="white",
+            hovermode="x unified",
         )
-        fig.update_xaxes(
-            showgrid=True,
-            gridcolor=self.COLORS["grid"],
-            zeroline=False
-        )
-        fig.update_yaxes(
-            showgrid=True,
-            gridcolor=self.COLORS["grid"],
-            zeroline=False
-        )
+
+        fig.update_xaxes(showgrid=False, zeroline=False)
+        fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.05)", zeroline=False)
+
         return fig
 
     # =====================
-    # RHYTHM 1 — PRICE LEVELS (MODERN BAR)
+    # RHYTHM 1 – DONUT INSIGHT
     # =====================
-    def rhythm_price_levels(self, df, title):
+    def rhythm_price_donut(self, df, title):
         if "price" not in df.columns:
             return None
 
+        p = self._numeric(df["price"]).dropna()
+        if p.empty:
+            return None
+
         values = [
-            df["price"].min(),
-            df["price"].mean(),
-            df["price"].max()
+            p.quantile(0.25),
+            p.quantile(0.5) - p.quantile(0.25),
+            p.max() - p.quantile(0.5),
         ]
 
         fig = go.Figure(
             data=[
-                go.Bar(
-                    x=["أقل سعر", "متوسط السوق", "أعلى سعر"],
-                    y=values,
+                go.Pie(
+                    values=values,
+                    hole=0.65,
                     marker=dict(
-                        color=[
-                            self.COLORS["secondary"],
-                            self.COLORS["primary"],
-                            self.COLORS["accent"]
-                        ],
-                        line=dict(width=0),
+                        colors=[
+                            self.COLORS["mint"],
+                            self.COLORS["lavender"],
+                            self.COLORS["gold"],
+                        ]
                     ),
-                    text=[f"{v:,.0f}" for v in values],
-                    textposition="outside",
+                    textinfo="none",
                 )
             ]
         )
 
-        fig.update_layout(title=title, showlegend=False)
-        return self._safe_layout(fig, height=360)
+        fig.add_annotation(
+            text=f"<b>{p.mean():,.0f}</b><br>متوسط السعر",
+            x=0.5,
+            y=0.5,
+            font=dict(size=16),
+            showarrow=False,
+        )
+
+        fig.update_layout(title=title)
+        return self._safe(fig, height=360)
 
     # =====================
-    # RHYTHM 2 — DISTRIBUTION (SMOOTH HIST)
+    # RHYTHM 2 – SOFT DISTRIBUTION
     # =====================
-    def rhythm_price_distribution(self, df, title):
+    def rhythm_price_curve(self, df, title):
         if "price" not in df.columns:
             return None
 
-        fig = px.histogram(
-            df,
-            x="price",
-            nbins=20,
-            opacity=0.9,
-            title=title,
+        p = self._numeric(df["price"]).dropna()
+        if len(p) < 10:
+            return None
+
+        hist_y, hist_x = np.histogram(p, bins=30, density=True)
+        hist_x = (hist_x[:-1] + hist_x[1:]) / 2
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=hist_x,
+                y=hist_y,
+                mode="lines",
+                line=dict(color=self.COLORS["plum"], width=3),
+                fill="tozeroy",
+                fillcolor="rgba(106,27,154,0.25)",
+            )
         )
 
-        fig.update_traces(
-            marker_color=self.COLORS["primary"]
-        )
-
-        mean_price = df["price"].mean()
         fig.add_vline(
-            x=mean_price,
-            line=dict(color=self.COLORS["accent"], width=3, dash="dash"),
+            x=p.mean(),
+            line=dict(color=self.COLORS["gold"], width=2, dash="dot"),
             annotation_text="متوسط السوق",
             annotation_position="top",
         )
 
-        return self._safe_layout(fig, height=360)
+        fig.update_layout(title=title)
+        return self._safe(fig, height=360)
 
     # =====================
-    # CHAPTER 1 — CORE RELATION
+    # CHAPTER 1 – MARKET RELATION
     # =====================
-    def ch1_price_vs_area(self, df):
+    def ch1_price_vs_area_flow(self, df):
         if not self._has_columns(df, ["price", "area"]):
             return None
 
-        fig = px.scatter(
-            df,
-            x="area",
-            y="price",
-            opacity=0.75,
-            title="العلاقة بين المساحة والسعر",
-        )
+        df = df.copy()
+        df["price"] = self._numeric(df["price"])
+        df["area"] = self._numeric(df["area"])
+        df = df.dropna()
 
-        fig.update_traces(
-            marker=dict(
-                size=9,
-                color=self.COLORS["primary"],
-                line=dict(width=1, color="white")
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=df["area"],
+                y=df["price"],
+                mode="markers",
+                marker=dict(
+                    size=10,
+                    color=self.COLORS["emerald"],
+                    opacity=0.45,
+                ),
             )
         )
 
-        return self._safe_layout(fig, height=520)
+        fig.update_layout(
+            title="العلاقة الانسيابية بين المساحة والسعر",
+            xaxis_title="المساحة",
+            yaxis_title="السعر",
+        )
+
+        return self._safe(fig, height=520)
 
     # =====================
-    # CHAPTER 2 — TREND
+    # CHAPTER 2 – TIME FLOW
     # =====================
-    def ch2_price_trend(self, df):
+    def ch2_price_stream(self, df):
         if not self._has_columns(df, ["date", "price"]):
             return None
 
-        fig = px.line(
-            df.sort_values("date"),
-            x="date",
-            y="price",
-            title="تطور الأسعار مع الزمن",
+        df = df.sort_values("date")
+        df["price"] = self._numeric(df["price"])
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=df["date"],
+                y=df["price"],
+                mode="lines",
+                line=dict(color=self.COLORS["emerald"], width=3),
+                fill="tozeroy",
+                fillcolor="rgba(27,94,32,0.18)",
+            )
         )
 
-        fig.update_traces(
-            line=dict(color=self.COLORS["primary"], width=3)
+        fig.update_layout(
+            title="تدفق الأسعار عبر الزمن",
+            xaxis_title="الزمن",
+            yaxis_title="السعر",
         )
 
-        return self._safe_layout(fig, height=480)
+        return self._safe(fig, height=480)
 
     # =====================
-    # CHAPTER 3 — DATA SAMPLE
+    # CHAPTER 3 – SAMPLE TABLE
     # =====================
     def ch3_table_sample(self, df):
         if not self._has_columns(df, ["price", "area"]):
@@ -178,24 +219,18 @@ class AdvancedCharts:
                 go.Table(
                     header=dict(
                         values=["المساحة", "السعر"],
-                        fill_color=self.COLORS["primary"],
-                        font=dict(color="white", size=13),
-                        align="center"
+                        fill_color=self.COLORS["light_gray"],
+                        align="center",
                     ),
                     cells=dict(
                         values=[sample["area"], sample["price"]],
-                        fill_color=self.COLORS["muted"],
-                        align="center"
-                    )
+                        align="center",
+                    ),
                 )
             ]
         )
 
-        fig.update_layout(
-            title="عينة تمثيلية من بيانات السوق",
-            height=420
-        )
-
+        fig.update_layout(title="عينة ذكية من بيانات السوق", height=420)
         return fig
 
     # =====================
@@ -210,31 +245,31 @@ class AdvancedCharts:
 
         return {
             "chapter_1": clean([
-                self.ch1_price_vs_area(df),
-                self.rhythm_price_levels(df, "لمحة سريعة عن مستويات الأسعار"),
-                self.rhythm_price_distribution(df, "توزيع الأسعار في السوق"),
+                self.ch1_price_vs_area_flow(df),
+                self.rhythm_price_donut(df, "قراءة سريعة للسوق"),
+                self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),
             ]),
             "chapter_2": clean([
-                self.ch2_price_trend(df),
-                self.rhythm_price_levels(df, "مقارنة مستويات الأسعار"),
-                self.rhythm_price_distribution(df, "تذبذب الأسعار"),
+                self.ch2_price_stream(df),
+                self.rhythm_price_donut(df, "مستويات الأسعار"),
+                self.rhythm_price_curve(df, "زخم السوق"),
             ]),
             "chapter_3": clean([
                 self.ch3_table_sample(df),
-                self.rhythm_price_levels(df, "قراءة سريعة للعينة"),
-                self.rhythm_price_distribution(df, "انتشار الأسعار"),
+                self.rhythm_price_donut(df, "نطاق العينة"),
+                self.rhythm_price_curve(df, "تشتت الأسعار"),
             ]),
             "chapter_4": clean([
-                self.rhythm_price_levels(df, "نطاقات السوق"),
-                self.rhythm_price_distribution(df, "مرونة التسعير"),
+                self.rhythm_price_donut(df, "نطاقات السوق"),
+                self.rhythm_price_curve(df, "مرونة السوق"),
             ]),
             "chapter_5": clean([
-                self.rhythm_price_levels(df, "الاتجاه العام"),
-                self.rhythm_price_distribution(df, "استقرار السوق"),
+                self.rhythm_price_donut(df, "مقارنة زمنية"),
+                self.rhythm_price_curve(df, "ديناميكية الأسعار"),
             ]),
             "chapter_6": clean([
-                self.rhythm_price_levels(df, "قراءة رأس المال"),
-                self.rhythm_price_distribution(df, "توزيع الاستثمار"),
+                self.rhythm_price_donut(df, "رأس المال"),
+                self.rhythm_price_curve(df, "توزيع الاستثمار"),
             ]),
             "chapter_7": [],
             "chapter_8": [],
