@@ -7,9 +7,8 @@ import numpy as np
 
 class AdvancedCharts:
     """
-    STABLE + EXECUTIVE VISUAL ENGINE
-    3 رسومات لكل فصل
-    بدون كسر التقرير
+    SAFE & STABLE CHARTS ENGINE
+    Executive visual upgrade – بدون كسر أي شيء
     """
 
     # =====================
@@ -28,10 +27,9 @@ class AdvancedCharts:
             margin=dict(l=60, r=60, t=90, b=70),
             title=dict(x=0.5, font=dict(size=18)),
             font=dict(size=13),
-            paper_bgcolor="white",
             plot_bgcolor="rgba(245,247,250,0.9)",
+            paper_bgcolor="white",
         )
-
         fig.update_xaxes(showgrid=False)
         fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.04)")
         return fig
@@ -43,17 +41,13 @@ class AdvancedCharts:
         if "price" not in df.columns:
             return None
 
-        values = [
-            df["price"].min(),
-            df["price"].mean(),
-            df["price"].max()
-        ]
+        values = [df["price"].min(), df["price"].mean(), df["price"].max()]
 
         fig = go.Figure(go.Bar(
             x=["أقل سعر", "متوسط", "أعلى سعر"],
             y=values,
             marker=dict(
-                color=["#B2DFDB", "#80CBC4", "#26A69A"],
+                color=["#AED581", "#81C784", "#4CAF50"],
                 line=dict(width=0)
             ),
             text=[f"{v:,.0f}" for v in values],
@@ -67,8 +61,7 @@ class AdvancedCharts:
         if "price" not in df.columns:
             return None
 
-        fig = go.Figure()
-        fig.add_trace(go.Violin(
+        fig = go.Figure(go.Violin(
             y=df["price"],
             fillcolor="rgba(100,181,246,0.35)",
             line=dict(color="#1E88E5"),
@@ -99,26 +92,28 @@ class AdvancedCharts:
         return self._safe(fig, 520)
 
     # =====================
-    # CHAPTER 2 – KEEP CURVE
+    # CHAPTER 2 – EXECUTIVE CURVE (KEEP THIS)
     # =====================
     def ch2_price_trend(self, df):
         if not self._has_columns(df, ["date", "price"]):
             return None
 
-        fig = px.line(
-            df.sort_values("date"),
-            x="date",
-            y="price",
-            line_shape="spline",
-            color_discrete_sequence=["#8E24AA"]
-        )
+        fig = go.Figure()
 
-        fig.update_traces(line=dict(width=4))
-        fig.update_layout(title="تطور الأسعار مع الزمن")
+        fig.add_trace(go.Scatter(
+            x=df["date"],
+            y=df["price"],
+            mode="lines",
+            line=dict(color="#8E24AA", width=4, shape="spline"),
+            fill="tozeroy",
+            fillcolor="rgba(142,36,170,0.15)"
+        ))
+
+        fig.update_layout(title="المنحنى السعري للسوق (اتجاه عام)")
         return self._safe(fig, 500)
 
     # =====================
-    # CHAPTER 3 – TABLE FIXED
+    # CHAPTER 3 – TABLE (SAFE)
     # =====================
     def ch3_table_sample(self, df):
         if not self._has_columns(df, ["price", "area"]):
@@ -145,23 +140,7 @@ class AdvancedCharts:
         return fig
 
     # =====================
-    # CHAPTER 7 – NEW
-    # =====================
-    def ch7_soft_area(self, df):
-        if "price" not in df.columns:
-            return None
-
-        fig = px.area(
-            df.sort_values("price"),
-            y="price",
-            color_discrete_sequence=["#AED581"]
-        )
-
-        fig.update_layout(title="النطاق السعري العام للسوق")
-        return self._safe(fig, 420)
-
-    # =====================
-    # CHAPTER 8 – BIG DONUT
+    # CHAPTER 8 – BIG DONUT (NEW)
     # =====================
     def ch8_price_donut(self, df):
         if "price" not in df.columns:
@@ -225,7 +204,7 @@ class AdvancedCharts:
                 self.rhythm_price_distribution(df, "توزيع الاستثمار"),
             ]),
             "chapter_7": clean([
-                self.ch7_soft_area(df),
+                self.ch2_price_trend(df),
             ]),
             "chapter_8": clean([
                 self.ch8_price_donut(df),
