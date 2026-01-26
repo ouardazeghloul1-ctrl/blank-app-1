@@ -9,7 +9,7 @@ class AdvancedCharts:
     """
     SAFE & STABLE CHARTS ENGINE
     3 رسومات لكل فصل
-    Executive visual upgrade – بدون كسر أي شيء
+    تطوير بصري Executive بدون كسر أي منطق
     """
 
     # =====================
@@ -21,34 +21,88 @@ class AdvancedCharts:
     def _safe(self, fig, height=450):
         if fig is None:
             return None
+
         fig.update_layout(
             template="plotly_white",
             height=height,
             margin=dict(l=50, r=50, t=80, b=60),
-            title=dict(x=0.5, font=dict(size=16)),
-            font=dict(size=12),
+            title=dict(
+                x=0.5,
+                font=dict(size=16, color="#1f2a44")
+            ),
+            font=dict(
+                size=12,
+                color="#1f2a44"
+            ),
             plot_bgcolor="white",
             paper_bgcolor="white",
         )
-        fig.update_xaxes(showgrid=False)
-        fig.update_yaxes(showgrid=False)
+
+        fig.update_xaxes(showgrid=False, zeroline=False)
+        fig.update_yaxes(showgrid=False, zeroline=False)
+
         return fig
 
     # =====================
-    # RHYTHM CHARTS (SAFE)
+    # RHYTHM CHARTS (EXECUTIVE VERSION)
     # =====================
     def rhythm_price_levels(self, df, title):
+        """
+        Executive Bar Chart
+        هادئ – نظيف – مشابه لتقارير PowerPoint الاحترافية
+        """
         if "price" not in df.columns:
             return None
 
-        fig = px.bar(
-            x=["أقل سعر", "متوسط", "أعلى سعر"],
-            y=[df["price"].min(), df["price"].mean(), df["price"].max()],
-            title=title,
-            color_discrete_sequence=["#1A237E"],
+        values = [
+            df["price"].min(),
+            df["price"].mean(),
+            df["price"].max()
+        ]
+
+        labels = ["أقل سعر", "متوسط السعر", "أعلى سعر"]
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Bar(
+                x=labels,
+                y=values,
+                width=0.55,
+                marker=dict(
+                    color=["#4f6bed", "#6c7cff", "#9aa5ff"],
+                    line=dict(color="#e6e9f5", width=1),
+                ),
+                text=[f"{v:,.0f}" for v in values],
+                textposition="outside",
+                textfont=dict(size=13, color="#1f2a44"),
+                hovertemplate="%{y:,.0f}<extra></extra>",
+            )
         )
-        fig.update_traces(texttemplate="%{y:,.0f}", textposition="outside")
-        fig.update_layout(showlegend=False)
+
+        # خط مرجعي خفيف للمتوسط
+        fig.add_hline(
+            y=df["price"].mean(),
+            line_width=1,
+            line_dash="dot",
+            line_color="#b0b7d8",
+            annotation_text="المتوسط",
+            annotation_position="top right",
+            annotation_font_size=11,
+            annotation_font_color="#6b7280",
+        )
+
+        fig.update_layout(
+            title=title,
+            showlegend=False,
+            bargap=0.35,
+        )
+
+        fig.update_yaxes(
+            tickformat=",",
+            ticksuffix=" ",
+        )
+
         return self._safe(fig, height=360)
 
     def rhythm_price_distribution(self, df, title):
@@ -61,57 +115,25 @@ class AdvancedCharts:
             box=True,
             points=False,
             title=title,
-            color_discrete_sequence=["#3949AB"],
+            color_discrete_sequence=["#9aa5ff"]
         )
+
         return self._safe(fig, height=360)
 
     # =====================
-    # CHAPTER 1 – EXECUTIVE VERSION
+    # CHAPTER 1
     # =====================
     def ch1_price_vs_area(self, df):
         if not self._has_columns(df, ["price", "area"]):
             return None
 
-        data = df[["price", "area"]].copy()
-        data["price"] = pd.to_numeric(data["price"], errors="coerce")
-        data["area"] = pd.to_numeric(data["area"], errors="coerce")
-        data = data.dropna()
-
-        if data.empty:
-            return None
-
         fig = px.scatter(
-            data,
+            df,
             x="area",
             y="price",
-            size="price",
-            size_max=30,
-            opacity=0.7,
-            title="خريطة القيمة الاستثمارية — المساحة مقابل السعر",
-            color_discrete_sequence=["#1A237E"],
-        )
-
-        # Zones (visual only – no math risk)
-        fig.add_hrect(
-            y0=data["price"].min(),
-            y1=data["price"].median(),
-            fillcolor="rgba(46,125,50,0.06)",
-            line_width=0,
-        )
-
-        fig.add_hrect(
-            y0=data["price"].median(),
-            y1=data["price"].max(),
-            fillcolor="rgba(251,192,45,0.05)",
-            line_width=0,
-        )
-
-        fig.add_annotation(
-            x=data["area"].median(),
-            y=data["price"].median(),
-            text="منطقة القيمة والفرص",
-            showarrow=False,
-            font=dict(size=12, color="#2E7D32"),
+            opacity=0.55,
+            title="العلاقة بين المساحة والسعر",
+            color_discrete_sequence=["#4f6bed"]
         )
 
         return self._safe(fig, height=520)
@@ -128,8 +150,11 @@ class AdvancedCharts:
             x="date",
             y="price",
             title="تطور الأسعار مع الزمن",
-            color_discrete_sequence=["#6A1B9A"],
+            color_discrete_sequence=["#4f6bed"]
         )
+
+        fig.update_traces(line=dict(width=3))
+
         return self._safe(fig, height=480)
 
     # =====================
@@ -146,23 +171,29 @@ class AdvancedCharts:
                 go.Table(
                     header=dict(
                         values=["المساحة", "السعر"],
-                        fill_color="#1A237E",
-                        font=dict(color="white", size=12),
+                        fill_color="#eef1fb",
                         align="center",
+                        font=dict(color="#1f2a44", size=12)
                     ),
                     cells=dict(
                         values=[sample["area"], sample["price"]],
                         align="center",
-                        font=dict(size=11),
-                    ),
+                        font=dict(size=11)
+                    )
                 )
             ]
         )
-        fig.update_layout(title="عينة من بيانات السوق", height=420)
+
+        fig.update_layout(
+            title="عينة من بيانات السوق",
+            height=420,
+            margin=dict(l=40, r=40, t=70, b=40)
+        )
+
         return fig
 
     # =====================
-    # ENGINE
+    # ENGINE (UNCHANGED)
     # =====================
     def generate_all_charts(self, df):
         if df is None or df.empty:
