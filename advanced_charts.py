@@ -154,54 +154,38 @@ class AdvancedCharts:
         return self._safe(fig, height=360)
 
     # =====================
-    # CHAPTER 1 – MARKET RELATION (MODIFIED - إطار بصري نظيف بدون نقاط)
+    # CHAPTER 1 – MARKET RELATION (المطابقة للصورة)
     # =====================
     def ch1_price_vs_area_flow(self, df):
         if not self._has_columns(df, ["price", "area"]):
             return None
 
-        # إنشاء إطار بصري نظيف بدون نقاط أو بيانات
         fig = go.Figure()
 
-        # ✅ annotation فقط (اختياري)
-        fig.add_annotation(
-            text="↑ كلما زادت المساحة<br>ارتفعت القيمة السوقية",
-            xref="paper",
-            yref="paper",
-            x=0.02,
-            y=0.95,
-            showarrow=False,
-            font=dict(size=13, color="#555"),
-            align="left",
-            bgcolor="rgba(255,255,255,0.7)",
-            bordercolor="rgba(0,0,0,0.1)",
-            borderwidth=1,
-            borderpad=4
-        )
-
         fig.update_layout(
-            title="كيف تتحول المساحة إلى قيمة سوقية",
+            title=dict(
+                text="تحليل العلاقة بين المساحة والسعر",
+                font=dict(
+                    size=22,
+                    family="Tajawal",
+                    color=self.COLORS["emerald"]  # ✅ نفس اللون الأخضر
+                ),
+                x=0.5
+            ),
             xaxis_title="المساحة (م²)",
-            yaxis_title="السعر (مقياس لوغاريتمي)",
-            hovermode="closest",
+            yaxis_title="السعر (ريال)",
             showlegend=False
         )
 
-        # ✅ إعدادات المحاور (نفسها بدون تغيير)
-        fig.update_yaxes(
-            type="log",
-            title_font=dict(size=16),
-            showgrid=True,
-            gridcolor="rgba(0,0,0,0.06)",
-            ticks="outside",
-            tickcolor="rgba(0,0,0,0.2)"
+        fig.update_xaxes(
+            showgrid=False,
+            zeroline=False
         )
 
-        fig.update_xaxes(
-            title_font=dict(size=16),
-            ticks="outside",
-            tickcolor="rgba(0,0,0,0.2)",
-            showgrid=False
+        fig.update_yaxes(
+            showgrid=True,
+            gridcolor="rgba(0,0,0,0.06)",
+            zeroline=False
         )
 
         return self._safe(fig, height=520)
@@ -521,7 +505,7 @@ class AdvancedCharts:
 
         return {
             "chapter_1": clean([
-                self.ch1_price_vs_area_flow(df),  # ✅ MODIFIED - إطار بصري نظيف
+                self.ch1_price_vs_area_flow(df),  # ✅ MODIFIED - مطابقة للصورة
                 self.rhythm_price_donut(df, "قراءة سريعة للسوق"),
                 self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),
             ]),
