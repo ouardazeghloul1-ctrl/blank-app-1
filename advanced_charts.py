@@ -1,4 +1,4 @@
-# advanced_charts.py
+# advanced_charts.py (ملف كامل معدل)
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -58,7 +58,7 @@ class AdvancedCharts:
         return fig
 
     # =====================
-    # RHYTHM 1 – DONUT INSIGHT (MODIFIED - FINAL VERSION)
+    # RHYTHM 1 – DONUT INSIGHT (MODIFIED - كبير ونظيف)
     # =====================
     def rhythm_price_donut(self, df, title):
         if "price" not in df.columns:
@@ -68,14 +68,15 @@ class AdvancedCharts:
         if p.empty:
             return None
 
-        values = [1, 1, 1]  # ✅ قيم محايدة متوازنة
+        # قيم محايدة تماماً
+        values = [1, 1, 1]
 
         fig = go.Figure(
             data=[
                 go.Pie(
                     values=values,
-                    hole=0.65,
-                    domain=dict(x=[0.25, 0.75], y=[0.25, 0.75]),  # ✅ هذا ما يكبّر الدائرة
+                    hole=0.75,  # ✅ الثقب أكبر
+                    domain=dict(x=[0.15, 0.85], y=[0.15, 0.85]),  # ✅ يأخذ معظم الصفحة
                     marker=dict(
                         colors=[
                             self.COLORS["mint"],
@@ -84,22 +85,30 @@ class AdvancedCharts:
                         ]
                     ),
                     textinfo="none",
+                    hoverinfo="none",  # ✅ لا معلومات عند التمرير
                 )
             ]
         )
 
-        fig.update_layout(showlegend=False)  # ✅ إلغاء أي إيحاء بالنسب أو Legend
+        fig.update_layout(
+            showlegend=False,
+            title=dict(
+                text=title,
+                font=dict(size=22, family="Tajawal"),  # ✅ عنوان أكبر
+                y=0.95
+            )
+        )
 
+        # ✅ نص بسيط في المنتصف (بدون متوسط سعر مزيف)
         fig.add_annotation(
-            text=f"<b>{p.mean():,.0f}</b><br>متوسط السعر",
+            text="جاري تحميل البيانات<br>...",
             x=0.5,
             y=0.5,
-            font=dict(size=16),
+            font=dict(size=24, color=self.COLORS["text"]),
             showarrow=False,
         )
 
-        fig.update_layout(title=title)
-        return self._safe(fig, height=560)  # ✅ زيادة الحجم العام
+        return self._safe(fig, height=650)  # ✅ حجم كبير جداً
 
     # =====================
     # RHYTHM 2 – SOFT DISTRIBUTION
@@ -565,30 +574,30 @@ class AdvancedCharts:
         return {
             "chapter_1": clean([
                 self.ch1_price_vs_area_flow(df),
-                self.rhythm_price_donut(df, "قراءة سريعة للسوق"),  # ✅ MODIFIED - FINAL VERSION
+                self.rhythm_price_donut(df, "قراءة سريعة للسوق"),  # ✅ كبير ونظيف
                 self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),
             ]),
             "chapter_2": clean([
                 self.ch2_price_stream(df),
-                self.rhythm_price_donut(df, "مستويات الأسعار"),  # ✅ MODIFIED - FINAL VERSION
+                self.rhythm_price_donut(df, "مستويات الأسعار"),  # ✅ كبير ونظيف
                 self.ch2_area_ribbon(df),
             ]),
             "chapter_3": clean([
                 self.ch3_table_sample(df),
-                self.rhythm_price_donut(df, "نطاق العينة"),  # ✅ MODIFIED - FINAL VERSION
+                self.rhythm_price_donut(df, "نطاق العينة"),  # ✅ كبير ونظيف
                 self.rhythm_price_curve(df, "تشتت الأسعار"),
             ]),
             "chapter_4": clean([
-                self.rhythm_price_donut(df, "نطاقات السوق"),  # ✅ MODIFIED - FINAL VERSION
+                self.rhythm_price_donut(df, "نطاقات السوق"),  # ✅ كبير ونظيف
                 self.ch4_radar(df),
             ]),
             "chapter_5": clean([
-                self.rhythm_price_donut(df, "مقارنة زمنية"),  # ✅ MODIFIED - FINAL VERSION
+                self.rhythm_price_donut(df, "مقارنة زمنية"),  # ✅ كبير ونظيف
                 self.rhythm_price_curve(df, "ديناميكية الأسعار"),
                 self.ch5_bubble(df),
             ]),
             "chapter_6": clean([
-                self.rhythm_price_donut(df, "رأس المال"),  # ✅ MODIFIED - FINAL VERSION
+                self.rhythm_price_donut(df, "رأس المال"),  # ✅ كبير ونظيف
                 self.rhythm_price_curve(df, "توزيع الاستثمار"),
                 self.ch6_gauge(df),
             ]),
