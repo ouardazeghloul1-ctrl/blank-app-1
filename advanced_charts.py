@@ -140,7 +140,7 @@ class AdvancedCharts:
         return self._safe(fig, height=360)
 
     # =====================
-    # CHAPTER 1 – MARKET RELATION
+    # CHAPTER 1 – MARKET RELATION (MODIFIED WITH OPTIONAL IMPROVEMENTS)
     # =====================
     def ch1_price_vs_area_flow(self, df):
         if not self._has_columns(df, ["price", "area"]):
@@ -151,48 +151,98 @@ class AdvancedCharts:
         df["area"] = self._numeric(df["area"])
         df = df.dropna()
 
+        # 🔧 1) ترتيب النقاط بصريًا (Anti-overlap)
+        df = df.sort_values("price")  # 🔥 النقاط الصغيرة أولاً، الكبيرة فوقها
+
         # ✅ التحسين الذهبي: حجم ذكي للنقاط يعتمد على السعر
         df["marker_size"] = ((df["price"] / df["price"].max()) * 18).clip(lower=8)
 
         fig = go.Figure()
 
+        # 🔥 تدرج أخضر ذكي بدل لون واحد
         fig.add_trace(
             go.Scatter(
                 x=df["area"],
                 y=df["price"],
                 mode="markers",
                 marker=dict(
-                    size=df["marker_size"],  # 🔥 حجم ذكي يعتمد على السعر
-                    color=self.COLORS["emerald"],
-                    opacity=0.75,
-                    line=dict(width=0.5, color="rgba(255,255,255,0.6)")
+                    size=df["marker_size"],
+                    color=df["price"],  # 🔥 تدرج حسب السعر
+                    colorscale=[
+                        [0, "#C8E6C9"],
+                        [0.5, "#66BB6A"],
+                        [1, "#1B5E20"]
+                    ],
+                    showscale=False,
+                    opacity=0.78,
+                    line=dict(width=0.6, color="white")
                 ),
+                name="العقارات"
             )
         )
 
+        # 🔥 أضيفي خط اتجاه ناعم (Trend Line) - النسخة السينمائية
+        try:
+            z = np.polyfit(df["area"], np.log(df["price"]), 1)
+            p = np.poly1d(z)
+            
+            # 🔧 2) نعومة إضافية لخط الاتجاه (Luxury Touch)
+            area_sorted = np.linspace(df["area"].min(), df["area"].max(), 100)
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=area_sorted,
+                    y=np.exp(p(area_sorted)),
+                    mode="lines",
+                    line=dict(color=self.COLORS["gold"], width=3),
+                    name="اتجاه السوق"
+                )
+            )
+        except:
+            pass  # إذا فشل حساب الاتجاه، نستمر
+
+        # 🔧 3) Annotation واحدة ذكية (اختياري جدًا)
+        fig.add_annotation(
+            text="↑ كلما زادت المساحة<br>ارتفعت القيمة السوقية",
+            xref="paper",
+            yref="paper",
+            x=0.02,
+            y=0.95,
+            showarrow=False,
+            font=dict(size=13, color="#555"),
+            align="left",
+            bgcolor="rgba(255,255,255,0.7)",
+            bordercolor="rgba(0,0,0,0.1)",
+            borderwidth=1,
+            borderpad=4
+        )
+
         fig.update_layout(
-            title="العلاقة الانسيابية بين المساحة والسعر",
-            xaxis_title="المساحة",
-            yaxis_title="السعر",
+            title="كيف تتحول المساحة إلى قيمة سوقية",
+            xaxis_title="المساحة (م²)",
+            yaxis_title="السعر (مقياس لوغاريتمي)",
+            hovermode="closest",
+            showlegend=False
         )
 
-        fig = self._safe(fig, height=520)
-        
-        # ✅ إضافة تحسينات إضافية للرسمة فقط
-        fig.update_xaxes(
-            ticks="outside",
-            tickcolor="rgba(0,0,0,0.2)",
-            title_font=dict(size=15)
-        )
-
+        # 🔥 اجعلي السعر لوغاريتمي (أهم تعديل)
         fig.update_yaxes(
+            type="log",
+            title_font=dict(size=16),
+            showgrid=True,
+            gridcolor="rgba(0,0,0,0.06)",
+            ticks="outside",
+            tickcolor="rgba(0,0,0,0.2)"
+        )
+
+        fig.update_xaxes(
+            title_font=dict(size=16),
             ticks="outside",
             tickcolor="rgba(0,0,0,0.2)",
-            title_font=dict(size=15),
             showgrid=False
         )
-        
-        return fig
+
+        return self._safe(fig, height=520)
 
     # =====================
     # CHAPTER 2 – TIME FLOW
@@ -515,7 +565,7 @@ class AdvancedCharts:
 
         return {
             "chapter_1": clean([
-                self.ch1_price_vs_area_flow(df),
+                self.ch1_price_vs_area_flow(df),  # ✅ MODIFIED WITH OPTIONAL IMPROVEMENTS
                 self.rhythm_price_donut(df, "قراءة سريعة للسوق"),
                 self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),
             ]),
