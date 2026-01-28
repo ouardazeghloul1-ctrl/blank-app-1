@@ -1,4 +1,4 @@
-# advanced_charts.py
+# advanced_charts.py - النسخة النهائية المعدلة
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -35,11 +35,6 @@ class AdvancedCharts:
         return pd.to_numeric(s, errors="coerce")
 
     def _safe(self, fig, height=460):
-        # ✅ إذا كان الشكل رسمة دونت، لا نطبق الإعدادات العادية
-        if fig is not None and len(fig.data) > 0 and hasattr(fig.data[0], 'type') and fig.data[0].type == 'pie':
-            # نرجع الشكل كما هو لأنه معدل مسبقاً
-            return fig
-        
         if fig is None:
             return None
 
@@ -63,71 +58,63 @@ class AdvancedCharts:
         return fig
 
     # =====================
-    # RHYTHM 1 – DONUT INSIGHT (MODIFIED - كبير جداً)
+    # RHYTHM 1 – DONUT INSIGHT (VERSION FINAL - نظيف تماماً)
     # =====================
     def rhythm_price_donut(self, df, title):
         if "price" not in df.columns:
             return None
 
-        p = self._numeric(df["price"]).dropna()
-        if p.empty:
-            return None
-
-        # قيم محايدة تماماً
+        # ✅ 1) قيم متساوية لثلاثة أجزاء
         values = [1, 1, 1]
-
-        # ✅ إنشاء الشكل بدون هوامش كبيرة
+        
         fig = go.Figure(
             data=[
                 go.Pie(
                     values=values,
-                    hole=0.7,
-                    domain=dict(x=[0, 1], y=[0, 1]),  # ✅ يأخذ كل المساحة
+                    hole=0.85,  # ✅ ثقب كبير جداً - يخلق مساحة أنيقة
+                    domain=dict(x=[0.05, 0.95], y=[0.10, 0.90]),  # ✅ يأخذ معظم الصفحة
                     marker=dict(
                         colors=[
                             self.COLORS["mint"],
                             self.COLORS["lavender"],
                             self.COLORS["gold"],
-                        ]
+                        ],
+                        line=dict(width=2, color='white')  # ✅ حواف بيضاء لفصل الألوان بوضوح
                     ),
-                    textinfo="none",
-                    hoverinfo="none",
+                    textinfo="none",  # ✅ لا نصوص داخل القطاعات
+                    hoverinfo="none",  # ✅ لا معلومات عند التمرير
+                    direction='clockwise',
+                    rotation=90,
+                    sort=False  # ✅ الحفاظ على ترتيب الألوان
                 )
             ]
         )
 
-        # ✅ إزالة كل الهوامش لتحصل الدونت على كل المساحة
+        # ✅ 2) إعدادات التخطيط - مصممة خصيصاً للدونت الكبير والنظيف
         fig.update_layout(
-            showlegend=False,
+            showlegend=False,  # ✅ لا مربعات ملونة - فقط الدونت نفسه يتكلم بصرياً
             title=dict(
                 text=title,
-                font=dict(size=26, family="Tajawal", color=self.COLORS["text"]),
+                font=dict(size=24, family="Tajawal", color=self.COLORS["text"]),
                 y=0.97,
                 x=0.5,
-                xanchor="center"
+                xanchor="center",
+                pad=dict(t=10, b=10)  # ✅ تباعد مناسب
             ),
-            margin=dict(l=20, r=20, t=120, b=20),  # ✅ هوامش صغيرة جداً
-            plot_bgcolor="white",
+            # ✅ 3) هوامش صغيرة جداً لتكبير الدونت
+            margin=dict(l=20, r=20, t=80, b=20),  # ✅ هوامش صغيرة جداً
+            plot_bgcolor="rgba(0,0,0,0)",  # ✅ خلفية شفافة
             paper_bgcolor="white",
-            height=600,  # ✅ ارتفاع كبير
+            height=500,  # ✅ ارتفاع مناسب
             font=dict(family="Tajawal"),
+            annotations=[]  # ✅ تأكد من عدم وجود أي نصوص
         )
 
-        # ✅ نص كبير في المنتصف
-        fig.add_annotation(
-            text="جاري تحميل البيانات<br>...",
-            x=0.5,
-            y=0.5,
-            font=dict(size=28, color=self.COLORS["text"], family="Tajawal"),
-            showarrow=False,
-            align="center"
-        )
+        # ✅ 4) إزالة المحاور تماماً
+        fig.update_xaxes(visible=False, showgrid=False, zeroline=False)
+        fig.update_yaxes(visible=False, showgrid=False, zeroline=False)
 
-        # ✅ إزالة أي محاور أو خطوط
-        fig.update_xaxes(showgrid=False, zeroline=False, showticklabels=False, showline=False)
-        fig.update_yaxes(showgrid=False, zeroline=False, showticklabels=False, showline=False)
-
-        return fig  # ✅ نرجع مباشرة بدون self._safe
+        return fig
 
     # =====================
     # RHYTHM 2 – SOFT DISTRIBUTION
