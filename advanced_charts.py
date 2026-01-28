@@ -154,62 +154,16 @@ class AdvancedCharts:
         return self._safe(fig, height=360)
 
     # =====================
-    # CHAPTER 1 – MARKET RELATION (MODIFIED WITH OPTIONAL IMPROVEMENTS)
+    # CHAPTER 1 – MARKET RELATION (MODIFIED - إطار بصري نظيف بدون نقاط)
     # =====================
     def ch1_price_vs_area_flow(self, df):
         if not self._has_columns(df, ["price", "area"]):
             return None
 
-        df = df.copy()
-        df["price"] = self._numeric(df["price"])
-        df["area"] = self._numeric(df["area"])
-        df = df.dropna()
-
-        df = df.sort_values("price")
-
-        df["marker_size"] = ((df["price"] / df["price"].max()) * 18).clip(lower=8)
-
+        # إنشاء إطار بصري نظيف بدون نقاط أو بيانات
         fig = go.Figure()
 
-        fig.add_trace(
-            go.Scatter(
-                x=df["area"],
-                y=df["price"],
-                mode="markers",
-                marker=dict(
-                    size=df["marker_size"],
-                    color=df["price"],
-                    colorscale=[
-                        [0, "#C8E6C9"],
-                        [0.5, "#66BB6A"],
-                        [1, "#1B5E20"]
-                    ],
-                    showscale=False,
-                    opacity=0.78,
-                    line=dict(width=0.6, color="white")
-                ),
-                name="العقارات"
-            )
-        )
-
-        try:
-            z = np.polyfit(df["area"], np.log(df["price"]), 1)
-            p = np.poly1d(z)
-            
-            area_sorted = np.linspace(df["area"].min(), df["area"].max(), 100)
-            
-            fig.add_trace(
-                go.Scatter(
-                    x=area_sorted,
-                    y=np.exp(p(area_sorted)),
-                    mode="lines",
-                    line=dict(color=self.COLORS["gold"], width=3),
-                    name="اتجاه السوق"
-                )
-            )
-        except:
-            pass
-
+        # ✅ annotation فقط (اختياري)
         fig.add_annotation(
             text="↑ كلما زادت المساحة<br>ارتفعت القيمة السوقية",
             xref="paper",
@@ -233,6 +187,7 @@ class AdvancedCharts:
             showlegend=False
         )
 
+        # ✅ إعدادات المحاور (نفسها بدون تغيير)
         fig.update_yaxes(
             type="log",
             title_font=dict(size=16),
@@ -566,7 +521,7 @@ class AdvancedCharts:
 
         return {
             "chapter_1": clean([
-                self.ch1_price_vs_area_flow(df),
+                self.ch1_price_vs_area_flow(df),  # ✅ MODIFIED - إطار بصري نظيف
                 self.rhythm_price_donut(df, "قراءة سريعة للسوق"),
                 self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),
             ]),
