@@ -154,7 +154,7 @@ class AdvancedCharts:
         return self._safe(fig, height=360)
 
     # =====================
-    # CHAPTER 1 – MARKET RELATION (المطابقة للصورة)
+    # CHAPTER 1 – MARKET RELATION (المطابقة للصورة مع إصلاح الأقواس)
     # =====================
     def ch1_price_vs_area_flow(self, df):
         if not self._has_columns(df, ["price", "area"]):
@@ -172,8 +172,9 @@ class AdvancedCharts:
                 ),
                 x=0.5
             ),
-            xaxis_title="المساحة (م²)",
-            yaxis_title="السعر (ريال)",
+            # ✅ إصلاح مشكلة الأقواس: استخدام شرطة طويلة بدل الأقواس
+            xaxis_title="المساحة — م²",
+            yaxis_title="السعر — ريال",
             showlegend=False
         )
 
@@ -505,7 +506,7 @@ class AdvancedCharts:
 
         return {
             "chapter_1": clean([
-                self.ch1_price_vs_area_flow(df),  # ✅ MODIFIED - مطابقة للصورة
+                self.ch1_price_vs_area_flow(df),  # ✅ MODIFIED - مع إصلاح الأقواس
                 self.rhythm_price_donut(df, "قراءة سريعة للسوق"),
                 self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),
             ]),
