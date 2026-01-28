@@ -42,10 +42,10 @@ class AdvancedCharts:
             template="plotly_white",
             height=height,
             margin=dict(l=70, r=70, t=90, b=70),
-            font=dict(size=13, color=self.COLORS["text"]),
+            font=dict(size=15, color=self.COLORS["text"], family="Tajawal"),
             title=dict(
                 x=0.5,
-                font=dict(size=18, color=self.COLORS["text"]),
+                font=dict(size=18, color=self.COLORS["text"], family="Tajawal"),
             ),
             plot_bgcolor=self.COLORS["light_gray"],
             paper_bgcolor="white",
@@ -100,7 +100,6 @@ class AdvancedCharts:
         )
 
         fig.update_layout(title=title)
-        # التعديل: ارتفاع الدونات إلى 420 بدلاً من 360
         return self._safe(fig, height=420)
 
     # =====================
@@ -124,9 +123,9 @@ class AdvancedCharts:
                 x=hist_x,
                 y=hist_y,
                 mode="lines",
-                line=dict(color=self.COLORS["plum"], width=4),  # عرض الخط 4 بدلاً من 3
+                line=dict(color=self.COLORS["plum"], width=4),
                 fill="tozeroy",
-                fillcolor="rgba(106,27,154,0.18)",  # شفافية 0.18 بدلاً من 0.25
+                fillcolor="rgba(106,27,154,0.18)",
             )
         )
 
@@ -152,6 +151,9 @@ class AdvancedCharts:
         df["area"] = self._numeric(df["area"])
         df = df.dropna()
 
+        # ✅ التحسين الذهبي: حجم ذكي للنقاط يعتمد على السعر
+        df["marker_size"] = ((df["price"] / df["price"].max()) * 18).clip(lower=8)
+
         fig = go.Figure()
 
         fig.add_trace(
@@ -160,9 +162,10 @@ class AdvancedCharts:
                 y=df["price"],
                 mode="markers",
                 marker=dict(
-                    size=10,
+                    size=df["marker_size"],  # 🔥 حجم ذكي يعتمد على السعر
                     color=self.COLORS["emerald"],
-                    opacity=0.45,
+                    opacity=0.75,
+                    line=dict(width=0.5, color="rgba(255,255,255,0.6)")
                 ),
             )
         )
@@ -173,7 +176,23 @@ class AdvancedCharts:
             yaxis_title="السعر",
         )
 
-        return self._safe(fig, height=520)
+        fig = self._safe(fig, height=520)
+        
+        # ✅ إضافة تحسينات إضافية للرسمة فقط
+        fig.update_xaxes(
+            ticks="outside",
+            tickcolor="rgba(0,0,0,0.2)",
+            title_font=dict(size=15)
+        )
+
+        fig.update_yaxes(
+            ticks="outside",
+            tickcolor="rgba(0,0,0,0.2)",
+            title_font=dict(size=15),
+            showgrid=False
+        )
+        
+        return fig
 
     # =====================
     # CHAPTER 2 – TIME FLOW
@@ -222,12 +241,12 @@ class AdvancedCharts:
                         values=["المساحة", "السعر"],
                         fill_color=self.COLORS["light_gray"],
                         align="center",
-                        font=dict(size=14, color=self.COLORS["text"]),  # إضافة لون النص للرأس
+                        font=dict(size=14, color=self.COLORS["text"]),
                     ),
                     cells=dict(
                         values=[sample["area"], sample["price"]],
                         align="center",
-                        font=dict(size=12, color=self.COLORS["text"]),  # إضافة لون النص للخلايا
+                        font=dict(size=12, color=self.COLORS["text"]),
                     ),
                 )
             ]
@@ -261,7 +280,7 @@ class AdvancedCharts:
                 mode="lines",
                 line=dict(color=self.COLORS["mint"], width=1.5),
                 fill="tozeroy",
-                fillcolor="rgba(165,214,167,0.15)",  # لون mint بشفافية خفيفة
+                fillcolor="rgba(165,214,167,0.15)",
                 name="منحنى التدفق",
             )
         )
@@ -279,10 +298,8 @@ class AdvancedCharts:
         if not self._has_columns(df, ["price", "area"]):
             return None
 
-        # قيم افتراضية للتحليل البصري (بدون بيانات حقيقية)
         categories = ["السعر", "المساحة", "السيولة", "الطلب", "الاستقرار"]
         
-        # إنشاء قيم عشوائية للعرض (يمكن تعديلها حسب البيانات الحقيقية)
         np.random.seed(42)
         values = np.random.uniform(0.4, 0.9, len(categories))
         
@@ -292,7 +309,7 @@ class AdvancedCharts:
             r=values,
             theta=categories,
             fill='toself',
-            fillcolor='rgba(225,190,231,0.2)',  # لون lavender بشفافية
+            fillcolor='rgba(225,190,231,0.2)',
             line=dict(color=self.COLORS["plum"], width=2),
             name="مؤشرات السوق"
         ))
@@ -324,7 +341,6 @@ class AdvancedCharts:
         if df.empty:
             return None
 
-        # حساب حجم الفقاعات (نسبي للسعر)
         max_size = 40
         df["size"] = (df["price_num"] / df["price_num"].max()) * max_size
 
@@ -364,16 +380,13 @@ class AdvancedCharts:
         if p.empty:
             return None
 
-        # حساب مؤشر السوق (نسبة من 100)
-        # بافتراض أن المؤشر يعتمد على استقرار السعر
         price_std = p.std()
         price_mean = p.mean()
         
-        # مؤشر الاستقرار (كلما قل الانحراف المعياري كلما زاد المؤشر)
         if price_std > 0:
             market_index = max(0, min(100, 100 - (price_std / price_mean * 100)))
         else:
-            market_index = 85  # قيمة افتراضية
+            market_index = 85
 
         fig = go.Figure(go.Indicator(
             mode="gauge+number",
@@ -411,7 +424,6 @@ class AdvancedCharts:
         if p.empty:
             return None
 
-        # تقسيم السوق إلى شرائح
         segments = {
             "الشرائح العليا": p[p > p.quantile(0.75)].count(),
             "الشرائح المتوسطة": p[(p >= p.quantile(0.25)) & (p <= p.quantile(0.75))].count(),
@@ -437,7 +449,6 @@ class AdvancedCharts:
             ]
         )
 
-        # نص تنفيذي في المنتصف
         total_properties = len(p)
         avg_price = p.mean()
         
@@ -467,7 +478,6 @@ class AdvancedCharts:
         if len(p) < 10:
             return None
 
-        # إنشاء منحنى ناعم للتوزيع
         hist_y, hist_x = np.histogram(p, bins=20, density=True)
         hist_x = (hist_x[:-1] + hist_x[1:]) / 2
 
@@ -512,7 +522,7 @@ class AdvancedCharts:
             "chapter_2": clean([
                 self.ch2_price_stream(df),
                 self.rhythm_price_donut(df, "مستويات الأسعار"),
-                self.ch2_area_ribbon(df),  # استبدال المنحنى المكرر بالريبون
+                self.ch2_area_ribbon(df),
             ]),
             "chapter_3": clean([
                 self.ch3_table_sample(df),
@@ -521,23 +531,23 @@ class AdvancedCharts:
             ]),
             "chapter_4": clean([
                 self.rhythm_price_donut(df, "نطاقات السوق"),
-                self.ch4_radar(df),  # إضافة الرادار
+                self.ch4_radar(df),
             ]),
             "chapter_5": clean([
                 self.rhythm_price_donut(df, "مقارنة زمنية"),
                 self.rhythm_price_curve(df, "ديناميكية الأسعار"),
-                self.ch5_bubble(df),  # إضافة مخطط الفقاعات
+                self.ch5_bubble(df),
             ]),
             "chapter_6": clean([
                 self.rhythm_price_donut(df, "رأس المال"),
                 self.rhythm_price_curve(df, "توزيع الاستثمار"),
-                self.ch6_gauge(df),  # إضافة مؤشر القياس
+                self.ch6_gauge(df),
             ]),
             "chapter_7": clean([
-                self.ch7_executive_donut(df),  # الدونات التنفيذية الكبيرة
+                self.ch7_executive_donut(df),
             ]),
             "chapter_8": clean([
-                self.ch8_final_curve(df),  # المنحنى الختامي
+                self.ch8_final_curve(df),
             ]),
             "chapter_9": [],
             "chapter_10": [],
