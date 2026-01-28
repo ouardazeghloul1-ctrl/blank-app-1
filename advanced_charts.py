@@ -1,4 +1,4 @@
-# advanced_charts.py (ملف كامل معدل)
+# advanced_charts.py
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -35,6 +35,11 @@ class AdvancedCharts:
         return pd.to_numeric(s, errors="coerce")
 
     def _safe(self, fig, height=460):
+        # ✅ إذا كان الشكل رسمة دونت، لا نطبق الإعدادات العادية
+        if fig is not None and len(fig.data) > 0 and hasattr(fig.data[0], 'type') and fig.data[0].type == 'pie':
+            # نرجع الشكل كما هو لأنه معدل مسبقاً
+            return fig
+        
         if fig is None:
             return None
 
@@ -58,7 +63,7 @@ class AdvancedCharts:
         return fig
 
     # =====================
-    # RHYTHM 1 – DONUT INSIGHT (MODIFIED - كبير ونظيف)
+    # RHYTHM 1 – DONUT INSIGHT (MODIFIED - كبير جداً)
     # =====================
     def rhythm_price_donut(self, df, title):
         if "price" not in df.columns:
@@ -71,12 +76,13 @@ class AdvancedCharts:
         # قيم محايدة تماماً
         values = [1, 1, 1]
 
+        # ✅ إنشاء الشكل بدون هوامش كبيرة
         fig = go.Figure(
             data=[
                 go.Pie(
                     values=values,
-                    hole=0.75,  # ✅ الثقب أكبر
-                    domain=dict(x=[0.15, 0.85], y=[0.15, 0.85]),  # ✅ يأخذ معظم الصفحة
+                    hole=0.7,
+                    domain=dict(x=[0, 1], y=[0, 1]),  # ✅ يأخذ كل المساحة
                     marker=dict(
                         colors=[
                             self.COLORS["mint"],
@@ -85,30 +91,43 @@ class AdvancedCharts:
                         ]
                     ),
                     textinfo="none",
-                    hoverinfo="none",  # ✅ لا معلومات عند التمرير
+                    hoverinfo="none",
                 )
             ]
         )
 
+        # ✅ إزالة كل الهوامش لتحصل الدونت على كل المساحة
         fig.update_layout(
             showlegend=False,
             title=dict(
                 text=title,
-                font=dict(size=22, family="Tajawal"),  # ✅ عنوان أكبر
-                y=0.95
-            )
+                font=dict(size=26, family="Tajawal", color=self.COLORS["text"]),
+                y=0.97,
+                x=0.5,
+                xanchor="center"
+            ),
+            margin=dict(l=20, r=20, t=120, b=20),  # ✅ هوامش صغيرة جداً
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            height=600,  # ✅ ارتفاع كبير
+            font=dict(family="Tajawal"),
         )
 
-        # ✅ نص بسيط في المنتصف (بدون متوسط سعر مزيف)
+        # ✅ نص كبير في المنتصف
         fig.add_annotation(
             text="جاري تحميل البيانات<br>...",
             x=0.5,
             y=0.5,
-            font=dict(size=24, color=self.COLORS["text"]),
+            font=dict(size=28, color=self.COLORS["text"], family="Tajawal"),
             showarrow=False,
+            align="center"
         )
 
-        return self._safe(fig, height=650)  # ✅ حجم كبير جداً
+        # ✅ إزالة أي محاور أو خطوط
+        fig.update_xaxes(showgrid=False, zeroline=False, showticklabels=False, showline=False)
+        fig.update_yaxes(showgrid=False, zeroline=False, showticklabels=False, showline=False)
+
+        return fig  # ✅ نرجع مباشرة بدون self._safe
 
     # =====================
     # RHYTHM 2 – SOFT DISTRIBUTION
@@ -159,15 +178,12 @@ class AdvancedCharts:
         df["area"] = self._numeric(df["area"])
         df = df.dropna()
 
-        # 🔧 1) ترتيب النقاط بصريًا (Anti-overlap)
-        df = df.sort_values("price")  # 🔥 النقاط الصغيرة أولاً، الكبيرة فوقها
+        df = df.sort_values("price")
 
-        # ✅ التحسين الذهبي: حجم ذكي للنقاط يعتمد على السعر
         df["marker_size"] = ((df["price"] / df["price"].max()) * 18).clip(lower=8)
 
         fig = go.Figure()
 
-        # 🔥 تدرج أخضر ذكي بدل لون واحد
         fig.add_trace(
             go.Scatter(
                 x=df["area"],
@@ -175,7 +191,7 @@ class AdvancedCharts:
                 mode="markers",
                 marker=dict(
                     size=df["marker_size"],
-                    color=df["price"],  # 🔥 تدرج حسب السعر
+                    color=df["price"],
                     colorscale=[
                         [0, "#C8E6C9"],
                         [0.5, "#66BB6A"],
@@ -189,12 +205,10 @@ class AdvancedCharts:
             )
         )
 
-        # 🔥 أضيفي خط اتجاه ناعم (Trend Line) - النسخة السينمائية
         try:
             z = np.polyfit(df["area"], np.log(df["price"]), 1)
             p = np.poly1d(z)
             
-            # 🔧 2) نعومة إضافية لخط الاتجاه (Luxury Touch)
             area_sorted = np.linspace(df["area"].min(), df["area"].max(), 100)
             
             fig.add_trace(
@@ -207,9 +221,8 @@ class AdvancedCharts:
                 )
             )
         except:
-            pass  # إذا فشل حساب الاتجاه، نستمر
+            pass
 
-        # 🔧 3) Annotation واحدة ذكية (اختياري جدًا)
         fig.add_annotation(
             text="↑ كلما زادت المساحة<br>ارتفعت القيمة السوقية",
             xref="paper",
@@ -233,7 +246,6 @@ class AdvancedCharts:
             showlegend=False
         )
 
-        # 🔥 اجعلي السعر لوغاريتمي (أهم تعديل)
         fig.update_yaxes(
             type="log",
             title_font=dict(size=16),
@@ -317,7 +329,6 @@ class AdvancedCharts:
     # الرسومات الجديدة (6 رسومات)
     # =====================
     
-    # 1) الفصل 2 – Ribbon (بديل المنحنى المكرر)
     def ch2_area_ribbon(self, df):
         if not self._has_columns(df, ["date", "price"]):
             return None
@@ -351,7 +362,6 @@ class AdvancedCharts:
 
         return self._safe(fig, height=380)
 
-    # 2) الفصل 4 – Radar (تحليل بصري ذكي)
     def ch4_radar(self, df):
         if not self._has_columns(df, ["price", "area"]):
             return None
@@ -386,7 +396,6 @@ class AdvancedCharts:
 
         return self._safe(fig, height=420)
 
-    # 3) الفصل 5 – Bubble Chart
     def ch5_bubble(self, df):
         if not self._has_columns(df, ["price", "area"]):
             return None
@@ -429,7 +438,6 @@ class AdvancedCharts:
 
         return self._safe(fig, height=480)
 
-    # 4) الفصل 6 – Gauge (قرار تنفيذي)
     def ch6_gauge(self, df):
         if "price" not in df.columns:
             return None
@@ -473,7 +481,6 @@ class AdvancedCharts:
         )
         return fig
 
-    # 5) الفصل 7 – Executive Donut
     def ch7_executive_donut(self, df):
         if "price" not in df.columns:
             return None
@@ -527,7 +534,6 @@ class AdvancedCharts:
         )
         return self._safe(fig, height=480)
 
-    # 6) الفصل 8 – Final Curve (منحنى ختامي خفيف)
     def ch8_final_curve(self, df):
         if "price" not in df.columns:
             return None
@@ -574,30 +580,30 @@ class AdvancedCharts:
         return {
             "chapter_1": clean([
                 self.ch1_price_vs_area_flow(df),
-                self.rhythm_price_donut(df, "قراءة سريعة للسوق"),  # ✅ كبير ونظيف
+                self.rhythm_price_donut(df, "قراءة سريعة للسوق"),
                 self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),
             ]),
             "chapter_2": clean([
                 self.ch2_price_stream(df),
-                self.rhythm_price_donut(df, "مستويات الأسعار"),  # ✅ كبير ونظيف
+                self.rhythm_price_donut(df, "مستويات الأسعار"),
                 self.ch2_area_ribbon(df),
             ]),
             "chapter_3": clean([
                 self.ch3_table_sample(df),
-                self.rhythm_price_donut(df, "نطاق العينة"),  # ✅ كبير ونظيف
+                self.rhythm_price_donut(df, "نطاق العينة"),
                 self.rhythm_price_curve(df, "تشتت الأسعار"),
             ]),
             "chapter_4": clean([
-                self.rhythm_price_donut(df, "نطاقات السوق"),  # ✅ كبير ونظيف
+                self.rhythm_price_donut(df, "نطاقات السوق"),
                 self.ch4_radar(df),
             ]),
             "chapter_5": clean([
-                self.rhythm_price_donut(df, "مقارنة زمنية"),  # ✅ كبير ونظيف
+                self.rhythm_price_donut(df, "مقارنة زمنية"),
                 self.rhythm_price_curve(df, "ديناميكية الأسعار"),
                 self.ch5_bubble(df),
             ]),
             "chapter_6": clean([
-                self.rhythm_price_donut(df, "رأس المال"),  # ✅ كبير ونظيف
+                self.rhythm_price_donut(df, "رأس المال"),
                 self.rhythm_price_curve(df, "توزيع الاستثمار"),
                 self.ch6_gauge(df),
             ]),
