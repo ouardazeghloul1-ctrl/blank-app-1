@@ -312,7 +312,6 @@ class AdvancedCharts:
         """
 
         categories = ["السعر", "السيولة", "الاستقرار"]
-
         
         # ✅ قيم محايدة (شكل فقط – ليست بيانات)
         values = [1, 1, 1]
@@ -340,7 +339,8 @@ class AdvancedCharts:
                 zeroline=False
             ),
             yaxis=dict(
-                tickfont=dict(size=15)
+                tickfont=dict(size=15),
+                autorange="reversed"  # ✅ يعكس الترتيب بصريًا
             ),
             showlegend=False,
             bargap=0.4
