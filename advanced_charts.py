@@ -311,22 +311,16 @@ class AdvancedCharts:
         بدون بيانات مزيفة – جاهز للبيانات الحقيقية لاحقًا
         """
 
-        indicators = [
-            "السعر",
-            "المساحة",
-            "السيولة",
-            "الطلب",
-            "الاستقرار"
-        ]
-
+        categories = ["السعر", "السيولة", "الاستقرار"]
+        
         # ✅ قيم محايدة (شكل فقط – ليست بيانات)
-        values = [1, 1, 1, 1, 1]
+        values = [1, 1, 1]
 
         fig = go.Figure()
 
         fig.add_trace(
             go.Bar(
-                y=indicators,
+                y=categories,
                 x=values,
                 orientation="h",
                 marker=dict(
