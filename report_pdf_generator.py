@@ -19,6 +19,7 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+import plotly.graph_objects as go  # ⭐ مطلوب للكشف عن نوع الرسمة
 
 
 # =========================
@@ -216,7 +217,26 @@ def create_pdf_from_content(
         # -------- RHYTHM CHART --------
         if clean == "[[RHYTHM_CHART]]":
             if cursor < len(charts) and text_since_chart >= 4:
-                img = plotly_to_image(charts[cursor], 15.8, 6.5)
+                # ⭐⭐ الحل الذكي: إذا كانت الرسمة هي Donut، استخدم حجم ANCHOR
+                fig = charts[cursor]
+                is_donut = False
+                
+                # ✅ الكشف إذا كانت الرسمة هي دونت (Pie chart)
+                if fig is not None and hasattr(fig, 'data') and len(fig.data) > 0:
+                    try:
+                        # تحقق إذا كان نوع الرسمة Pie
+                        is_donut = isinstance(fig.data[0], go.Pie)
+                    except Exception:
+                        pass
+                
+                # ⭐ تحديد الحجم بناءً على نوع الرسمة
+                if is_donut:
+                    # ✅ الدونت: استخدم حجم ANCHOR (كبير)
+                    img = plotly_to_image(fig, 16.8, 8.8)
+                else:
+                    # ✅ الرسومات الأخرى: استخدم حجم RHYTHM (صغير)
+                    img = plotly_to_image(fig, 15.8, 6.5)
+                
                 if img:
                     story.append(Spacer(1, 1.4 * cm))
                     story.append(img)
