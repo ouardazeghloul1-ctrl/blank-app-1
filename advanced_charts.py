@@ -302,36 +302,53 @@ class AdvancedCharts:
 
         return self._safe(fig, height=380)
 
-    def ch4_radar(self, df):
-        if not self._has_columns(df, ["price", "area"]):
-            return None
+    # =====================
+    # CHAPTER 4 – MARKET INDICATORS (BAR COMPARISON)
+    # =====================
+    def ch4_market_indicators_bar(self, df):
+        """
+        مخطط أعمدة تنفيذي لمقارنة مؤشرات السوق
+        بدون بيانات مزيفة – جاهز للبيانات الحقيقية لاحقًا
+        """
 
-        categories = ["السعر", "المساحة", "السيولة", "الطلب", "الاستقرار"]
-        
-        np.random.seed(42)
-        values = np.random.uniform(0.4, 0.9, len(categories))
-        
+        indicators = [
+            "السعر",
+            "المساحة",
+            "السيولة",
+            "الطلب",
+            "الاستقرار"
+        ]
+
+        # ✅ قيم محايدة (شكل فقط – ليست بيانات)
+        values = [1, 1, 1, 1, 1]
+
         fig = go.Figure()
 
-        fig.add_trace(go.Scatterpolar(
-            r=values,
-            theta=categories,
-            fill='toself',
-            fillcolor='rgba(225,190,231,0.2)',
-            line=dict(color=self.COLORS["plum"], width=2),
-            name="مؤشرات السوق"
-        ))
+        fig.add_trace(
+            go.Bar(
+                y=indicators,
+                x=values,
+                orientation="h",
+                marker=dict(
+                    color=self.COLORS["emerald"],
+                    opacity=0.85
+                ),
+                hoverinfo="none"
+            )
+        )
 
         fig.update_layout(
-            polar=dict(
-                radialaxis=dict(
-                    visible=True,
-                    range=[0, 1],
-                    tickfont=dict(size=10)
-                )
+            title="مقارنة مؤشرات السوق الرئيسية",
+            xaxis=dict(
+                visible=False,
+                showgrid=False,
+                zeroline=False
             ),
-            title="رادار تحليل السوق - نظرة شاملة",
-            showlegend=False
+            yaxis=dict(
+                tickfont=dict(size=15)
+            ),
+            showlegend=False,
+            bargap=0.4
         )
 
         return self._safe(fig, height=420)
@@ -537,7 +554,8 @@ class AdvancedCharts:
             ]),
             "chapter_4": clean([
                 self.rhythm_price_donut(df, "نطاقات السوق"),
-                self.ch4_radar(df),
+                # ✅ استبدال ch4_radar بـ ch4_market_indicators_bar
+                self.ch4_market_indicators_bar(df),
             ]),
             "chapter_5": clean([
                 self.rhythm_price_donut(df, "مقارنة زمنية"),
