@@ -58,39 +58,13 @@ class AdvancedCharts:
         return fig
 
     # =====================
-    # RHYTHM 1 – DONUT INSIGHT (VERSION FINAL - نظيف تماماً)
+    # DONUT HELPER (التنظيم المحسّن)
     # =====================
-    def rhythm_price_donut(self, df, title):
-        if "price" not in df.columns:
-            return None
-
-        # ✅ 1) قيم متساوية لثلاثة أجزاء
-        values = [1, 1, 1]
-        
-        fig = go.Figure(
-            data=[
-                go.Pie(
-                    values=values,
-                    hole=0.85,  # ✅ ثقب كبير جداً - يخلق مساحة أنيقة
-                    domain=dict(x=[0.05, 0.95], y=[0.10, 0.90]),  # ✅ يأخذ معظم الصفحة
-                    marker=dict(
-                        colors=[
-                            self.COLORS["mint"],
-                            self.COLORS["lavender"],
-                            self.COLORS["gold"],
-                        ],
-                        line=dict(width=2, color='white')  # ✅ حواف بيضاء لفصل الألوان بوضوح
-                    ),
-                    textinfo="none",  # ✅ لا نصوص داخل القطاعات
-                    hoverinfo="none",  # ✅ لا معلومات عند التمرير
-                    direction='clockwise',
-                    rotation=90,
-                    sort=False  # ✅ الحفاظ على ترتيب الألوان
-                )
-            ]
-        )
-
-        # ✅ 2) إعدادات التخطيط - مصممة خصيصاً للدونت الكبير والنظيف
+    def _donut_base_layout(self, fig, title):
+        """
+        ✅ Helper موحد لإعدادات الدونت الأساسية
+        يضمن تطابقًا بصريًا 100% بين جميع الدونتس في التقرير
+        """
         fig.update_layout(
             showlegend=False,  # ✅ لا مربعات ملونة - فقط الدونت نفسه يتكلم بصرياً
             title=dict(
@@ -101,20 +75,70 @@ class AdvancedCharts:
                 xanchor="center",
                 pad=dict(t=10, b=10)  # ✅ تباعد مناسب
             ),
-            # ✅ 3) هوامش صغيرة جداً لتكبير الدونت
+            # ✅ هوامش صغيرة جداً لتكبير الدونت
             margin=dict(l=20, r=20, t=80, b=20),  # ✅ هوامش صغيرة جداً
             plot_bgcolor="rgba(0,0,0,0)",  # ✅ خلفية شفافة
             paper_bgcolor="white",
-            height=500,  # ✅ ارتفاع مناسب
+            height=500,  # ✅ ارتفاع ثابت لجميع الدونتس
             font=dict(family="Tajawal"),
             annotations=[]  # ✅ تأكد من عدم وجود أي نصوص
         )
 
-        # ✅ 4) إزالة المحاور تماماً
+        # ✅ إزالة المحاور تماماً
         fig.update_xaxes(visible=False, showgrid=False, zeroline=False)
         fig.update_yaxes(visible=False, showgrid=False, zeroline=False)
 
         return fig
+
+    def _donut_base_style(self, colors=None):
+        """
+        ✅ إعدادات القطاعات الأساسية للدونت
+        """
+        if colors is None:
+            colors = [
+                self.COLORS["mint"],
+                self.COLORS["lavender"],
+                self.COLORS["gold"],
+            ]
+        
+        return {
+            "hole": 0.85,  # ✅ ثقب كبير جداً - يخلق مساحة أنيقة
+            "domain": dict(x=[0.05, 0.95], y=[0.10, 0.90]),  # ✅ يأخذ معظم الصفحة
+            "marker": dict(
+                colors=colors,
+                line=dict(width=2, color='white')  # ✅ حواف بيضاء لفصل الألوان بوضوح
+            ),
+            "textinfo": "none",  # ✅ لا نصوص داخل القطاعات
+            "hoverinfo": "none",  # ✅ لا معلومات عند التمرير
+            "direction": 'clockwise',
+            "rotation": 90,
+            "sort": False  # ✅ الحفاظ على ترتيب الألوان
+        }
+
+    # =====================
+    # RHYTHM 1 – DONUT INSIGHT (VERSION FINAL - نظيف تماماً)
+    # =====================
+    def rhythm_price_donut(self, df, title):
+        if "price" not in df.columns:
+            return None
+
+        # ✅ 1) قيم متساوية لثلاثة أجزاء
+        values = [1, 1, 1]
+        
+        # ✅ استخدام الـhelper الموحد
+        fig = go.Figure(
+            data=[
+                go.Pie(
+                    values=values,
+                    **self._donut_base_style()  # ✅ كل الإعدادات من helper
+                )
+            ]
+        )
+
+        # ✅ استخدام الـhelper الموحد للإعدادات
+        fig = self._donut_base_layout(fig, title)
+
+        return fig  # ❌ لا نستخدم _safe() على الدونتس أبداً
 
     # =====================
     # RHYTHM 2 – SOFT DISTRIBUTION
@@ -448,24 +472,23 @@ class AdvancedCharts:
             "الشرائح الاقتصادية": p[p < p.quantile(0.25)].count()
         }
 
+        # ✅ استخدام الـhelper الموحد مع ألوان مخصصة
         fig = go.Figure(
             data=[
                 go.Pie(
                     values=list(segments.values()),
                     labels=list(segments.keys()),
-                    hole=0.7,
-                    marker=dict(
-                        colors=[
-                            self.COLORS["gold"],
-                            self.COLORS["plum"],
-                            self.COLORS["mint"]
-                        ]
-                    ),
-                    textinfo='label',
-                    textposition='outside'
+                    **self._donut_base_style([
+                        self.COLORS["gold"],
+                        self.COLORS["plum"],
+                        self.COLORS["mint"]
+                    ])
                 )
             ]
         )
+
+        # ✅ استخدام الـhelper الموحد للإعدادات
+        fig = self._donut_base_layout(fig, "الملخص التنفيذي - نظرة شاملة")
 
         total_properties = len(p)
         avg_price = p.mean()
@@ -481,11 +504,7 @@ class AdvancedCharts:
             align="center"
         )
 
-        fig.update_layout(
-            title="الملخص التنفيذي - نظرة شاملة",
-            showlegend=False
-        )
-        return self._safe(fig, height=480)
+        return fig  # ❌ لا نستخدم _safe() على الدونتس أبداً
 
     def ch8_final_curve(self, df):
         if "price" not in df.columns:
@@ -533,37 +552,37 @@ class AdvancedCharts:
         return {
             "chapter_1": clean([
                 self.ch1_price_vs_area_flow(df),  # ✅ مع تعديل الأقواس
-                self.rhythm_price_donut(df, "قراءة سريعة للسوق"),
+                self.rhythm_price_donut(df, "قراءة سريعة للسوق"),  # ✅ حجم موحد
                 self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),
             ]),
             "chapter_2": clean([
                 self.ch2_price_stream(df),  # ✅ مع تعديل الأقواس
-                self.rhythm_price_donut(df, "مستويات الأسعار"),
+                self.rhythm_price_donut(df, "مستويات الأسعار"),  # ✅ حجم موحد
                 # ✅ استبدال ch2_area_ribbon بـ rhythm_price_curve
                 self.rhythm_price_curve(df, "توزيع الأسعار عبر الزمن"),
             ]),
             "chapter_3": clean([
                 self.ch3_table_sample(df),  # ✅ محسّن للاحترافية
-                self.rhythm_price_donut(df, "نطاق العينة"),
+                self.rhythm_price_donut(df, "نطاق العينة"),  # ✅ حجم موحد
                 self.rhythm_price_curve(df, "تشتت الأسعار"),
             ]),
             "chapter_4": clean([
-                self.rhythm_price_donut(df, "نطاقات السوق"),
+                self.rhythm_price_donut(df, "نطاقات السوق"),  # ✅ حجم موحد
                 # ✅ استبدال ch4_radar بـ ch4_market_indicators_bar
                 self.ch4_market_indicators_bar(df),
             ]),
             "chapter_5": clean([
-                self.rhythm_price_donut(df, "مقارنة زمنية"),
+                self.rhythm_price_donut(df, "مقارنة زمنية"),  # ✅ حجم موحد
                 self.rhythm_price_curve(df, "ديناميكية الأسعار"),
                 self.ch5_bubble(df),
             ]),
             "chapter_6": clean([
-                self.rhythm_price_donut(df, "رأس المال"),
+                self.rhythm_price_donut(df, "رأس المال"),  # ✅ حجم موحد
                 self.rhythm_price_curve(df, "توزيع الاستثمار"),
                 self.ch6_gauge(df),
             ]),
             "chapter_7": clean([
-                self.ch7_executive_donut(df),
+                self.ch7_executive_donut(df),  # ✅ حجم موحد
             ]),
             "chapter_8": clean([
                 self.ch8_final_curve(df),
