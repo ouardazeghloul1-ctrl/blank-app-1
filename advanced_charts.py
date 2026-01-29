@@ -516,7 +516,8 @@ class AdvancedCharts:
             "chapter_2": clean([
                 self.ch2_price_stream(df),  # ✅ مع تعديل الأقواس
                 self.rhythm_price_donut(df, "مستويات الأسعار"),
-                self.ch2_area_ribbon(df),
+                # ✅ التعديل الوحيد: استبدال ch2_area_ribbon بـ rhythm_price_curve
+                self.rhythm_price_curve(df, "توزيع الأسعار عبر الزمن"),
             ]),
             "chapter_3": clean([
                 self.ch3_table_sample(df),
