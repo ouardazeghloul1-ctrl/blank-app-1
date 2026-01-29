@@ -154,7 +154,7 @@ class AdvancedCharts:
         return self._safe(fig, height=360)
 
     # =====================
-    # CHAPTER 1 – MARKET RELATION (المطابقة للصورة مع إصلاح الأقواس)
+    # CHAPTER 1 – MARKET RELATION (المطابقة للصورة مع تعديل الأقواس)
     # =====================
     def ch1_price_vs_area_flow(self, df):
         if not self._has_columns(df, ["price", "area"]):
@@ -172,9 +172,9 @@ class AdvancedCharts:
                 ),
                 x=0.5
             ),
-            # ✅ إصلاح مشكلة الأقواس: استخدام شرطة طويلة بدل الأقواس
-            xaxis_title="المساحة — م²",
-            yaxis_title="السعر — ريال",
+            # ✅ 1️⃣ تعديل: جملة لغوية بدون أقواس
+            xaxis_title="المساحة بالمتر المربع",
+            yaxis_title="السعر بالريال",
             showlegend=False
         )
 
@@ -192,7 +192,7 @@ class AdvancedCharts:
         return self._safe(fig, height=520)
 
     # =====================
-    # CHAPTER 2 – TIME FLOW
+    # CHAPTER 2 – TIME FLOW (مع تعديل عناوين المحاور)
     # =====================
     def ch2_price_stream(self, df):
         if not self._has_columns(df, ["date", "price"]):
@@ -216,8 +216,9 @@ class AdvancedCharts:
 
         fig.update_layout(
             title="تدفق الأسعار عبر الزمن",
+            # ✅ 2️⃣ تعديل: جملة لغوية بدون أقواس
             xaxis_title="الزمن",
-            yaxis_title="السعر",
+            yaxis_title="القيمة السوقية بالريال السعودي",
         )
 
         return self._safe(fig, height=480)
@@ -283,8 +284,9 @@ class AdvancedCharts:
 
         fig.update_layout(
             title="شريط التدفق الزمني - تحليل انسيابي",
+            # ✅ تعديل: جملة لغوية بدون أقواس
             xaxis_title="التاريخ",
-            yaxis_title="السعر",
+            yaxis_title="السعر بالريال",
         )
 
         return self._safe(fig, height=380)
@@ -359,8 +361,9 @@ class AdvancedCharts:
 
         fig.update_layout(
             title="مخطط الفقاعات - تحليل الفرص",
-            xaxis_title="المساحة (م²)",
-            yaxis_title="السعر",
+            # ✅ تعديل: جملة لغوية بدون أقواس
+            xaxis_title="المساحة بالمتر المربع",
+            yaxis_title="السعر بالريال",
         )
 
         return self._safe(fig, height=480)
@@ -487,9 +490,9 @@ class AdvancedCharts:
 
         fig.update_layout(
             title="المنحنى الختامي - نظرة نهائية",
+            # ✅ تعديل: جملة لغوية بدون أقواس
             xaxis_title="نطاق السعر",
-            yaxis_title="الكثافة",
-            showlegend=False
+            yaxis_title="الكثافة النسبية",
         )
         
         return self._safe(fig, height=360)
@@ -506,12 +509,12 @@ class AdvancedCharts:
 
         return {
             "chapter_1": clean([
-                self.ch1_price_vs_area_flow(df),  # ✅ MODIFIED - مع إصلاح الأقواس
+                self.ch1_price_vs_area_flow(df),  # ✅ مع تعديل الأقواس
                 self.rhythm_price_donut(df, "قراءة سريعة للسوق"),
                 self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),
             ]),
             "chapter_2": clean([
-                self.ch2_price_stream(df),
+                self.ch2_price_stream(df),  # ✅ مع تعديل الأقواس
                 self.rhythm_price_donut(df, "مستويات الأسعار"),
                 self.ch2_area_ribbon(df),
             ]),
