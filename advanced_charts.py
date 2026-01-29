@@ -224,33 +224,44 @@ class AdvancedCharts:
         return self._safe(fig, height=480)
 
     # =====================
-    # CHAPTER 3 – SAMPLE TABLE
+    # CHAPTER 3 – SAMPLE TABLE (محسّن للاحترافية)
     # =====================
     def ch3_table_sample(self, df):
         if not self._has_columns(df, ["price", "area"]):
             return None
 
-        sample = df[["area", "price"]].head(8)
+        # ✅ 1️⃣ زيادة عدد الصفوف إلى 12
+        sample = df[["area", "price"]].head(12)
 
         fig = go.Figure(
             data=[
                 go.Table(
+                    # ✅ 2️⃣ تحسين ألوان الجدول (McKinsey/BCG style)
                     header=dict(
                         values=["المساحة", "السعر"],
-                        fill_color=self.COLORS["light_gray"],
+                        fill_color="#F4F6F8",   # رمادي فاتح جدًا (تنفيذي)
                         align="center",
-                        font=dict(size=14, color=self.COLORS["text"]),
+                        font=dict(
+                            size=14,
+                            color="#1F2933",     # داكن مريح للعين
+                            family="Tajawal"
+                        ),
                     ),
                     cells=dict(
                         values=[sample["area"], sample["price"]],
+                        fill_color="white",     # خلفية نظيفة
                         align="center",
-                        font=dict(size=12, color=self.COLORS["text"]),
+                        font=dict(
+                            size=13,
+                            color="#1F2933",
+                            family="Tajawal"
+                        ),
                     ),
                 )
             ]
         )
 
-        fig.update_layout(title="عينة ذكية من بيانات السوق", height=420)
+        fig.update_layout(title="عينة ذكية من بيانات السوق", height=560)  # ✅ 3️⃣ زيادة الارتفاع
         return fig
 
     # =====================
@@ -516,11 +527,11 @@ class AdvancedCharts:
             "chapter_2": clean([
                 self.ch2_price_stream(df),  # ✅ مع تعديل الأقواس
                 self.rhythm_price_donut(df, "مستويات الأسعار"),
-                # ✅ التعديل الوحيد: استبدال ch2_area_ribbon بـ rhythm_price_curve
+                # ✅ استبدال ch2_area_ribbon بـ rhythm_price_curve
                 self.rhythm_price_curve(df, "توزيع الأسعار عبر الزمن"),
             ]),
             "chapter_3": clean([
-                self.ch3_table_sample(df),
+                self.ch3_table_sample(df),  # ✅ محسّن للاحترافية
                 self.rhythm_price_donut(df, "نطاق العينة"),
                 self.rhythm_price_curve(df, "تشتت الأسعار"),
             ]),
