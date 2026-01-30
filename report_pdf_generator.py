@@ -41,8 +41,26 @@ def ar(text):
 def clean_text(text: str) -> str:
     if not text:
         return ""
-    text = re.sub(r"^[\-\•\▪\▫\*]+\s*", "", text)
-    text = text.replace("□", "").replace("■", "")
+
+    # إزالة الرموز الغير مدعومة
+    replacements = {
+        "■": "",
+        "□": "",
+        "▪": "",
+        "▫": "",
+        "•": "",
+        "–": "-",
+        "—": "-",
+        "…": "...",
+        "٪": "%",
+    }
+
+    for k, v in replacements.items():
+        text = text.replace(k, v)
+
+    # إزالة أي ترقيم غريب في بداية السطر
+    text = re.sub(r"^[\-\*\•\▪\▫\d\.\)]\s*", "", text)
+
     return text.strip()
 
 
