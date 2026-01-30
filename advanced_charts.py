@@ -462,47 +462,34 @@ class AdvancedCharts:
 
         return self._safe(fig, height=420)
 
+    # =====================
+    # CHAPTER 6 – GAUGE (بدون بيانات مزيفة - شكل نظيف)
+    # =====================
     def ch6_gauge(self, df):
-        if "price" not in df.columns:
-            return None
-
-        p = self._numeric(df["price"]).dropna()
-        if p.empty:
-            return None
-
-        price_std = p.std()
-        price_mean = p.mean()
-        
-        if price_std > 0:
-            market_index = max(0, min(100, 100 - (price_std / price_mean * 100)))
-        else:
-            market_index = 85
-
+        """
+        ✅ مؤشر شكل نظيف بدون بيانات مزيفة
+        لا أرقام، لا قيم، مجرد شكل تنفيذي جاهز
+        """
         fig = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=market_index,
-            domain={'x': [0, 1], 'y': [0, 1]},
-            title={'text': "مؤشر استقرار السوق", 'font': {'size': 16}},
+            mode="gauge",
             gauge={
-                'axis': {'range': [None, 100], 'tickwidth': 1},
+                'axis': {'range': [0, 100], 'visible': False},
                 'bar': {'color': self.COLORS["gold"]},
                 'steps': [
                     {'range': [0, 40], 'color': self.COLORS["lavender"]},
                     {'range': [40, 70], 'color': self.COLORS["mint"]},
-                    {'range': [70, 100], 'color': self.COLORS["emerald"]}
+                    {'range': [70, 100], 'color': self.COLORS["emerald"]},
                 ],
-                'threshold': {
-                    'line': {'color': self.COLORS["plum"], 'width': 4},
-                    'thickness': 0.75,
-                    'value': market_index
-                }
             }
         ))
 
         fig.update_layout(
-            title=f"مؤشر القرار التنفيذي: {market_index:.0f}/100",
-            height=380
+            title="مؤشر القرار التنفيذي",
+            height=520,
+            margin=dict(l=30, r=30, t=90, b=30),
+            font=dict(family="Tajawal", size=18)
         )
+
         return fig
 
     def ch7_executive_donut(self, df):
@@ -624,8 +611,7 @@ class AdvancedCharts:
             ]),
             "chapter_6": clean([
                 self.rhythm_price_donut(df, "رأس المال"),  # ✅ حجم موحد
-                self.rhythm_price_curve(df, "توزيع الاستثمار"),
-                self.ch6_gauge(df),
+                self.ch6_gauge(df),  # ✅ مؤشر نظيف بدون بيانات مزيفة
             ]),
             "chapter_7": clean([
                 self.ch7_executive_donut(df),  # ✅ حجم موحد
