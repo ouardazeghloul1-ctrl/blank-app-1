@@ -4,6 +4,7 @@ import os
 import tempfile
 import streamlit as st
 import re
+import unicodedata  # ⭐ إضافة مهمة
 
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -36,30 +37,27 @@ def ar(text):
 
 
 # =========================
-# Clean bullets & junk
+# Clean bullets & junk - النسخة النهائية القاطعة
 # =========================
 def clean_text(text: str) -> str:
     if not text:
         return ""
 
-    # إزالة الرموز الغير مدعومة
-    replacements = {
-        "■": "",
-        "□": "",
-        "▪": "",
-        "▫": "",
-        "•": "",
-        "–": "-",
-        "—": "-",
-        "…": "...",
-        "٪": "%",
-    }
+    cleaned = []
+    for ch in text:
+        cat = unicodedata.category(ch)
 
-    for k, v in replacements.items():
-        text = text.replace(k, v)
+        # نسمح فقط بالحروف والأرقام والمسافات وعلامات الترقيم الأساسية
+        if cat.startswith(("L", "N", "P", "Z")):
+            cleaned.append(ch)
 
-    # إزالة أي ترقيم غريب في بداية السطر
-    text = re.sub(r"^[\-\*\•\▪\▫\d\.\)]\s*", "", text)
+    text = "".join(cleaned)
+
+    # تنظيف بدايات الأسطر
+    text = re.sub(r"^[\-\*\d\.\)]\s*", "", text)
+
+    # توحيد المسافات
+    text = re.sub(r"\s+", " ", text)
 
     return text.strip()
 
@@ -214,6 +212,8 @@ def create_pdf_from_content(
 
         # -------- NO CHARTS IN 9–10 --------
         if chapter_index >= 9:
+            # ✅ الفلترة النهائية: فلترة UTF-8 قبل Paragraph
+            clean = clean.encode("utf-8", "ignore").decode("utf-8")
             story.append(Paragraph(ar(clean), body))
             continue
 
@@ -283,6 +283,8 @@ def create_pdf_from_content(
             continue
 
         # -------- NORMAL TEXT --------
+        # ✅ التصحيح النهائي: فلترة UTF-8 واحدة فقط (بعد clean_text)
+        clean = clean.encode("utf-8", "ignore").decode("utf-8")
         story.append(Paragraph(ar(clean), body))
         text_since_chart += 1
 
