@@ -1,4 +1,4 @@
-# advanced_charts.py - النسخة النهائية مع التعديلين المطلوبين
+# advanced_charts.py - النسخة المعدلة مع تحسين عناوين المحاور
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -246,7 +246,7 @@ class AdvancedCharts:
                 x=0.5
             ),
             xaxis_title="المساحة بالمتر المربع",
-            yaxis_title="السعر بالريال",
+            yaxis_title="السعر",
             showlegend=False
         )
 
@@ -287,10 +287,13 @@ class AdvancedCharts:
             )
         )
 
+        # ✅ التعديل 1: اختصار عنوان محور Y
+        # ✅ التعديل 2: تقليل المسافة العمودية للعنوان
         fig.update_layout(
             title="تدفق الأسعار عبر الزمن",
             xaxis_title="الزمن",
-            yaxis_title="القيمة السوقية بالريال السعودي",
+            yaxis_title="القيمة السوقية",
+            yaxis=dict(title_standoff=10),
         )
 
         # ✅ تحديد الحجم صراحة - 520 للرسومات الكبيرة
