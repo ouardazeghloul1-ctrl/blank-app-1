@@ -1,4 +1,4 @@
-# advanced_charts.py - النسخة النهائية المعدلة
+# advanced_charts.py - النسخة النهائية مع التعديلين المطلوبين
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -35,6 +35,9 @@ class AdvancedCharts:
         return pd.to_numeric(s, errors="coerce")
 
     def _safe(self, fig, height=460):
+        """
+        ✅ نظيفة تماماً - تحديد الحجم من مكان الاستدعاء فقط
+        """
         if fig is None:
             return None
 
@@ -43,6 +46,9 @@ class AdvancedCharts:
             height=height,
             margin=dict(l=70, r=70, t=90, b=70),
             font=dict(size=15, color=self.COLORS["text"], family="Tajawal"),
+            # ✅ التعديل 1: تكبير أرقام المحاور (x / y)
+            xaxis=dict(tickfont=dict(size=16)),
+            yaxis=dict(tickfont=dict(size=16)),
             title=dict(
                 x=0.5,
                 font=dict(size=18, color=self.COLORS["text"], family="Tajawal"),
@@ -50,6 +56,8 @@ class AdvancedCharts:
             plot_bgcolor=self.COLORS["light_gray"],
             paper_bgcolor="white",
             hovermode="x unified",
+            # ✅ التعديل 2: تحسين قراءة القيم عند المرور (Hover)
+            hoverlabel=dict(font_size=15, font_family="Tajawal"),
         )
 
         fig.update_xaxes(showgrid=False, zeroline=False)
@@ -145,7 +153,7 @@ class AdvancedCharts:
         return fig  # ❌ لا نستخدم _safe() على الدونتس أبداً
 
     # =====================
-    # RHYTHM 2 – SOFT DISTRIBUTION
+    # RHYTHM 2 – SOFT DISTRIBUTION (مكبر - ارتفاع 520)
     # =====================
     def rhythm_price_curve(self, df, title):
         if "price" not in df.columns:
@@ -179,10 +187,11 @@ class AdvancedCharts:
         )
 
         fig.update_layout(title=title)
-        return self._safe(fig, height=360)
+        # ✅ تحديد الحجم صراحة - 520 للرسومات الكبيرة
+        return self._safe(fig, height=520)
 
     # =====================
-    # RHYTHM PLACEHOLDER – CURVE (بدون بيانات)
+    # RHYTHM PLACEHOLDER – CURVE (بدون بيانات - ارتفاع 520)
     # =====================
     def rhythm_placeholder_curve(self, title):
         """
@@ -211,13 +220,14 @@ class AdvancedCharts:
             yaxis=dict(visible=False),
             showlegend=False,
             plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="white",  # ✅ التصحيح: paper_bgcolor بدل paperbgcolor
+            paper_bgcolor="white",
         )
 
-        return self._safe(fig, height=360)
+        # ✅ تحديد الحجم صراحة - 520 للرسومات الكبيرة
+        return self._safe(fig, height=520)
 
     # =====================
-    # CHAPTER 1 – MARKET RELATION (المطابقة للصورة مع تعديل الأقواس)
+    # CHAPTER 1 – MARKET RELATION
     # =====================
     def ch1_price_vs_area_flow(self, df):
         if not self._has_columns(df, ["price", "area"]):
@@ -231,11 +241,10 @@ class AdvancedCharts:
                 font=dict(
                     size=22,
                     family="Tajawal",
-                    color=self.COLORS["emerald"]  # ✅ نفس اللون الأخضر
+                    color=self.COLORS["emerald"]
                 ),
                 x=0.5
             ),
-            # ✅ 1️⃣ تعديل: جملة لغوية بدون أقواس
             xaxis_title="المساحة بالمتر المربع",
             yaxis_title="السعر بالريال",
             showlegend=False
@@ -252,10 +261,11 @@ class AdvancedCharts:
             zeroline=False
         )
 
-        return self._safe(fig, height=520)
+        # ✅ حجم عادي (460) - ليس من الرسومات الكبيرة
+        return self._safe(fig, height=460)
 
     # =====================
-    # CHAPTER 2 – TIME FLOW (مع تعديل عناوين المحاور)
+    # CHAPTER 2 – TIME FLOW (مكبر - ارتفاع 520)
     # =====================
     def ch2_price_stream(self, df):
         if not self._has_columns(df, ["date", "price"]):
@@ -279,40 +289,38 @@ class AdvancedCharts:
 
         fig.update_layout(
             title="تدفق الأسعار عبر الزمن",
-            # ✅ 2️⃣ تعديل: جملة لغوية بدون أقواس
             xaxis_title="الزمن",
             yaxis_title="القيمة السوقية بالريال السعودي",
         )
 
-        return self._safe(fig, height=480)
+        # ✅ تحديد الحجم صراحة - 520 للرسومات الكبيرة
+        return self._safe(fig, height=520)
 
     # =====================
-    # CHAPTER 3 – SAMPLE TABLE (محسّن للاحترافية)
+    # CHAPTER 3 – SAMPLE TABLE
     # =====================
     def ch3_table_sample(self, df):
         if not self._has_columns(df, ["price", "area"]):
             return None
 
-        # ✅ 1️⃣ زيادة عدد الصفوف إلى 12
         sample = df[["area", "price"]].head(12)
 
         fig = go.Figure(
             data=[
                 go.Table(
-                    # ✅ 2️⃣ تحسين ألوان الجدول (McKinsey/BCG style)
                     header=dict(
                         values=["المساحة", "السعر"],
-                        fill_color="#F4F6F8",   # رمادي فاتح جدًا (تنفيذي)
+                        fill_color="#F4F6F8",
                         align="center",
                         font=dict(
                             size=14,
-                            color="#1F2933",     # داكن مريح للعين
+                            color="#1F2933",
                             family="Tajawal"
                         ),
                     ),
                     cells=dict(
                         values=[sample["area"], sample["price"]],
-                        fill_color="white",     # خلفية نظيفة
+                        fill_color="white",
                         align="center",
                         font=dict(
                             size=13,
@@ -324,59 +332,14 @@ class AdvancedCharts:
             ]
         )
 
-        fig.update_layout(title="عينة ذكية من بيانات السوق", height=560)  # ✅ 3️⃣ زيادة الارتفاع
+        fig.update_layout(title="عينة ذكية من بيانات السوق", height=560)
         return fig
 
     # =====================
-    # الرسومات الجديدة (6 رسومات)
-    # =====================
-    
-    def ch2_area_ribbon(self, df):
-        if not self._has_columns(df, ["date", "price"]):
-            return None
-
-        df = df.sort_values("date")
-        df["price"] = self._numeric(df["price"])
-        df = df.dropna()
-        
-        if df.empty:
-            return None
-
-        fig = go.Figure()
-
-        fig.add_trace(
-            go.Scatter(
-                x=df["date"],
-                y=df["price"],
-                mode="lines",
-                line=dict(color=self.COLORS["mint"], width=1.5),
-                fill="tozeroy",
-                fillcolor="rgba(165,214,167,0.15)",
-                name="منحنى التدفق",
-            )
-        )
-
-        fig.update_layout(
-            title="شريط التدفق الزمني - تحليل انسيابي",
-            # ✅ تعديل: جملة لغوية بدون أقواس
-            xaxis_title="التاريخ",
-            yaxis_title="السعر بالريال",
-        )
-
-        return self._safe(fig, height=380)
-
-    # =====================
-    # CHAPTER 4 – MARKET INDICATORS (BAR COMPARISON)
+    # CHAPTER 4 – MARKET INDICATORS BAR
     # =====================
     def ch4_market_indicators_bar(self, df):
-        """
-        مخطط أعمدة تنفيذي لمقارنة مؤشرات السوق
-        بدون بيانات مزيفة – جاهز للبيانات الحقيقية لاحقًا
-        """
-
         categories = ["السعر", "السيولة", "الاستقرار"]
-        
-        # ✅ قيم محايدة (شكل فقط – ليست بيانات)
         values = [1, 1, 1]
 
         fig = go.Figure()
@@ -403,65 +366,19 @@ class AdvancedCharts:
             ),
             yaxis=dict(
                 tickfont=dict(size=15),
-                autorange="reversed"  # ✅ يعكس الترتيب بصريًا
+                autorange="reversed"
             ),
             showlegend=False,
             bargap=0.4
         )
 
-        return self._safe(fig, height=420)
-
-    def ch5_bubble(self, df):
-        if not self._has_columns(df, ["price", "area"]):
-            return None
-
-        df = df.copy()
-        df["price_num"] = self._numeric(df["price"])
-        df["area_num"] = self._numeric(df["area"])
-        df = df.dropna()
-        
-        if df.empty:
-            return None
-
-        max_size = 40
-        df["size"] = (df["price_num"] / df["price_num"].max()) * max_size
-
-        fig = go.Figure()
-
-        fig.add_trace(
-            go.Scatter(
-                x=df["area_num"],
-                y=df["price_num"],
-                mode='markers',
-                marker=dict(
-                    size=df["size"],
-                    color=self.COLORS["plum"],
-                    opacity=0.6,
-                    line=dict(width=1, color='white')
-                ),
-                text=[f"السعر: {p:,.0f}<br>المساحة: {a:,.0f}" 
-                      for p, a in zip(df["price_num"], df["area_num"])],
-                hoverinfo='text'
-            )
-        )
-
-        fig.update_layout(
-            title="مخطط الفقاعات - تحليل الفرص",
-            # ✅ تعديل: جملة لغوية بدون أقواس
-            xaxis_title="المساحة بالمتر المربع",
-            yaxis_title="السعر بالريال",
-        )
-
-        return self._safe(fig, height=480)
+        # ✅ حجم عادي (460) - ليس من الرسومات الكبيرة
+        return self._safe(fig, height=460)
 
     # =====================
     # CHAPTER 5 – FUTURE OPPORTUNITY PLACEHOLDER
     # =====================
     def ch5_future_opportunity_placeholder(self):
-        """
-        ✅ Placeholder ذكي لمساحة الفرص الاستثمارية
-        عنوان فقط، بلا تفسير، بلا بيانات مزيفة
-        """
         fig = go.Figure()
 
         fig.update_layout(
@@ -474,7 +391,6 @@ class AdvancedCharts:
             font=dict(family="Tajawal", size=16, color=self.COLORS["text"]),
         )
 
-        # خطوط خفيفة جدًا فقط لإيحاء الإطار
         fig.update_xaxes(
             showgrid=True,
             gridcolor="rgba(0,0,0,0.04)",
@@ -495,16 +411,13 @@ class AdvancedCharts:
             linecolor="rgba(0,0,0,0.1)"
         )
 
-        return self._safe(fig, height=420)
+        # ✅ حجم عادي (460) - ليس من الرسومات الكبيرة
+        return self._safe(fig, height=460)
 
     # =====================
-    # CHAPTER 6 – GAUGE (بدون بيانات مزيفة - شكل نظيف)
+    # CHAPTER 6 – GAUGE
     # =====================
     def ch6_gauge(self, df):
-        """
-        ✅ مؤشر شكل نظيف بدون بيانات مزيفة
-        لا أرقام، لا قيم، مجرد شكل تنفيذي جاهز
-        """
         fig = go.Figure(go.Indicator(
             mode="gauge",
             gauge={
@@ -528,14 +441,9 @@ class AdvancedCharts:
         return fig
 
     # =====================
-    # CHAPTER 7 – EXECUTIVE DONUT (بدون بيانات)
+    # CHAPTER 7 – EXECUTIVE DONUT
     # =====================
     def ch7_executive_donut(self, df):
-        """
-        ✅ دونت تنفيذي – بدون بيانات
-        Placeholder جاهز للربط لاحقًا
-        """
-        # قيم شكلية فقط (لا معنى تحليلي)
         values = [1, 1, 1]
 
         fig = go.Figure(
@@ -556,8 +464,11 @@ class AdvancedCharts:
             "الملخص التنفيذي"
         )
 
-        return fig  # ❌ لا نستخدم _safe() على الدونتس أبداً
+        return fig
 
+    # =====================
+    # CHAPTER 8 – FINAL CURVE (مكبر - ارتفاع 520)
+    # =====================
     def ch8_final_curve(self, df):
         if "price" not in df.columns:
             return None
@@ -584,12 +495,12 @@ class AdvancedCharts:
 
         fig.update_layout(
             title="المنحنى الختامي - نظرة نهائية",
-            # ✅ تعديل: جملة لغوية بدون أقواس
             xaxis_title="نطاق السعر",
             yaxis_title="الكثافة النسبية",
         )
         
-        return self._safe(fig, height=360)
+        # ✅ تحديد الحجم صراحة - 520 للرسومات الكبيرة
+        return self._safe(fig, height=520)
 
     # =====================
     # ENGINE
@@ -603,40 +514,38 @@ class AdvancedCharts:
 
         return {
             "chapter_1": clean([
-                self.ch1_price_vs_area_flow(df),  # ✅ مع تعديل الأقواس
-                self.rhythm_price_donut(df, "قراءة سريعة للسوق"),  # ✅ حجم موحد
-                self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),
+                self.ch1_price_vs_area_flow(df),              # حجم عادي
+                self.rhythm_price_donut(df, "قراءة سريعة للسوق"),  # دونت
+                self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),  # مكبر
             ]),
             "chapter_2": clean([
-                self.ch2_price_stream(df),  # ✅ مع تعديل الأقواس
-                self.rhythm_price_donut(df, "مستويات الأسعار"),  # ✅ حجم موحد
-                # ✅ استبدال ch2_area_ribbon بـ rhythm_price_curve
-                self.rhythm_price_curve(df, "توزيع الأسعار عبر الزمن"),
+                self.ch2_price_stream(df),                    # مكبر
+                self.rhythm_price_donut(df, "مستويات الأسعار"),    # دونت
+                self.rhythm_price_curve(df, "توزيع الأسعار عبر الزمن"),  # مكبر
             ]),
             "chapter_3": clean([
-                self.ch3_table_sample(df),  # ✅ محسّن للاحترافية
-                self.rhythm_price_donut(df, "نطاق العينة"),  # ✅ حجم موحد
-                self.rhythm_price_curve(df, "تشتت الأسعار"),
+                self.ch3_table_sample(df),                    # حجم خاص
+                self.rhythm_price_donut(df, "نطاق العينة"),        # دونت
+                self.rhythm_price_curve(df, "تشتت الأسعار"),       # مكبر
             ]),
             "chapter_4": clean([
-                self.rhythm_price_donut(df, "نطاقات السوق"),  # ✅ حجم موحد
-                # ✅ استبدال ch4_radar بـ ch4_market_indicators_bar
-                self.ch4_market_indicators_bar(df),
+                self.rhythm_price_donut(df, "نطاقات السوق"),       # دونت
+                self.ch4_market_indicators_bar(df),            # حجم عادي
             ]),
             "chapter_5": clean([
-                self.rhythm_price_donut(df, "قراءة هيكلية للسوق"),  # ✅ عنوان أدق
-                self.ch5_future_opportunity_placeholder(),  # ✅ لا بيانات مزيفة
+                self.rhythm_price_donut(df, "قراءة هيكلية للسوق"), # دونت
+                self.ch5_future_opportunity_placeholder(),     # حجم عادي
             ]),
             "chapter_6": clean([
-                self.rhythm_price_donut(df, "رأس المال"),  # ✅ حجم موحد
-                self.rhythm_placeholder_curve("توزيع الاستثمار"),  # ✅ منحنى شكلي بدون بيانات
-                self.ch6_gauge(df),  # ✅ مؤشر نظيف بدون بيانات مزيفة
+                self.rhythm_price_donut(df, "رأس المال"),          # دونت
+                self.rhythm_placeholder_curve("توزيع الاستثمار"),  # مكبر
+                self.ch6_gauge(df),                           # Gauge
             ]),
             "chapter_7": clean([
-                self.ch7_executive_donut(df),  # ✅ دونت تنفيذي بدون بيانات
+                self.ch7_executive_donut(df),                 # دونت
             ]),
             "chapter_8": clean([
-                self.ch8_final_curve(df),
+                self.ch8_final_curve(df),                     # مكبر
             ]),
             "chapter_9": [],
             "chapter_10": [],
