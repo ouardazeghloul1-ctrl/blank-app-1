@@ -118,9 +118,13 @@ class AdvancedCharts:
     # =====================
     # RHYTHM 1 – DONUT INSIGHT (VERSION FINAL - نظيف تماماً)
     # =====================
-    def rhythm_price_donut(self, df, title):
+    def rhythm_price_donut(self, df, title=None):
         if "price" not in df.columns:
             return None
+
+        # ✅ تحديد العنوان الافتراضي إذا لم يتم تقديمه
+        if title is None:
+            title = "قراءة سريعة للسوق"
 
         # ✅ 1) قيم متساوية لثلاثة أجزاء
         values = [1, 1, 1]
@@ -415,6 +419,61 @@ class AdvancedCharts:
 
         return self._safe(fig, height=480)
 
+    # =====================
+    # CHAPTER 5 – FUTURE OPPORTUNITY PLACEHOLDER
+    # =====================
+    def ch5_future_opportunity_placeholder(self):
+        """
+        ✅ Placeholder ذكي لمساحة الفرص المستقبلية
+        جاهز للبيانات الحقيقية، لا بيانات مزيفة، لا كذب بصري
+        """
+        fig = go.Figure()
+
+        fig.update_layout(
+            title="مساحة الفرص الاستثمارية (جاهزة للبيانات الحقيقية)",
+            xaxis_title="",
+            yaxis_title="",
+            showlegend=False,
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="white",
+            font=dict(family="Tajawal", size=16, color=self.COLORS["text"]),
+        )
+
+        # خطوط خفيفة جدًا فقط لإيحاء الإطار
+        fig.update_xaxes(
+            showgrid=True,
+            gridcolor="rgba(0,0,0,0.04)",
+            zeroline=False,
+            ticks="",
+            showline=True,
+            linewidth=1,
+            linecolor="rgba(0,0,0,0.1)"
+        )
+
+        fig.update_yaxes(
+            showgrid=True,
+            gridcolor="rgba(0,0,0,0.04)",
+            zeroline=False,
+            ticks="",
+            showline=True,
+            linewidth=1,
+            linecolor="rgba(0,0,0,0.1)"
+        )
+
+        # ✅ إضافة ملاحظة بسيطة في المنتصف
+        fig.add_annotation(
+            text="<span style='color:#888; font-size:14px;'>هذه المساحة مخصصة للبيانات الحية<br>عند توفر مصادر البيانات المتقدمة</span>",
+            x=0.5,
+            y=0.5,
+            showarrow=False,
+            font=dict(family="Tajawal", size=14, color="#888"),
+            align="center",
+            xref="paper",
+            yref="paper"
+        )
+
+        return self._safe(fig, height=420)  # ✅ ارتفاع أكبر قليلاً ليكون متناسقًا بصريًا
+
     def ch6_gauge(self, df):
         if "price" not in df.columns:
             return None
@@ -572,9 +631,8 @@ class AdvancedCharts:
                 self.ch4_market_indicators_bar(df),
             ]),
             "chapter_5": clean([
-                self.rhythm_price_donut(df, "مقارنة زمنية"),  # ✅ حجم موحد
-                self.rhythm_price_curve(df, "ديناميكية الأسعار"),
-                self.ch5_bubble(df),
+                self.rhythm_price_donut(df, "قراءة هيكلية للسوق"),  # ✅ عنوان أدق
+                self.ch5_future_opportunity_placeholder(),  # ✅ لا بيانات مزيفة
             ]),
             "chapter_6": clean([
                 self.rhythm_price_donut(df, "رأس المال"),  # ✅ حجم موحد
