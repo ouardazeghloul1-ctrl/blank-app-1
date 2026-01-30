@@ -211,7 +211,7 @@ class AdvancedCharts:
             yaxis=dict(visible=False),
             showlegend=False,
             plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="white",
+            paper_bgcolor="white",  # ✅ التصحيح: paper_bgcolor بدل paperbgcolor
         )
 
         return self._safe(fig, height=360)
@@ -527,26 +527,21 @@ class AdvancedCharts:
 
         return fig
 
+    # =====================
+    # CHAPTER 7 – EXECUTIVE DONUT (بدون بيانات)
+    # =====================
     def ch7_executive_donut(self, df):
-        if "price" not in df.columns:
-            return None
+        """
+        ✅ دونت تنفيذي – بدون بيانات
+        Placeholder جاهز للربط لاحقًا
+        """
+        # قيم شكلية فقط (لا معنى تحليلي)
+        values = [1, 1, 1]
 
-        p = self._numeric(df["price"]).dropna()
-        if p.empty:
-            return None
-
-        segments = {
-            "الشرائح العليا": p[p > p.quantile(0.75)].count(),
-            "الشرائح المتوسطة": p[(p >= p.quantile(0.25)) & (p <= p.quantile(0.75))].count(),
-            "الشرائح الاقتصادية": p[p < p.quantile(0.25)].count()
-        }
-
-        # ✅ استخدام الـhelper الموحد مع ألوان مخصصة
         fig = go.Figure(
             data=[
                 go.Pie(
-                    values=list(segments.values()),
-                    labels=list(segments.keys()),
+                    values=values,
                     **self._donut_base_style([
                         self.COLORS["gold"],
                         self.COLORS["plum"],
@@ -556,21 +551,9 @@ class AdvancedCharts:
             ]
         )
 
-        # ✅ استخدام الـhelper الموحد للإعدادات
-        fig = self._donut_base_layout(fig, "الملخص التنفيذي - نظرة شاملة")
-
-        total_properties = len(p)
-        avg_price = p.mean()
-        
-        fig.add_annotation(
-            text=f"<b>ملخص تنفيذي</b><br><br>"
-                 f"إجمالي العقارات:<br><b>{total_properties:,}</b><br><br>"
-                 f"متوسط السوق:<br><b>{avg_price:,.0f}</b>",
-            x=0.5,
-            y=0.5,
-            font=dict(size=16, color=self.COLORS["text"]),
-            showarrow=False,
-            align="center"
+        fig = self._donut_base_layout(
+            fig,
+            "الملخص التنفيذي"
         )
 
         return fig  # ❌ لا نستخدم _safe() على الدونتس أبداً
@@ -650,7 +633,7 @@ class AdvancedCharts:
                 self.ch6_gauge(df),  # ✅ مؤشر نظيف بدون بيانات مزيفة
             ]),
             "chapter_7": clean([
-                self.ch7_executive_donut(df),  # ✅ حجم موحد
+                self.ch7_executive_donut(df),  # ✅ دونت تنفيذي بدون بيانات
             ]),
             "chapter_8": clean([
                 self.ch8_final_curve(df),
