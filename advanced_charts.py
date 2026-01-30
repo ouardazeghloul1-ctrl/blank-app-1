@@ -182,6 +182,41 @@ class AdvancedCharts:
         return self._safe(fig, height=360)
 
     # =====================
+    # RHYTHM PLACEHOLDER – CURVE (بدون بيانات)
+    # =====================
+    def rhythm_placeholder_curve(self, title):
+        """
+        ✅ منحنى شكلي فقط
+        بدون بيانات، بدون حسابات، جاهز للربط لاحقًا
+        """
+        fig = go.Figure()
+
+        # خط وهمي خفيف (للهيكل فقط)
+        fig.add_trace(
+            go.Scatter(
+                x=[0, 1],
+                y=[0, 1],
+                mode="lines",
+                line=dict(
+                    color=self.COLORS["plum"],
+                    width=3
+                ),
+                hoverinfo="none"
+            )
+        )
+
+        fig.update_layout(
+            title=title,
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            showlegend=False,
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="white",
+        )
+
+        return self._safe(fig, height=360)
+
+    # =====================
     # CHAPTER 1 – MARKET RELATION (المطابقة للصورة مع تعديل الأقواس)
     # =====================
     def ch1_price_vs_area_flow(self, df):
@@ -611,6 +646,7 @@ class AdvancedCharts:
             ]),
             "chapter_6": clean([
                 self.rhythm_price_donut(df, "رأس المال"),  # ✅ حجم موحد
+                self.rhythm_placeholder_curve("توزيع الاستثمار"),  # ✅ منحنى شكلي بدون بيانات
                 self.ch6_gauge(df),  # ✅ مؤشر نظيف بدون بيانات مزيفة
             ]),
             "chapter_7": clean([
