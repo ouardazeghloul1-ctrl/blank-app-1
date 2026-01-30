@@ -424,13 +424,13 @@ class AdvancedCharts:
     # =====================
     def ch5_future_opportunity_placeholder(self):
         """
-        ✅ Placeholder ذكي لمساحة الفرص المستقبلية
-        جاهز للبيانات الحقيقية، لا بيانات مزيفة، لا كذب بصري
+        ✅ Placeholder ذكي لمساحة الفرص الاستثمارية
+        عنوان فقط، بلا تفسير، بلا بيانات مزيفة
         """
         fig = go.Figure()
 
         fig.update_layout(
-            title="مساحة الفرص الاستثمارية (جاهزة للبيانات الحقيقية)",
+            title="مساحة الفرص الاستثمارية",
             xaxis_title="",
             yaxis_title="",
             showlegend=False,
@@ -460,19 +460,7 @@ class AdvancedCharts:
             linecolor="rgba(0,0,0,0.1)"
         )
 
-        # ✅ إضافة ملاحظة بسيطة في المنتصف
-        fig.add_annotation(
-            text="<span style='color:#888; font-size:14px;'>هذه المساحة مخصصة للبيانات الحية<br>عند توفر مصادر البيانات المتقدمة</span>",
-            x=0.5,
-            y=0.5,
-            showarrow=False,
-            font=dict(family="Tajawal", size=14, color="#888"),
-            align="center",
-            xref="paper",
-            yref="paper"
-        )
-
-        return self._safe(fig, height=420)  # ✅ ارتفاع أكبر قليلاً ليكون متناسقًا بصريًا
+        return self._safe(fig, height=420)
 
     def ch6_gauge(self, df):
         if "price" not in df.columns:
