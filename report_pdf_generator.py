@@ -217,30 +217,49 @@ def create_pdf_from_content(
         # -------- RHYTHM CHART --------
         if clean == "[[RHYTHM_CHART]]":
             if cursor < len(charts) and text_since_chart >= 4:
-                # ⭐⭐ الحل الذكي: إذا كانت الرسمة هي Donut، استخدم حجم ANCHOR
+                # ⭐⭐ الحل الذكي: تحديد حجم الرسم بناءً على نوعها
                 fig = charts[cursor]
-                is_donut = False
                 
-                # ✅ الكشف إذا كانت الرسمة هي دونت (Pie chart)
-                if fig is not None and hasattr(fig, 'data') and len(fig.data) > 0:
-                    try:
-                        # تحقق إذا كان نوع الرسمة Pie
-                        is_donut = isinstance(fig.data[0], go.Pie)
-                    except Exception:
-                        pass
+                # ✅ الكشف الآمن: تجنب IndexError إذا كان fig.data فارغ
+                is_donut = (
+                    fig is not None
+                    and hasattr(fig, 'data')
+                    and len(fig.data) > 0
+                    and isinstance(fig.data[0], go.Pie)
+                )
+                
+                is_indicator = (
+                    fig is not None
+                    and hasattr(fig, 'data')
+                    and len(fig.data) > 0
+                    and isinstance(fig.data[0], go.Indicator)
+                )
                 
                 # ⭐ تحديد الحجم بناءً على نوع الرسمة
                 if is_donut:
                     # ✅ الدونت: استخدم حجم ANCHOR (كبير)
                     img = plotly_to_image(fig, 16.8, 8.8)
+                elif is_indicator:
+                    # ✅ المؤشر: استخدم حجم كبير تنفيذي
+                    img = plotly_to_image(fig, 17.5, 9.5)  # ✅ كبير – تنفيذي
                 else:
                     # ✅ الرسومات الأخرى: استخدم حجم RHYTHM (صغير)
                     img = plotly_to_image(fig, 15.8, 6.5)
                 
                 if img:
-                    story.append(Spacer(1, 1.4 * cm))
+                    # ⭐ تعديل: إعطاء المسافات المناسبة لكل نوع
+                    if is_indicator:
+                        story.append(Spacer(1, 1.8 * cm))  # ✅ مسافة أكبر للمؤشر
+                    else:
+                        story.append(Spacer(1, 1.4 * cm))
+                    
                     story.append(img)
-                    story.append(Spacer(1, 1.8 * cm))
+                    
+                    if is_indicator:
+                        story.append(Spacer(1, 2.0 * cm))  # ✅ مسافة أكبر بعد المؤشر
+                    else:
+                        story.append(Spacer(1, 1.8 * cm))
+                
                 chart_cursor[chapter_index] += 1
                 text_since_chart = 0
             continue
