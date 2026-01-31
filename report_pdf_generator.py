@@ -152,6 +152,17 @@ def create_pdf_from_content(
         keepWithNext=1
     )
 
+    ai_sub_title = ParagraphStyle(
+        "AISubTitle",
+        parent=styles["Heading3"],
+        fontName="Amiri",
+        fontSize=15.5,
+        alignment=TA_RIGHT,
+        textColor=colors.HexColor("#444444"),
+        spaceBefore=18,
+        spaceAfter=10,
+    )
+
     title = ParagraphStyle(
         "ArabicTitle",
         parent=styles["Title"],
@@ -188,6 +199,22 @@ def create_pdf_from_content(
 
         if not clean:
             story.append(Spacer(1, 0.8 * cm))
+            continue
+
+        # =========================
+        # AI SECTION HEADERS
+        # =========================
+
+        # 🧠 عنوان الذكاء الرئيسي
+        if clean.startswith("🧠"):
+            story.append(Spacer(1, 1.5 * cm))
+            story.append(Paragraph(ar(clean), chapter))
+            story.append(Spacer(1, 0.8 * cm))
+            continue
+
+        # 📊 💎 ⚠️ 🏁 عناوين فرعية
+        if clean.startswith(("📊", "💎", "⚠️", "🏁")):
+            story.append(Paragraph(ar(clean), ai_sub_title))
             continue
 
         # -------- CHAPTER --------
