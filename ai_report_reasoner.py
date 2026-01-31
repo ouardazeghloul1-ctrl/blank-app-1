@@ -52,6 +52,40 @@ AI_PACKAGE_POLICY = {
 }
 
 
+# =========================================
+# تحديد عمق الذكاء حسب حجم البيانات
+# =========================================
+
+def get_analysis_depth(real_data):
+    """
+    يحدد مستوى العمق التحليلي بناءً على عدد العقارات
+    """
+    count = len(real_data) if real_data is not None else 0
+
+    if count < 50:
+        return {
+            "level": "منخفض",
+            "tone": "تحفظي",
+            "confidence": "محدودة",
+            "note": "التحليل مبني على عينة بيانات محدودة"
+        }
+
+    if count < 150:
+        return {
+            "level": "متوسط",
+            "tone": "تحليلي",
+            "confidence": "جيدة",
+            "note": "التحليل يعكس اتجاهات سوقية مستقرة نسبيًا"
+        }
+
+    return {
+        "level": "مرتفع",
+        "tone": "استشاري",
+        "confidence": "عالية",
+        "note": "التحليل يستند إلى قاعدة بيانات قوية وموثوقة"
+    }
+
+
 class AIReportReasoner:
     def __init__(self):
         self.live_system = LiveDataSystem()
@@ -68,6 +102,7 @@ class AIReportReasoner:
         )
 
         policy = AI_PACKAGE_POLICY.get(package, AI_PACKAGE_POLICY["مجانية"])
+        analysis_depth = get_analysis_depth(real_data)
 
         # =========================
         # البيانات الحية
@@ -105,6 +140,10 @@ class AIReportReasoner:
             "مستوى_المخاطر_العام": market_insights
             .get("risk_assessment", {})
             .get("overall_risk", "متوسط"),
+            "عمق_التحليل": analysis_depth["level"],
+            "نبرة_التحليل": analysis_depth["tone"],
+            "مستوى_الثقة": analysis_depth["confidence"],
+            "ملاحظة_البيانات": analysis_depth["note"],
         }
 
         def apply_policy(key, full_text):
