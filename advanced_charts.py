@@ -23,6 +23,11 @@ class AdvancedCharts:
         "light_gray": "#F5F5F5",
         "text": "#333333",
     }
+    
+    # =====================
+    # DECISION CONSTANTS
+    # =====================
+    DECISION_BASE_PRICE_PER_SQM = 20000  # قاعدة القرار التنفيذي
 
     # =====================
     # HELPERS
@@ -76,7 +81,7 @@ class AdvancedCharts:
             ),
             plot_bgcolor=self.COLORS["light_gray"],
             paper_bgcolor="white",
-            hovermode="x unified",
+            hovermode="closest",  # ✅ التعديل: من "x unified" إلى "closest"
             hoverlabel=dict(font_size=15, font_family="Tajawal"),
         )
 
@@ -213,7 +218,6 @@ class AdvancedCharts:
         fig.add_vline(
             x=p.mean(),
             line=dict(color=self.COLORS["gold"], width=2, dash="dot"),
-            # ✅ التعديل 1: عنوان تنفيذي بلا رقم
             annotation_text="متوسط السعر",
             annotation_position="top",
             annotation_font=dict(size=12, family="Tajawal")
@@ -303,7 +307,7 @@ class AdvancedCharts:
     # =====================
     def ch4_market_indicators_bar(self, df):
         """
-        رسم 5: مقارنة مؤشرات السوق الرئيسية
+        رسم 5: لوحة قراءة السوق
         """
         if not self._has_columns(df, ["price", "area"]):
             return None
@@ -322,7 +326,6 @@ class AdvancedCharts:
         
         categories = ["متوسط السعر", "متوسط المساحة", "سعر المتر"]
         
-        # ✅ التعديل 2: قيم حقيقية بلا نسب افتراضية
         values = [
             avg_price,
             avg_area,
@@ -344,7 +347,6 @@ class AdvancedCharts:
                     ],
                     opacity=0.85
                 ),
-                # ✅ قيم فعلية لا نسب مئوية
                 text=[f"{v:,.0f}" for v in values],
                 textposition="outside"
             )
@@ -394,7 +396,7 @@ class AdvancedCharts:
         
         if avg_area > 0:
             price_per_sqm = avg_price / avg_area
-            score = min(100, max(0, (price_per_sqm / 20000) * 100))
+            score = min(100, max(0, (price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM) * 100))  # ✅ التعديل: ثابت مركزي
         else:
             score = 50
 
@@ -428,70 +430,57 @@ class AdvancedCharts:
         return fig
 
     # =====================
-    # CHAPTER 7 – EXECUTIVE DONUT
+    # CHAPTER 7 – EXECUTIVE DECISION BAR
     # =====================
-    def ch7_executive_donut(self, df):
+    def ch7_executive_decision_bar(self, df):
         """
-        رسم 7: الملخص التنفيذي (قوة القرار)
+        رسم 7: قرار الاستثمار التنفيذي (بديل Donut الملخص التنفيذي)
         """
-        if "price" not in df.columns:
+        if not self._has_columns(df, ["price", "area"]):
             return None
 
-        p = self._numeric(df["price"]).dropna()
-        if len(p) < 3:
+        tmp = df.copy()
+        tmp["price"] = self._numeric(tmp["price"])
+        tmp["area"] = self._numeric(tmp["area"])
+        tmp = tmp.dropna(subset=["price", "area"])
+
+        if len(tmp) < 5:
             return None
 
-        # حساب يعكس قوة القرار
-        avg_price = p.mean()
-        median_price = p.median()
-        volatility = p.std()
-        price_range = p.max() - p.min()
+        price_per_sqm = (tmp["price"] / tmp["area"]).mean()
 
-        # ✅ التعديل 3: ترتيب هرمي واضح للقرار
-        values = [
-            volatility,     # المخاطرة - الجزء الأكبر
-            price_range,    # التقلب
-            avg_price,      # القوة
-            median_price    # الاستقرار
-        ]
+        # تحويله إلى مقياس قرار (0 – 100)
+        score = min(100, max(0, (price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM) * 100))  # ✅ التعديل: ثابت مركزي
 
-        fig = go.Figure(
-            data=[
-                go.Pie(
-                    values=values,
-                    hole=0.75,
-                    # ✅ ترتيب ألوان يطابق الترتيب الهرمي
-                    marker=dict(
-                        colors=[
-                            self.COLORS["plum"],      # مخاطرة
-                            self.COLORS["lavender"],  # تقلب
-                            self.COLORS["emerald"],   # قوة
-                            self.COLORS["gold"]       # استقرار
-                        ],
-                        line=dict(width=2, color='white')
-                    ),
-                    textinfo="none",
-                    hoverinfo="none",
-                    sort=False
-                )
-            ]
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Bar(
+                x=[score],
+                y=["قرار الاستثمار"],
+                orientation="h",
+                marker=dict(color=self.COLORS["emerald"]),
+                text=[f"{score:.0f}"],
+                textposition="outside"
+            )
         )
 
         fig.update_layout(
-            title="الملخص التنفيذي",
+            title="قرار الاستثمار التنفيذي",
+            xaxis=dict(
+                range=[0, 100],
+                visible=False
+            ),
+            yaxis=dict(
+                visible=False
+            ),
             showlegend=False,
-            height=520,
-            margin=dict(l=20, r=20, t=80, b=20),
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="white",
-            font=dict(family="Tajawal"),
-            annotations=[]
+            height=300,
+            margin=dict(l=70, r=70, t=90, b=70),
+            font=dict(family="Tajawal")
         )
 
-        fig.update_xaxes(visible=False, showgrid=False, zeroline=False)
-        fig.update_yaxes(visible=False, showgrid=False, zeroline=False)
-
-        return fig
+        return self._safe(fig, height=300)  # ✅ التعديل: تمرير عبر _safe
 
     # =====================
     # CHAPTER 8 – FINAL CURVE
@@ -526,7 +515,6 @@ class AdvancedCharts:
         fig.update_layout(
             title="المنحنى الختامي",
             xaxis_title="نطاق السعر",
-            # ✅ التعديل 4: محور Y بدون عنوان أكاديمي
             yaxis_title="",
         )
         
@@ -581,9 +569,9 @@ class AdvancedCharts:
                 self.ch6_gauge(df),
             ]),
 
-            # ✅ فصل 7: الملخص التنفيذي
+            # ✅ فصل 7: قرار الاستثمار التنفيذي (بديل Donut)
             "chapter_7": clean([
-                self.ch7_executive_donut(df),
+                self.ch7_executive_decision_bar(df),
             ]),
 
             # ✅ فصل 8: المنحنى الختامي
