@@ -1,4 +1,4 @@
-# advanced_charts.py - النسخة المعدلة مع تحسين كامل للرسومات الحية
+# advanced_charts.py - الإصدار النهائي المستقر للرسومات الاحترافية
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -53,7 +53,7 @@ class AdvancedCharts:
         if "date" in df.columns:
             df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
-        # ✅ ملاحظة 1: تركيبة مرنة أكثر - لا نحذف بناءً على date أو district
+        # ✅ تركيبة مرنة أكثر - لا نحذف بناءً على date أو district
         # نحتفظ بالبيانات بقدر المستطاع
         if self._has_columns(df, ["price", "area"]):
             # نزيل فقط الصفوف التي تفتقر إلى البيانات الأساسية
@@ -73,7 +73,7 @@ class AdvancedCharts:
             height=height,
             margin=dict(l=70, r=70, t=90, b=70),
             font=dict(size=15, color=self.COLORS["text"], family="Tajawal"),
-            # ✅ التعديل 1: تكبير أرقام المحاور (x / y)
+            # ✅ تكبير أرقام المحاور (x / y)
             xaxis=dict(tickfont=dict(size=16)),
             yaxis=dict(tickfont=dict(size=16)),
             title=dict(
@@ -83,7 +83,7 @@ class AdvancedCharts:
             plot_bgcolor=self.COLORS["light_gray"],
             paper_bgcolor="white",
             hovermode="x unified",
-            # ✅ التعديل 2: تحسين قراءة القيم عند المرور (Hover)
+            # ✅ تحسين قراءة القيم عند المرور (Hover)
             hoverlabel=dict(font_size=15, font_family="Tajawal"),
         )
 
@@ -110,11 +110,11 @@ class AdvancedCharts:
                 xanchor="center",
                 pad=dict(t=10, b=10)  # ✅ تباعد مناسب
             ),
-            # ✅ هوامش صغيرة جداً لتكبير الدونت
-            margin=dict(l=20, r=20, t=80, b=60),  # ✅ زدنا b من 50 إلى 60 لترك مساحة أكبر للتعليق
+            # ✅ هوامش صغيرة جداً لتكبير الدونت مع مساحة للLegend
+            margin=dict(l=20, r=120, t=80, b=60),  # ✅ r=120 لاستيعاب الـ Legend
             plot_bgcolor="rgba(0,0,0,0)",  # ✅ خلفية شفافة
             paper_bgcolor="white",
-            height=520,  # ✅ زدنا الارتفاع قليلاً لاستيعاب التعليق
+            height=520,  # ✅ ارتفاع مناسب
             font=dict(family="Tajawal"),
             annotations=[]  # ✅ تأكد من عدم وجود أي نصوص
         )
@@ -147,11 +147,11 @@ class AdvancedCharts:
             "hoverinfo": "none",  # ✅ لا معلومات عند المرور
             "direction": 'clockwise',
             "rotation": 90,
-            "sort": False  # ✅ الحفاظ على ترتيب الألوان
+            "sort": False  # ✅ 🔒 تثبيت الترتيب - مهم جداً
         }
 
     # =====================
-    # REAL DATA – PRICE PER SQM BY DISTRICT (E2.1 رسم حقيقي جديد)
+    # REAL DATA – PRICE PER SQM BY DISTRICT (رسم حقيقي جديد)
     # =====================
     def ch1_price_per_sqm_by_district(self, df):
         """
@@ -208,6 +208,9 @@ class AdvancedCharts:
     # RHYTHM 1 – DONUT INSIGHT (VERSION FINAL - نظيف تماماً)
     # =====================
     def rhythm_price_donut(self, df, title=None):
+        """
+        ✅ الإصدار النهائي - مع Legend يدوي احترافي
+        """
         if "price" not in df.columns:
             return None
 
@@ -215,6 +218,7 @@ class AdvancedCharts:
         if len(p) < 5:
             return None
 
+        # حساب التوزيع حسب quantiles
         low = (p < p.quantile(0.33)).sum()
         mid = ((p >= p.quantile(0.33)) & (p < p.quantile(0.66))).sum()
         high = (p >= p.quantile(0.66)).sum()
@@ -227,14 +231,7 @@ class AdvancedCharts:
         mid_pct = round((mid / total) * 100)
         high_pct = round((high / total) * 100)
 
-        # ✅ جملة تنفيذية قصيرة
-        summary_text = (
-            f"يشكل النطاق المتوسط الشريحة الأكبر من السوق ({mid_pct}٪)، "
-            f"بينما تمثل الأسعار المرتفعة {high_pct}٪ "
-            f"والمنخفضة {low_pct}٪."
-        )
-
-        # ✅ استخدام الـhelper الموحد
+        # ✅ استخدام الـhelper الموحد مع تثبيت الترتيب
         fig = go.Figure(
             data=[
                 go.Pie(
@@ -250,22 +247,58 @@ class AdvancedCharts:
             title or "توزيع مستويات الأسعار"
         )
 
-        # ✅ إضافة التعليق الذكي أسفل الدونت
-        # ✅ ملاحظة 2: بدون خلفية أو حدود - أنقى بصريًا
-        fig.add_annotation(
-            text=summary_text,
-            x=0.5,
-            y=-0.12,  # ✅ تعديل الموضع ليكون أنسب
-            xref="paper",
-            yref="paper",
-            showarrow=False,
-            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
-            align="center",
-            bgcolor="rgba(255,255,255,0.0)",  # ✅ خلفية شفافة تماماً
-            bordercolor="rgba(0,0,0,0.0)",    # ✅ بدون حدود
-            borderwidth=0,
-            borderpad=8
-        )
+        # =====================
+        # CUSTOM LEGEND (RIGHT SIDE) - تصميم احترافي نهائي
+        # =====================
+
+        legend_items = [
+            {
+                "label": f"أسعار منخفضة ({low_pct}٪)",
+                "color": self.COLORS["mint"],
+                "y": 0.60
+            },
+            {
+                "label": f"أسعار متوسطة ({mid_pct}٪)",
+                "color": self.COLORS["lavender"],
+                "y": 0.50
+            },
+            {
+                "label": f"أسعار مرتفعة ({high_pct}٪)",
+                "color": self.COLORS["gold"],
+                "y": 0.40
+            },
+        ]
+
+        # ✅ حماية من overlap نادر مع تحسين التباعد
+        for item in legend_items:
+            # المربع الملون (مقاس مناسب وثابت)
+            fig.add_shape(
+                type="rect",
+                xref="paper",
+                yref="paper",
+                x0=1.01,  # ✅ تعديل لطيف للتباعد
+                x1=1.04,
+                y0=item["y"] - 0.015,
+                y1=item["y"] + 0.015,
+                fillcolor=item["color"],
+                line=dict(width=0)
+            )
+
+            # النص أمام المربع
+            fig.add_annotation(
+                x=1.05,  # ✅ تعديل لطيف للتباعد
+                y=item["y"],
+                xref="paper",
+                yref="paper",
+                text=item["label"],
+                showarrow=False,
+                align="left",
+                font=dict(
+                    size=14,
+                    family="Tajawal",
+                    color=self.COLORS["text"]
+                )
+            )
 
         return fig  # ❌ لا نستخدم _safe() على الدونتس أبداً
 
@@ -305,7 +338,6 @@ class AdvancedCharts:
         )
 
         fig.update_layout(title=title)
-        # ✅ تحديد الحجم صراحة - 520 للرسومات الكبيرة
         return self._safe(fig, height=520)
 
     # =====================
@@ -318,7 +350,6 @@ class AdvancedCharts:
         """
         fig = go.Figure()
 
-        # خط وهمي خفيف (للهيكل فقط)
         fig.add_trace(
             go.Scatter(
                 x=[0, 1],
@@ -341,7 +372,6 @@ class AdvancedCharts:
             paper_bgcolor="white",
         )
 
-        # ✅ تحديد الحجم صراحة - 520 للرسومات الكبيرة
         return self._safe(fig, height=520)
 
     # =====================
@@ -351,7 +381,6 @@ class AdvancedCharts:
         if not self._has_columns(df, ["price", "area"]):
             return None
 
-        # استخدام البيانات الحية لإنشاء scatter plot حقيقي
         tmp = df.copy()
         tmp["price"] = self._numeric(tmp["price"])
         tmp["area"] = self._numeric(tmp["area"])
@@ -413,18 +442,9 @@ class AdvancedCharts:
             )
         )
 
-        fig.update_xaxes(
-            showgrid=False,
-            zeroline=False
-        )
+        fig.update_xaxes(showgrid=False, zeroline=False)
+        fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.06)", zeroline=False)
 
-        fig.update_yaxes(
-            showgrid=True,
-            gridcolor="rgba(0,0,0,0.06)",
-            zeroline=False
-        )
-
-        # ✅ حجم عادي (460) - ليس من الرسومات الكبيرة
         return self._safe(fig, height=460)
 
     # =====================
@@ -457,8 +477,6 @@ class AdvancedCharts:
             )
         )
 
-        # ✅ التعديل 1: اختصار عنوان محور Y
-        # ✅ التعديل 2: تقليل المسافة العمودية للعنوان
         fig.update_layout(
             title="تدفق الأسعار عبر الزمن",
             xaxis_title="الزمن",
@@ -466,7 +484,6 @@ class AdvancedCharts:
             yaxis=dict(title_standoff=10),
         )
 
-        # ✅ تحديد الحجم صراحة - 520 للرسومات الكبيرة
         return self._safe(fig, height=520)
 
     # =====================
@@ -476,14 +493,12 @@ class AdvancedCharts:
         if not self._has_columns(df, ["price", "area"]):
             return None
 
-        # أخذ عينة عشوائية من البيانات الحية
         sample_size = min(12, len(df))
         if sample_size < 3:
             return None
             
         sample = df[["area", "price"]].sample(n=sample_size, random_state=42)
 
-        # تنسيق الأرقام
         sample_display = sample.copy()
         sample_display["price"] = sample_display["price"].apply(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
         sample_display["area"] = sample_display["area"].apply(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
@@ -536,12 +551,10 @@ class AdvancedCharts:
         if len(tmp) < 3:
             return None
 
-        # حساب مؤشرات حقيقية من البيانات
         avg_price = tmp["price"].mean()
         avg_area = tmp["area"].mean()
         price_per_sqm = avg_price / avg_area if avg_area > 0 else 0
         
-        # تحويل إلى نسب مئوية مقارنة بالمتوسط
         categories = ["متوسط السعر", "متوسط المساحة", "سعر المتر"]
         values = [
             min(100, (avg_price / 3000000) * 100) if avg_price > 0 else 0,
@@ -585,7 +598,6 @@ class AdvancedCharts:
             bargap=0.4
         )
 
-        # ✅ حجم عادي (460) - ليس من الرسومات الكبيرة
         return self._safe(fig, height=460)
 
     # =====================
@@ -624,7 +636,6 @@ class AdvancedCharts:
             linecolor="rgba(0,0,0,0.1)"
         )
 
-        # ✅ حجم عادي (460) - ليس من الرسومات الكبيرة
         return self._safe(fig, height=460)
 
     # =====================
@@ -642,13 +653,11 @@ class AdvancedCharts:
         if len(tmp) < 5:
             return None
 
-        # حساب مؤشر حقيقي من البيانات (نسبة متوسط السعر إلى متوسط المساحة)
         avg_price = tmp["price"].mean()
         avg_area = tmp["area"].mean()
         
         if avg_area > 0:
             price_per_sqm = avg_price / avg_area
-            # تحويل إلى قيمة بين 0 و 100
             score = min(100, max(0, (price_per_sqm / 20000) * 100))
         else:
             score = 50
@@ -693,8 +702,6 @@ class AdvancedCharts:
         if len(p) < 3:
             return None
 
-        # ✅ ملاحظة 3: هذا مقبول الآن (تحليليًا تقريبي)
-        # يمكن ربطه بنتيجة AI score لاحقًا
         lower = p.quantile(0.25)
         middle_lower = p.quantile(0.5) - p.quantile(0.25)
         middle_upper = p.quantile(0.75) - p.quantile(0.5)
@@ -756,13 +763,15 @@ class AdvancedCharts:
             yaxis_title="الكثافة النسبية",
         )
         
-        # ✅ تحديد الحجم صراحة - 520 للرسومات الكبيرة
         return self._safe(fig, height=520)
 
     # =====================
     # ENGINE
     # =====================
     def generate_all_charts(self, df):
+        """
+        ✅ المحرك النهائي - توزيع الرسومات على الفصول
+        """
         if df is None or df.empty:
             return {}
 
@@ -780,24 +789,24 @@ class AdvancedCharts:
             ]),
             "chapter_2": clean([
                 self.ch2_price_stream(df),                    # 🔥 حقيقي
-                self.rhythm_price_donut(df, "مستويات الأسعار"),    # 🔥 حقيقي + تعليق ذكي
+                self.rhythm_price_donut(df, "مستويات الأسعار"),    # 🔥 حقيقي + Legend يدوي
                 self.rhythm_price_curve(df, "توزيع الأسعار عبر الزمن"),  # 🔥 حقيقي
             ]),
             "chapter_3": clean([
                 self.ch3_table_sample(df),                    # 🔥 حقيقي
-                self.rhythm_price_donut(df, "نطاق العينة"),        # 🔥 حقيقي + تعليق ذكي
+                self.rhythm_price_donut(df, "نطاق العينة"),        # 🔥 حقيقي + Legend يدوي
                 self.rhythm_price_curve(df, "تشتت الأسعار"),       # 🔥 حقيقي
             ]),
             "chapter_4": clean([
-                self.rhythm_price_donut(df, "نطاقات السوق"),       # 🔥 حقيقي + تعليق ذكي
+                self.rhythm_price_donut(df, "نطاقات السوق"),       # 🔥 حقيقي + Legend يدوي
                 self.ch4_market_indicators_bar(df),            # 🔥 حقيقي
             ]),
             "chapter_5": clean([
-                self.rhythm_price_donut(df, "قراءة هيكلية للسوق"), # 🔥 حقيقي + تعليق ذكي
+                self.rhythm_price_donut(df, "قراءة هيكلية للسوق"), # 🔥 حقيقي + Legend يدوي
                 self.ch5_future_opportunity_placeholder(),     # الوحيد الثابت
             ]),
             "chapter_6": clean([
-                self.rhythm_price_donut(df, "رأس المال"),          # 🔥 حقيقي + تعليق ذكي
+                self.rhythm_price_donut(df, "رأس المال"),          # 🔥 حقيقي + Legend يدوي
                 self.rhythm_placeholder_curve("توزيع الاستثمار"),  # لا يزال ثابت
                 self.ch6_gauge(df),                           # 🔥 حقيقي
             ]),
