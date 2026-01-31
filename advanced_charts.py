@@ -249,21 +249,22 @@ class AdvancedCharts:
 
         # =====================
         # CUSTOM LEGEND (RIGHT SIDE) - تصميم احترافي نهائي
+        # ✅ استخدام صيغة عربية سليمة بدون أقواس وبدون رمز %
         # =====================
 
         legend_items = [
             {
-                "label": f"أسعار منخفضة ({low_pct}٪)",
+                "label": f"أسعار منخفضة — {low_pct} بالمئة",
                 "color": self.COLORS["mint"],
                 "y": 0.60
             },
             {
-                "label": f"أسعار متوسطة ({mid_pct}٪)",
+                "label": f"أسعار متوسطة — {mid_pct} بالمئة",
                 "color": self.COLORS["lavender"],
                 "y": 0.50
             },
             {
-                "label": f"أسعار مرتفعة ({high_pct}٪)",
+                "label": f"أسعار مرتفعة — {high_pct} بالمئة",
                 "color": self.COLORS["gold"],
                 "y": 0.40
             },
@@ -562,6 +563,7 @@ class AdvancedCharts:
             min(100, (price_per_sqm / 15000) * 100) if price_per_sqm > 0 else 0
         ]
 
+        # ✅ تصحيح التنسيق النصي - بدون %
         fig = go.Figure()
 
         fig.add_trace(
@@ -577,7 +579,7 @@ class AdvancedCharts:
                     ],
                     opacity=0.85
                 ),
-                text=[f"{v:.0f}%" for v in values],
+                text=[f"{v:.0f} بالمئة" for v in values],  # ✅ تغيير هنا
                 textposition="outside"
             )
         )
