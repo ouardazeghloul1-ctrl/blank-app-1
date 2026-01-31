@@ -43,6 +43,7 @@ class AdvancedCharts:
             
         df = df.copy()
 
+        # تحويل الأعمدة الأساسية إلى قيم رقمية
         if "price" in df.columns:
             df["price"] = pd.to_numeric(df["price"], errors="coerce")
 
@@ -52,12 +53,11 @@ class AdvancedCharts:
         if "date" in df.columns:
             df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
-        # الاحتفاظ فقط بالصفوف التي تحتوي على بيانات أساسية
-        required_cols = ["price", "area"]
-        has_required = all(col in df.columns for col in required_cols)
-        
-        if has_required:
-            return df.dropna(subset=["price", "area"])
+        # ✅ ملاحظة 1: تركيبة مرنة أكثر - لا نحذف بناءً على date أو district
+        # نحتفظ بالبيانات بقدر المستطاع
+        if self._has_columns(df, ["price", "area"]):
+            # نزيل فقط الصفوف التي تفتقر إلى البيانات الأساسية
+            df = df.dropna(subset=["price", "area"])
         
         return df
 
@@ -111,10 +111,10 @@ class AdvancedCharts:
                 pad=dict(t=10, b=10)  # ✅ تباعد مناسب
             ),
             # ✅ هوامش صغيرة جداً لتكبير الدونت
-            margin=dict(l=20, r=20, t=80, b=20),  # ✅ هوامش صغيرة جداً
+            margin=dict(l=20, r=20, t=80, b=60),  # ✅ زدنا b من 50 إلى 60 لترك مساحة أكبر للتعليق
             plot_bgcolor="rgba(0,0,0,0)",  # ✅ خلفية شفافة
             paper_bgcolor="white",
-            height=500,  # ✅ ارتفاع ثابت لجميع الدونتس
+            height=520,  # ✅ زدنا الارتفاع قليلاً لاستيعاب التعليق
             font=dict(family="Tajawal"),
             annotations=[]  # ✅ تأكد من عدم وجود أي نصوص
         )
@@ -197,7 +197,7 @@ class AdvancedCharts:
 
         fig.update_layout(
             title="متوسط سعر المتر حسب المنطقة",
-            xaxis_title="سعر المتر",
+            xaxis_title="سعر المتر (ريال/م²)",
             yaxis_title="المنطقة",
             yaxis=dict(autorange="reversed"),
         )
@@ -219,6 +219,22 @@ class AdvancedCharts:
         mid = ((p >= p.quantile(0.33)) & (p < p.quantile(0.66))).sum()
         high = (p >= p.quantile(0.66)).sum()
 
+        total = low + mid + high
+        if total == 0:
+            return None
+
+        low_pct = round((low / total) * 100)
+        mid_pct = round((mid / total) * 100)
+        high_pct = round((high / total) * 100)
+
+        # ✅ جملة تنفيذية قصيرة
+        summary_text = (
+            f"يشكل النطاق المتوسط الشريحة الأكبر من السوق ({mid_pct}٪)، "
+            f"بينما تمثل الأسعار المرتفعة {high_pct}٪ "
+            f"والمنخفضة {low_pct}٪."
+        )
+
+        # ✅ استخدام الـhelper الموحد
         fig = go.Figure(
             data=[
                 go.Pie(
@@ -228,12 +244,30 @@ class AdvancedCharts:
             ]
         )
 
+        # ✅ استخدام الـhelper الموحد للإعدادات
         fig = self._donut_base_layout(
             fig,
             title or "توزيع مستويات الأسعار"
         )
 
-        return fig
+        # ✅ إضافة التعليق الذكي أسفل الدونت
+        # ✅ ملاحظة 2: بدون خلفية أو حدود - أنقى بصريًا
+        fig.add_annotation(
+            text=summary_text,
+            x=0.5,
+            y=-0.12,  # ✅ تعديل الموضع ليكون أنسب
+            xref="paper",
+            yref="paper",
+            showarrow=False,
+            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
+            align="center",
+            bgcolor="rgba(255,255,255,0.0)",  # ✅ خلفية شفافة تماماً
+            bordercolor="rgba(0,0,0,0.0)",    # ✅ بدون حدود
+            borderwidth=0,
+            borderpad=8
+        )
+
+        return fig  # ❌ لا نستخدم _safe() على الدونتس أبداً
 
     # =====================
     # RHYTHM 2 – SOFT DISTRIBUTION (مكبر - ارتفاع 520)
@@ -265,8 +299,9 @@ class AdvancedCharts:
         fig.add_vline(
             x=p.mean(),
             line=dict(color=self.COLORS["gold"], width=2, dash="dot"),
-            annotation_text="متوسط السوق",
+            annotation_text=f"متوسط السوق: {p.mean():,.0f} ريال",
             annotation_position="top",
+            annotation_font=dict(size=12, family="Tajawal")
         )
 
         fig.update_layout(title=title)
@@ -337,7 +372,9 @@ class AdvancedCharts:
                     color=self.COLORS["emerald"],
                     opacity=0.7
                 ),
-                name="العقارات"
+                name="العقارات",
+                text=[f"المساحة: {a} م²<br>السعر: {p:,.0f} ريال" for a, p in zip(tmp["area"], tmp["price"])],
+                hoverinfo="text"
             )
         )
 
@@ -366,7 +403,7 @@ class AdvancedCharts:
                 x=0.5
             ),
             xaxis_title="المساحة بالمتر المربع",
-            yaxis_title="السعر",
+            yaxis_title="السعر (ريال)",
             showlegend=True,
             legend=dict(
                 yanchor="top",
@@ -425,7 +462,7 @@ class AdvancedCharts:
         fig.update_layout(
             title="تدفق الأسعار عبر الزمن",
             xaxis_title="الزمن",
-            yaxis_title="القيمة السوقية",
+            yaxis_title="القيمة السوقية (ريال)",
             yaxis=dict(title_standoff=10),
         )
 
@@ -441,6 +478,9 @@ class AdvancedCharts:
 
         # أخذ عينة عشوائية من البيانات الحية
         sample_size = min(12, len(df))
+        if sample_size < 3:
+            return None
+            
         sample = df[["area", "price"]].sample(n=sample_size, random_state=42)
 
         # تنسيق الأرقام
@@ -653,7 +693,8 @@ class AdvancedCharts:
         if len(p) < 3:
             return None
 
-        # حساب توزيع حقيقي
+        # ✅ ملاحظة 3: هذا مقبول الآن (تحليليًا تقريبي)
+        # يمكن ربطه بنتيجة AI score لاحقًا
         lower = p.quantile(0.25)
         middle_lower = p.quantile(0.5) - p.quantile(0.25)
         middle_upper = p.quantile(0.75) - p.quantile(0.5)
@@ -711,7 +752,7 @@ class AdvancedCharts:
 
         fig.update_layout(
             title="المنحنى الختامي - نظرة نهائية",
-            xaxis_title="نطاق السعر",
+            xaxis_title="نطاق السعر (ريال)",
             yaxis_title="الكثافة النسبية",
         )
         
@@ -739,24 +780,24 @@ class AdvancedCharts:
             ]),
             "chapter_2": clean([
                 self.ch2_price_stream(df),                    # 🔥 حقيقي
-                self.rhythm_price_donut(df, "مستويات الأسعار"),    # 🔥 حقيقي
+                self.rhythm_price_donut(df, "مستويات الأسعار"),    # 🔥 حقيقي + تعليق ذكي
                 self.rhythm_price_curve(df, "توزيع الأسعار عبر الزمن"),  # 🔥 حقيقي
             ]),
             "chapter_3": clean([
                 self.ch3_table_sample(df),                    # 🔥 حقيقي
-                self.rhythm_price_donut(df, "نطاق العينة"),        # 🔥 حقيقي
+                self.rhythm_price_donut(df, "نطاق العينة"),        # 🔥 حقيقي + تعليق ذكي
                 self.rhythm_price_curve(df, "تشتت الأسعار"),       # 🔥 حقيقي
             ]),
             "chapter_4": clean([
-                self.rhythm_price_donut(df, "نطاقات السوق"),       # 🔥 حقيقي
+                self.rhythm_price_donut(df, "نطاقات السوق"),       # 🔥 حقيقي + تعليق ذكي
                 self.ch4_market_indicators_bar(df),            # 🔥 حقيقي
             ]),
             "chapter_5": clean([
-                self.rhythm_price_donut(df, "قراءة هيكلية للسوق"), # 🔥 حقيقي
+                self.rhythm_price_donut(df, "قراءة هيكلية للسوق"), # 🔥 حقيقي + تعليق ذكي
                 self.ch5_future_opportunity_placeholder(),     # الوحيد الثابت
             ]),
             "chapter_6": clean([
-                self.rhythm_price_donut(df, "رأس المال"),          # 🔥 حقيقي
+                self.rhythm_price_donut(df, "رأس المال"),          # 🔥 حقيقي + تعليق ذكي
                 self.rhythm_placeholder_curve("توزيع الاستثمار"),  # لا يزال ثابت
                 self.ch6_gauge(df),                           # 🔥 حقيقي
             ]),
