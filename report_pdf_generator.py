@@ -163,6 +163,17 @@ def create_pdf_from_content(
         spaceAfter=10,
     )
 
+    ai_decision_box = ParagraphStyle(
+        "AIDecisionBox",
+        parent=body,
+        backColor=colors.HexColor("#F7F7F7"),
+        borderPadding=12,
+        rightIndent=6,
+        leftIndent=6,
+        spaceBefore=16,
+        spaceAfter=20,
+    )
+
     title = ParagraphStyle(
         "ArabicTitle",
         parent=styles["Title"],
@@ -191,6 +202,7 @@ def create_pdf_from_content(
     chart_cursor = {}
     text_since_chart = 0
     first_chapter_processed = False  # ⭐ المفتاح لحل الصفحة الفارغة
+    decision_mode = False  # ⭐ متغير لتتبع وضع القرار الاستثماري
 
     lines = content_text.split("\n")
 
@@ -210,11 +222,20 @@ def create_pdf_from_content(
             story.append(Spacer(1, 1.5 * cm))
             story.append(Paragraph(ar(clean), chapter))
             story.append(Spacer(1, 0.8 * cm))
+            decision_mode = False
             continue
 
-        # 📊 💎 ⚠️ 🏁 عناوين فرعية
-        if clean.startswith(("📊", "💎", "⚠️", "🏁")):
+        # 🏁 القرار الاستثماري النهائي (تمييز خاص)
+        if clean.startswith("🏁"):
             story.append(Paragraph(ar(clean), ai_sub_title))
+            story.append(Spacer(1, 0.4 * cm))
+            decision_mode = True
+            continue
+
+        # 📊 💎 ⚠️ عناوين فرعية عادية
+        if clean.startswith(("📊", "💎", "⚠️")):
+            story.append(Paragraph(ar(clean), ai_sub_title))
+            decision_mode = False
             continue
 
         # -------- CHAPTER --------
@@ -226,6 +247,7 @@ def create_pdf_from_content(
             chapter_index += 1
             chart_cursor[chapter_index] = 0
             text_since_chart = 0
+            decision_mode = False
 
             story.append(
                 KeepTogether([
@@ -241,7 +263,10 @@ def create_pdf_from_content(
         if chapter_index >= 9:
             # ✅ الفلترة النهائية: فلترة UTF-8 قبل Paragraph
             clean = clean.encode("utf-8", "ignore").decode("utf-8")
-            story.append(Paragraph(ar(clean), body))
+            if decision_mode:
+                story.append(Paragraph(ar(clean), ai_decision_box))
+            else:
+                story.append(Paragraph(ar(clean), body))
             continue
 
         charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
@@ -257,6 +282,7 @@ def create_pdf_from_content(
                     story.append(Spacer(1, 2.0 * cm))
                 chart_cursor[chapter_index] += 1
                 text_since_chart = 0
+            decision_mode = False
             continue
 
         # -------- RHYTHM CHART --------
@@ -307,12 +333,16 @@ def create_pdf_from_content(
                 
                 chart_cursor[chapter_index] += 1
                 text_since_chart = 0
+            decision_mode = False
             continue
 
         # -------- NORMAL TEXT --------
         # ✅ التصحيح النهائي: فلترة UTF-8 واحدة فقط (بعد clean_text)
         clean = clean.encode("utf-8", "ignore").decode("utf-8")
-        story.append(Paragraph(ar(clean), body))
+        if decision_mode:
+            story.append(Paragraph(ar(clean), ai_decision_box))
+        else:
+            story.append(Paragraph(ar(clean), body))
         text_since_chart += 1
 
     # =========================
