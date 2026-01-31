@@ -200,7 +200,6 @@ def create_pdf_from_content(
 
     chapter_index = 0
     chart_cursor = {}
-    text_since_chart = 0
     first_chapter_processed = False  # ⭐ المفتاح لحل الصفحة الفارغة
     decision_mode = False  # ⭐ متغير لتتبع وضع القرار الاستثماري
 
@@ -246,7 +245,6 @@ def create_pdf_from_content(
 
             chapter_index += 1
             chart_cursor[chapter_index] = 0
-            text_since_chart = 0
             decision_mode = False
 
             story.append(
@@ -274,20 +272,27 @@ def create_pdf_from_content(
 
         # -------- ANCHOR CHART --------
         if clean == "[[ANCHOR_CHART]]":
-            if cursor < len(charts) and text_since_chart >= 6:
+            if cursor < len(charts):  # ✅ تم إزالة شرط text_since_chart
                 img = plotly_to_image(charts[cursor], 16.8, 8.8)
                 if img:
                     story.append(Spacer(1, 1.6 * cm))
                     story.append(img)
-                    story.append(Spacer(1, 2.0 * cm))
+                    story.append(Spacer(1, 0.6 * cm))  # ✅ مسافة موحدة قبل النص
+                    # ✅ إضافة النص التوضيحي المؤقت تحت الرسمة
+                    story.append(
+                        Paragraph(
+                            ar("سيتم وضع شرح خاص بهذه الرسمة هنا لاحقًا"),  # ✅ بدون سهم
+                            body
+                        )
+                    )
+                    story.append(Spacer(1, 1.6 * cm))  # ✅ مسافة موحدة بعد النص
                 chart_cursor[chapter_index] += 1
-                text_since_chart = 0
             decision_mode = False
             continue
 
         # -------- RHYTHM CHART --------
         if clean == "[[RHYTHM_CHART]]":
-            if cursor < len(charts) and text_since_chart >= 4:
+            if cursor < len(charts):  # ✅ تم إزالة شرط text_since_chart
                 # ⭐⭐ الحل الذكي: تحديد حجم الرسم بناءً على نوعها
                 fig = charts[cursor]
                 
@@ -325,14 +330,17 @@ def create_pdf_from_content(
                         story.append(Spacer(1, 1.4 * cm))
                     
                     story.append(img)
-                    
-                    if is_indicator:
-                        story.append(Spacer(1, 2.0 * cm))  # ✅ مسافة أكبر بعد المؤشر
-                    else:
-                        story.append(Spacer(1, 1.8 * cm))
+                    story.append(Spacer(1, 0.6 * cm))  # ✅ مسافة موحدة قبل النص
+                    # ✅ إضافة النص التوضيحي المؤقت تحت الرسمة
+                    story.append(
+                        Paragraph(
+                            ar("سيتم وضع شرح خاص بهذه الرسمة هنا لاحقًا"),  # ✅ بدون سهم
+                            body
+                        )
+                    )
+                    story.append(Spacer(1, 1.6 * cm))  # ✅ مسافة موحدة بعد النص
                 
                 chart_cursor[chapter_index] += 1
-                text_since_chart = 0
             decision_mode = False
             continue
 
@@ -343,7 +351,6 @@ def create_pdf_from_content(
             story.append(Paragraph(ar(clean), ai_decision_box))
         else:
             story.append(Paragraph(ar(clean), body))
-        text_since_chart += 1
 
     # =========================
     # BUILD
