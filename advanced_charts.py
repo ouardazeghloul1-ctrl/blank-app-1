@@ -1,4 +1,4 @@
-# advanced_charts.py - النسخة المعدلة مع تحسين عناوين المحاور
+# advanced_charts.py - النسخة المعدلة مع رسم بيانات حقيقي
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -122,6 +122,60 @@ class AdvancedCharts:
             "rotation": 90,
             "sort": False  # ✅ الحفاظ على ترتيب الألوان
         }
+
+    # =====================
+    # REAL DATA – PRICE PER SQM BY DISTRICT (E2.1 رسم حقيقي جديد)
+    # =====================
+    def ch1_price_per_sqm_by_district(self, df):
+        """
+        رسم حقيقي: متوسط سعر المتر حسب المنطقة
+        """
+        # تحديد اسم العمود بمرونة
+        district_col = (
+            "المنطقة" if "المنطقة" in df.columns
+            else "district" if "district" in df.columns
+            else "الحي" if "الحي" in df.columns
+            else None
+        )
+
+        if district_col is None or not self._has_columns(df, ["price", "area"]):
+            return None
+
+        tmp = df.copy()
+        tmp["price"] = self._numeric(tmp["price"])
+        tmp["area"] = self._numeric(tmp["area"])
+        tmp["price_per_sqm"] = tmp["price"] / tmp["area"]
+
+        tmp = tmp.dropna(subset=["price_per_sqm", district_col])
+
+        if tmp[district_col].nunique() < 2:
+            return None
+
+        agg = (
+            tmp
+            .groupby(district_col)["price_per_sqm"]
+            .mean()
+            .sort_values(ascending=False)
+            .head(10)
+        )
+
+        fig = go.Figure(
+            go.Bar(
+                x=agg.values,
+                y=agg.index,
+                orientation="h",
+                marker=dict(color=self.COLORS["emerald"]),
+            )
+        )
+
+        fig.update_layout(
+            title="متوسط سعر المتر حسب المنطقة",
+            xaxis_title="سعر المتر",
+            yaxis_title="المنطقة",
+            yaxis=dict(autorange="reversed"),
+        )
+
+        return self._safe(fig, height=520)
 
     # =====================
     # RHYTHM 1 – DONUT INSIGHT (VERSION FINAL - نظيف تماماً)
@@ -517,9 +571,9 @@ class AdvancedCharts:
 
         return {
             "chapter_1": clean([
-                self.ch1_price_vs_area_flow(df),              # حجم عادي
-                self.rhythm_price_donut(df, "قراءة سريعة للسوق"),  # دونت
-                self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),  # مكبر
+                self.ch1_price_per_sqm_by_district(df),   # 🔥 رسم حقيقي جديد
+                self.ch1_price_vs_area_flow(df),
+                self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),
             ]),
             "chapter_2": clean([
                 self.ch2_price_stream(df),                    # مكبر
