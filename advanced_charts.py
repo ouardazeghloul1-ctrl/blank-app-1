@@ -1,4 +1,4 @@
-# advanced_charts.py - الإصدار النهائي النخبوي
+# advanced_charts.py - الإصدار النهائي المعدّل (جاهز للبيع)
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -86,66 +86,11 @@ class AdvancedCharts:
         return fig
 
     # =====================
-    # DONUT HELPER (التنظيم المحسّن)
-    # =====================
-    def _donut_base_layout(self, fig, title):
-        """
-        ✅ Helper موحد لإعدادات الدونت الأساسية
-        """
-        fig.update_layout(
-            showlegend=False,
-            title=dict(
-                text=title,
-                font=dict(size=24, family="Tajawal", color=self.COLORS["text"]),
-                y=0.97,
-                x=0.5,
-                xanchor="center",
-                pad=dict(t=10, b=10)
-            ),
-            margin=dict(l=20, r=120, t=80, b=60),
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="white",
-            height=520,
-            font=dict(family="Tajawal"),
-            annotations=[]
-        )
-
-        fig.update_xaxes(visible=False, showgrid=False, zeroline=False)
-        fig.update_yaxes(visible=False, showgrid=False, zeroline=False)
-
-        return fig
-
-    def _donut_base_style(self, colors=None):
-        """
-        ✅ إعدادات القطاعات الأساسية للدونت
-        """
-        if colors is None:
-            colors = [
-                self.COLORS["mint"],
-                self.COLORS["lavender"],
-                self.COLORS["gold"],
-            ]
-        
-        return {
-            "hole": 0.85,
-            "domain": dict(x=[0.05, 0.95], y=[0.10, 0.90]),
-            "marker": dict(
-                colors=colors,
-                line=dict(width=2, color='white')
-            ),
-            "textinfo": "none",
-            "hoverinfo": "none",
-            "direction": 'clockwise',
-            "rotation": 90,
-            "sort": False
-        }
-
-    # =====================
-    # REAL DATA – PRICE PER SQM BY DISTRICT
+    # CHAPTER 1 – PRICE PER SQM BY DISTRICT
     # =====================
     def ch1_price_per_sqm_by_district(self, df):
         """
-        رسم حقيقي: متوسط سعر المتر حسب المنطقة
+        رسم 1: متوسط سعر المتر حسب المنطقة
         """
         district_col = (
             "المنطقة" if "المنطقة" in df.columns
@@ -194,101 +139,54 @@ class AdvancedCharts:
         return self._safe(fig, height=520)
 
     # =====================
-    # RHYTHM 1 – DONUT INSIGHT
+    # CHAPTER 2 – TIME FLOW
     # =====================
-    def rhythm_price_donut(self, df, title=None):
+    def ch2_price_stream(self, df):
         """
-        ✅ الإصدار النهائي - مع Legend يدوي احترافي
+        رسم 2: تدفق الأسعار عبر الزمن
         """
-        if "price" not in df.columns:
+        if not self._has_columns(df, ["date", "price"]):
             return None
 
-        p = self._numeric(df["price"]).dropna()
-        if len(p) < 5:
+        tmp = df.copy()
+        tmp["date"] = pd.to_datetime(tmp["date"], errors="coerce")
+        tmp["price"] = self._numeric(tmp["price"])
+        tmp = tmp.dropna(subset=["date", "price"])
+        tmp = tmp.sort_values("date")
+
+        if len(tmp) < 5:
             return None
 
-        low = (p < p.quantile(0.33)).sum()
-        mid = ((p >= p.quantile(0.33)) & (p < p.quantile(0.66))).sum()
-        high = (p >= p.quantile(0.66)).sum()
+        fig = go.Figure()
 
-        total = low + mid + high
-        if total == 0:
-            return None
-
-        low_pct = round((low / total) * 100)
-        mid_pct = round((mid / total) * 100)
-        high_pct = round((high / total) * 100)
-
-        fig = go.Figure(
-            data=[
-                go.Pie(
-                    values=[low, mid, high],
-                    **self._donut_base_style()
-                )
-            ]
+        fig.add_trace(
+            go.Scatter(
+                x=tmp["date"],
+                y=tmp["price"],
+                mode="lines+markers",
+                line=dict(color=self.COLORS["emerald"], width=3),
+                marker=dict(size=6, color=self.COLORS["gold"]),
+                fill="tozeroy",
+                fillcolor="rgba(27,94,32,0.18)",
+            )
         )
 
-        fig = self._donut_base_layout(
-            fig,
-            title or "توزيع مستويات الأسعار"
+        fig.update_layout(
+            title="تدفق الأسعار عبر الزمن",
+            xaxis_title="الزمن",
+            yaxis_title="القيمة السوقية",
+            yaxis=dict(title_standoff=10),
         )
 
-        # =====================
-        # CUSTOM LEGEND (RIGHT SIDE) - صيغة RTL ثابتة
-        # =====================
-
-        legend_items = [
-            {
-                "label": f"أسعار منخفضة — نسبة {low_pct}",
-                "color": self.COLORS["mint"],
-                "y": 0.60
-            },
-            {
-                "label": f"أسعار متوسطة — نسبة {mid_pct}",
-                "color": self.COLORS["lavender"],
-                "y": 0.50
-            },
-            {
-                "label": f"أسعار مرتفعة — نسبة {high_pct}",
-                "color": self.COLORS["gold"],
-                "y": 0.40
-            },
-        ]
-
-        for item in legend_items:
-            fig.add_shape(
-                type="rect",
-                xref="paper",
-                yref="paper",
-                x0=1.01,
-                x1=1.04,
-                y0=item["y"] - 0.015,
-                y1=item["y"] + 0.015,
-                fillcolor=item["color"],
-                line=dict(width=0)
-            )
-
-            fig.add_annotation(
-                x=1.05,
-                y=item["y"],
-                xref="paper",
-                yref="paper",
-                text=item["label"],
-                showarrow=False,
-                align="left",
-                font=dict(
-                    size=14,
-                    family="Tajawal",
-                    color=self.COLORS["text"]
-                )
-            )
-
-        return fig
+        return self._safe(fig, height=520)
 
     # =====================
-    # RHYTHM 2 – SOFT DISTRIBUTION
+    # CHAPTER 3 – PRICE DISTRIBUTION
     # =====================
     def rhythm_price_curve(self, df, title):
+        """
+        رسم 3: توزيع الأسعار
+        """
         if "price" not in df.columns:
             return None
 
@@ -315,18 +213,23 @@ class AdvancedCharts:
         fig.add_vline(
             x=p.mean(),
             line=dict(color=self.COLORS["gold"], width=2, dash="dot"),
-            annotation_text=f"متوسط السوق {p.mean():,.0f}",
+            # ✅ التعديل 1: عنوان تنفيذي بلا رقم
+            annotation_text="متوسط السعر",
             annotation_position="top",
             annotation_font=dict(size=12, family="Tajawal")
         )
 
         fig.update_layout(title=title)
+        fig.update_xaxes(tickformat="~s")
         return self._safe(fig, height=520)
 
     # =====================
-    # CHAPTER 1 – MARKET RELATION
+    # CHAPTER 4 – MARKET RELATION
     # =====================
     def ch1_price_vs_area_flow(self, df):
+        """
+        رسم 4: تحليل العلاقة بين المساحة والسعر
+        """
         if not self._has_columns(df, ["price", "area"]):
             return None
 
@@ -351,7 +254,6 @@ class AdvancedCharts:
                     opacity=0.7
                 ),
                 name="العقارات",
-                # ✅ Hover Text مختصر ونظيف
                 text=[f"{a} متر — {p:,.0f}" for a, p in zip(tmp["area"], tmp["price"])],
                 hoverinfo="text"
             )
@@ -397,98 +299,12 @@ class AdvancedCharts:
         return self._safe(fig, height=460)
 
     # =====================
-    # CHAPTER 2 – TIME FLOW
-    # =====================
-    def ch2_price_stream(self, df):
-        if not self._has_columns(df, ["date", "price"]):
-            return None
-
-        tmp = df.copy()
-        tmp["date"] = pd.to_datetime(tmp["date"], errors="coerce")
-        tmp["price"] = self._numeric(tmp["price"])
-        tmp = tmp.dropna(subset=["date", "price"])
-        tmp = tmp.sort_values("date")
-
-        if len(tmp) < 5:
-            return None
-
-        fig = go.Figure()
-
-        fig.add_trace(
-            go.Scatter(
-                x=tmp["date"],
-                y=tmp["price"],
-                mode="lines+markers",
-                line=dict(color=self.COLORS["emerald"], width=3),
-                marker=dict(size=6, color=self.COLORS["gold"]),
-                fill="tozeroy",
-                fillcolor="rgba(27,94,32,0.18)",
-            )
-        )
-
-        fig.update_layout(
-            title="تدفق الأسعار عبر الزمن",
-            xaxis_title="الزمن",
-            yaxis_title="القيمة السوقية",
-            yaxis=dict(title_standoff=10),
-        )
-
-        return self._safe(fig, height=520)
-
-    # =====================
-    # CHAPTER 3 – SAMPLE TABLE
-    # =====================
-    def ch3_table_sample(self, df):
-        if not self._has_columns(df, ["price", "area"]):
-            return None
-
-        sample_size = min(12, len(df))
-        if sample_size < 3:
-            return None
-            
-        sample = df[["area", "price"]].sample(n=sample_size, random_state=42)
-
-        sample_display = sample.copy()
-        sample_display["price"] = sample_display["price"].apply(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
-        sample_display["area"] = sample_display["area"].apply(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
-
-        fig = go.Figure(
-            data=[
-                go.Table(
-                    header=dict(
-                        values=["المساحة م²", "السعر"],
-                        fill_color="#F4F6F8",
-                        align="center",
-                        font=dict(
-                            size=14,
-                            color="#1F2933",
-                            family="Tajawal"
-                        ),
-                    ),
-                    cells=dict(
-                        values=[sample_display["area"], sample_display["price"]],
-                        fill_color="white",
-                        align="center",
-                        font=dict(
-                            size=13,
-                            color="#1F2933",
-                            family="Tajawal"
-                        ),
-                    ),
-                )
-            ]
-        )
-
-        fig.update_layout(
-            title=f"عينة ذكية من بيانات السوق {sample_size} عقار",
-            height=560
-        )
-        return fig
-
-    # =====================
-    # CHAPTER 4 – MARKET INDICATORS BAR
+    # CHAPTER 5 – MARKET INDICATORS
     # =====================
     def ch4_market_indicators_bar(self, df):
+        """
+        رسم 5: مقارنة مؤشرات السوق الرئيسية
+        """
         if not self._has_columns(df, ["price", "area"]):
             return None
 
@@ -506,11 +322,11 @@ class AdvancedCharts:
         
         categories = ["متوسط السعر", "متوسط المساحة", "سعر المتر"]
         
-        # ✅ قيمة صادقة تحليليًا (بدل التحديد الاصطناعي بـ 100)
+        # ✅ التعديل 2: قيم حقيقية بلا نسب افتراضية
         values = [
-            (avg_price / 3000000) * 100,
-            (avg_area / 200) * 100,
-            (price_per_sqm / 15000) * 100
+            avg_price,
+            avg_area,
+            price_per_sqm
         ]
 
         fig = go.Figure()
@@ -528,17 +344,17 @@ class AdvancedCharts:
                     ],
                     opacity=0.85
                 ),
-                text=[f"{v:.0f} بالمئة" for v in values],
+                # ✅ قيم فعلية لا نسب مئوية
+                text=[f"{v:,.0f}" for v in values],
                 textposition="outside"
             )
         )
 
-        # ✅ نطاق ديناميكي بناءً على القيم الحقيقية
-        max_value = max(values) if values else 100
+        max_value = max(values) if values else 1000000
         x_range = [0, max_value * 1.1]
 
         fig.update_layout(
-            title="مقارنة مؤشرات السوق الرئيسية",
+            title="لوحة قراءة السوق",
             xaxis=dict(
                 visible=False,
                 showgrid=False,
@@ -559,6 +375,9 @@ class AdvancedCharts:
     # CHAPTER 6 – GAUGE
     # =====================
     def ch6_gauge(self, df):
+        """
+        رسم 6: مؤشر القرار التنفيذي
+        """
         if not self._has_columns(df, ["price", "area"]):
             return None
 
@@ -612,6 +431,9 @@ class AdvancedCharts:
     # CHAPTER 7 – EXECUTIVE DONUT
     # =====================
     def ch7_executive_donut(self, df):
+        """
+        رسم 7: الملخص التنفيذي (قوة القرار)
+        """
         if "price" not in df.columns:
             return None
 
@@ -619,37 +441,55 @@ class AdvancedCharts:
         if len(p) < 3:
             return None
 
-        lower = p.quantile(0.25)
-        middle_lower = p.quantile(0.5) - p.quantile(0.25)
-        middle_upper = p.quantile(0.75) - p.quantile(0.5)
-        upper = p.max() - p.quantile(0.75)
+        # حساب يعكس قوة القرار
+        avg_price = p.mean()
+        median_price = p.median()
+        volatility = p.std()
+        price_range = p.max() - p.min()
 
-        # ✅ ترتيب هرمي واضح
+        # ✅ التعديل 3: ترتيب هرمي واضح للقرار
         values = [
-            upper,          # القرار الأقوى
-            middle_upper,   # قرار داعم
-            middle_lower,   # قرار ثانوي
-            lower           # هامشي
+            volatility,     # المخاطرة - الجزء الأكبر
+            price_range,    # التقلب
+            avg_price,      # القوة
+            median_price    # الاستقرار
         ]
 
         fig = go.Figure(
             data=[
                 go.Pie(
                     values=values,
-                    **self._donut_base_style([
-                        self.COLORS["gold"],
-                        self.COLORS["plum"],
-                        self.COLORS["mint"],
-                        self.COLORS["emerald"]
-                    ])
+                    hole=0.75,
+                    # ✅ ترتيب ألوان يطابق الترتيب الهرمي
+                    marker=dict(
+                        colors=[
+                            self.COLORS["plum"],      # مخاطرة
+                            self.COLORS["lavender"],  # تقلب
+                            self.COLORS["emerald"],   # قوة
+                            self.COLORS["gold"]       # استقرار
+                        ],
+                        line=dict(width=2, color='white')
+                    ),
+                    textinfo="none",
+                    hoverinfo="none",
+                    sort=False
                 )
             ]
         )
 
-        fig = self._donut_base_layout(
-            fig,
-            "الملخص التنفيذي"
+        fig.update_layout(
+            title="الملخص التنفيذي",
+            showlegend=False,
+            height=520,
+            margin=dict(l=20, r=20, t=80, b=20),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="white",
+            font=dict(family="Tajawal"),
+            annotations=[]
         )
+
+        fig.update_xaxes(visible=False, showgrid=False, zeroline=False)
+        fig.update_yaxes(visible=False, showgrid=False, zeroline=False)
 
         return fig
 
@@ -657,6 +497,9 @@ class AdvancedCharts:
     # CHAPTER 8 – FINAL CURVE
     # =====================
     def ch8_final_curve(self, df):
+        """
+        رسم 8: المنحنى الختامي - نظرة نهائية
+        """
         if "price" not in df.columns:
             return None
 
@@ -683,11 +526,12 @@ class AdvancedCharts:
         fig.update_layout(
             title="المنحنى الختامي",
             xaxis_title="نطاق السعر",
-            yaxis_title="الكثافة النسبية",
+            # ✅ التعديل 4: محور Y بدون عنوان أكاديمي
+            yaxis_title="",
         )
         
-        # ✅ تنسيق القيم لقراءة تنفيذية
-        fig.update_xaxes(tickformat="~s")
+        fig.update_xaxes(tickformat="~s", showgrid=False)
+        fig.update_yaxes(showticklabels=False, showgrid=False)
         
         return self._safe(fig, height=520)
 
@@ -696,7 +540,7 @@ class AdvancedCharts:
     # =====================
     def generate_all_charts(self, df):
         """
-        ✅ المحرك النهائي - توزيع الرسومات على الفصول
+        ✅ المحرك النهائي - رسم واحد واضح لكل فصل
         """
         if df is None or df.empty:
             return {}
@@ -707,40 +551,47 @@ class AdvancedCharts:
             return [x for x in lst if x is not None]
 
         return {
+            # ✅ فصل 1: سعر المتر حسب المنطقة
             "chapter_1": clean([
                 self.ch1_price_per_sqm_by_district(df),
-                self.ch1_price_vs_area_flow(df),
-                self.rhythm_price_curve(df, "توزيع الأسعار بانسيابية"),
             ]),
+
+            # ✅ فصل 2: تدفق الأسعار عبر الزمن
             "chapter_2": clean([
                 self.ch2_price_stream(df),
-                self.rhythm_price_donut(df, "مستويات الأسعار"),
-                self.rhythm_price_curve(df, "توزيع الأسعار عبر الزمن"),
             ]),
+
+            # ✅ فصل 3: توزيع الأسعار
             "chapter_3": clean([
-                self.ch3_table_sample(df),
-                self.rhythm_price_donut(df, "نطاق العينة"),
-                self.rhythm_price_curve(df, "تشتت الأسعار"),
+                self.rhythm_price_curve(df, "توزيع الأسعار"),
             ]),
+
+            # ✅ فصل 4: العلاقة بين المساحة والسعر
             "chapter_4": clean([
-                self.rhythm_price_donut(df, "نطاقات السوق"),
+                self.ch1_price_vs_area_flow(df),
+            ]),
+
+            # ✅ فصل 5: لوحة قراءة السوق
+            "chapter_5": clean([
                 self.ch4_market_indicators_bar(df),
             ]),
-            # ✅ الفصل الخامس: رسم واحد فقط
-            "chapter_5": clean([
-                self.rhythm_price_donut(df, "قراءة هيكلية للسوق"),
-            ]),
-            # ✅ الفصل السادس: Donut + Gauge فقط
+
+            # ✅ فصل 6: مؤشر القرار التنفيذي
             "chapter_6": clean([
-                self.rhythm_price_donut(df, "رأس المال"),
                 self.ch6_gauge(df),
             ]),
+
+            # ✅ فصل 7: الملخص التنفيذي
             "chapter_7": clean([
                 self.ch7_executive_donut(df),
             ]),
+
+            # ✅ فصل 8: المنحنى الختامي
             "chapter_8": clean([
                 self.ch8_final_curve(df),
             ]),
+
+            # ❌ الفصول الإضافية فارغة (لنصوص الذكاء الاصطناعي)
             "chapter_9": [],
             "chapter_10": [],
         }
