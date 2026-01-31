@@ -53,6 +53,19 @@ AI_PACKAGE_POLICY = {
 
 
 # =========================================
+# سقف الذكاء حسب الباقة
+# =========================================
+
+AI_INTELLIGENCE_CAP = {
+    "ماسية متميزة": "مرتفع",
+    "ماسية": "مرتفع",
+    "ذهبية": "متوسط",
+    "فضية": "منخفض",
+    "مجانية": "منخفض",
+}
+
+
+# =========================================
 # تحديد عمق الذكاء حسب حجم البيانات
 # =========================================
 
@@ -86,6 +99,30 @@ def get_analysis_depth(real_data):
     }
 
 
+def apply_intelligence_cap(depth_info, package):
+    """
+    يخفّض مستوى التحليل إذا كانت الباقة لا تسمح بالعمق الكامل
+    """
+    cap = AI_INTELLIGENCE_CAP.get(package, "منخفض")
+
+    # إذا كان السقف يسمح → لا تغيير
+    if depth_info["level"] == cap:
+        return depth_info
+
+    # إذا السقف أقل من العمق المحسوب → نخفّض
+    hierarchy = ["منخفض", "متوسط", "مرتفع"]
+
+    if hierarchy.index(depth_info["level"]) > hierarchy.index(cap):
+        return {
+            "level": cap,
+            "tone": "تحليلي" if cap == "متوسط" else "تحفظي",
+            "confidence": "جيدة" if cap == "متوسط" else "محدودة",
+            "note": "تم ضبط مستوى التحليل بما يتناسب مع مستوى الباقة المختارة",
+        }
+
+    return depth_info
+
+
 class AIReportReasoner:
     def __init__(self):
         self.live_system = LiveDataSystem()
@@ -102,7 +139,8 @@ class AIReportReasoner:
         )
 
         policy = AI_PACKAGE_POLICY.get(package, AI_PACKAGE_POLICY["مجانية"])
-        analysis_depth = get_analysis_depth(real_data)
+        raw_depth = get_analysis_depth(real_data)
+        analysis_depth = apply_intelligence_cap(raw_depth, package)
 
         # =========================
         # البيانات الحية
