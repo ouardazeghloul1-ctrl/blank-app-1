@@ -200,14 +200,17 @@ def create_pdf_from_content(
 
     chapter_index = 0
     chart_cursor = {}
-    first_chapter_processed = False  # ⭐ المفتاح لحل الصفحة الفارغة
-    decision_mode = False  # ⭐ متغير لتتبع وضع القرار الاستثماري
+    first_chapter_processed = False
+    decision_mode = False
 
-    lines = content_text.split("\n")
+    # تحويل النص إلى iterator للوصول للسطور التالية
+    lines_list = content_text.split("\n")
+    lines_iter = iter(lines_list)  # ✅ تم إنشاء الـ iterator
 
-    for raw in lines:
+    # ✅ التعديل الإجباري: تغيير lines_list إلى lines_iter
+    for raw in lines_iter:  # ⬅️ كان for raw in lines_list:
         clean = clean_text(raw)
-
+        
         if not clean:
             story.append(Spacer(1, 0.8 * cm))
             continue
@@ -270,29 +273,39 @@ def create_pdf_from_content(
         charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
         cursor = chart_cursor.get(chapter_index, 0)
 
+        # -------- CHART CAPTION --------
+        if clean == "[[CHART_CAPTION]]":
+            # ✅ الحصول على النص التالي الذي يشرح الرسمة
+            try:
+                # التخطي للسطر الفارغ بعد الوسم
+                next_line = next(lines_iter)
+                while not clean_text(next_line):  # تخطي الأسطر الفارغة
+                    next_line = next(lines_iter)
+                
+                # إضافة نص شرح الرسمة
+                story.append(Paragraph(ar(clean_text(next_line)), body))
+                story.append(Spacer(1, 1.6 * cm))
+            except StopIteration:
+                # إذا لم يكن هناك نص شرح
+                story.append(Spacer(1, 1.6 * cm))
+            decision_mode = False
+            continue
+
         # -------- ANCHOR CHART --------
         if clean == "[[ANCHOR_CHART]]":
-            if cursor < len(charts):  # ✅ تم إزالة شرط text_since_chart
+            if cursor < len(charts):
                 img = plotly_to_image(charts[cursor], 16.8, 8.8)
                 if img:
                     story.append(Spacer(1, 1.6 * cm))
                     story.append(img)
-                    story.append(Spacer(1, 0.6 * cm))  # ✅ مسافة موحدة قبل النص
-                    # ✅ إضافة النص التوضيحي المؤقت تحت الرسمة
-                    story.append(
-                        Paragraph(
-                            ar("سيتم وضع شرح خاص بهذه الرسمة هنا لاحقًا"),  # ✅ بدون سهم
-                            body
-                        )
-                    )
-                    story.append(Spacer(1, 1.6 * cm))  # ✅ مسافة موحدة بعد النص
+                    story.append(Spacer(1, 0.6 * cm))
                 chart_cursor[chapter_index] += 1
             decision_mode = False
             continue
 
         # -------- RHYTHM CHART --------
         if clean == "[[RHYTHM_CHART]]":
-            if cursor < len(charts):  # ✅ تم إزالة شرط text_since_chart
+            if cursor < len(charts):
                 # ⭐⭐ الحل الذكي: تحديد حجم الرسم بناءً على نوعها
                 fig = charts[cursor]
                 
@@ -317,40 +330,31 @@ def create_pdf_from_content(
                     img = plotly_to_image(fig, 16.8, 8.8)
                 elif is_indicator:
                     # ✅ المؤشر: استخدم حجم كبير تنفيذي
-                    img = plotly_to_image(fig, 17.5, 9.5)  # ✅ كبير – تنفيذي
+                    img = plotly_to_image(fig, 17.5, 9.5)
                 else:
-                    # ✅ **التعديل الحاسم: تكبير جميع الرسومات الأخرى**
-                    img = plotly_to_image(fig, 16.8, 8.8)  # ⬅️ **كان 15.8, 6.5**
+                    img = plotly_to_image(fig, 16.8, 8.8)
                 
                 if img:
-                    # ⭐ تعديل: إعطاء المسافات المناسبة لكل نوع
                     if is_indicator:
-                        story.append(Spacer(1, 1.8 * cm))  # ✅ مسافة أكبر للمؤشر
+                        story.append(Spacer(1, 1.8 * cm))
                     else:
                         story.append(Spacer(1, 1.4 * cm))
                     
                     story.append(img)
-                    story.append(Spacer(1, 0.6 * cm))  # ✅ مسافة موحدة قبل النص
-                    # ✅ إضافة النص التوضيحي المؤقت تحت الرسمة
-                    story.append(
-                        Paragraph(
-                            ar("سيتم وضع شرح خاص بهذه الرسمة هنا لاحقًا"),  # ✅ بدون سهم
-                            body
-                        )
-                    )
-                    story.append(Spacer(1, 1.6 * cm))  # ✅ مسافة موحدة بعد النص
+                    story.append(Spacer(1, 0.6 * cm))
                 
                 chart_cursor[chapter_index] += 1
             decision_mode = False
             continue
 
         # -------- NORMAL TEXT --------
-        # ✅ التصحيح النهائي: فلترة UTF-8 واحدة فقط (بعد clean_text)
-        clean = clean.encode("utf-8", "ignore").decode("utf-8")
-        if decision_mode:
-            story.append(Paragraph(ar(clean), ai_decision_box))
-        else:
-            story.append(Paragraph(ar(clean), body))
+        # ✅ التأكد من أن هذا ليس وسمًا قبل معالجة النص
+        if clean not in ("[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"):
+            clean = clean.encode("utf-8", "ignore").decode("utf-8")
+            if decision_mode:
+                story.append(Paragraph(ar(clean), ai_decision_box))
+            else:
+                story.append(Paragraph(ar(clean), body))
 
     # =========================
     # BUILD
