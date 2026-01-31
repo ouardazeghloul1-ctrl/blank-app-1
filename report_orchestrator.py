@@ -68,11 +68,24 @@ def ensure_required_columns(df):
 def blocks_to_text(report):
     lines = []
     for chapter in report.get("chapters", []):
+        # إضافة عنوان الفصل
+        lines.append(chapter.get("title", ""))
+        lines.append("")
+        
+        # إضافة محتوى الفصل
         for block in chapter.get("blocks", []):
             content = block.get("content", "")
+            tag = block.get("tag", "")
+            
             if content:
                 lines.append(content.strip())
                 lines.append("")
+            
+            # ✅ التعديل: تضمين الوسوم الخاصة بالرسومات فقط
+            if tag in ("[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]"):
+                lines.append(tag)
+                lines.append("")
+    
     return "\n".join(lines)
 
 
