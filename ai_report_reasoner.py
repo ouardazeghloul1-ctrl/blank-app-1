@@ -14,6 +14,44 @@ from ai_text_templates import (
 )
 
 
+# =========================================
+# سياسة عرض الذكاء الاصطناعي حسب الباقة
+# =========================================
+
+AI_PACKAGE_POLICY = {
+    "ماسية متميزة": {
+        "live_market": "full",
+        "opportunities": "full",
+        "risk": "full",
+        "final_decision": "full",
+    },
+    "ماسية": {
+        "live_market": "full",
+        "opportunities": "full",
+        "risk": "summary",
+        "final_decision": "full",
+    },
+    "ذهبية": {
+        "live_market": "summary",
+        "opportunities": "summary",
+        "risk": "summary",
+        "final_decision": "summary",
+    },
+    "فضية": {
+        "live_market": "summary",
+        "opportunities": "hidden",
+        "risk": "hidden",
+        "final_decision": "summary",
+    },
+    "مجانية": {
+        "live_market": "summary",
+        "opportunities": "hidden",
+        "risk": "hidden",
+        "final_decision": "hidden",
+    },
+}
+
+
 class AIReportReasoner:
     def __init__(self):
         self.live_system = LiveDataSystem()
@@ -22,6 +60,14 @@ class AIReportReasoner:
 
     def generate_all_insights(self, user_info, market_data, real_data):
         city = user_info.get("city", "المدينة")
+        
+        package = (
+            user_info.get("package")
+            or user_info.get("chosen_pkg")
+            or "مجانية"
+        )
+
+        policy = AI_PACKAGE_POLICY.get(package, AI_PACKAGE_POLICY["مجانية"])
 
         # =========================
         # البيانات الحية
@@ -61,18 +107,33 @@ class AIReportReasoner:
             .get("overall_risk", "متوسط"),
         }
 
+        def apply_policy(key, full_text):
+            mode = policy.get(key, "hidden")
+
+            if mode == "full":
+                return full_text
+
+            if mode == "summary":
+                return full_text.split("\n\n")[0] + "\n\n(ملخص تنفيذي مختصر)"
+
+            return ""
+
         return {
-            "ai_live_market": self._fill_template(
-                LIVE_MARKET_SNAPSHOT, values
+            "ai_live_market": apply_policy(
+                "live_market",
+                self._fill_template(LIVE_MARKET_SNAPSHOT, values)
             ),
-            "ai_opportunities": self._fill_template(
-                OPPORTUNITY_INSIGHT, values
+            "ai_opportunities": apply_policy(
+                "opportunities",
+                self._fill_template(OPPORTUNITY_INSIGHT, values)
             ),
-            "ai_risk": self._fill_template(
-                RISK_INSIGHT, values
+            "ai_risk": apply_policy(
+                "risk",
+                self._fill_template(RISK_INSIGHT, values)
             ),
-            "ai_final_decision": self._fill_template(
-                FINAL_DECISION, values
+            "ai_final_decision": apply_policy(
+                "final_decision",
+                self._fill_template(FINAL_DECISION, values)
             ),
         }
 
