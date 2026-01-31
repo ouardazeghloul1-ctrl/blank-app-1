@@ -3,6 +3,7 @@
 from report_content_builder import build_complete_report
 from advanced_charts import AdvancedCharts
 from ai_report_reasoner import AIReportReasoner
+from real_data_repository import load_real_data  # ✅ D2: استيراد جديد
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -99,8 +100,13 @@ def build_report_story(user_info, dataframe=None):
     report = build_complete_report(prepared)
     content_text = blocks_to_text(report)
 
-    # -------- Prepare dataframe --------
-    df = normalize_dataframe(dataframe)
+    # -------- Load REAL data (D2 التعديل الحاسم) --------
+    df = load_real_data(
+        city=user_info.get("city"),
+        property_type=user_info.get("property_type")
+    )
+    
+    df = normalize_dataframe(df)
 
     # -------- AI INSIGHTS --------
     ai_reasoner = AIReportReasoner()
