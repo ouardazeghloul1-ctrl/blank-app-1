@@ -77,13 +77,16 @@ def blocks_to_text(report):
             content = block.get("content", "")
             tag = block.get("tag", "")
             
-            if content:
+            # ✅ التعديل: شرط أمان لمنع طباعة محتوى الرسومات ونصوص الشرح بالخطأ
+            if content and block.get("type") not in ("chart", "chart_caption"):  # ⬅️ كان block.get("type") != "chart_caption"
                 lines.append(content.strip())
                 lines.append("")
             
-            # ✅ التعديل: تضمين الوسوم الخاصة بالرسومات فقط
-            if tag in ("[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]"):
+            # ✅ تضمين الوسوم الخاصة بالرسومات ونصوص الشرح
+            if tag in ("[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"):
                 lines.append(tag)
+                if content and block.get("type") == "chart_caption":
+                    lines.append(content.strip())
                 lines.append("")
     
     return "\n".join(lines)
