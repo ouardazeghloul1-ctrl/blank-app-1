@@ -28,10 +28,19 @@ class MarketIntelligence:
         trends = {}
         
         if not real_data.empty:
-            trends["avg_price"] = real_data['السعر'].mean()
-            trends["avg_roi"] = real_data['العائد_المتوقع'].mean()
+            # استخدام أسماء أعمدة مرنة
+            price_column = 'السعر' if 'السعر' in real_data.columns else 'price'
+            roi_column = 'العائد_المتوقع' if 'العائد_المتوقع' in real_data.columns else 'roi'
+            risk_column = 'مستوى_الخطورة' if 'مستوى_الخطورة' in real_data.columns else 'risk_level'
+            
+            trends["avg_price"] = real_data[price_column].mean() if price_column in real_data.columns else "غير متوفر"
+            trends["avg_roi"] = real_data[roi_column].mean() if roi_column in real_data.columns else "غير متوفر"
             trends["property_count"] = len(real_data)
-            trends["risk_distribution"] = real_data['مستوى_الخطورة'].value_counts().to_dict()
+            
+            if risk_column in real_data.columns:
+                trends["risk_distribution"] = real_data[risk_column].value_counts().to_dict()
+            else:
+                trends["risk_distribution"] = {}
         
         return trends
     
@@ -40,21 +49,39 @@ class MarketIntelligence:
         opportunities = []
         
         if not real_data.empty:
-            # الفرص ذات العوائد العالية والمخاطر المنخفضة
-            high_roi_low_risk = real_data[
-                (real_data['العائد_المتوقع'] > real_data['العائد_المتوقع'].quantile(0.7)) &
-                (real_data['مستوى_الخطورة'] == 'منخفض')
-            ]
+            # تحديد أسماء الأعمدة المرنة
+            price_column = 'السعر' if 'السعر' in real_data.columns else 'price'
+            roi_column = 'العائد_المتوقع' if 'العائد_المتوقع' in real_data.columns else 'roi'
+            risk_column = 'مستوى_الخطورة' if 'مستوى_الخطورة' in real_data.columns else 'risk_level'
+            property_column = 'العقار' if 'العقار' in real_data.columns else 'property'
             
-            for _, opp in high_roi_low_risk.iterrows():
-                opportunities.append({
-                    "property": opp['العقار'],
-                    "area": opp['المنطقة'],
-                    "price": opp['السعر'],
-                    "roi": opp['العائد_المتوقع'],
-                    "risk": opp['مستوى_الخطورة'],
-                    "score": self._calculate_opportunity_score(opp)
-                })
+            # التحقق من وجود الأعمدة الضرورية
+            has_required_columns = all(col in real_data.columns for col in [price_column, roi_column, risk_column, property_column])
+            
+            if has_required_columns:
+                # الفرص ذات العوائد العالية والمخاطر المنخفضة
+                high_roi_low_risk = real_data[
+                    (real_data[roi_column] > real_data[roi_column].quantile(0.7)) &
+                    (real_data[risk_column] == 'منخفض')
+                ]
+                
+                for _, opp in high_roi_low_risk.iterrows():
+                    area_name = (
+                        opp.get("المنطقة")
+                        or opp.get("الحي")
+                        or opp.get("district")
+                        or opp.get("city")
+                        or "غير محدد"
+                    )
+                    
+                    opportunities.append({
+                        "property": opp[property_column],
+                        "area": area_name,
+                        "price": opp[price_column],
+                        "roi": opp[roi_column],
+                        "risk": opp[risk_column],
+                        "score": self._calculate_opportunity_score(opp)
+                    })
         
         return sorted(opportunities, key=lambda x: x['score'], reverse=True)[:5]
     
@@ -62,16 +89,27 @@ class MarketIntelligence:
         """حساب درجة الفرصة الاستثمارية"""
         score = 0
         
+        # تحديد أسماء الأعمدة المرنة
+        roi_column = 'العائد_المتوقع' if 'العائد_المتوقع' in property_data.index else 'roi'
+        risk_column = 'مستوى_الخطورة' if 'مستوى_الخطورة' in property_data.index else 'risk_level'
+        
         # العائد (40%)
-        score += (property_data['العائد_المتوقع'] / 15) * 40
+        if roi_column in property_data:
+            score += (property_data[roi_column] / 15) * 40
         
         # المخاطرة (30%)
         risk_multiplier = {
             'منخفض': 30,
             'متوسط': 15, 
-            'مرتفع': 5
+            'مرتفع': 5,
+            'low': 30,
+            'medium': 15,
+            'high': 5
         }
-        score += risk_multiplier.get(property_data['مستوى_الخطورة'], 10)
+        
+        if risk_column in property_data:
+            risk_level = property_data[risk_column]
+            score += risk_multiplier.get(risk_level, 10)
         
         return min(100, score)
     
@@ -82,7 +120,12 @@ class MarketIntelligence:
         
         try:
             predictions = []
-            current_avg = real_data['السعر'].mean()
+            price_column = 'السعر' if 'السعر' in real_data.columns else 'price'
+            
+            if price_column not in real_data.columns:
+                return {"message": "لا توجد بيانات أسعار للتنبؤ"}
+            
+            current_avg = real_data[price_column].mean()
             
             for i in range(1, periods + 1):
                 # نمو تقديري بسيط
@@ -106,14 +149,19 @@ class MarketIntelligence:
         if real_data.empty:
             return "لا توجد بيانات كافية لتقييم المخاطر"
         
-        risk_levels = real_data['مستوى_الخطورة'].value_counts()
+        risk_column = 'مستوى_الخطورة' if 'مستوى_الخطورة' in real_data.columns else 'risk_level'
+        
+        if risk_column not in real_data.columns:
+            return "لا توجد بيانات عن مستويات الخطورة"
+        
+        risk_levels = real_data[risk_column].value_counts()
         total_properties = len(real_data)
         
         risk_assessment = {
-            "low_risk_percentage": (risk_levels.get('منخفض', 0) / total_properties) * 100,
-            "medium_risk_percentage": (risk_levels.get('متوسط', 0) / total_properties) * 100,
-            "high_risk_percentage": (risk_levels.get('مرتفع', 0) / total_properties) * 100,
-            "overall_risk": "منخفض" if risk_levels.get('منخفض', 0) > risk_levels.get('مرتفع', 0) else "متوسط"
+            "low_risk_percentage": round((risk_levels.get('منخفض', risk_levels.get('low', 0)) / total_properties) * 100, 1),
+            "medium_risk_percentage": round((risk_levels.get('متوسط', risk_levels.get('medium', 0)) / total_properties) * 100, 1),
+            "high_risk_percentage": round((risk_levels.get('مرتفع', risk_levels.get('high', 0)) / total_properties) * 100, 1),
+            "overall_risk": "منخفض" if risk_levels.get('منخفض', risk_levels.get('low', 0)) > risk_levels.get('مرتفع', risk_levels.get('high', 0)) else "متوسط"
         }
         
         return risk_assessment
