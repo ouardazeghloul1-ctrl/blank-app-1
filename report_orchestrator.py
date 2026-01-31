@@ -2,6 +2,7 @@
 
 from report_content_builder import build_complete_report
 from advanced_charts import AdvancedCharts
+from ai_report_reasoner import AIReportReasoner
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -98,9 +99,26 @@ def build_report_story(user_info, dataframe=None):
     report = build_complete_report(prepared)
     content_text = blocks_to_text(report)
 
-    # -------- Charts pipeline --------
+    # -------- Prepare dataframe --------
     df = normalize_dataframe(dataframe)
 
+    # -------- AI INSIGHTS --------
+    ai_reasoner = AIReportReasoner()
+    ai_insights = ai_reasoner.generate_all_insights(
+        user_info=user_info,
+        market_data={},   # جاهز للتوسعة لاحقًا
+        real_data=df if df is not None else pd.DataFrame()
+    )
+
+    # ===== AI GENERATED INSIGHTS =====
+    content_text += "\n\n"
+    content_text += "التحليل الذكي للسوق\n\n"
+    content_text += ai_insights.get("ai_live_market", "") + "\n\n"
+    content_text += ai_insights.get("ai_opportunities", "") + "\n\n"
+    content_text += ai_insights.get("ai_risk", "") + "\n\n"
+    content_text += ai_insights.get("ai_final_decision", "")
+
+    # -------- Charts pipeline --------
     if df is not None:
         df = unify_columns(df)
         df = ensure_required_columns(df)
