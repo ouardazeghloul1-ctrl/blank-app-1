@@ -110,13 +110,27 @@ def build_report_story(user_info, dataframe=None):
         real_data=df if df is not None else pd.DataFrame()
     )
 
-    # ===== AI GENERATED INSIGHTS =====
+    # ===== AI MARKET INTELLIGENCE =====
     content_text += "\n\n"
-    content_text += "التحليل الذكي للسوق\n\n"
-    content_text += ai_insights.get("ai_live_market", "") + "\n\n"
-    content_text += ai_insights.get("ai_opportunities", "") + "\n\n"
-    content_text += ai_insights.get("ai_risk", "") + "\n\n"
-    content_text += ai_insights.get("ai_final_decision", "")
+    content_text += "━━━━━━━━━━━━━━━━━━━━━━\n"
+    content_text += "🧠 التحليل الذكي للسوق\n"
+    content_text += "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+    if ai_insights.get("ai_live_market"):
+        content_text += "📊 لقطة السوق الحية\n"
+        content_text += ai_insights["ai_live_market"] + "\n\n"
+
+    if ai_insights.get("ai_opportunities"):
+        content_text += "💎 تحليل الفرص الاستثمارية\n"
+        content_text += ai_insights["ai_opportunities"] + "\n\n"
+
+    if ai_insights.get("ai_risk"):
+        content_text += "⚠️ تقييم المخاطر\n"
+        content_text += ai_insights["ai_risk"] + "\n\n"
+
+    if ai_insights.get("ai_final_decision"):
+        content_text += "🏁 القرار الاستثماري النهائي\n"
+        content_text += ai_insights["ai_final_decision"] + "\n\n"
 
     # -------- Charts pipeline --------
     if df is not None:
