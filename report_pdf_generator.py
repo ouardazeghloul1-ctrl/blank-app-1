@@ -184,6 +184,21 @@ def create_pdf_from_content(
         spaceAfter=50
     )
 
+    # =========================
+    # تحسينات اختيارية
+    # =========================
+    SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
+    chart_caption_style = ParagraphStyle(
+        "ChartCaption",
+        parent=body,
+        fontSize=13,
+        textColor=colors.HexColor("#666666"),
+        alignment=TA_CENTER,
+        spaceBefore=8,
+        spaceAfter=18,
+        fontName="Amiri"
+    )
+
     story = []
 
     # =========================
@@ -205,13 +220,19 @@ def create_pdf_from_content(
 
     # تحويل النص إلى iterator للوصول للسطور التالية
     lines_list = content_text.split("\n")
-    lines_iter = iter(lines_list)  # ✅ تم إنشاء الـ iterator
+    lines_iter = iter(lines_list)
 
-    # ✅ التعديل الإجباري: تغيير lines_list إلى lines_iter
-    for raw in lines_iter:  # ⬅️ كان for raw in lines_list:
-        clean = clean_text(raw)
+    for raw in lines_iter:
+        raw_stripped = raw.strip()
         
-        if not clean:
+        # ⛔ الحل الأساسي: الوسوم لا تمر على clean_text
+        if raw_stripped in SPECIAL_TAGS:
+            clean = raw_stripped
+        else:
+            clean = clean_text(raw)
+        
+        # ✅ تحسين شرط الفراغ
+        if not raw_stripped:
             story.append(Spacer(1, 0.8 * cm))
             continue
 
@@ -279,12 +300,14 @@ def create_pdf_from_content(
             try:
                 # التخطي للسطر الفارغ بعد الوسم
                 next_line = next(lines_iter)
-                while not clean_text(next_line):  # تخطي الأسطر الفارغة
+                while not clean_text(next_line.strip()):  # تخطي الأسطر الفارغة
                     next_line = next(lines_iter)
                 
-                # إضافة نص شرح الرسمة
-                story.append(Paragraph(ar(clean_text(next_line)), body))
-                story.append(Spacer(1, 1.6 * cm))
+                # إضافة نص شرح الرسمة (باستخدام النمط الخاص)
+                caption = clean_text(next_line)
+                if caption:
+                    story.append(Paragraph(ar(caption), chart_caption_style))
+                story.append(Spacer(1, 1.2 * cm))
             except StopIteration:
                 # إذا لم يكن هناك نص شرح
                 story.append(Spacer(1, 1.6 * cm))
@@ -349,7 +372,7 @@ def create_pdf_from_content(
 
         # -------- NORMAL TEXT --------
         # ✅ التأكد من أن هذا ليس وسمًا قبل معالجة النص
-        if clean not in ("[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"):
+        if clean not in SPECIAL_TAGS:
             clean = clean.encode("utf-8", "ignore").decode("utf-8")
             if decision_mode:
                 story.append(Paragraph(ar(clean), ai_decision_box))
