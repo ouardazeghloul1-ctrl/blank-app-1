@@ -301,7 +301,7 @@ def create_pdf_from_content(
                 while not next_line.strip():
                     next_line = next(lines_iter)
 
-                caption = "\u200F" + next_line.strip()  # RTL mark فقط
+                caption = ar(next_line.strip())  # ✅ الحل الصحيح
                 story.append(Paragraph(caption, chart_caption_style))
                 story.append(Spacer(1, 1.2 * cm))
             except StopIteration:
