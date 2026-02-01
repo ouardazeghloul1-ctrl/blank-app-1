@@ -284,18 +284,24 @@ def create_pdf_from_content(
         charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
         cursor = chart_cursor.get(chapter_index, 0)
 
-        # -------- CHART CAPTION --------
+        # -------- CHART CAPTION (FINAL FIX) --------
         if clean == "[[CHART_CAPTION]]":
             try:
-                next_line = next(lines_iter)
-                while not next_line.strip():
+                lines = []
+                while True:
                     next_line = next(lines_iter)
+                    if not next_line.strip():
+                        break
+                    lines.append(next_line.strip())
 
-                caption = clean_text(next_line)
-                story.append(Paragraph(ar(caption), body))
+                caption_text = " ".join(lines)
+                caption_text = "\u202B" + caption_text + "\u202C"
+                story.append(Paragraph(caption_text, body))
                 story.append(Spacer(1, 1.2 * cm))
+
             except StopIteration:
                 story.append(Spacer(1, 1.2 * cm))
+
             decision_mode = False
             continue
 
