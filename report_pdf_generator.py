@@ -179,7 +179,7 @@ def create_pdf_from_content(
         parent=styles["Title"],
         fontName="Amiri",
         fontSize=22,
-        alignment=TA_RIGHT,
+        alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
         spaceAfter=50
     )
@@ -188,18 +188,17 @@ def create_pdf_from_content(
     # تحسينات اختيارية
     # =========================
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
-    
-    # ✅ نمط خاص للـ Chart Caption (بدون تضارب مع RTL markers)
-    caption_style = ParagraphStyle(
-        "CaptionRTL",
+    chart_caption_style = ParagraphStyle(
+        "ChartCaption",
         parent=body,
-        alignment=TA_CENTER,
         fontSize=13,
         textColor=colors.HexColor("#666666"),
+        alignment=TA_CENTER,
         spaceBefore=8,
         spaceAfter=18,
+        fontName="Amiri"
     )
-    
+
     story = []
 
     # =========================
@@ -251,14 +250,14 @@ def create_pdf_from_content(
 
         # 🏁 القرار الاستثماري النهائي (تمييز خاص)
         if clean.startswith("🏁"):
-            story.append(Paragraph(clean, ai_sub_title))
+            story.append(Paragraph(ar(clean), ai_sub_title))
             story.append(Spacer(1, 0.4 * cm))
             decision_mode = True
             continue
 
         # 📊 💎 ⚠️ عناوين فرعية عادية
         if clean.startswith(("📊", "💎", "⚠️")):
-            story.append(Paragraph(clean, ai_sub_title))
+            story.append(Paragraph(ar(clean), ai_sub_title))
             decision_mode = False
             continue
 
@@ -287,32 +286,26 @@ def create_pdf_from_content(
             # ✅ الفلترة النهائية: فلترة UTF-8 قبل Paragraph
             clean = clean.encode("utf-8", "ignore").decode("utf-8")
             if decision_mode:
-                story.append(Paragraph(clean, ai_decision_box))
+                story.append(Paragraph(ar(clean), ai_decision_box))
             else:
-                story.append(Paragraph(clean, body))
+                story.append(Paragraph(ar(clean), body))
             continue
 
         charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
         cursor = chart_cursor.get(chapter_index, 0)
 
-        # -------- CHART CAPTION (FINAL FIX) --------
+        # -------- CHART CAPTION --------
         if clean == "[[CHART_CAPTION]]":
             try:
-                lines = []
-                while True:
+                next_line = next(lines_iter)
+                while not next_line.strip():
                     next_line = next(lines_iter)
-                    if not next_line.strip():
-                        break
-                    lines.append(next_line.strip())
 
-                caption_text = " ".join(lines)
-                caption_text = "\u202B" + caption_text + "\u202C"
-                story.append(Paragraph(caption_text, caption_style))
+                caption = ar(next_line.strip())  # ✅ الحل الصحيح
+                story.append(Paragraph(caption, chart_caption_style))
                 story.append(Spacer(1, 1.2 * cm))
-
             except StopIteration:
                 story.append(Spacer(1, 1.2 * cm))
-
             decision_mode = False
             continue
 
@@ -377,9 +370,9 @@ def create_pdf_from_content(
         if clean not in SPECIAL_TAGS:
             clean = clean.encode("utf-8", "ignore").decode("utf-8")
             if decision_mode:
-                story.append(Paragraph(clean, ai_decision_box))
+                story.append(Paragraph(ar(clean), ai_decision_box))
             else:
-                story.append(Paragraph(clean, body))
+                story.append(Paragraph(ar(clean), body))
 
     # =========================
     # BUILD
