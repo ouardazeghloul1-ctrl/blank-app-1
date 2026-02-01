@@ -179,7 +179,7 @@ def create_pdf_from_content(
         parent=styles["Title"],
         fontName="Amiri",
         fontSize=22,
-        alignment=TA_CENTER,
+        alignment=TA_RIGHT,
         textColor=colors.HexColor("#7a0000"),
         spaceAfter=50
     )
@@ -188,17 +188,7 @@ def create_pdf_from_content(
     # تحسينات اختيارية
     # =========================
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
-    chart_caption_style = ParagraphStyle(
-        "ChartCaption",
-        parent=body,
-        fontSize=13,
-        textColor=colors.HexColor("#666666"),
-        alignment=TA_CENTER,
-        spaceBefore=8,
-        spaceAfter=18,
-        fontName="Amiri"
-    )
-
+    
     story = []
 
     # =========================
@@ -301,8 +291,8 @@ def create_pdf_from_content(
                 while not next_line.strip():
                     next_line = next(lines_iter)
 
-                caption = ar(next_line.strip())  # ✅ الحل الصحيح
-                story.append(Paragraph(caption, chart_caption_style))
+                caption = clean_text(next_line)
+                story.append(Paragraph(ar(caption), body))
                 story.append(Spacer(1, 1.2 * cm))
             except StopIteration:
                 story.append(Spacer(1, 1.2 * cm))
