@@ -1,88 +1,63 @@
 # report_orchestrator.py
-
 from report_content_builder import build_complete_report
 from advanced_charts import AdvancedCharts
 from ai_report_reasoner import AIReportReasoner
-from live_real_data_provider import get_live_real_data  # ✅ D2: تحميل بيانات حية مباشرة
+from live_real_data_provider import get_live_real_data
 import pandas as pd
 import numpy as np
 from datetime import datetime
 
-
-# 🔒 ثابت – لا يُكسر
 charts_engine = AdvancedCharts()
 
-
-# =================================
-# Data Normalization
-# =================================
 def normalize_dataframe(df):
     if df is None or not isinstance(df, pd.DataFrame) or df.empty:
         return None
     return df.copy()
 
-
 def unify_columns(df):
-    """
-    توحيد الأعمدة العربية / الإنجليزية
-    هذا هو المكان الصحيح لهذا المنطق
-    """
     column_map = {
         "السعر": "price",
         "المساحة": "area",
         "تاريخ_الجلب": "date",
         "date": "date",
     }
-
+    
     for ar, en in column_map.items():
         if ar in df.columns and en not in df.columns:
             df[en] = df[ar]
-
+    
     return df
 
-
 def ensure_required_columns(df):
-    """
-    ضمان الأعمدة التي تحتاجها الرسومات فقط
-    بدون توليد بيانات عشوائية غير منطقية
-    """
     if "price" not in df.columns:
         df["price"] = np.random.randint(500_000, 3_000_000, len(df))
-
+    
     if "area" not in df.columns:
         df["area"] = np.random.randint(80, 300, len(df))
-
+    
     if "date" not in df.columns:
         df["date"] = pd.date_range(
             start="2023-01-01",
             periods=len(df),
             freq="M"
         )
-
+    
     return df
 
-
-# =================================
-# Text Builder
-# =================================
 def blocks_to_text(report):
     lines = []
     for chapter in report.get("chapters", []):
-        # إضافة عنوان الفصل
         lines.append(chapter.get("title", ""))
         lines.append("")
         
-        # إضافة محتوى الفصل
         for block in chapter.get("blocks", []):
             content = block.get("content", "")
             tag = block.get("tag", "")
             
-            # ✅ التعديل: شرط أمان لمنع طباعة محتوى الرسومات ونصوص الشرح بالخطأ
-            if content and block.get("type") not in ("chart", "chart_caption"):  # ⬅️ كان block.get("type") != "chart_caption"
+            if content and block.get("type") not in ("chart", "chart_caption"):
                 lines.append(content.strip())
                 lines.append("")
             
-            # ✅ تضمين الوسوم الخاصة بالرسومات ونصوص الشرح
             if tag in ("[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"):
                 lines.append(tag)
                 if content and block.get("type") == "chart_caption":
@@ -91,16 +66,29 @@ def blocks_to_text(report):
     
     return "\n".join(lines)
 
+def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
+    if not ai_content or chapter_title not in content_text:
+        return content_text
 
-# =================================
-# MAIN STORY BUILDER
-# =================================
+    marker = chapter_title + "\n"
+    parts = content_text.split(marker, 1)
+
+    if len(parts) != 2:
+        return content_text
+
+    return (
+        parts[0]
+        + marker
+        + parts[1].split("\n", 1)[0]
+        + "\n\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        + ai_title + "\n"
+        + "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        + ai_content
+        + "\n\n"
+        + parts[1]
+    )
+
 def build_report_story(user_info, dataframe=None):
-    """
-    ⚠️ هذه الدالة تُستدعى مباشرة من streamlit_app.py
-    ⚠️ لا تغيّري توقيعها
-    """
-
     prepared = {
         "المدينة": user_info.get("city", ""),
         "نوع_العقار": user_info.get("property_type", ""),
@@ -112,11 +100,11 @@ def build_report_story(user_info, dataframe=None):
         ),
     }
 
-    # -------- Build textual report --------
+    # بناء التقرير النصي
     report = build_complete_report(prepared)
     content_text = blocks_to_text(report)
 
-    # ===== LIVE DATA DISCLAIMER (D3) =====
+    # تنويه البيانات الحية
     content_text += "\n\n"
     content_text += "📌 تنويه مهم حول البيانات:\n"
     content_text += (
@@ -126,7 +114,7 @@ def build_report_story(user_info, dataframe=None):
         "وقد تختلف القيم مستقبلًا تبعًا لتغيرات العرض والطلب.\n\n"
     )
 
-    # -------- Load LIVE real data (D2 التعديل الحاسم) --------
+    # تحميل البيانات الحية
     df = get_live_real_data(
         city=user_info.get("city"),
         property_type=user_info.get("property_type"),
@@ -134,37 +122,47 @@ def build_report_story(user_info, dataframe=None):
     
     df = normalize_dataframe(df)
 
-    # -------- AI INSIGHTS --------
+    # توليد رؤى الذكاء الاصطناعي
     ai_reasoner = AIReportReasoner()
     ai_insights = ai_reasoner.generate_all_insights(
         user_info=user_info,
-        market_data={},   # جاهز للتوسعة لاحقًا
+        market_data={},
         real_data=df if df is not None else pd.DataFrame()
     )
 
-    # ===== AI MARKET INTELLIGENCE =====
-    content_text += "\n\n"
-    content_text += "━━━━━━━━━━━━━━━━━━━━━━\n"
-    content_text += "🧠 التحليل الذكي للسوق\n"
-    content_text += "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    # ✅ توزيع الذكاء الاصطناعي داخل الفصول الفعلية
+    content_text = inject_ai_after_chapter(
+        content_text,
+        "الفصل الأول",
+        "📊 لقطة السوق الحية",
+        ai_insights.get("ai_live_market")
+    )
 
-    if ai_insights.get("ai_live_market"):
-        content_text += "📊 لقطة السوق الحية\n"
-        content_text += ai_insights["ai_live_market"] + "\n\n"
+    content_text = inject_ai_after_chapter(
+        content_text,
+        "الفصل الثاني",
+        "⚠️ تقييم المخاطر",
+        ai_insights.get("ai_risk")
+    )
 
-    if ai_insights.get("ai_opportunities"):
-        content_text += "💎 تحليل الفرص الاستثمارية\n"
-        content_text += ai_insights["ai_opportunities"] + "\n\n"
+    content_text = inject_ai_after_chapter(
+        content_text,
+        "الفصل الثالث",
+        "💎 تحليل الفرص الاستثمارية",
+        ai_insights.get("ai_opportunities")
+    )
 
-    if ai_insights.get("ai_risk"):
-        content_text += "⚠️ تقييم المخاطر\n"
-        content_text += ai_insights["ai_risk"] + "\n\n"
-
+    # 🏁 القرار النهائي يبقى في النهاية داخل إطار
     if ai_insights.get("ai_final_decision"):
-        content_text += "🏁 القرار الاستثماري النهائي\n"
-        content_text += ai_insights["ai_final_decision"] + "\n\n"
+        content_text += (
+            "\n\n━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🏁 القرار الاستثماري النهائي\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            + ai_insights["ai_final_decision"]
+            + "\n\n"
+        )
 
-    # -------- Charts pipeline --------
+    # توليد الرسومات
     if df is not None:
         df = unify_columns(df)
         df = ensure_required_columns(df)
