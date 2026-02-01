@@ -189,6 +189,17 @@ def create_pdf_from_content(
     # =========================
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
     
+    # ✅ نمط خاص للـ Chart Caption (بدون تضارب مع RTL markers)
+    caption_style = ParagraphStyle(
+        "CaptionRTL",
+        parent=body,
+        alignment=TA_CENTER,
+        fontSize=13,
+        textColor=colors.HexColor("#666666"),
+        spaceBefore=8,
+        spaceAfter=18,
+    )
+    
     story = []
 
     # =========================
@@ -240,14 +251,14 @@ def create_pdf_from_content(
 
         # 🏁 القرار الاستثماري النهائي (تمييز خاص)
         if clean.startswith("🏁"):
-            story.append(Paragraph(ar(clean), ai_sub_title))
+            story.append(Paragraph(clean, ai_sub_title))
             story.append(Spacer(1, 0.4 * cm))
             decision_mode = True
             continue
 
         # 📊 💎 ⚠️ عناوين فرعية عادية
         if clean.startswith(("📊", "💎", "⚠️")):
-            story.append(Paragraph(ar(clean), ai_sub_title))
+            story.append(Paragraph(clean, ai_sub_title))
             decision_mode = False
             continue
 
@@ -276,9 +287,9 @@ def create_pdf_from_content(
             # ✅ الفلترة النهائية: فلترة UTF-8 قبل Paragraph
             clean = clean.encode("utf-8", "ignore").decode("utf-8")
             if decision_mode:
-                story.append(Paragraph(ar(clean), ai_decision_box))
+                story.append(Paragraph(clean, ai_decision_box))
             else:
-                story.append(Paragraph(ar(clean), body))
+                story.append(Paragraph(clean, body))
             continue
 
         charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
@@ -296,7 +307,7 @@ def create_pdf_from_content(
 
                 caption_text = " ".join(lines)
                 caption_text = "\u202B" + caption_text + "\u202C"
-                story.append(Paragraph(caption_text, body))
+                story.append(Paragraph(caption_text, caption_style))
                 story.append(Spacer(1, 1.2 * cm))
 
             except StopIteration:
@@ -366,9 +377,9 @@ def create_pdf_from_content(
         if clean not in SPECIAL_TAGS:
             clean = clean.encode("utf-8", "ignore").decode("utf-8")
             if decision_mode:
-                story.append(Paragraph(ar(clean), ai_decision_box))
+                story.append(Paragraph(clean, ai_decision_box))
             else:
-                story.append(Paragraph(ar(clean), body))
+                story.append(Paragraph(clean, body))
 
     # =========================
     # BUILD
