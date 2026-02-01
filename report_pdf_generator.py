@@ -1,10 +1,11 @@
+# report_pdf_generator.py
 from io import BytesIO
 from datetime import datetime
 import os
 import tempfile
 import streamlit as st
 import re
-import unicodedata  # ⭐ إضافة مهمة
+import unicodedata
 
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -20,7 +21,7 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-import plotly.graph_objects as go  # ⭐ مطلوب للكشف عن نوع الرسمة
+import plotly.graph_objects as go
 
 
 # =========================
@@ -185,8 +186,18 @@ def create_pdf_from_content(
     )
 
     # =========================
-    # تحسينات اختيارية
+    # 🧠 إضافة ستايل العنوان التنفيذي الجديد
     # =========================
+    ai_executive_header = ParagraphStyle(
+        "AIExecutiveHeader",
+        parent=chapter,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#7a0000"),
+        fontSize=17,
+        spaceBefore=30,
+        spaceAfter=14,
+    )
+
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
     chart_caption_style = ParagraphStyle(
         "ChartCaption",
@@ -237,22 +248,40 @@ def create_pdf_from_content(
             continue
 
         # =========================
-        # AI SECTION HEADERS
+        # 🧠 🏁 التعديل الجوهري: عرض الاستشارة النهائية بشكل تنفيذي
         # =========================
 
-        # 🧠 عنوان الذكاء الرئيسي
-        if clean.startswith("🧠"):
-            story.append(Spacer(1, 1.5 * cm))
-            story.append(Paragraph(ar(clean), chapter))
-            story.append(Spacer(1, 0.8 * cm))
-            decision_mode = False
-            continue
-
-        # 🏁 القرار الاستثماري النهائي (تمييز خاص)
+        # 🏁 القرار الاستثماري النهائي (التعديل الذكي)
         if clean.startswith("🏁"):
+            # 1. مساحة واضحة
+            story.append(Spacer(1, 1.2 * cm))
+            
+            # 2. عنوان تنفيذي مركز
+            story.append(
+                Paragraph(
+                    ar("🧠 الخلاصة الاستشارية النهائية – Warda Intelligence AI"),
+                    ai_executive_header
+                )
+            )
+            
+            # 3. شرح تمهيدي
+            story.append(
+                Paragraph(
+                    ar(
+                        "ما يلي يمثل القرار الاستثماري النهائي المبني على "
+                        "تحليل البيانات السوقية الحية وتقييم الذكاء الاصطناعي."
+                    ),
+                    body
+                )
+            )
+            
+            # 4. مسافة ثم تفعيل وضع القرار
+            story.append(Spacer(1, 0.6 * cm))
+            decision_mode = True
+            
+            # 5. إضافة العنوان الأصلي (🏁 القرار الاستثماري النهائي)
             story.append(Paragraph(ar(clean), ai_sub_title))
             story.append(Spacer(1, 0.4 * cm))
-            decision_mode = True
             continue
 
         # 📊 💎 ⚠️ عناوين فرعية عادية
