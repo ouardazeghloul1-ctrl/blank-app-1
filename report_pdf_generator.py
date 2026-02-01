@@ -296,21 +296,16 @@ def create_pdf_from_content(
 
         # -------- CHART CAPTION --------
         if clean == "[[CHART_CAPTION]]":
-            # ✅ الحصول على النص التالي الذي يشرح الرسمة
             try:
-                # التخطي للسطر الفارغ بعد الوسم
                 next_line = next(lines_iter)
-                while not clean_text(next_line.strip()):  # تخطي الأسطر الفارغة
+                while not next_line.strip():
                     next_line = next(lines_iter)
-                
-                # إضافة نص شرح الرسمة (باستخدام النمط الخاص)
-                caption = clean_text(next_line)
-                if caption:
-                    story.append(Paragraph(ar(caption), chart_caption_style))
+
+                caption = "\u200F" + next_line.strip()  # RTL mark فقط
+                story.append(Paragraph(caption, chart_caption_style))
                 story.append(Spacer(1, 1.2 * cm))
             except StopIteration:
-                # إذا لم يكن هناك نص شرح
-                story.append(Spacer(1, 1.6 * cm))
+                story.append(Spacer(1, 1.2 * cm))
             decision_mode = False
             continue
 
