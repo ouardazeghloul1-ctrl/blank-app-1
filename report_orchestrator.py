@@ -129,6 +129,25 @@ def build_report_story(user_info, dataframe=None):
         real_data=df if df is not None else pd.DataFrame()
     )
 
+    # 🔍 الفحص الدقيق الذي طلبتِه (مؤقت 10 ثوانٍ)
+    print("=" * 50)
+    print("🔍 فحص AI FINAL DECISION:")
+    print("=" * 50)
+    print(f"AI FINAL DECISION موجود؟: {'ai_final_decision' in ai_insights}")
+    
+    ai_final_decision = ai_insights.get("ai_final_decision")
+    print(f"AI FINAL DECISION نوعه: {type(ai_final_decision)}")
+    print(f"AI FINAL DECISION طوله: {len(ai_final_decision) if ai_final_decision else 0}")
+    print(f"AI FINAL DECISION أول 200 حرف: {repr(ai_final_decision[:200]) if ai_final_decision else 'فارغ'}")
+    print(f"AI FINAL DECISION آخر 200 حرف: {repr(ai_final_decision[-200:]) if ai_final_decision else 'فارغ'}")
+    
+    # فحص علامة 🏁 داخل المحتوى نفسه
+    if ai_final_decision and '🏁' in ai_final_decision:
+        print(f"✅ علامة 🏁 موجودة داخل AI FINAL DECISION (الموضع: {ai_final_decision.find('🏁')})")
+    else:
+        print(f"❌ علامة 🏁 غير موجودة داخل AI FINAL DECISION")
+    print("=" * 50)
+
     # ✅ توزيع الذكاء الاصطناعي داخل الفصول الفعلية
     content_text = inject_ai_after_chapter(
         content_text,
@@ -153,11 +172,24 @@ def build_report_story(user_info, dataframe=None):
 
     # 🏁 القرار النهائي يبقى في النهاية داخل إطار
     if ai_insights.get("ai_final_decision"):
+        # 🔍 فحص إضافي قبل الإضافة
+        print(f"🔍 قبل إضافة 🏁 إلى content_text")
+        print(f"طول content_text الحالي: {len(content_text)}")
+        
         content_text += (
             "\n\n🏁 القرار الاستثماري النهائي\n\n"
             + ai_insights["ai_final_decision"]
             + "\n\n"
         )
+        
+        # 🔍 فحص بعد الإضافة
+        print(f"🔍 بعد إضافة 🏁 إلى content_text")
+        print(f"طول content_text الجديد: {len(content_text)}")
+        print(f"علامة 🏁 موجودة في content_text؟: {'🏁' in content_text}")
+        print(f"آخر 300 حرف من content_text: {repr(content_text[-300:])}")
+        print("=" * 50)
+    else:
+        print("❌ ai_final_decision فارغ! لن يُضاف 🏁")
 
     # توليد الرسومات
     if df is not None:
