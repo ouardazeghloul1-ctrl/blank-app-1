@@ -13,7 +13,7 @@ from bidi.algorithm import get_display
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer,
-    PageBreak, Image, KeepTogether
+    PageBreak, Image, KeepTogether, HRFlowable
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
@@ -81,6 +81,20 @@ def plotly_to_image(fig, width_cm, height_cm):
         return Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
     except Exception:
         return None
+
+
+# =========================
+# دالة فاصل فاخر (استشاري)
+# =========================
+def elegant_divider(width="80%", thickness=0.6, color=colors.HexColor("#B0B0B0")):
+    return HRFlowable(
+        width=width,
+        thickness=thickness,
+        color=color,
+        spaceBefore=12,
+        spaceAfter=14,
+        lineCap='round'
+    )
 
 
 # =========================
@@ -175,6 +189,20 @@ def create_pdf_from_content(
         spaceAfter=20,
     )
 
+    # =========================
+    # 🧠 AI INSIGHT BOX (للفصول 1–3)
+    # =========================
+    ai_insight_box = ParagraphStyle(
+        "AIInsightBox",
+        parent=body,
+        backColor=colors.HexColor("#F2F4F7"),
+        leftIndent=14,
+        rightIndent=14,
+        spaceBefore=14,
+        spaceAfter=18,
+        leading=26,
+    )
+
     title = ParagraphStyle(
         "ArabicTitle",
         parent=styles["Title"],
@@ -228,6 +256,7 @@ def create_pdf_from_content(
     chart_cursor = {}
     first_chapter_processed = False
     decision_mode = False
+    ai_mode = False
 
     # تحويل النص إلى iterator للوصول للسطور التالية
     lines_list = content_text.split("\n")
@@ -235,6 +264,24 @@ def create_pdf_from_content(
 
     for raw in lines_iter:
         raw_stripped = raw.strip()
+        
+        # 📌 PATCH B: إصلاح تنويه البيانات (إصلاح القطع نهائيًا)
+        if raw_stripped.startswith("📌 تنويه مهم"):
+            story.append(Spacer(1, 0.6 * cm))
+            story.append(Paragraph(ar(raw_stripped), body))
+
+            # 👇 التقاط الأسطر التالية كجزء من التنويه
+            while True:
+                try:
+                    next_line = next(lines_iter)
+                    if not next_line.strip():
+                        break
+                    story.append(Paragraph(ar(next_line.strip()), body))
+                except StopIteration:
+                    break
+
+            story.append(Spacer(1, 0.8 * cm))
+            continue
         
         # ⛔ الحل الأساسي: الوسوم لا تمر على clean_text
         if raw_stripped in SPECIAL_TAGS:
@@ -253,6 +300,10 @@ def create_pdf_from_content(
 
         # 🏁 القرار الاستثماري النهائي (التعديل الذكي)
         if clean.startswith("🏁"):
+            # تعزيز دخول القرار
+            story.append(Spacer(1, 0.8 * cm))
+            story.append(elegant_divider(width="60%", thickness=0.9))
+            
             # 1. مساحة واضحة
             story.append(Spacer(1, 1.2 * cm))
             
@@ -278,15 +329,20 @@ def create_pdf_from_content(
             # 4. مسافة ثم تفعيل وضع القرار
             story.append(Spacer(1, 0.6 * cm))
             decision_mode = True
+            ai_mode = False
             
             # 5. إضافة العنوان الأصلي (🏁 القرار الاستثماري النهائي)
             story.append(Paragraph(ar(clean), ai_sub_title))
             story.append(Spacer(1, 0.4 * cm))
             continue
 
-        # 📊 💎 ⚠️ عناوين فرعية عادية
+        # 📊 💎 ⚠️ عناوين الذكاء الاصطناعي داخل الفصول
         if clean.startswith(("📊", "💎", "⚠️")):
+            story.append(Spacer(1, 0.8 * cm))
+            story.append(elegant_divider())
             story.append(Paragraph(ar(clean), ai_sub_title))
+            story.append(Spacer(1, 0.4 * cm))
+            ai_mode = True
             decision_mode = False
             continue
 
@@ -299,6 +355,7 @@ def create_pdf_from_content(
             chapter_index += 1
             chart_cursor[chapter_index] = 0
             decision_mode = False
+            ai_mode = False
 
             story.append(
                 KeepTogether([
@@ -314,8 +371,13 @@ def create_pdf_from_content(
         if chapter_index >= 9:
             # ✅ الفلترة النهائية: فلترة UTF-8 قبل Paragraph
             clean = clean.encode("utf-8", "ignore").decode("utf-8")
+            
             if decision_mode:
                 story.append(Paragraph(ar(clean), ai_decision_box))
+            elif ai_mode:
+                # 🔴 PATCH FINAL: إغلاق ai_mode بدون فاصل زائد
+                story.append(Paragraph(ar(clean), ai_insight_box))
+                ai_mode = False
             else:
                 story.append(Paragraph(ar(clean), body))
             continue
@@ -330,12 +392,13 @@ def create_pdf_from_content(
                 while not next_line.strip():
                     next_line = next(lines_iter)
 
-                caption = ar(next_line.strip())  # ✅ الحل الصحيح
+                caption = ar(next_line.strip())
                 story.append(Paragraph(caption, chart_caption_style))
                 story.append(Spacer(1, 1.2 * cm))
             except StopIteration:
                 story.append(Spacer(1, 1.2 * cm))
             decision_mode = False
+            ai_mode = False
             continue
 
         # -------- ANCHOR CHART --------
@@ -348,6 +411,7 @@ def create_pdf_from_content(
                     story.append(Spacer(1, 0.6 * cm))
                 chart_cursor[chapter_index] += 1
             decision_mode = False
+            ai_mode = False
             continue
 
         # -------- RHYTHM CHART --------
@@ -392,14 +456,20 @@ def create_pdf_from_content(
                 
                 chart_cursor[chapter_index] += 1
             decision_mode = False
+            ai_mode = False
             continue
 
         # -------- NORMAL TEXT --------
         # ✅ التأكد من أن هذا ليس وسمًا قبل معالجة النص
         if clean not in SPECIAL_TAGS:
             clean = clean.encode("utf-8", "ignore").decode("utf-8")
+            
             if decision_mode:
                 story.append(Paragraph(ar(clean), ai_decision_box))
+            elif ai_mode:
+                # 🔴 PATCH FINAL: إغلاق ai_mode بدون فاصل زائد
+                story.append(Paragraph(ar(clean), ai_insight_box))
+                ai_mode = False
             else:
                 story.append(Paragraph(ar(clean), body))
 
