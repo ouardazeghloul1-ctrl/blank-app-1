@@ -13,7 +13,8 @@ from bidi.algorithm import get_display
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer,
-    PageBreak, Image, KeepTogether, HRFlowable
+    PageBreak, Image, KeepTogether, HRFlowable,
+    Table, TableStyle
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
@@ -61,6 +62,36 @@ def clean_text(text: str) -> str:
     text = re.sub(r"\s+", " ", text)
 
     return text.strip()
+
+
+# =========================
+# 📦 الصندوق التنفيذي الحقيقي للقرار النهائي (إصدار محسّن)
+# =========================
+def executive_decision_box(text, width_cm=16):
+    """صندوق تنفيذي فاخر يليق بتقرير استشاري مدفوع"""
+    return Table(
+        [[Paragraph(ar(text), ParagraphStyle(
+            "DecisionText",
+            fontName="Amiri",
+            fontSize=14.5,
+            leading=28,
+            alignment=TA_RIGHT,
+            textColor=colors.HexColor("#222222"),
+        ))]],
+        colWidths=[width_cm * cm],
+        style=TableStyle([
+            # 🎨 خلفية "وثيقة مجلس إدارة"
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F2F3F5")),
+            # 🖋️ إطار سميك فاخر
+            ("BOX", (0, 0), (-1, -1), 1.8, colors.HexColor("#7a0000")),
+            # 📐 مساحة داخلية مريحة
+            ("INNERPADDING", (0, 0), (-1, -1), 20),
+            ("TOPPADDING", (0, 0), (-1, -1), 22),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 22),
+            ("LEFTPADDING", (0, 0), (-1, -1), 18),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 18),
+        ])
+    )
 
 
 # =========================
@@ -214,7 +245,7 @@ def create_pdf_from_content(
     )
 
     # =========================
-    # 🧠 إضافة ستايل العنوان التنفيذي الجديد
+    # 🧠 ستايل العنوان التنفيذي الفاخر
     # =========================
     ai_executive_header = ParagraphStyle(
         "AIExecutiveHeader",
@@ -257,6 +288,7 @@ def create_pdf_from_content(
     first_chapter_processed = False
     decision_mode = False
     ai_mode = False
+    decision_buffer = []
 
     # تحويل النص إلى iterator للوصول للسطور التالية
     lines_list = content_text.split("\n")
@@ -300,40 +332,37 @@ def create_pdf_from_content(
 
         # 🏁 القرار الاستثماري النهائي (التعديل الذكي)
         if clean.startswith("🏁"):
-            # تعزيز دخول القرار
-            story.append(Spacer(1, 0.8 * cm))
-            story.append(elegant_divider(width="60%", thickness=0.9))
+            # صفحة مستقلة للقرار النهائي
+            story.append(PageBreak())
+
+            # مساحة مريحة قبل العنوان
+            story.append(Spacer(1, 1.5 * cm))
             
-            # 1. مساحة واضحة
-            story.append(Spacer(1, 1.2 * cm))
-            
-            # 2. عنوان تنفيذي مركز
+            # عنوان تنفيذي قوي يليق بقرار استشاري
             story.append(
                 Paragraph(
-                    ar("🧠 الخلاصة الاستشارية النهائية – Warda Intelligence AI"),
-                    ai_executive_header
+                    ar("🧠 الخلاصة الاستشارية النهائية"),
+                    ParagraphStyle(
+                        "FinalExecutiveTitle",
+                        parent=ai_executive_header,
+                        fontSize=19,
+                        textColor=colors.HexColor("#5a0000"),
+                        spaceAfter=0.8 * cm,
+                    )
                 )
             )
             
-            # 3. شرح تمهيدي
-            story.append(
-                Paragraph(
-                    ar(
-                        "ما يلي يمثل القرار الاستثماري النهائي المبني على "
-                        "تحليل البيانات السوقية الحية وتقييم الذكاء الاصطناعي."
-                    ),
-                    body
-                )
-            )
-            
-            # 4. مسافة ثم تفعيل وضع القرار
+            # فاصل أنيق
+            story.append(elegant_divider(width="50%", thickness=0.8, color=colors.HexColor("#7a0000")))
             story.append(Spacer(1, 0.6 * cm))
+
+            # تفعيل وضع تجميع نص القرار
             decision_mode = True
             ai_mode = False
+            decision_buffer = []  # بدء تجميع جديد
             
-            # 5. إضافة العنوان الأصلي (🏁 القرار الاستثماري النهائي)
-            story.append(Paragraph(ar(clean), ai_sub_title))
-            story.append(Spacer(1, 0.4 * cm))
+            # ❗️ مهم: لا نضيف عنوان 🏁 القرار الاستثماري النهائي هنا
+            # لقد استهلكناه كمشغل فقط
             continue
 
         # 📊 💎 ⚠️ عناوين الذكاء الاصطناعي داخل الفصول
@@ -373,7 +402,9 @@ def create_pdf_from_content(
             clean = clean.encode("utf-8", "ignore").decode("utf-8")
             
             if decision_mode:
-                story.append(Paragraph(ar(clean), ai_decision_box))
+                # ✅ تجميع النص للصندوق التنفيذي
+                if clean:  # فقط الأسطر غير الفارغة
+                    decision_buffer.append(clean)
             elif ai_mode:
                 # 🔴 PATCH FINAL: إغلاق ai_mode بدون فاصل زائد
                 story.append(Paragraph(ar(clean), ai_insight_box))
@@ -465,13 +496,29 @@ def create_pdf_from_content(
             clean = clean.encode("utf-8", "ignore").decode("utf-8")
             
             if decision_mode:
-                story.append(Paragraph(ar(clean), ai_decision_box))
+                # ✅ تجميع النص للصندوق التنفيذي (فقط الأسطر غير الفارغة)
+                if clean:
+                    decision_buffer.append(clean)
             elif ai_mode:
                 # 🔴 PATCH FINAL: إغلاق ai_mode بدون فاصل زائد
                 story.append(Paragraph(ar(clean), ai_insight_box))
                 ai_mode = False
             else:
                 story.append(Paragraph(ar(clean), body))
+
+    # =========================
+    # 📦 إضافة الصندوق التنفيذي للقرار النهائي
+    # =========================
+    if decision_mode and decision_buffer:
+        # مسافة مناسبة قبل الصندوق
+        story.append(Spacer(1, 0.8 * cm))
+        
+        # إضافة الصندوق التنفيذي الفاخر
+        decision_text = "\n\n".join(decision_buffer)
+        story.append(executive_decision_box(decision_text))
+        
+        # مسافة نهائية بعد الصندوق
+        story.append(Spacer(1, 1.5 * cm))
 
     # =========================
     # BUILD
