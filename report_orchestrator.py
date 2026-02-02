@@ -80,9 +80,8 @@ def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
         parts[0]
         + marker
         + parts[1].split("\n", 1)[0]
-        + "\n\n━━━━━━━━━━━━━━━━━━━━━━\n"
-        + ai_title + "\n"
-        + "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        + "\n\n"
+        + ai_title + "\n\n"
         + ai_content
         + "\n\n"
         + parts[1]
@@ -155,9 +154,7 @@ def build_report_story(user_info, dataframe=None):
     # 🏁 القرار النهائي يبقى في النهاية داخل إطار
     if ai_insights.get("ai_final_decision"):
         content_text += (
-            "\n\n━━━━━━━━━━━━━━━━━━━━━━\n"
-            "🏁 القرار الاستثماري النهائي\n"
-            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "\n\n🏁 القرار الاستثماري النهائي\n\n"
             + ai_insights["ai_final_decision"]
             + "\n\n"
         )
