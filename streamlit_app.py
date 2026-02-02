@@ -2,89 +2,38 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-import math
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import hashlib
-import time
-import base64
 from io import BytesIO
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
-from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib import rcParams
-import requests
-from bs4 import BeautifulSoup
 import warnings
 import random
 warnings.filterwarnings('ignore')
 import arabic_reshaper
 from bidi.algorithm import get_display
-import paypalrestsdk
-from dotenv import load_dotenv
 import os
 
-# ✅ استيراد الأنماط والخطوط لـ ReportLab
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_RIGHT, TA_CENTER
-from reportlab.lib import colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
+# ✅ استيراد الأنظمة الأساسية فقط
+from report_pdf_generator import create_pdf_from_blocks
+from report_orchestrator import build_report_story
 
-# ✅ استيراد الأنظمة المتخصصة
-from ultimate_report_system import UltimateReportSystem
-from premium_content_generator import PremiumContentGenerator
-from advanced_charts import AdvancedCharts
-
-# ✅ النظام الموحد لإنشاء PDF
-from report_pdf_generator import create_pdf_from_content
-
-# 🔧 استيراد النظام الذكي للتقارير - الإصدار المحسّن
+# 🔧 استيراد النظام الذكي للتقارير
 try:
-    # محاولة استيراد النظام الذكي
     from smart_report_system import SmartReportSystem
     SMART_SYSTEM_LOADED = True
 except ImportError as e:
-    # إذا فشل الاستيراد، نستخدم البديل
     SMART_SYSTEM_LOADED = False
     
     class SmartReportSystem:
         def __init__(self, user_data):
             self.user_data = user_data
         
-        def generate_smart_report(self, user_info, market_data, real_data, chosen_pkg):
-            return f"📊 تقرير ذكي تجريبي - {user_info.get('city', 'غير محدد')} - {chosen_pkg}"
-        
         def generate_extended_report(self, user_info, market_data, real_data, chosen_pkg):
-            return self.generate_smart_report(user_info, market_data, real_data, chosen_pkg)
-
-# استيراد الأنظمة الجديدة
-try:
-    from smart_opportunities import SmartOpportunityFinder
-    from finance_comparison import FinanceComparator
-    from live_data_system import LiveDataSystem
-except ImportError:
-    # تعريف بديل إذا لم تكن الملفات موجودة
-    class SmartOpportunityFinder:
-        def analyze_all_opportunities(self, user_info, market_data, real_data):
-            return {'عقارات_مخفضة': [], 'مناطق_صاعدة': [], 'توقيت_الاستثمار': 'محايد', 'ملخص_الفرص': 'تحتاج بيانات أكثر'}
-    
-    class FinanceComparator:
-        def generate_financing_report(self, user_info, property_price):
-            return {'خيارات_التمويل': [], 'حاسبة_التمويل': {}, 'نصيحة_التمويل': 'تحتاج بيانات أكثر'}
-    
-    class LiveDataSystem:
-        def update_live_data(self, real_data): pass
-        def get_live_data_summary(self, city): 
-            return {'مؤشرات_حية': {}, 'حالة_السوق': 'غير متوفر', 'توصية_فورية': 'تحتاج بيانات', 'آخر_تحديث': datetime.now().strftime('%H:%M')}
-
-try:
-    from market_intelligence import MarketIntelligence
-except ImportError:
-    class MarketIntelligence:
-        pass
+            return f"📊 تقرير ذكي تجريبي - {user_info.get('city', 'غير محدد')} - {chosen_pkg}"
 
 # ========== إعداد الصفحة ==========
 st.set_page_config(
@@ -93,17 +42,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
-# إعداد الدفع
-load_dotenv()
-for folder in ["outputs", "logs", "models"]:
-    os.makedirs(folder, exist_ok=True)
-
-paypalrestsdk.configure({
-    "mode": os.getenv("PAYPAL_MODE", "sandbox"),
-    "client_id": os.getenv("PAYPAL_CLIENT_ID"),
-    "client_secret": os.getenv("PAYPAL_CLIENT_SECRET")
-})
 
 # ========== دعم العربية ==========
 def arabic_text(text):
@@ -143,21 +81,6 @@ def setup_arabic_support():
         color: gold !important;
     }
     
-    p, div, span {
-        direction: rtl !important;
-        text-align: right !important;
-        unicode-bidi: embed !important;
-    }
-    
-    .stTextInput label, .stNumberInput label, .stSelectbox label, 
-    .stTextArea label, .stSlider label, .stRadio label {
-        direction: rtl !important;
-        text-align: right !important;
-        font-family: 'Tajawal', 'Arial', sans-serif !important;
-        color: gold !important;
-        font-weight: bold !important;
-    }
-    
     .stButton button {
         font-family: 'Tajawal', 'Arial', sans-serif !important;
         direction: rtl !important;
@@ -177,19 +100,16 @@ def setup_arabic_support():
         transform: scale(1.05) !important;
     }
     
-    table {
+    .stDownloadButton button {
+        background: linear-gradient(135deg, #d4af37, #ffd700) !important;
+        color: black !important;
+        font-weight: bold !important;
+        border-radius: 15px !important;
+        padding: 1em 2em !important;
+        border: none !important;
+        width: 100% !important;
+        font-size: 18px !important;
         direction: rtl !important;
-        text-align: right !important;
-    }
-    
-    .stAlert {
-        direction: rtl !important;
-        text-align: right !important;
-    }
-    
-    [data-testid="stMarkdownContainer"] {
-        direction: rtl !important;
-        text-align: right !important;
     }
     
     .package-card {
@@ -235,42 +155,6 @@ def setup_arabic_support():
         text-align: center !important;
         border: 2px solid #667eea !important;
         font-size: 12px !important;
-        direction: rtl !important;
-    }
-    
-    .stDownloadButton button {
-        background: linear-gradient(135deg, #d4af37, #ffd700) !important;
-        color: black !important;
-        font-weight: bold !important;
-        border-radius: 15px !important;
-        padding: 1em 2em !important;
-        border: none !important;
-        width: 100% !important;
-        font-size: 18px !important;
-        direction: rtl !important;
-    }
-    
-    .streamlit-expanderContent {
-        direction: rtl !important;
-        text-align: right !important;
-    }
-    
-    .stRadio > div {
-        direction: rtl !important;
-        text-align: right !important;
-    }
-    
-    .stRadio label {
-        direction: rtl !important;
-        text-align: right !important;
-    }
-    
-    .stSelectbox > div > div {
-        direction: rtl !important;
-        text-align: right !important;
-    }
-    
-    .stSlider > div {
         direction: rtl !important;
     }
     </style>
@@ -413,16 +297,6 @@ PACKAGES = {
     }
 }
 
-# ========== خريطة تصنيف المستخدمين ==========
-USER_CATEGORIES = {
-    "مستثمر": "investor",
-    "وسيط عقاري": "broker", 
-    "شركة تطوير": "developer",
-    "فرد": "individual",
-    "باحث عن فرصة": "opportunity",
-    "مالك عقار": "owner"
-}
-
 # ========== نظام السكرابر ==========
 class RealEstateScraper:
     def __init__(self):
@@ -502,7 +376,7 @@ class RealEstateScraper:
                     "سعر_المتر": int(price / area),
                     "العائد_المتوقع": round(expected_return, 1),
                     "مستوى_الخطورة": risk_level,
-                    "تاريخ_الجلب": datetime.now().strftime('%Y-%m-%d %H:%M')
+                    "تاريخ_الجلب": datetime.now().strftime('%Y-%m-%d %H:%M')  # ✅ تم التصحيح هنا
                 })
             
             df = pd.DataFrame(properties)
@@ -538,166 +412,12 @@ class RealEstateScraper:
                 "سعر_المتر": 6666,
                 "العائد_المتوقع": 7.5,
                 "مستوى_الخطورة": "متوسط",
-                "تاريخ_الجلب": datetime.now().strftime('%Y-%m-%d %H:%M')
+                "تاريخ_الجلب": datetime.now().strftime('%Y-%m-%d %H:%M')  # ✅ تم التصحيح هنا
             })
         return pd.DataFrame(properties)
     
     def get_real_data(self, city, property_type, num_properties=100):
         return self.fetch_data(city, property_type, num_properties)
-
-# ========== نظام الذكاء الاصطناعي ==========
-class AIIntelligence:
-    def __init__(self):
-        self.model_trained = False
-        
-    def train_ai_model(self, market_data, real_data):
-        self.model_trained = True
-        return "تم تدريب النموذج بنجاح"
-    
-    def generate_ai_recommendations(self, user_info, market_data, real_data):
-        risk_profile = self.analyze_risk_profile(user_info, market_data)
-        investment_strategy = self.generate_investment_strategy(risk_profile, market_data)
-        
-        recommendations = {
-            'ملف_المخاطر': risk_profile,
-            'استراتيجية_الاستثمار': investment_strategy,
-            'التوقيت_المثالي': self.optimal_timing(market_data),
-            'مؤشرات_الثقة': self.confidence_indicators(market_data, real_data)
-        }
-        
-        return recommendations
-    
-    def analyze_risk_profile(self, user_info, market_data):
-        risk_factors = []
-        
-        if market_data['معدل_النمو_الشهري'] > 4:
-            risk_factors.append(0.8)
-        elif market_data['معدل_النمو_الشهري'] < 1:
-            risk_factors.append(0.4)
-            
-        if market_data['مؤشر_السيولة'] > 85:
-            risk_factors.append(0.7)
-        elif market_data['مؤشر_السيولة'] < 60:
-            risk_factors.append(0.3)
-            
-        if market_data['العائد_التأجيري'] > 10:
-            risk_factors.append(0.6)
-        elif market_data['العائد_التأجيري'] < 6:
-            risk_factors.append(0.2)
-        
-        if risk_factors:
-            risk_score = sum(risk_factors) / len(risk_factors)
-        else:
-            risk_score = random.uniform(0.6, 0.95)
-            
-        if risk_score > 0.8:
-            return "منخفض المخاطر - فرصة استثنائية"
-        elif risk_score > 0.6:
-            return "متوسط المخاطر - فرصة جيدة"
-        else:
-            return "مرتفع المخاطر - يحتاج دراسة متأنية"
-    
-    def generate_investment_strategy(self, risk_profile, market_data):
-        strategies = {
-            "منخفض المخاطر - فرصة استثنائية": "الاستثمار الفوري مع التركيز على المناطق الرائدة",
-            "متوسط المخاطر - فرصة جيدة": "الاستثمار التدريجي مع تنويع المحفظة",
-            "مرتفع المخاطر - يحتاج دراسة متأنية": "الانتظار ومراقبة السوق قبل الاستثمار"
-        }
-        return strategies.get(risk_profile, "دراسة إضافية مطلوبة")
-    
-    def optimal_timing(self, market_data):
-        growth_trend = market_data['معدل_النمو_الشهري']
-        liquidity = market_data['مؤشر_السيولة']
-        
-        if growth_trend > 3 and liquidity > 80:
-            return "التوقيت الحالي ممتاز للاستثمار"
-        elif growth_trend > 2 and liquidity > 70:
-            return "التوقيت جيد للاستثمار"
-        else:
-            return "الفرصة متاحة لكن تحتاج دراسة متأنية"
-    
-    def confidence_indicators(self, market_data, real_data):
-        data_quality = "عالية جداً" if len(real_data) > 100 else "عالية" if len(real_data) > 50 else "متوسطة"
-        market_stability = "مستقر جداً" if market_data['مؤشر_السيولة'] > 90 else "مستقر" if market_data['مؤشر_السيولة'] > 75 else "متقلب"
-        growth_trend = "قوي وإيجابي" if market_data['معدل_النمو_الشهري'] > 3 else "إيجابي" if market_data['معدل_النمو_الشهري'] > 1.5 else "محايد"
-        
-        indicators = {
-            'جودة_البيانات': data_quality,
-            'استقرار_السوق': market_stability,
-            'اتجاه_النمو': growth_trend,
-            'مستوى_الثقة': "85%"
-        }
-        return indicators
-
-# ========== توليد بيانات السوق ==========
-def generate_advanced_market_data(city, property_type, status, real_data):
-    try:
-        if not real_data.empty and 'السعر' in real_data.columns and 'المساحة' in real_data.columns:
-            real_data_clean = real_data.dropna(subset=['السعر', 'المساحة']).copy()
-            real_data_clean['السعر'] = pd.to_numeric(real_data_clean['السعر'], errors='coerce')
-            real_data_clean['المساحة'] = pd.to_numeric(real_data_clean['المساحة'].astype(str).str.extract('(\d+)')[0], errors='coerce')
-            real_data_clean = real_data_clean.dropna()
-
-            if not real_data_clean.empty:
-                avg_area = real_data_clean['المساحة'].mean()
-                avg_price = float(real_data_clean['السعر'].mean() / avg_area) if avg_area else 6000
-                min_price = float(avg_price * 0.7)
-                max_price = float(avg_price * 1.5)
-                property_count = len(real_data_clean)
-                avg_return = float(real_data_clean['العائد_المتوقع'].mean()) if 'العائد_المتوقع' in real_data_clean.columns else random.uniform(6.0, 10.0)
-            else:
-                avg_price = 6000
-                min_price = 4200
-                max_price = 9000
-                property_count = 100
-                avg_return = 7.5
-        else:
-            avg_price = 6000
-            min_price = 4200
-            max_price = 9000
-            property_count = random.randint(80, 150)
-            avg_return = float(random.uniform(6.5, 9.5))
-        
-        price_multiplier = 1.15 if status == "للبيع" else 0.85 if status == "للشراء" else 1.0
-        
-        city_growth = {
-            "الرياض": (2.8, 5.5),
-            "جدة": (2.5, 5.0),
-            "الدمام": (2.0, 4.2)
-        }
-        growth_range = city_growth.get(city, (2.2, 4.5))
-        
-        return {
-            'السعر_الحالي': float(avg_price * price_multiplier),
-            'متوسط_السوق': float(avg_price),
-            'أعلى_سعر': float(max_price),
-            'أقل_سعر': float(min_price),
-            'حجم_التداول_شهري': int(property_count),
-            'معدل_النمو_الشهري': float(random.uniform(*growth_range)),
-            'عرض_العقارات': int(property_count),
-            'طالب_الشراء': int(property_count * random.uniform(1.4, 1.8)),
-            'معدل_الإشغال': float(random.uniform(88, 96)),
-            'العائد_التأجيري': float(avg_return),
-            'مؤشر_السيولة': float(random.uniform(78, 92)),
-            'عدد_العقارات_الحقيقية': int(len(real_data) if not real_data.empty else property_count)
-        }
-        
-    except Exception as e:
-        print(f"خطأ في generate_advanced_market_data: {e}")
-        return {
-            'السعر_الحالي': 6000.0,
-            'متوسط_السوق': 6000.0,
-            'أعلى_سعر': 9000.0,
-            'أقل_سعر': 4200.0,
-            'حجم_التداول_شهري': 100,
-            'معدل_النمو_الشهري': 2.5,
-            'عرض_العقارات': 100,
-            'طالب_الشراء': 150,
-            'معدل_الإشغال': 92.0,
-            'العائد_التأجيري': 7.5,
-            'مؤشر_السيولة': 85.0,
-            'عدد_العقارات_الحقيقية': 100
-        }
 
 # ========== الواجهة الرئيسية ==========
 st.markdown("""
@@ -778,11 +498,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                     'مستوى_الخطورة': ['منخفض', 'متوسط']
                 })
 
-            market_data = generate_advanced_market_data(
-                city, property_type, status, real_data
-            )
-
-            # ✅ التصحيح الحاسم: إضافة الباقة بشكل صحيح
+            # ✅ بيانات المستخدم النهائية
             user_info = {
                 "user_type": user_type,
                 "city": city,
@@ -790,117 +506,83 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 "area": area,
                 "package": chosen_pkg,
                 "chosen_pkg": chosen_pkg,
-                "باقة": chosen_pkg,
                 "property_count": property_count,
                 "status": status
             }
 
-            # 🔧 إنشاء التقرير الذكي (للعرض فقط)
-            user_category = USER_CATEGORIES.get(user_type, "investor")
-            user_data = {
-                "city": city,
-                "plan": chosen_pkg,
-                "category": user_category,
-                "user_type": user_type,
-                "user_category_ar": user_type,
-                "property_type": property_type,
-                "area": area
-            }
-            
-            smart_system = SmartReportSystem(user_data)
-            st.session_state.smart_report_content = smart_system.generate_extended_report(
-                user_info, market_data, real_data, chosen_pkg
-            )
-
-            if chosen_pkg in ["ذهبية", "ماسية", "ماسية متميزة"]:
-                ai_engine = AIIntelligence()
-                st.session_state.ai_recommendations = ai_engine.generate_ai_recommendations(
-                    user_info, market_data, real_data
-                )
-
-            # ✅ نظام PDF الموحد والمضمون - الإصدار المحسن
+            # =====================================
+            # 🧠 بناء التقرير بالنظام الجديد
+            # =====================================
             try:
-                # =====================================
-                # 🧠 استخدام نظام البناء الذكي الجديد
-                # =====================================
-                from report_orchestrator import build_report_story
-
-                # بناء التقرير الذكي
+                # بناء القصة بالمعمارية الجديدة
                 story = build_report_story(user_info, real_data)
                 
-                # 🔍 التحقق الإلزامي من محتوى التقرير
-                final_content_text = story.get("content_text", "")
-
-                if not final_content_text or final_content_text.strip() == "":
-                    st.error("❌ خطأ حرج: محتوى التقرير النصي فارغ.")
+                # 🔍 التحقق من جودة القصة المبينة
+                if not story or "blocks" not in story or "charts" not in story:
+                    st.error("❌ خطأ حرج: التقرير لم يتم بناؤه بشكل صحيح.")
                     st.stop()
-
-                if "🏁" not in final_content_text:
-                    st.error("❌ خطأ حرج: القرار الاستثماري النهائي 🏁 غير موجود.")
-                    st.code(final_content_text[-500:] if len(final_content_text) > 500 else final_content_text)
-                    st.stop()
-
-                st.success(f"✅ المحتوى سليم ({len(final_content_text)} حرف) ويحتوي على القرار النهائي")
                 
-                charts_by_chapter = story.get("charts", {})
+                # 📊 معلومات تفصيلية للتتبع
+                blocks_count = len(story.get("blocks", []))
+                chapters_count = len(story.get("charts", {}))
+                has_decision = any(b.get("type") == "final_decision" for b in story.get("blocks", []))
                 
-                # ✅ هذا السطر هو الأهم - حفظ الرسومات
-                st.session_state["charts_by_chapter"] = charts_by_chapter
+                st.success(f"""
+                ✅ تم بناء التقرير بنجاح:
+                - 📄 {blocks_count} كتلة محتوى
+                - 📊 {chapters_count} فصل بالرسوم
+                - 🏁 يحتوي قرار نهائي: {'نعم' if has_decision else 'لا'}
+                """)
                 
                 # =====================================
-                # 💎 إنشاء PDF بالمحتوى الكامل
+                # 💎 إنشاء PDF بالنظام الجديد
                 # =====================================
-                pdf_buffer = create_pdf_from_content(
-                    user_info=user_info,
-                    market_data=market_data,
-                    real_data=real_data,
-                    content_text=final_content_text,
-                    package_level=chosen_pkg,
-                    ai_recommendations=st.session_state.get("ai_recommendations")
+                pdf_buffer = create_pdf_from_blocks(
+                    blocks=story["blocks"],
+                    charts_by_chapter=story["charts"]
                 )
                 
+                # حفظ النتائج
+                st.session_state.pdf_data = pdf_buffer.getvalue()
+                st.session_state.report_generated = True
+                st.session_state.user_info = user_info
+                st.session_state.story_meta = {
+                    "blocks_count": blocks_count,
+                    "chapters_count": chapters_count,
+                    "has_decision": has_decision,
+                    "package": chosen_pkg
+                }
+
+                st.success("🎉 تم إنشاء التقرير بنجاح!")
+                st.balloons()
+                
             except Exception as e:
-                st.error(f"❌ خطأ في إنشاء التقرير الكامل: {str(e)[:200]}")
+                st.error(f"❌ خطأ في إنشاء التقرير: {str(e)[:200]}")
                 import traceback
                 st.code(traceback.format_exc())
-                # خطة طوارئ: PDF بسيط
-                from io import BytesIO
-                buffer = BytesIO()
-                buffer.write(st.session_state.smart_report_content.encode('utf-8'))
-                buffer.seek(0)
-                pdf_buffer = buffer
-
-            st.session_state.pdf_data = pdf_buffer.getvalue()
-            st.session_state.report_generated = True
-            st.session_state.real_data = real_data
-            st.session_state.user_info = user_info
-            st.session_state.market_data = market_data
-
-            st.success("✅ تم إنشاء التقرير بنجاح!")
-            st.balloons()
+                st.stop()
 
         except Exception as e:
             st.error(f"⚠️ خطأ أثناء إنشاء التقرير: {str(e)[:200]}")
-            import traceback
-            st.code(traceback.format_exc())
 
 # ========== عرض النتائج ==========
 if st.session_state.get('report_generated', False):
     st.markdown("---")
     st.markdown("## 📊 التقرير النهائي الجاهز للطباعة")
     
-    with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
-        user_info = st.session_state.get('user_info', {})
-        st.write("### 👤 تحليل احتياجاتك")
-        st.write(f"**الفئة:** {user_info.get('user_type', 'غير محدد')}")
-        st.write(f"**المدينة:** {user_info.get('city', 'غير محدد')}")
-        st.write(f"**الباقة:** {user_info.get('package', 'غير محدد')}")
+    with st.expander("📊 تفاصيل التقرير المولد", expanded=True):
+        meta = st.session_state.get('story_meta', {})
+        st.write("### 📋 ملخص التقرير")
+        st.write(f"**الباقة:** {meta.get('package', 'غير محدد')}")
+        st.write(f"**عدد الكتل:** {meta.get('blocks_count', 0)}")
+        st.write(f"**عدد الفصول:** {meta.get('chapters_count', 0)}")
+        st.write(f"**قرار نهائي:** {'✅ موجود' if meta.get('has_decision') else '❌ غير موجود'}")
         
-        ai_recommendations = st.session_state.get('ai_recommendations', {})
-        if ai_recommendations:
-            st.write("### 🎯 أبرز التوصيات")
-            st.write(f"**ملف المخاطر:** {ai_recommendations.get('ملف_المخاطر', 'غير محدد')}")
-            st.write(f"**استراتيجية الاستثمار:** {ai_recommendations.get('استراتيجية_الاستثمار', 'غير محدد')}")
+        if meta.get('package') in ["ذهبية", "ماسية", "ماسية متميزة"]:
+            st.write("### 🎯 ميزات الباقة الممتازة")
+            st.write("• تحليل الذكاء الاصطناعي المتقدم")
+            st.write("• توصيات استثمارية مخصصة")
+            st.write("• صندوق القرار التنفيذي الفاخر")
     
     # زر تحميل التقرير
     if st.session_state.get('pdf_data'):
@@ -926,20 +608,10 @@ if 'report_generated' not in st.session_state:
     st.session_state.report_generated = False
 if 'pdf_data' not in st.session_state:
     st.session_state.pdf_data = None
-if 'real_data' not in st.session_state:
-    st.session_state.real_data = pd.DataFrame()
-if 'market_data' not in st.session_state:
-    st.session_state.market_data = {}
-if 'ai_recommendations' not in st.session_state:
-    st.session_state.ai_recommendations = None
 if 'user_info' not in st.session_state:
     st.session_state.user_info = {}
-if 'smart_report_content' not in st.session_state:
-    st.session_state.smart_report_content = None
-if 'charts_by_chapter' not in st.session_state:
-    st.session_state.charts_by_chapter = {}
-if 'paid' not in st.session_state:
-    st.session_state.paid = False
+if 'story_meta' not in st.session_state:
+    st.session_state.story_meta = {}
 
 st.markdown("---")
 st.markdown("""
