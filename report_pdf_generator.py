@@ -377,6 +377,10 @@ def create_pdf_from_content(
 
         # -------- CHAPTER --------
         if clean.startswith("الفصل"):
+            # ✅ التحسين الاحترافي: إغلاق وضع القرار عند بداية فصل جديد
+            if decision_mode:
+                decision_mode = False  # 🔒 نقطة إغلاق صريحة
+            
             # ✅ لا نكسر الصفحة قبل أول فصل
             if first_chapter_processed:
                 story.append(PageBreak())
@@ -509,7 +513,7 @@ def create_pdf_from_content(
     # =========================
     # 📦 إضافة الصندوق التنفيذي للقرار النهائي
     # =========================
-    if decision_mode and decision_buffer:
+    if decision_buffer:  # ✅ الحل الحاسم: إزالة شرط decision_mode
         # مسافة مناسبة قبل الصندوق
         story.append(Spacer(1, 0.8 * cm))
         
