@@ -825,32 +825,27 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 # =====================================
                 from report_orchestrator import build_report_story
 
-                # ✅ التحقق من البيانات قبل البناء
-                st.write(f"🔍 DEBUG: user_info keys = {list(user_info.keys())}")
-                st.write(f"🔍 DEBUG: package = {user_info.get('package')}")
-                st.write(f"🔍 DEBUG: chosen_pkg = {user_info.get('chosen_pkg')}")
-                
                 # بناء التقرير الذكي
                 story = build_report_story(user_info, real_data)
                 
-                # ✅ التحقق من القصة المبينة
-                if story:
-                    st.write(f"🔍 DEBUG: story keys = {list(story.keys())}")
-                    if "meta" in story:
-                        st.write(f"🔍 DEBUG: meta = {story['meta']}")
-                
-                # 🔒 حماية من أي نقص
+                # 🔍 التحقق الإلزامي من محتوى التقرير
                 final_content_text = story.get("content_text", "")
+
                 if not final_content_text or final_content_text.strip() == "":
-                    final_content_text = st.session_state.get('smart_report_content', 
-                        f"تقرير {chosen_pkg} لـ {property_type} في {city}")
+                    st.error("❌ خطأ حرج: محتوى التقرير النصي فارغ.")
+                    st.stop()
+
+                if "🏁" not in final_content_text:
+                    st.error("❌ خطأ حرج: القرار الاستثماري النهائي 🏁 غير موجود.")
+                    st.code(final_content_text[-500:] if len(final_content_text) > 500 else final_content_text)
+                    st.stop()
+
+                st.success(f"✅ المحتوى سليم ({len(final_content_text)} حرف) ويحتوي على القرار النهائي")
                 
                 charts_by_chapter = story.get("charts", {})
                 
                 # ✅ هذا السطر هو الأهم - حفظ الرسومات
                 st.session_state["charts_by_chapter"] = charts_by_chapter
-                
-                st.info(f"📝 تم بناء محتوى التقرير الذكي: {len(final_content_text.split())} كلمة")
                 
                 # =====================================
                 # 💎 إنشاء PDF بالمحتوى الكامل
