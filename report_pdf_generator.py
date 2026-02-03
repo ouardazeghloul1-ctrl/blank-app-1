@@ -4,6 +4,9 @@
 # ==========================================
 
 from io import BytesIO
+import os
+import tempfile
+
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer,
     PageBreak, Image, Table, TableStyle
@@ -18,9 +21,6 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 import arabic_reshaper
 from bidi.algorithm import get_display
-import tempfile
-import plotly.graph_objects as go
-import os
 
 
 # =========================
@@ -51,18 +51,21 @@ def plotly_to_image(fig, w=16.5, h=8.5):
 # =========================
 def executive_decision_box(text):
     return Table(
-        [[Paragraph(ar(text), ParagraphStyle(
-            "DecisionText",
-            fontName="Amiri",
-            fontSize=14.5,
-            leading=28,
-            alignment=TA_RIGHT
-        ))]],
+        [[Paragraph(
+            ar(text),
+            ParagraphStyle(
+                "DecisionText",
+                fontName="Amiri",
+                fontSize=14.5,
+                leading=28,
+                alignment=TA_RIGHT
+            )
+        )]],
         colWidths=[16 * cm],
         style=TableStyle([
-            ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#F2F3F5")),
-            ("BOX", (0,0), (-1,-1), 1.8, colors.HexColor("#7a0000")),
-            ("INNERPADDING", (0,0), (-1,-1), 18),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F2F3F5")),
+            ("BOX", (0, 0), (-1, -1), 1.8, colors.HexColor("#7a0000")),
+            ("INNERPADDING", (0, 0), (-1, -1), 18),
         ])
     )
 
@@ -73,7 +76,7 @@ def executive_decision_box(text):
 def create_pdf_from_blocks(blocks, charts_by_chapter):
     buffer = BytesIO()
 
-    # ---- SAFE FONT PATH ----
+    # ---- Font (SAFE PATH) ----
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     FONT_PATH = os.path.join(BASE_DIR, "Amiri-Regular.ttf")
 
@@ -114,7 +117,9 @@ def create_pdf_from_blocks(blocks, charts_by_chapter):
         parent=body,
         backColor=colors.HexColor("#F2F4F7"),
         leftIndent=12,
-        rightIndent=12
+        rightIndent=12,
+        spaceBefore=12,
+        spaceAfter=18
     )
 
     title_exec = ParagraphStyle(
@@ -133,41 +138,55 @@ def create_pdf_from_blocks(blocks, charts_by_chapter):
     # RENDER BLOCKS
     # =========================
     for block in blocks:
-        btype = block["type"]
+        btype = block.get("type")
 
+        # ---- Chapter ----
         if btype == "chapter_title":
-            if story:
-                story.append(PageBreak())
-            story.append(Paragraph(ar(block["content"]), chapter))
+            story.append(PageBreak())
+            story.append(Paragraph(ar(block.get("content", "")), chapter))
 
+        # ---- Text ----
         elif btype == "text":
-            story.append(Paragraph(ar(block["content"]), body))
+            story.append(Paragraph(ar(block.get("content", "")), body))
 
+        # ---- AI Insight ----
         elif btype == "ai_insight":
-            story.append(Spacer(1, 0.3 * cm))
-            story.append(Paragraph(ar(block["content"]), ai_box))
+            story.append(Paragraph(ar(block.get("content", "")), ai_box))
 
+        # ---- Chart ----
         elif btype == "chart":
-            ch = block["chapter"]
+            ch = block.get("chapter")
+            charts_list = charts_by_chapter.get(f"chapter_{ch}", [])
+
             chart_cursor.setdefault(ch, 0)
-            fig = charts_by_chapter.get(f"chapter_{ch}", [])[chart_cursor[ch]]
-            story.append(Spacer(1, 0.8 * cm))
-            story.append(plotly_to_image(fig))
-            chart_cursor[ch] += 1
 
+            if chart_cursor[ch] < len(charts_list):
+                fig = charts_list[chart_cursor[ch]]
+                story.append(Spacer(1, 0.8 * cm))
+                story.append(plotly_to_image(fig))
+                chart_cursor[ch] += 1
+            else:
+                # لا يوجد رسم → نتجاهل بهدوء
+                pass
+
+        # ---- Chart Caption ----
         elif btype == "chart_caption":
-            story.append(Paragraph(ar(block["content"]), ParagraphStyle(
-                "Caption",
-                parent=body,
-                alignment=TA_CENTER,
-                fontSize=13,
-                textColor=colors.HexColor("#666666")
-            )))
+            story.append(Paragraph(
+                ar(block.get("content", "")),
+                ParagraphStyle(
+                    "Caption",
+                    parent=body,
+                    alignment=TA_CENTER,
+                    fontSize=13,
+                    textColor=colors.HexColor("#666666")
+                )
+            ))
 
+        # ---- Final Decision ----
         elif btype == "final_decision":
             story.append(PageBreak())
-            story.append(Paragraph(ar(block["title"]), title_exec))
-            story.append(executive_decision_box(block["content"]))
+            story.append(Paragraph(ar(block.get("title", "")), title_exec))
+            story.append(executive_decision_box(block.get("content", "")))
 
     doc.build(story)
     buffer.seek(0)
