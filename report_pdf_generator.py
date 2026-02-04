@@ -1,7 +1,6 @@
-# report_pdf_generator.py
 # =========================================
 # FINAL EXECUTIVE PDF GENERATOR – WARDA
-# نسخة مستقرة – قرار استشاري مبني على بيانات حقيقية
+# نسخة مستقرة – تقرير فاخر مبني على بيانات حقيقية
 # =========================================
 
 from io import BytesIO
@@ -28,7 +27,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 import plotly.graph_objects as go
 
-# 🔑 القرار الحقيقي
+# 🔑 الخلاصة الاستشارية الحقيقية
 from ai_executive_summary import generate_executive_summary
 
 
@@ -46,7 +45,7 @@ def ar(text):
 
 
 # =========================
-# Clean text (نهائي – بدون تخريب)
+# Clean text (محافظ – بدون تخريب)
 # =========================
 def clean_text(text: str) -> str:
     if not text:
@@ -237,7 +236,7 @@ def create_pdf_from_blocks(
             continue
 
     # =========================
-    # 🧠 EXECUTIVE FINAL DECISION (REAL DATA)
+    # 🧠 EXECUTIVE FINAL DECISION
     # =========================
     story.append(PageBreak())
     story.append(Spacer(1, 1.5 * cm))
@@ -269,3 +268,13 @@ def create_pdf_from_blocks(
     doc.build(story)
     buffer.seek(0)
     return buffer
+
+
+# =========================
+# SAFE ALIAS (حل ImportError)
+# =========================
+def create_pdf_from_content(*args, **kwargs):
+    """
+    Alias آمن للحفاظ على التوافق مع streamlit_app.py
+    """
+    return create_pdf_from_blocks(*args, **kwargs)
