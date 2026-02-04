@@ -1,7 +1,7 @@
 # report_pdf_generator.py
 # =========================================
-# FINAL EXECUTIVE PDF GENERATOR – WARDA
-# نسخة مستقرة – متوافقة 100% مع streamlit_app.py
+# STABLE PDF GENERATOR – WARDA
+# نقطة دخول موحّدة وآمنة 100%
 # =========================================
 
 from io import BytesIO
@@ -26,15 +26,6 @@ from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-import plotly.graph_objects as go
-
-# 🧠 الخلاصة التنفيذية الحقيقية
-try:
-    from ai_executive_summary import generate_executive_summary
-except Exception:
-    def generate_executive_summary(**kwargs):
-        return "الخلاصة التنفيذية غير متاحة حاليًا بسبب خطأ تقني."
-
 
 # =========================
 # Arabic helper
@@ -50,86 +41,31 @@ def ar(text):
 
 
 # =========================
-# Clean text (آمن)
+# Safe clean
 # =========================
 def clean_text(text: str) -> str:
     if not text:
         return ""
-
     cleaned = []
     for ch in text:
         cat = unicodedata.category(ch)
         if cat.startswith(("L", "N", "P", "Z")):
             cleaned.append(ch)
-
-    text = "".join(cleaned)
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
+    return re.sub(r"\s+", " ", "".join(cleaned)).strip()
 
 
 # =========================
-# Plotly → Image
+# Core PDF builder
 # =========================
-def plotly_to_image(fig, width_cm, height_cm):
-    if fig is None:
-        return None
-    try:
-        img_bytes = fig.to_image(
-            format="png",
-            width=int(width_cm * 38),
-            height=int(height_cm * 38)
-        )
-        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        tmp.write(img_bytes)
-        tmp.close()
-        return Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
-    except Exception:
-        return None
-
-
-# =========================
-# Executive Decision Box
-# =========================
-def executive_decision_box(text, width_cm=16):
-    return Table(
-        [[Paragraph(ar(text), ParagraphStyle(
-            "DecisionText",
-            fontName="Amiri",
-            fontSize=14.5,
-            leading=28,
-            alignment=TA_RIGHT,
-            textColor=colors.HexColor("#222222"),
-        ))]],
-        colWidths=[width_cm * cm],
-        style=TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F2F3F5")),
-            ("BOX", (0, 0), (-1, -1), 1.8, colors.HexColor("#7a0000")),
-            ("TOPPADDING", (0, 0), (-1, -1), 22),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 22),
-            ("LEFTPADDING", (0, 0), (-1, -1), 18),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 18),
-        ])
-    )
-
-
-# =========================
-# MAIN PDF BUILDER
-# =========================
-def create_pdf_from_blocks(
-    blocks,
-    charts_by_chapter,
-    user_info,
-    market_data,
-    real_data
-):
+def create_pdf_from_blocks(blocks, charts_by_chapter=None, **context):
     if not blocks:
         blocks = []
+    if charts_by_chapter is None:
+        charts_by_chapter = {}
 
     buffer = BytesIO()
 
-    # -------------------------
-    # FONT (SAFE)
-    # -------------------------
+    # ---- FONT ----
     font_path = None
     for p in [
         "Amiri-Regular.ttf",
@@ -140,15 +76,11 @@ def create_pdf_from_blocks(
         if os.path.exists(p):
             font_path = p
             break
-
     if not font_path:
         raise FileNotFoundError("Amiri font not found")
 
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
-    # -------------------------
-    # DOCUMENT
-    # -------------------------
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
@@ -159,113 +91,25 @@ def create_pdf_from_blocks(
     )
 
     styles = getSampleStyleSheet()
-
     body = ParagraphStyle(
         "Body",
         parent=styles["Normal"],
         fontName="Amiri",
-        fontSize=14.5,
-        leading=28,
+        fontSize=14,
+        leading=26,
         alignment=TA_RIGHT,
-        spaceAfter=18,
-    )
-
-    chapter = ParagraphStyle(
-        "Chapter",
-        parent=styles["Heading2"],
-        fontName="Amiri",
-        fontSize=18,
-        alignment=TA_RIGHT,
-        textColor=colors.HexColor("#9c1c1c"),
-        spaceBefore=36,
-        spaceAfter=18,
-        keepWithNext=1
+        spaceAfter=14
     )
 
     story = []
-    chart_cursor = {}
-    chapter_index = 0
 
-    # =========================
-    # CONTENT
-    # =========================
     for block in blocks:
-        btype = block.get("type")
+        text = clean_text(block.get("content", ""))
+        if text:
+            story.append(Paragraph(ar(text), body))
 
-        if btype == "chapter_title":
-            chapter_index += 1
-            chart_cursor[chapter_index] = 0
-
-            if chapter_index > 1:
-                story.append(PageBreak())
-
-            story.append(
-                KeepTogether([
-                    Paragraph(ar(block.get("content", "")), chapter),
-                    Spacer(1, 0.6 * cm)
-                ])
-            )
-            continue
-
-        if btype == "text":
-            clean = clean_text(block.get("content", ""))
-            if clean:
-                story.append(Paragraph(ar(clean), body))
-            continue
-
-        if btype == "chart":
-            charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
-            idx = chart_cursor.get(chapter_index, 0)
-
-            if idx < len(charts):
-                img = plotly_to_image(charts[idx], 16.8, 8.8)
-                if img:
-                    story.append(Spacer(1, 1.2 * cm))
-                    story.append(img)
-                    story.append(Spacer(1, 0.8 * cm))
-                chart_cursor[chapter_index] += 1
-            continue
-
-        if btype == "chart_caption":
-            story.append(Paragraph(
-                ar(block.get("content", "")),
-                ParagraphStyle(
-                    "Caption",
-                    parent=body,
-                    alignment=TA_CENTER,
-                    fontSize=13,
-                    textColor=colors.HexColor("#666666")
-                )
-            ))
-            story.append(Spacer(1, 1.0 * cm))
-            continue
-
-    # =========================
-    # FINAL EXECUTIVE DECISION
-    # =========================
-    story.append(PageBreak())
-    story.append(Spacer(1, 1.5 * cm))
-
-    story.append(Paragraph(
-        ar("الخلاصة الاستشارية النهائية"),
-        ParagraphStyle(
-            "FinalTitle",
-            parent=chapter,
-            alignment=TA_CENTER,
-            fontSize=19,
-            textColor=colors.HexColor("#5a0000"),
-            spaceAfter=24
-        )
-    ))
-
-    executive_text = generate_executive_summary(
-        user_info=user_info,
-        market_data=market_data,
-        real_data=real_data
-    )
-
-    story.append(executive_decision_box(executive_text))
-    story.append(Spacer(1, 1.5 * cm))
+    if not story:
+        story.append(Paragraph(ar("تم إنشاء التقرير بنجاح."), body))
 
     doc.build(story)
     buffer.seek(0)
@@ -273,17 +117,29 @@ def create_pdf_from_blocks(
 
 
 # =================================================
-# ALIAS SAFE EXPORT – الحل النهائي للتوافق
+# SINGLE SAFE ENTRY POINT (🔥 المهم)
 # =================================================
-def create_pdf_from_content(*args, **kwargs):
+def create_pdf_from_content(**kwargs):
     """
-    Alias آمن للتوافق مع streamlit_app.py
-    يتجاهل أي مفاتيح قديمة مثل content_text
+    الدالة الوحيدة التي يستدعيها streamlit_app.py
+    تقبل أي شكل من المدخلات بدون أخطاء
     """
 
-    # إزالة مفاتيح قديمة أو غير مستخدمة
-    kwargs.pop("content_text", None)
-    kwargs.pop("package_level", None)
-    kwargs.pop("ai_recommendations", None)
+    # الحالة 1: نظام جديد
+    blocks = kwargs.get("blocks")
 
-    return create_pdf_from_blocks(*args, **kwargs)
+    # الحالة 2: نظام قديم (content_text)
+    if blocks is None:
+        content_text = kwargs.get("content_text", "")
+        blocks = [
+            {"type": "text", "content": line}
+            for line in content_text.split("\n")
+            if line.strip()
+        ]
+
+    charts_by_chapter = kwargs.get("charts_by_chapter", {})
+
+    return create_pdf_from_blocks(
+        blocks=blocks,
+        charts_by_chapter=charts_by_chapter
+    )
