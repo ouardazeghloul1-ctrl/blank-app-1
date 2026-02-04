@@ -27,7 +27,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 import plotly.graph_objects as go
 
-# 🔑 الخلاصة الاستشارية الحقيقية
+# 🔑 الخلاصة التنفيذية الحقيقية (مبنية على real_data)
 from ai_executive_summary import generate_executive_summary
 
 
@@ -45,18 +45,16 @@ def ar(text):
 
 
 # =========================
-# Clean text (محافظ – بدون تخريب)
+# Clean text (آمن – بدون تخريب)
 # =========================
 def clean_text(text: str) -> str:
     if not text:
         return ""
-
     cleaned = []
     for ch in text:
         cat = unicodedata.category(ch)
         if cat.startswith(("L", "N", "P", "Z")):
             cleaned.append(ch)
-
     text = "".join(cleaned)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
@@ -108,7 +106,7 @@ def executive_decision_box(text, width_cm=16):
 
 
 # =========================
-# MAIN PDF GENERATOR
+# CORE PDF BUILDER
 # =========================
 def create_pdf_from_blocks(
     blocks,
@@ -181,12 +179,12 @@ def create_pdf_from_blocks(
     chapter_index = 0
 
     # =========================
-    # CONTENT RENDER
+    # CONTENT
     # =========================
     for block in blocks:
         btype = block.get("type")
 
-        # -------- CHAPTER --------
+        # ---- Chapter ----
         if btype == "chapter_title":
             chapter_index += 1
             chart_cursor[chapter_index] = 0
@@ -196,20 +194,20 @@ def create_pdf_from_blocks(
 
             story.append(
                 KeepTogether([
-                    Paragraph(ar(block["content"]), chapter),
+                    Paragraph(ar(block.get("content", "")), chapter),
                     Spacer(1, 0.6 * cm)
                 ])
             )
             continue
 
-        # -------- TEXT --------
+        # ---- Text ----
         if btype == "text":
-            clean = clean_text(block.get("content", ""))
-            if clean:
-                story.append(Paragraph(ar(clean), body))
+            txt = clean_text(block.get("content", ""))
+            if txt:
+                story.append(Paragraph(ar(txt), body))
             continue
 
-        # -------- CHART --------
+        # ---- Chart ----
         if btype == "chart":
             charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
             idx = chart_cursor.get(chapter_index, 0)
@@ -223,20 +221,23 @@ def create_pdf_from_blocks(
                 chart_cursor[chapter_index] += 1
             continue
 
-        # -------- CHART CAPTION --------
+        # ---- Chart Caption ----
         if btype == "chart_caption":
-            story.append(Paragraph(ar(block.get("content", "")), ParagraphStyle(
-                "Caption",
-                parent=body,
-                alignment=TA_CENTER,
-                fontSize=13,
-                textColor=colors.HexColor("#666666")
-            )))
+            story.append(Paragraph(
+                ar(block.get("content", "")),
+                ParagraphStyle(
+                    "Caption",
+                    parent=body,
+                    alignment=TA_CENTER,
+                    fontSize=13,
+                    textColor=colors.HexColor("#666666")
+                )
+            ))
             story.append(Spacer(1, 1.0 * cm))
             continue
 
     # =========================
-    # 🧠 EXECUTIVE FINAL DECISION
+    # 🧠 FINAL EXECUTIVE DECISION
     # =========================
     story.append(PageBreak())
     story.append(Spacer(1, 1.5 * cm))
@@ -262,19 +263,32 @@ def create_pdf_from_blocks(
     story.append(executive_decision_box(executive_text))
     story.append(Spacer(1, 1.5 * cm))
 
-    # =========================
-    # BUILD
-    # =========================
     doc.build(story)
     buffer.seek(0)
     return buffer
 
 
 # =========================
-# SAFE ALIAS (حل ImportError)
+# SAFE ALIAS (IMPORT FIX)
 # =========================
-def create_pdf_from_content(*args, **kwargs):
+def create_pdf_from_content(
+    user_info=None,
+    market_data=None,
+    real_data=None,
+    content_text=None,     # يُتجاهل بأمان
+    package_level=None,    # يُتجاهل بأمان
+    blocks=None,
+    charts_by_chapter=None,
+    **kwargs
+):
     """
-    Alias آمن للحفاظ على التوافق مع streamlit_app.py
+    Alias آمن للتوافق مع streamlit_app.py
+    بدون أي كسر أو تغيير منطق
     """
-    return create_pdf_from_blocks(*args, **kwargs)
+    return create_pdf_from_blocks(
+        blocks=blocks,
+        charts_by_chapter=charts_by_chapter,
+        user_info=user_info,
+        market_data=market_data,
+        real_data=real_data
+    )
