@@ -1,6 +1,6 @@
 # =========================================
 # FINAL EXECUTIVE PDF GENERATOR – WARDA
-# نسخة مستقرة – تقرير فاخر مبني على بيانات حقيقية
+# نسخة مستقرة 100% – بدون كسر أي ربط
 # =========================================
 
 from io import BytesIO
@@ -27,13 +27,13 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 import plotly.graph_objects as go
 
-# 🔑 الخلاصة التنفيذية الحقيقية (مبنية على real_data)
+# الخلاصة التنفيذية المبنية على بيانات حقيقية
 from ai_executive_summary import generate_executive_summary
 
 
-# =========================
+# =================================================
 # Arabic helper
-# =========================
+# =================================================
 def ar(text):
     if not text:
         return ""
@@ -44,25 +44,27 @@ def ar(text):
         return str(text)
 
 
-# =========================
-# Clean text (آمن – بدون تخريب)
-# =========================
+# =================================================
+# Clean text (آمن – بدون تخريب تنسيق)
+# =================================================
 def clean_text(text: str) -> str:
     if not text:
         return ""
+
     cleaned = []
     for ch in text:
         cat = unicodedata.category(ch)
         if cat.startswith(("L", "N", "P", "Z")):
             cleaned.append(ch)
+
     text = "".join(cleaned)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
 
-# =========================
+# =================================================
 # Plotly → Image
-# =========================
+# =================================================
 def plotly_to_image(fig, width_cm, height_cm):
     if fig is None:
         return None
@@ -80,9 +82,9 @@ def plotly_to_image(fig, width_cm, height_cm):
         return None
 
 
-# =========================
+# =================================================
 # Executive Decision Box (فاخر – ثابت)
-# =========================
+# =================================================
 def executive_decision_box(text, width_cm=16):
     return Table(
         [[Paragraph(ar(text), ParagraphStyle(
@@ -105,9 +107,9 @@ def executive_decision_box(text, width_cm=16):
     )
 
 
-# =========================
-# CORE PDF BUILDER
-# =========================
+# =================================================
+# CORE PDF BUILDER (Blocks-based)
+# =================================================
 def create_pdf_from_blocks(
     blocks,
     charts_by_chapter,
@@ -117,8 +119,12 @@ def create_pdf_from_blocks(
 ):
     buffer = BytesIO()
 
+    # 🛡️ حماية مطلقة – أهم سطر
+    if not blocks:
+        blocks = []
+
     # -------------------------
-    # FONT (SAFE)
+    # FONT (SAFE PATH)
     # -------------------------
     font_path = None
     for p in [
@@ -184,7 +190,7 @@ def create_pdf_from_blocks(
     for block in blocks:
         btype = block.get("type")
 
-        # ---- Chapter ----
+        # -------- CHAPTER --------
         if btype == "chapter_title":
             chapter_index += 1
             chart_cursor[chapter_index] = 0
@@ -200,14 +206,14 @@ def create_pdf_from_blocks(
             )
             continue
 
-        # ---- Text ----
+        # -------- TEXT --------
         if btype == "text":
-            txt = clean_text(block.get("content", ""))
-            if txt:
-                story.append(Paragraph(ar(txt), body))
+            clean = clean_text(block.get("content", ""))
+            if clean:
+                story.append(Paragraph(ar(clean), body))
             continue
 
-        # ---- Chart ----
+        # -------- CHART --------
         if btype == "chart":
             charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
             idx = chart_cursor.get(chapter_index, 0)
@@ -221,7 +227,7 @@ def create_pdf_from_blocks(
                 chart_cursor[chapter_index] += 1
             continue
 
-        # ---- Chart Caption ----
+        # -------- CHART CAPTION --------
         if btype == "chart_caption":
             story.append(Paragraph(
                 ar(block.get("content", "")),
@@ -263,32 +269,19 @@ def create_pdf_from_blocks(
     story.append(executive_decision_box(executive_text))
     story.append(Spacer(1, 1.5 * cm))
 
+    # =========================
+    # BUILD
+    # =========================
     doc.build(story)
     buffer.seek(0)
     return buffer
 
 
-# =========================
-# SAFE ALIAS (IMPORT FIX)
-# =========================
-def create_pdf_from_content(
-    user_info=None,
-    market_data=None,
-    real_data=None,
-    content_text=None,     # يُتجاهل بأمان
-    package_level=None,    # يُتجاهل بأمان
-    blocks=None,
-    charts_by_chapter=None,
-    **kwargs
-):
+# =================================================
+# ALIAS SAFE EXPORT (لتوافق streamlit_app.py)
+# =================================================
+def create_pdf_from_content(*args, **kwargs):
     """
-    Alias آمن للتوافق مع streamlit_app.py
-    بدون أي كسر أو تغيير منطق
+    Alias آمن – لا يغير أي منطق
     """
-    return create_pdf_from_blocks(
-        blocks=blocks,
-        charts_by_chapter=charts_by_chapter,
-        user_info=user_info,
-        market_data=market_data,
-        real_data=real_data
-    )
+    return create_pdf_from_blocks(*args, **kwargs)
