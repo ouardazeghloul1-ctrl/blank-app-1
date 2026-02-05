@@ -55,6 +55,10 @@ def ensure_required_columns(df):
 
 
 def blocks_to_text(report):
+    """
+    يحول بنية التقرير إلى نص خطي
+    بدون أي ذكاء – فقط المحتوى الخام
+    """
     lines = []
 
     for chapter in report.get("chapters", []):
@@ -67,7 +71,7 @@ def blocks_to_text(report):
                 lines.append(content)
                 lines.append("")
 
-            elif btype in ("rich_text",) and content:
+            elif btype == "rich_text" and content:
                 lines.append(content)
                 lines.append("")
 
@@ -84,6 +88,9 @@ def blocks_to_text(report):
 
 
 def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
+    """
+    يحقن فقرة ذكاء اصطناعي بعد فصل محدد
+    """
     if not ai_content or chapter_title not in content_text:
         return content_text
 
@@ -109,7 +116,7 @@ def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
 
 def build_report_story(user_info):
     """
-    الدالة الوحيدة الرسمية لإنشاء التقرير
+    الدالة الرسمية الوحيدة لبناء التقرير
     ⚠️ لا تغيّر توقيعها
     """
 
@@ -128,13 +135,13 @@ def build_report_story(user_info):
     }
 
     # -------------------------
-    # Build base content
+    # Base report content
     # -------------------------
     report = build_complete_report(prepared)
     content_text = blocks_to_text(report)
 
     # -------------------------
-    # Data disclaimer (Bold handled in PDF)
+    # Data disclaimer (يظهر بخط عريض في PDF)
     # -------------------------
     content_text += (
         "\n\n📌 تنويه مهم حول البيانات:\n"
@@ -145,7 +152,7 @@ def build_report_story(user_info):
     )
 
     # -------------------------
-    # Live data
+    # Live real data
     # -------------------------
     real_data = get_live_real_data(
         city=user_info.get("city"),
@@ -155,7 +162,7 @@ def build_report_story(user_info):
     real_data = normalize_dataframe(real_data)
 
     # -------------------------
-    # AI Reasoning
+    # AI Reasoning (شرح + قرار)
     # -------------------------
     ai_reasoner = AIReportReasoner()
 
@@ -166,7 +173,7 @@ def build_report_story(user_info):
     )
 
     # -------------------------
-    # Inject AI sections
+    # Inject AI insights inside chapters
     # -------------------------
     content_text = inject_ai_after_chapter(
         content_text,
@@ -191,11 +198,11 @@ def build_report_story(user_info):
 
     # -------------------------
     # Final Executive Decision
-    # (Always isolated – own page in PDF)
+    # (مرة واحدة – في النهاية فقط)
     # -------------------------
     if ai_insights.get("ai_final_decision"):
         content_text += (
-            "\n\n🏁 القرار الاستثماري النهائي\n\n"
+            "\n\n🏁 القرار الاستشاري النهائي: موقفك الصحيح الآن\n\n"
             + ai_insights["ai_final_decision"]
             + "\n"
         )
