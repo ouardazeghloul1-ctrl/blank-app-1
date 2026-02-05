@@ -3,14 +3,12 @@
 # Report Orchestrator – Warda Intelligence
 # =========================================
 
-from report_content_builder import (
-    build_complete_report,
-    decision_invalid_conditions_block
-)
+from report_content_builder import build_complete_report
 from advanced_charts import AdvancedCharts
 from ai_report_reasoner import AIReportReasoner
 from ai_executive_summary import build_final_decision
 from live_real_data_provider import get_live_real_data
+from ultimate_report_system import UltimateReportSystem
 
 import pandas as pd
 import numpy as np
@@ -65,7 +63,6 @@ def ensure_required_columns(df):
 # =========================
 def blocks_to_text(report):
     lines = []
-
     for chapter in report.get("chapters", []):
         for block in chapter.get("blocks", []):
             content = block.get("content", "")
@@ -80,7 +77,6 @@ def blocks_to_text(report):
                 if content and block.get("type") == "chart_caption":
                     lines.append(content.strip())
                 lines.append("")
-
     return "\n".join(lines)
 
 
@@ -88,15 +84,13 @@ def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
     if not ai_content or chapter_title not in content_text:
         return content_text
 
-    marker = chapter_title
-    parts = content_text.split(marker, 1)
-
+    parts = content_text.split(chapter_title, 1)
     if len(parts) != 2:
         return content_text
 
     return (
         parts[0]
-        + marker
+        + chapter_title
         + "\n\n"
         + ai_title
         + "\n\n"
@@ -122,20 +116,10 @@ def build_report_story(user_info, dataframe=None):
     }
 
     # -------------------------
-    # بناء التقرير الأساسي
+    # التقرير الأساسي
     # -------------------------
     report = build_complete_report(prepared)
     content_text = blocks_to_text(report)
-
-    # -------------------------
-    # تنويه البيانات الحية
-    # -------------------------
-    content_text += (
-        "\n\n📌 تنويه مهم حول البيانات:\n"
-        "تم إعداد هذا التقرير اعتمادًا على بيانات سوقية حية ومباشرة "
-        "تم تحليلها لحظة الإنشاء. تعكس النتائج وضع السوق الحالي "
-        "وقد تتغير مع تغير الظروف.\n\n"
-    )
 
     # -------------------------
     # البيانات الحية
@@ -144,11 +128,10 @@ def build_report_story(user_info, dataframe=None):
         city=user_info.get("city"),
         property_type=user_info.get("property_type"),
     )
-
     df = normalize_dataframe(df)
 
     # -------------------------
-    # 🧠 بناء القرار النهائي (العقل الحاكم)
+    # 🧠 القرار التنفيذي (العقل الحاكم)
     # -------------------------
     final_decision = build_final_decision(
         user_info=user_info,
@@ -157,7 +140,7 @@ def build_report_story(user_info, dataframe=None):
     )
 
     # -------------------------
-    # الذكاء التفسيري
+    # الذكاء التفسيري داخل الفصول
     # -------------------------
     ai_reasoner = AIReportReasoner()
     ai_insights = ai_reasoner.generate_all_insights(
@@ -167,9 +150,6 @@ def build_report_story(user_info, dataframe=None):
         final_decision=final_decision
     )
 
-    # -------------------------
-    # دمج الذكاء داخل الفصول
-    # -------------------------
     content_text = inject_ai_after_chapter(
         content_text,
         "الفصل الأول",
@@ -191,31 +171,64 @@ def build_report_story(user_info, dataframe=None):
         ai_insights.get("ai_opportunities")
     )
 
-    # -------------------------
-    # 🏁 القرار النهائي
-    # -------------------------
+    # ==================================================
+    # 🏁 Decision Card – القرار التنفيذي (مرة واحدة فقط)
+    # ==================================================
     if final_decision:
-        content_text += (
-            "\n\n🏁 القرار الاستثماري النهائي\n\n"
-            f"التوصية: {final_decision.action}\n"
-            f"درجة الثقة: {int(final_decision.confidence * 100)}%\n"
-            f"الأفق الزمني: {final_decision.horizon}\n\n"
-            f"{final_decision.summary_text}\n\n"
-            "أسباب هذا القرار:\n"
-            + "\n".join(f"• {r}" for r in final_decision.rationale)
-            + "\n\n"
+        decision_label = (
+            "تجنّب تنفيذ هذه العملية بالشروط الحالية"
+            if final_decision.action == "AVOID"
+            else final_decision.action
         )
 
-        # -------------------------
-        # 🧠 كسر الخوف النفسي (الخطوة 3)
-        # -------------------------
-        invalid_block = decision_invalid_conditions_block(final_decision)
-        if invalid_block and invalid_block.get("content"):
-            content_text += (
-                "\n\n"
-                + invalid_block["content"]
-                + "\n\n"
-            )
+        content_text += f"""
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏁 القرار التنفيذي النهائي
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📌 القرار:
+{decision_label}
+
+📊 درجة الثقة:
+{int(final_decision.confidence * 100)}%
+
+⏳ الأفق الزمني:
+{final_decision.horizon}
+
+────────────────────────
+🧠 ماذا يعني هذا القرار؟
+────────────────────────
+هذا القرار لا يعني رفض السوق أو الفكرة،
+بل رفض تنفيذ هذه العملية بالصورة أو التوقيت الحاليين
+لأن هامش الأمان لا يزال غير كافٍ.
+
+────────────────────────
+🧭 ماذا تفعل بدلًا من التنفيذ الآن؟
+────────────────────────
+
+1️⃣ **وضع المراقبة الذكية**
+- لا شراء ولا اندفاع
+- مراقبة مؤشرات محددة فقط
+- انتظار تحسّن الشروط لا الضجيج
+
+2️⃣ **تعديل الصيغة الاستثمارية**
+- نفس الهدف
+- بصيغة مختلفة (نوع / موقع / استخدام)
+- تقليل المخاطر دون إلغاء الفكرة
+
+3️⃣ **الحفاظ على رأس المال**
+- عدم الحركة هنا قرار واعٍ
+- انتظار فرصة بميزة حقيقية
+- القوة في التوقيت لا في السرعة
+
+"""
+
+    # -------------------------
+    # الإغلاق التنفيذي (بدون تكرار القرار)
+    # -------------------------
+    ultimate = UltimateReportSystem(final_decision)
+    content_text = ultimate.apply(content_text)
 
     # -------------------------
     # الرسومات
