@@ -1,86 +1,112 @@
 # report_orchestrator.py
+# =========================================
+# Central Report Orchestrator – Warda Intelligence
+# يبني النص النهائي للتقرير قبل تحويله إلى PDF
+# =========================================
 
-from report_content_builder import build_complete_report
-from ai_executive_summary import generate_executive_summary
-from ai_report_reasoner import AIReportReasoner
-from live_real_data_provider import get_live_real_data
 from datetime import datetime
-import pandas as pd
+from ai_executive_summary import generate_executive_summary, FinalDecision
+from ai_report_reasoner import AIReportReasoner
+from report_content_builder import build_complete_report
 
 
-def build_report_story(user_info, real_data=None):
-    prepared = {
-        "المدينة": user_info.get("city", ""),
-        "نوع_العقار": user_info.get("property_type", ""),
-        "نوع_الصفقة": user_info.get("status", ""),
-        "package": user_info.get("package", "مجانية"),
-    }
+def build_report_story(user_info, market_data, real_data):
+    """
+    يبني النص الكامل للتقرير (content_text)
+    بالترتيب المنطقي، مع قرار تنفيذي واضح ومستقل
+    """
 
-    report = build_complete_report(prepared)
+    # =========================
+    # 1️⃣ المحتوى الأساسي (الفصول)
+    # =========================
+    report_structure = build_complete_report(user_info)
     content_text = ""
 
-    for chapter in report["chapters"]:
+    for chapter in report_structure["chapters"]:
         for block in chapter["blocks"]:
-            if block.get("content"):
-                content_text += block["content"] + "\n\n"
+            if block["type"] in ("rich_text", "chapter_title"):
+                content_text += block["content"].strip() + "\n\n"
 
-    # 📌 تنويه البيانات – بخط عريض
+    # =========================
+    # 2️⃣ تنويه البيانات (نص نظيف – لا Markdown)
+    # =========================
     content_text += (
-        "\n\n📌 تنويه مهم حول البيانات:\n"
-        "تم إنشاء هذا التقرير اعتمادًا على **بيانات سوقية حية ومباشرة** "
-        "تم جمعها وتحليلها لحظة إعداد التقرير.\n\n"
+        "📌 تنويه مهم حول البيانات:\n"
+        "تم إنشاء هذا التقرير اعتمادًا على بيانات سوقية حية ومباشرة، "
+        "تم جمعها وتحليلها آليًا في لحظة إعداد التقرير، "
+        "وتعكس حالة السوق في وقت الإنشاء فقط. "
+        "أي تغيّر لاحق في السوق قد يؤثر على صلاحية الاستنتاجات.\n\n"
     )
 
-    # ✅ استخدام real_data إن وُجد، وإلا نجلبه
-    if real_data is None or not isinstance(real_data, pd.DataFrame):
-        real_data = get_live_real_data(
-            city=user_info.get("city"),
-            property_type=user_info.get("property_type"),
-        )
+    # =========================
+    # 3️⃣ توليد القرار التنفيذي الحقيقي
+    # =========================
+    final_decision: FinalDecision = generate_executive_summary(
+        user_info, market_data, real_data, return_object=True
+    )
 
-    real_data = real_data if isinstance(real_data, pd.DataFrame) else pd.DataFrame()
+    # =========================
+    # 4️⃣ صياغة قرار بمستوى 10,000$
+    # =========================
+    decision_text = f"""
+القرار التنفيذي النهائي
 
-    # 🧠 القرار التنفيذي – المصدر الوحيد
-    executive = generate_executive_summary(user_info, {}, real_data)
+المدينة: {user_info.get("city", "—")}
+نوع الأصل: {user_info.get("property_type", "—")}
 
-    decision_type = executive["decision_type"]
-    decision_text = executive["decision_text"]
-    confidence = executive["confidence_level"]
+التوصية الاستراتيجية:
+{final_decision.action}
 
-    # 🏁 إدخال القرار مرة واحدة فقط
-    content_text += "\n\n🏁 القرار الاستثماري النهائي\n\n"
-    content_text += decision_text + "\n\n"
+درجة الثقة في القرار:
+{int(final_decision.confidence * 100)}%
 
-    # 🎯 ماذا يفعل المستثمر بعد القرار
-    if decision_type == "BUY":
-        content_text += (
-            "📌 إرشادات تنفيذ بعد الشراء:\n"
-            "• الالتزام بسعر دخول منضبط\n"
-            "• مراقبة السيولة لا الضجيج الإعلامي\n"
-            "• عدم التوسع قبل تثبيت العائد\n\n"
-        )
+الأفق الزمني المناسب:
+{final_decision.horizon}
 
-    elif decision_type == "WAIT":
-        content_text += (
-            "📌 ماذا تراقب خلال فترة الانتظار:\n"
-            "• تحسّن السيولة الفعلية\n"
-            "• تقلّص الفجوة بين السعر المعروض والمنفذ\n"
-            "• تغيّر سلوك الطلب الحقيقي\n\n"
-        )
+المنطق الذي بُني عليه القرار:
+"""
 
-    elif decision_type == "AVOID":
-        content_text += (
-            "📌 بدائل ذكية في الوقت الحالي:\n"
-            "• الحفاظ على رأس المال\n"
-            "• مراقبة فرص أقل مخاطرة\n"
-            "• عدم الالتزام طويل الأجل الآن\n\n"
-        )
+    for r in final_decision.rationale:
+        decision_text += f"- {r}\n"
 
-    return {
-        "meta": {
-            "decision": decision_type,
-            "confidence": confidence,
-            "generated_at": datetime.now().isoformat(),
-        },
-        "content_text": content_text,
-    }
+    decision_text += "\nالمخاطر التي يجب إدراكها:\n"
+    for risk in final_decision.risks:
+        decision_text += f"- {risk}\n"
+
+    # =========================
+    # 5️⃣ ماذا يفعل المستثمر بعد إغلاق التقرير؟
+    # =========================
+    if final_decision.action == "BUY":
+        decision_text += """
+كيف تتصرف بعد هذا القرار:
+- ركّز فقط على الأصول التي تحقق نفس الفرضيات التي بُني عليها القرار.
+- تفاوض دائمًا على السعر حتى لو بدا "عادلًا".
+- لا توسّع حجم الالتزام قبل مرور أول 6–9 أشهر من الاستقرار.
+- راقب المؤشرات التشغيلية لا العناوين الإعلامية.
+"""
+    else:
+        decision_text += """
+ما الذي يُنصح به بدل التنفيذ الآن:
+- عدم الشراء أو الالتزام في الوضع الحالي.
+- مراقبة مؤشرات محددة فقط دون انشغال يومي بالسوق.
+- انتظار تحسّن شروط الدخول أو تغيّر الفرضيات الأساسية.
+- الاستعداد السريع للتنفيذ إذا تحققت إشارات التغيير.
+"""
+
+    # =========================
+    # 6️⃣ إدخال القرار بعلامة 🏁 (Trigger للـ PDF)
+    # =========================
+    content_text += "\n🏁\n"
+    content_text += decision_text.strip() + "\n\n"
+
+    # =========================
+    # 7️⃣ صفحة تاريخ إنشاء التقرير
+    # =========================
+    content_text += (
+        "📅\n"
+        "تاريخ إنشاء التقرير\n\n"
+        f"تم إنشاء هذا التقرير في: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
+        "باستخدام بيانات سوقية حقيقية جُمعت وحُللت آليًا.\n"
+    )
+
+    return content_text
