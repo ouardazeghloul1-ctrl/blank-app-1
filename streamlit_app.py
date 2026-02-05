@@ -826,7 +826,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 from report_orchestrator import build_report_story
 
                 # بناء التقرير الذكي
-                story = build_report_story(user_info, real_data)
+                story = build_report_story(user_info)
                 
                 # 🔍 التحقق الإلزامي من محتوى التقرير
                 final_content_text = story.get("content_text", "")
