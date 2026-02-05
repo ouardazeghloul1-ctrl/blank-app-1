@@ -1,6 +1,6 @@
 # ai_report_reasoner.py
 # =========================================
-# عقل التقرير الاستشاري – Warda Intelligence
+# Decision Justification Engine – Warda Intelligence
 # =========================================
 
 from live_data_system import LiveDataSystem
@@ -10,9 +10,7 @@ from ai_text_templates import (
     LIVE_MARKET_SNAPSHOT,
     OPPORTUNITY_INSIGHT,
     RISK_INSIGHT,
-    FINAL_DECISION,
 )
-
 
 # =========================================
 # سياسة عرض الذكاء الاصطناعي حسب الباقة
@@ -23,34 +21,33 @@ AI_PACKAGE_POLICY = {
         "live_market": "full",
         "opportunities": "full",
         "risk": "full",
-        "final_decision": "full",
+        "decision_explanation": "full",
     },
     "ماسية": {
         "live_market": "full",
         "opportunities": "full",
         "risk": "summary",
-        "final_decision": "full",
+        "decision_explanation": "full",
     },
     "ذهبية": {
         "live_market": "summary",
         "opportunities": "summary",
         "risk": "summary",
-        "final_decision": "summary",
+        "decision_explanation": "summary",
     },
     "فضية": {
         "live_market": "summary",
         "opportunities": "hidden",
         "risk": "hidden",
-        "final_decision": "summary",
+        "decision_explanation": "summary",
     },
     "مجانية": {
         "live_market": "summary",
         "opportunities": "hidden",
         "risk": "hidden",
-        "final_decision": "hidden",
+        "decision_explanation": "hidden",
     },
 }
-
 
 # =========================================
 # سقف الذكاء حسب الباقة
@@ -64,15 +61,11 @@ AI_INTELLIGENCE_CAP = {
     "مجانية": "منخفض",
 }
 
-
 # =========================================
 # تحديد عمق الذكاء حسب حجم البيانات
 # =========================================
 
 def get_analysis_depth(real_data):
-    """
-    يحدد مستوى العمق التحليلي بناءً على عدد العقارات
-    """
     count = len(real_data) if real_data is not None else 0
 
     if count < 50:
@@ -100,16 +93,7 @@ def get_analysis_depth(real_data):
 
 
 def apply_intelligence_cap(depth_info, package):
-    """
-    يخفّض مستوى التحليل إذا كانت الباقة لا تسمح بالعمق الكامل
-    """
     cap = AI_INTELLIGENCE_CAP.get(package, "منخفض")
-
-    # إذا كان السقف يسمح → لا تغيير
-    if depth_info["level"] == cap:
-        return depth_info
-
-    # إذا السقف أقل من العمق المحسوب → نخفّض
     hierarchy = ["منخفض", "متوسط", "مرتفع"]
 
     if hierarchy.index(depth_info["level"]) > hierarchy.index(cap):
@@ -123,15 +107,24 @@ def apply_intelligence_cap(depth_info, package):
     return depth_info
 
 
+# =========================================
+# 🧠 Decision Reasoner
+# =========================================
+
 class AIReportReasoner:
     def __init__(self):
         self.live_system = LiveDataSystem()
         self.market_intel = MarketIntelligence()
         self.opportunity_finder = SmartOpportunityFinder()
 
-    def generate_all_insights(self, user_info, market_data, real_data):
+    def generate_all_insights(
+        self,
+        user_info,
+        market_data,
+        real_data,
+        final_decision=None
+    ):
         city = user_info.get("city", "المدينة")
-        
         package = (
             user_info.get("package")
             or user_info.get("chosen_pkg")
@@ -157,13 +150,6 @@ class AIReportReasoner:
         )
 
         # =========================
-        # الفرص الذكية
-        # =========================
-        opportunities = self.opportunity_finder.analyze_all_opportunities(
-            user_info, market_data, real_data
-        )
-
-        # =========================
         # تعبئة القيم
         # =========================
         values = {
@@ -172,9 +158,7 @@ class AIReportReasoner:
             "مستوى_الطلب": live_indicators.get("مؤشر_الطلب", "غير متوفر"),
             "مستوى_العرض": live_indicators.get("مؤشر_العرض", "غير متوفر"),
             "سرعة_البيع": live_indicators.get("سرعة_البيع", "غير متوفر"),
-            "التغير_اليومي": live_indicators.get("التغير_اليومي", "غير متوفر"),
-            "اتجاه_الأسعار": market_data.get("اتجاه_الاسعار", "مستقر"),
-            "مزاج_السوق": live_summary.get("حالة_السوق", "متوازن"),
+            "اتجاه_الاسعار": market_data.get("اتجاه_الاسعار", "مستقر"),
             "مستوى_المخاطر_العام": market_insights
             .get("risk_assessment", {})
             .get("overall_risk", "متوسط"),
@@ -184,16 +168,23 @@ class AIReportReasoner:
             "ملاحظة_البيانات": analysis_depth["note"],
         }
 
-        def apply_policy(key, full_text):
+        def apply_policy(key, text):
             mode = policy.get(key, "hidden")
 
             if mode == "full":
-                return full_text
-
+                return text
             if mode == "summary":
-                return full_text.split("\n\n")[0] + "\n\n(ملخص تنفيذي مختصر)"
-
+                return text.split("\n\n")[0] + "\n\n(ملخص تنفيذي مختصر)"
             return ""
+
+        # =========================
+        # 🧠 تبرير القرار النهائي
+        # =========================
+        decision_explanation = ""
+        if final_decision:
+            decision_explanation = self._explain_decision(
+                final_decision, values
+            )
 
         return {
             "ai_live_market": apply_policy(
@@ -208,16 +199,46 @@ class AIReportReasoner:
                 "risk",
                 self._fill_template(RISK_INSIGHT, values)
             ),
-            "ai_final_decision": apply_policy(
-                "final_decision",
-                self._fill_template(FINAL_DECISION, values)
+            "ai_decision_explanation": apply_policy(
+                "decision_explanation",
+                decision_explanation
             ),
         }
 
+    def _explain_decision(self, decision, values):
+        """
+        لماذا هذا القرار تحديدًا؟
+        """
+        lines = [
+            "🔍 لماذا نوصي بهذا القرار تحديدًا؟",
+            "",
+            f"القرار المتخذ: {decision.action}",
+            f"درجة الثقة: {int(decision.confidence * 100)}%",
+            "",
+            "هذا القرار لم يُبنَ على مؤشر واحد، بل على تلاقي عدة عوامل:",
+        ]
+
+        for r in decision.rationale:
+            lines.append(f"• {r}")
+
+        lines.append("")
+        lines.append(
+            "رغم ذلك، يبقى هذا القرار مراقَبًا، "
+            "وسيُعاد تقييمه فور ظهور أي من الإشارات التالية:"
+        )
+
+        for c in decision.change_triggers:
+            lines.append(f"• {c}")
+
+        lines.append("")
+        lines.append(
+            "هذا التقييم يعكس حالة السوق الحالية "
+            "ولا يعتمد على توقعات متفائلة أو سيناريوهات غير مؤكدة."
+        )
+
+        return "\n".join(lines)
+
     def _fill_template(self, text: str, values: dict) -> str:
-        """
-        استبدال {{المفاتيح}} بالقيم الفعلية
-        """
         for key, val in values.items():
             text = text.replace(f"{{{{{key}}}}}", str(val))
         return text
