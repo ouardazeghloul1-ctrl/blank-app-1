@@ -6,13 +6,13 @@
 from live_data_system import LiveDataSystem
 from market_intelligence import MarketIntelligence
 from smart_opportunities import SmartOpportunityFinder
+from ai_executive_summary import generate_executive_summary
+
 from ai_text_templates import (
     LIVE_MARKET_SNAPSHOT,
     OPPORTUNITY_INSIGHT,
     RISK_INSIGHT,
-    FINAL_DECISION,
 )
-
 
 # =========================================
 # سياسة عرض الذكاء الاصطناعي حسب الباقة
@@ -51,7 +51,6 @@ AI_PACKAGE_POLICY = {
     },
 }
 
-
 # =========================================
 # سقف الذكاء حسب الباقة
 # =========================================
@@ -63,7 +62,6 @@ AI_INTELLIGENCE_CAP = {
     "فضية": "منخفض",
     "مجانية": "منخفض",
 }
-
 
 # =========================================
 # تحديد عمق التحليل حسب حجم البيانات
@@ -149,14 +147,7 @@ class AIReportReasoner:
         )
 
         # =========================
-        # الفرص الذكية
-        # =========================
-        opportunities = self.opportunity_finder.analyze_all_opportunities(
-            user_info, market_data, real_data
-        )
-
-        # =========================
-        # القيم المستخدمة في القوالب
+        # القيم المستخدمة في القوالب النصية
         # =========================
         values = {
             "المدينة": city,
@@ -176,9 +167,6 @@ class AIReportReasoner:
             "ملاحظة_البيانات": analysis_depth["note"],
         }
 
-        # =========================
-        # تطبيق سياسة الباقة
-        # =========================
         def apply_policy(key, full_text):
             mode = policy.get(key, "hidden")
 
@@ -190,26 +178,30 @@ class AIReportReasoner:
 
             return ""
 
+        # =========================
+        # القرار الاستشاري النهائي (الموقف)
+        # =========================
+        final_decision_text = generate_executive_summary(
+            user_info=user_info,
+            market_data=market_data,
+            real_data=real_data
+        )
+
         return {
             "ai_live_market": apply_policy(
                 "live_market",
-                self._fill_template(LIVE_MARKET_SNAPSHOT, values)
+                LIVE_MARKET_SNAPSHOT.format(**values)
             ),
             "ai_opportunities": apply_policy(
                 "opportunities",
-                self._fill_template(OPPORTUNITY_INSIGHT, values)
+                OPPORTUNITY_INSIGHT.format(**values)
             ),
             "ai_risk": apply_policy(
                 "risk",
-                self._fill_template(RISK_INSIGHT, values)
+                RISK_INSIGHT.format(**values)
             ),
             "ai_final_decision": apply_policy(
                 "final_decision",
-                self._fill_template(FINAL_DECISION, values)
+                final_decision_text
             ),
         }
-
-    def _fill_template(self, text: str, values: dict) -> str:
-        for key, val in values.items():
-            text = text.replace(f"{{{{{key}}}}}", str(val))
-        return text
