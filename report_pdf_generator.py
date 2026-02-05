@@ -47,8 +47,7 @@ def clean_text(text: str) -> str:
 
     cleaned = []
     for ch in text:
-        cat = unicodedata.category(ch)
-        if cat.startswith(("L", "N", "P", "Z")):
+        if unicodedata.category(ch).startswith(("L", "N", "P", "Z")):
             cleaned.append(ch)
 
     text = "".join(cleaned)
@@ -62,38 +61,30 @@ def clean_text(text: str) -> str:
 # =========================
 def executive_decision_box(text, width_cm=16):
     return Table(
-        [[Paragraph(
-            ar(text),
-            ParagraphStyle(
-                "DecisionText",
-                fontName="Amiri",
-                fontSize=14.5,
-                leading=28,
-                alignment=TA_RIGHT,
-                textColor=colors.HexColor("#222222"),
-            )
-        )]],
+        [[Paragraph(ar(text), ParagraphStyle(
+            "DecisionText",
+            fontName="Amiri",
+            fontSize=15,
+            leading=30,
+            alignment=TA_RIGHT,
+            textColor=colors.HexColor("#1f1f1f"),
+        ))]],
         colWidths=[width_cm * cm],
         style=TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F2F3F5")),
-            ("BOX", (0, 0), (-1, -1), 1.8, colors.HexColor("#7a0000")),
-            ("INNERPADDING", (0, 0), (-1, -1), 20),
-            ("TOPPADDING", (0, 0), (-1, -1), 22),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 22),
-            ("LEFTPADDING", (0, 0), (-1, -1), 18),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 18),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F3F4F6")),
+            ("BOX", (0, 0), (-1, -1), 2, colors.HexColor("#7a0000")),
+            ("INNERPADDING", (0, 0), (-1, -1), 22),
         ])
     )
 
 
 def elegant_divider():
     return HRFlowable(
-        width="60%",
-        thickness=0.8,
+        width="50%",
+        thickness=1,
         color=colors.HexColor("#7a0000"),
-        spaceBefore=14,
-        spaceAfter=16,
-        lineCap="round"
+        spaceBefore=18,
+        spaceAfter=22,
     )
 
 
@@ -110,26 +101,13 @@ def create_pdf_from_content(
 ):
     buffer = BytesIO()
 
-    # -------------------------
-    # FONT (correct & robust)
-    # -------------------------
-    font_path = None
-    for p in [
-        "Amiri-Regular.ttf",
-        os.path.join(os.getcwd(), "Amiri-Regular.ttf"),
-    ]:
-        if os.path.exists(p):
-            font_path = p
-            break
-
-    if not font_path:
-        raise FileNotFoundError("Amiri-Regular.ttf not found in project root")
+    # FONT
+    font_path = "Amiri-Regular.ttf"
+    if not os.path.exists(font_path):
+        raise FileNotFoundError("Amiri-Regular.ttf not found")
 
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
-    # -------------------------
-    # DOCUMENT
-    # -------------------------
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
@@ -142,76 +120,68 @@ def create_pdf_from_content(
     styles = getSampleStyleSheet()
 
     body = ParagraphStyle(
-        "ArabicBody",
+        "Body",
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=14.5,
         leading=28,
         alignment=TA_RIGHT,
-        spaceAfter=22,
+        spaceAfter=18,
+    )
+
+    chapter = ParagraphStyle(
+        "Chapter",
+        parent=styles["Heading2"],
+        fontName="Amiri",
+        fontSize=18,
+        alignment=TA_RIGHT,
+        textColor=colors.HexColor("#9c1c1c"),
+        spaceBefore=32,
+        spaceAfter=16,
+        keepWithNext=1
     )
 
     title = ParagraphStyle(
-        "ArabicTitle",
+        "Title",
         parent=styles["Title"],
         fontName="Amiri",
         fontSize=22,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
-        spaceAfter=40
+        spaceAfter=50
     )
 
-    executive_header = ParagraphStyle(
-        "ExecutiveHeader",
-        parent=styles["Heading2"],
+    executive_title = ParagraphStyle(
+        "ExecutiveTitle",
+        parent=styles["Heading1"],
         fontName="Amiri",
-        fontSize=19,
+        fontSize=20,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#5a0000"),
-        spaceAfter=18
+        spaceAfter=20
     )
 
     story = []
 
-    # =========================
     # COVER
-    # =========================
     story.append(Spacer(1, 7 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     story.append(PageBreak())
 
-    # =========================
-    # META PAGE
-    # =========================
-    report_date = datetime.now().strftime("%Y-%m-%d")
-
-    story.append(Spacer(1, 3 * cm))
-    story.append(Paragraph(
-        ar(f"<b>تاريخ إنشاء التقرير:</b> {report_date}"),
-        body
-    ))
-    story.append(Spacer(1, 0.8 * cm))
-    story.append(Paragraph(
-        ar("<b>هذا التقرير مبني على بيانات سوقية فعلية تم تحليلها آليًا.</b>"),
-        body
-    ))
-    story.append(PageBreak())
-
-    # =========================
-    # CONTENT + DECISION
-    # =========================
+    # CONTENT
     decision_buffer = []
     decision_mode = False
 
     for raw in content_text.split("\n"):
-        clean = clean_text(raw)
+        line = clean_text(raw)
 
-        if clean.startswith("🏁"):
+        # ===== FINAL DECISION ONLY =====
+        if line.startswith("🏁"):
             story.append(PageBreak())
-            story.append(Spacer(1, 1.2 * cm))
+            story.append(Spacer(1, 2 * cm))
             story.append(Paragraph(
                 ar("القرار الاستشاري النهائي: موقفك الصحيح الآن"),
-                executive_header
+                executive_title
             ))
             story.append(elegant_divider())
             decision_mode = True
@@ -219,15 +189,15 @@ def create_pdf_from_content(
             continue
 
         if decision_mode:
-            if clean:
-                decision_buffer.append(clean)
+            if line:
+                decision_buffer.append(line)
             continue
 
-        if clean:
-            story.append(Paragraph(ar(clean), body))
+        if line:
+            story.append(Paragraph(ar(line), body))
 
     if decision_buffer:
-        story.append(Spacer(1, 1 * cm))
+        story.append(Spacer(1, 1.5 * cm))
         story.append(executive_decision_box("\n\n".join(decision_buffer)))
 
     doc.build(story)
