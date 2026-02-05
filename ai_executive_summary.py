@@ -3,88 +3,61 @@
 # Executive Decision Engine – Warda Intelligence
 # =========================================
 
-from dataclasses import dataclass
-from typing import List
+import pandas as pd
+from smart_opportunities import SmartOpportunityFinder
 
 
-@dataclass
-class FinalDecision:
-    action: str                 # BUY / WAIT / AVOID
-    confidence: float            # 0.0 – 1.0
-    horizon: str                 # "3–5 years"
-    rationale: List[str]
-    risks: List[str]
-    change_triggers: List[str]
+def generate_executive_summary(user_info, market_data, real_data):
+    if real_data is None or real_data.empty:
+        return {
+            "decision_text": (
+                "❌ تعذر إصدار قرار استثماري موثوق بسبب غياب بيانات فعلية كافية.\n"
+                "يوصى بعدم اتخاذ أي قرار قبل توفر بيانات سوقية حقيقية."
+            ),
+            "decision_type": "WAIT",
+            "confidence_level": "حذرة",
+        }
 
+    city = user_info.get("city", "المدينة")
+    property_type = user_info.get("property_type", "العقار")
 
-def build_final_decision(user_info, signals):
-    """
-    يبني القرار التنفيذي النهائي بمنطق مؤسسي
-    """
+    finder = SmartOpportunityFinder()
+    undervalued = finder.find_undervalued_properties(real_data, city)
+    timing = finder.get_golden_timing(market_data)
 
-    score = signals.get("score", 0.0)
+    liquidity = market_data.get("مؤشر_السيولة", 0)
+    growth = market_data.get("معدل_النمو_الشهري", 0)
 
-    # -------------------------
-    # منطق القرار
-    # -------------------------
-    if score >= 0.75:
-        action = "BUY"
-        confidence = min(0.95, score)
-        horizon = "5–7 سنوات"
-    elif score >= 0.55:
-        action = "WAIT"
-        confidence = score
-        horizon = "3–5 سنوات"
-    else:
-        action = "AVOID"
-        confidence = max(0.65, score)
-        horizon = "غير مناسب حاليًا"
+    decision_type = "WAIT"
+    confidence = "متوسطة"
 
-    return FinalDecision(
-        action=action,
-        confidence=round(confidence, 2),
-        horizon=horizon,
-        rationale=signals.get("rationale", []),
-        risks=signals.get("risks", []),
-        change_triggers=signals.get("triggers", []),
-    )
-
-
-def render_final_decision(decision: FinalDecision) -> str:
-    """
-    إخراج القرار بصيغة فاخرة جاهزة للتقرير
-    """
-
-    box_top = "═" * 60
+    if len(undervalued) >= 3 and liquidity >= 60 and growth >= 1:
+        decision_type = "BUY"
+        confidence = "عالية"
+    elif liquidity < 45 or growth < 0:
+        decision_type = "AVOID"
+        confidence = "حذرة"
 
     decision_text = f"""
-{box_top}
-🏁 القرار الاستثماري التنفيذي النهائي
-{box_top}
+المدينة: {city}
+نوع العقار: {property_type}
 
-🔹 القرار:
-**{decision.action}**
+القرار التنفيذي:
+{ "الشراء مدعوم بالمعطيات الحالية." if decision_type == "BUY"
+else "التريث مطلوب حاليًا." if decision_type == "WAIT"
+else "تجنّب التنفيذ في الوضع الحالي." }
 
-🔹 درجة الثقة:
-**{int(decision.confidence * 100)}%**
+مستوى الثقة في القرار: {confidence}
 
-🔹 الأفق الزمني:
-**{decision.horizon}**
-
-────────────────────────
-🔍 لماذا هذا القرار؟
-────────────────────────
+هذا القرار مبني على:
+• بيانات سوقية فعلية
+• تحليل سيولة حقيقي
+• رصد فرص وتسعير دون القيمة
+• قراءة توقيت السوق
 """
 
-    for r in decision.rationale:
-        decision_text += f"• {r}\n"
-
-    decision_text += "\n────────────────────────\n⚠️ المخاطر التي نراقبها\n────────────────────────\n"
-    for r in decision.risks:
-        decision_text += f"• {r}\n"
-
-    decision_text += "\n────────────────────────\n🔄 متى نغيّر هذا القرار؟\n────────────────────────\n"
-    for t in decision.change_triggers:
-        decision_text += f"• {t}\n"
-
-    return decision_text.strip()
+    return {
+        "decision_text": decision_text.strip(),
+        "decision_type": decision_type,
+        "confidence_level": confidence,
+    }
