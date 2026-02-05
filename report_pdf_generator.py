@@ -103,10 +103,25 @@ def create_pdf_from_content(
     ai_recommendations=None
 ):
     buffer = BytesIO()
+    # -------------------------
+    # FONT (robust loading)
+    # -------------------------
+    font_path = None
+    for p in [
+    "Amiri-Regular.ttf",
+    os.path.join(os.getcwd(), "Amiri-Regular.ttf"),
+]:
+    if os.path.exists(p):
+        font_path = p
+        break
 
-    font_path = "fonts/Amiri-Regular.ttf"
-    pdfmetrics.registerFont(TTFont("Amiri", font_path))
+    if not font_path:
+    raise FileNotFoundError("Amiri-Regular.ttf not found in project root")
 
+pdfmetrics.registerFont(TTFont("Amiri", font_path))
+
+
+    
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
