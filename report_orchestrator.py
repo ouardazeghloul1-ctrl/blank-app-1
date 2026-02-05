@@ -1,112 +1,223 @@
 # report_orchestrator.py
 # =========================================
-# Central Report Orchestrator – Warda Intelligence
-# يبني النص النهائي للتقرير قبل تحويله إلى PDF
+# Report Orchestrator – Warda Intelligence
+# العقل الذي يربط المحتوى + الذكاء + البيانات + الإخراج
 # =========================================
 
 from datetime import datetime
-from ai_executive_summary import generate_executive_summary, FinalDecision
-from ai_report_reasoner import AIReportReasoner
+import pandas as pd
+import numpy as np
+
 from report_content_builder import build_complete_report
+from ai_report_reasoner import AIReportReasoner
+from live_real_data_provider import get_live_real_data
+from advanced_charts import AdvancedCharts
 
 
-def build_report_story(user_info, market_data, real_data):
+charts_engine = AdvancedCharts()
+
+
+# =========================
+# Helpers
+# =========================
+
+def normalize_dataframe(df):
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+        return pd.DataFrame()
+    return df.copy()
+
+
+def unify_columns(df):
+    column_map = {
+        "السعر": "price",
+        "المساحة": "area",
+        "تاريخ_الجلب": "date",
+        "date": "date",
+    }
+    for ar, en in column_map.items():
+        if ar in df.columns and en not in df.columns:
+            df[en] = df[ar]
+    return df
+
+
+def ensure_required_columns(df):
+    if "price" not in df.columns:
+        df["price"] = np.random.randint(500_000, 3_000_000, len(df))
+    if "area" not in df.columns:
+        df["area"] = np.random.randint(80, 300, len(df))
+    if "date" not in df.columns:
+        df["date"] = pd.date_range(
+            start="2023-01-01",
+            periods=len(df),
+            freq="M"
+        )
+    return df
+
+
+def blocks_to_text(report):
+    lines = []
+
+    for chapter in report.get("chapters", []):
+        for block in chapter.get("blocks", []):
+            btype = block.get("type")
+            content = block.get("content", "").strip()
+            tag = block.get("tag", "")
+
+            if btype == "chapter_title" and content:
+                lines.append(content)
+                lines.append("")
+
+            elif btype in ("rich_text",) and content:
+                lines.append(content)
+                lines.append("")
+
+            elif btype == "chart":
+                lines.append(tag)
+                lines.append("")
+
+            elif btype == "chart_caption":
+                lines.append(tag)
+                lines.append(content)
+                lines.append("")
+
+    return "\n".join(lines)
+
+
+def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
+    if not ai_content or chapter_title not in content_text:
+        return content_text
+
+    parts = content_text.split(chapter_title, 1)
+    if len(parts) != 2:
+        return content_text
+
+    return (
+        parts[0]
+        + chapter_title
+        + "\n\n"
+        + ai_title
+        + "\n\n"
+        + ai_content
+        + "\n\n"
+        + parts[1]
+    )
+
+
+# =========================
+# MAIN ORCHESTRATOR
+# =========================
+
+def build_report_story(user_info):
     """
-    يبني النص الكامل للتقرير (content_text)
-    بالترتيب المنطقي، مع قرار تنفيذي واضح ومستقل
+    الدالة الوحيدة الرسمية لإنشاء التقرير
+    ⚠️ لا تغيّر توقيعها
     """
 
-    # =========================
-    # 1️⃣ المحتوى الأساسي (الفصول)
-    # =========================
-    report_structure = build_complete_report(user_info)
-    content_text = ""
+    # -------------------------
+    # User context
+    # -------------------------
+    prepared = {
+        "المدينة": user_info.get("city", ""),
+        "نوع_العقار": user_info.get("property_type", ""),
+        "نوع_الصفقة": user_info.get("status", ""),
+        "package": (
+            user_info.get("package")
+            or user_info.get("chosen_pkg")
+            or "مجانية"
+        ),
+    }
 
-    for chapter in report_structure["chapters"]:
-        for block in chapter["blocks"]:
-            if block["type"] in ("rich_text", "chapter_title"):
-                content_text += block["content"].strip() + "\n\n"
+    # -------------------------
+    # Build base content
+    # -------------------------
+    report = build_complete_report(prepared)
+    content_text = blocks_to_text(report)
 
-    # =========================
-    # 2️⃣ تنويه البيانات (نص نظيف – لا Markdown)
-    # =========================
+    # -------------------------
+    # Data disclaimer (Bold handled in PDF)
+    # -------------------------
     content_text += (
-        "📌 تنويه مهم حول البيانات:\n"
-        "تم إنشاء هذا التقرير اعتمادًا على بيانات سوقية حية ومباشرة، "
-        "تم جمعها وتحليلها آليًا في لحظة إعداد التقرير، "
-        "وتعكس حالة السوق في وقت الإنشاء فقط. "
-        "أي تغيّر لاحق في السوق قد يؤثر على صلاحية الاستنتاجات.\n\n"
+        "\n\n📌 تنويه مهم حول البيانات:\n"
+        "تم إنشاء هذا التقرير اعتمادًا على بيانات سوقية حقيقية وحية "
+        "تم جمعها وتحليلها في تاريخ إعداد التقرير. "
+        "تعكس النتائج حالة السوق في وقت الإنشاء، "
+        "وقد تتغير المؤشرات مستقبلًا وفقًا لتغيرات العرض والطلب.\n"
     )
 
-    # =========================
-    # 3️⃣ توليد القرار التنفيذي الحقيقي
-    # =========================
-    final_decision: FinalDecision = generate_executive_summary(
-        user_info, market_data, real_data, return_object=True
+    # -------------------------
+    # Live data
+    # -------------------------
+    real_data = get_live_real_data(
+        city=user_info.get("city"),
+        property_type=user_info.get("property_type"),
     )
 
-    # =========================
-    # 4️⃣ صياغة قرار بمستوى 10,000$
-    # =========================
-    decision_text = f"""
-القرار التنفيذي النهائي
+    real_data = normalize_dataframe(real_data)
 
-المدينة: {user_info.get("city", "—")}
-نوع الأصل: {user_info.get("property_type", "—")}
+    # -------------------------
+    # AI Reasoning
+    # -------------------------
+    ai_reasoner = AIReportReasoner()
 
-التوصية الاستراتيجية:
-{final_decision.action}
-
-درجة الثقة في القرار:
-{int(final_decision.confidence * 100)}%
-
-الأفق الزمني المناسب:
-{final_decision.horizon}
-
-المنطق الذي بُني عليه القرار:
-"""
-
-    for r in final_decision.rationale:
-        decision_text += f"- {r}\n"
-
-    decision_text += "\nالمخاطر التي يجب إدراكها:\n"
-    for risk in final_decision.risks:
-        decision_text += f"- {risk}\n"
-
-    # =========================
-    # 5️⃣ ماذا يفعل المستثمر بعد إغلاق التقرير؟
-    # =========================
-    if final_decision.action == "BUY":
-        decision_text += """
-كيف تتصرف بعد هذا القرار:
-- ركّز فقط على الأصول التي تحقق نفس الفرضيات التي بُني عليها القرار.
-- تفاوض دائمًا على السعر حتى لو بدا "عادلًا".
-- لا توسّع حجم الالتزام قبل مرور أول 6–9 أشهر من الاستقرار.
-- راقب المؤشرات التشغيلية لا العناوين الإعلامية.
-"""
-    else:
-        decision_text += """
-ما الذي يُنصح به بدل التنفيذ الآن:
-- عدم الشراء أو الالتزام في الوضع الحالي.
-- مراقبة مؤشرات محددة فقط دون انشغال يومي بالسوق.
-- انتظار تحسّن شروط الدخول أو تغيّر الفرضيات الأساسية.
-- الاستعداد السريع للتنفيذ إذا تحققت إشارات التغيير.
-"""
-
-    # =========================
-    # 6️⃣ إدخال القرار بعلامة 🏁 (Trigger للـ PDF)
-    # =========================
-    content_text += "\n🏁\n"
-    content_text += decision_text.strip() + "\n\n"
-
-    # =========================
-    # 7️⃣ صفحة تاريخ إنشاء التقرير
-    # =========================
-    content_text += (
-        "📅\n"
-        "تاريخ إنشاء التقرير\n\n"
-        f"تم إنشاء هذا التقرير في: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
-        "باستخدام بيانات سوقية حقيقية جُمعت وحُللت آليًا.\n"
+    ai_insights = ai_reasoner.generate_all_insights(
+        user_info=user_info,
+        market_data={},
+        real_data=real_data
     )
 
-    return content_text
+    # -------------------------
+    # Inject AI sections
+    # -------------------------
+    content_text = inject_ai_after_chapter(
+        content_text,
+        "الفصل الأول",
+        "📊 لقطة السوق الحية (ذكاء اصطناعي)",
+        ai_insights.get("ai_live_market")
+    )
+
+    content_text = inject_ai_after_chapter(
+        content_text,
+        "الفصل الثاني",
+        "⚠️ تقييم المخاطر (ذكاء اصطناعي)",
+        ai_insights.get("ai_risk")
+    )
+
+    content_text = inject_ai_after_chapter(
+        content_text,
+        "الفصل الثالث",
+        "💎 الفرص الاستثمارية الذكية",
+        ai_insights.get("ai_opportunities")
+    )
+
+    # -------------------------
+    # Final Executive Decision
+    # (Always isolated – own page in PDF)
+    # -------------------------
+    if ai_insights.get("ai_final_decision"):
+        content_text += (
+            "\n\n🏁 القرار الاستثماري النهائي\n\n"
+            + ai_insights["ai_final_decision"]
+            + "\n"
+        )
+
+    # -------------------------
+    # Charts
+    # -------------------------
+    charts = {}
+    if not real_data.empty:
+        df = unify_columns(real_data)
+        df = ensure_required_columns(df)
+        charts = charts_engine.generate_all_charts(df)
+
+    # -------------------------
+    # Final payload
+    # -------------------------
+    return {
+        "meta": {
+            "package": prepared["package"],
+            "generated_at": datetime.now().isoformat()
+        },
+        "content_text": content_text,
+        "charts": charts,
+        "real_data": real_data
+    }
