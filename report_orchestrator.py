@@ -1,70 +1,26 @@
 # report_orchestrator.py
+# =========================================
+# Report Orchestrator – Warda Intelligence
+# =========================================
 
-from report_content_builder import build_complete_report
+from report_content_builder import (
+    build_complete_report,
+    decision_invalid_conditions_block
+)
 from advanced_charts import AdvancedCharts
 from ai_report_reasoner import AIReportReasoner
+from ai_executive_summary import build_final_decision
 from live_real_data_provider import get_live_real_data
+
 import pandas as pd
 import numpy as np
 from datetime import datetime
 
 charts_engine = AdvancedCharts()
 
-# =========================
-# 🧠 Decision Object (العقل الحاكم)
-# =========================
-class FinalDecision:
-    def __init__(self, action, confidence, horizon, summary, rationale, risks, change_triggers):
-        self.action = action              # BUY / WAIT / HOLD / AVOID
-        self.confidence = confidence      # float 0–1
-        self.horizon = horizon            # "5–7 years"
-        self.summary = summary            # نص مختصر
-        self.rationale = rationale        # list[str]
-        self.risks = risks                # list[str]
-        self.change_triggers = change_triggers
-
-
-def parse_ai_final_decision(text):
-    """
-    تحويل نص القرار من الذكاء الاصطناعي
-    إلى Decision Object منظم
-    (نسخة أولى آمنة – نطوّرها لاحقًا)
-    """
-    if not text:
-        return None
-
-    action = "BUY"
-    if "انتظار" in text or "الانتظار" in text:
-        action = "WAIT"
-    elif "تجنب" in text:
-        action = "AVOID"
-    elif "الاحتفاظ" in text:
-        action = "HOLD"
-
-    return FinalDecision(
-        action=action,
-        confidence=0.82,
-        horizon="5–7 years",
-        summary=text[:500],
-        rationale=[
-            "استقرار الطلب الحقيقي دون اندفاع",
-            "توازن السعر مع القيمة التشغيلية",
-            "عدم وجود مؤشرات فقاعة سعرية حالية"
-        ],
-        risks=[
-            "تباطؤ مفاجئ في السيولة",
-            "زيادة غير متوقعة في المعروض"
-        ],
-        change_triggers=[
-            "ارتفاع مدة بقاء العقار في السوق فوق المتوسط",
-            "اتساع الفجوة بين السعر المعروض والمنفذ",
-            "تغير سلوك الطلب بشكل مفاجئ"
-        ]
-    )
-
 
 # =========================
-# أدوات مساعدة (كما هي)
+# أدوات مساعدة للبيانات
 # =========================
 def normalize_dataframe(df):
     if df is None or not isinstance(df, pd.DataFrame) or df.empty:
@@ -104,12 +60,13 @@ def ensure_required_columns(df):
     return df
 
 
+# =========================
+# تحويل blocks إلى نص
+# =========================
 def blocks_to_text(report):
     lines = []
-    for chapter in report.get("chapters", []):
-        lines.append(chapter.get("title", ""))
-        lines.append("")
 
+    for chapter in report.get("chapters", []):
         for block in chapter.get("blocks", []):
             content = block.get("content", "")
             tag = block.get("tag", "")
@@ -131,7 +88,7 @@ def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
     if not ai_content or chapter_title not in content_text:
         return content_text
 
-    marker = chapter_title + "\n"
+    marker = chapter_title
     parts = content_text.split(marker, 1)
 
     if len(parts) != 2:
@@ -140,9 +97,9 @@ def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
     return (
         parts[0]
         + marker
-        + parts[1].split("\n", 1)[0]
         + "\n\n"
-        + ai_title + "\n\n"
+        + ai_title
+        + "\n\n"
         + ai_content
         + "\n\n"
         + parts[1]
@@ -150,7 +107,7 @@ def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
 
 
 # =========================
-# 🎼 Orchestrator الرئيسي
+# 🎼 البناء الرئيسي للتقرير
 # =========================
 def build_report_story(user_info, dataframe=None):
     prepared = {
@@ -164,20 +121,25 @@ def build_report_story(user_info, dataframe=None):
         ),
     }
 
+    # -------------------------
     # بناء التقرير الأساسي
+    # -------------------------
     report = build_complete_report(prepared)
     content_text = blocks_to_text(report)
 
+    # -------------------------
     # تنويه البيانات الحية
+    # -------------------------
     content_text += (
         "\n\n📌 تنويه مهم حول البيانات:\n"
-        "تم إنشاء هذا التقرير اعتمادًا على بيانات سوقية حية ومباشرة "
-        "تم جمعها وتحليلها لحظة إعداد التقرير. "
-        "تعكس المؤشرات والأسعار اتجاهات السوق في وقت الإنشاء، "
-        "وقد تختلف القيم مستقبلًا تبعًا لتغيرات العرض والطلب.\n\n"
+        "تم إعداد هذا التقرير اعتمادًا على بيانات سوقية حية ومباشرة "
+        "تم تحليلها لحظة الإنشاء. تعكس النتائج وضع السوق الحالي "
+        "وقد تتغير مع تغير الظروف.\n\n"
     )
 
+    # -------------------------
     # البيانات الحية
+    # -------------------------
     df = get_live_real_data(
         city=user_info.get("city"),
         property_type=user_info.get("property_type"),
@@ -185,23 +147,29 @@ def build_report_story(user_info, dataframe=None):
 
     df = normalize_dataframe(df)
 
-    # الذكاء الاصطناعي
-    ai_reasoner = AIReportReasoner()
-    ai_insights = ai_reasoner.generate_all_insights(
+    # -------------------------
+    # 🧠 بناء القرار النهائي (العقل الحاكم)
+    # -------------------------
+    final_decision = build_final_decision(
         user_info=user_info,
         market_data={},
         real_data=df if df is not None else pd.DataFrame()
     )
 
-    # =========================
-    # 🏁 بناء القرار النهائي كنظام
-    # =========================
-    ai_final_text = ai_insights.get("ai_final_decision")
-    final_decision = parse_ai_final_decision(ai_final_text)
+    # -------------------------
+    # الذكاء التفسيري
+    # -------------------------
+    ai_reasoner = AIReportReasoner()
+    ai_insights = ai_reasoner.generate_all_insights(
+        user_info=user_info,
+        market_data={},
+        real_data=df if df is not None else pd.DataFrame(),
+        final_decision=final_decision
+    )
 
-    # =========================
+    # -------------------------
     # دمج الذكاء داخل الفصول
-    # =========================
+    # -------------------------
     content_text = inject_ai_after_chapter(
         content_text,
         "الفصل الأول",
@@ -223,26 +191,35 @@ def build_report_story(user_info, dataframe=None):
         ai_insights.get("ai_opportunities")
     )
 
-    # =========================
-    # 🏁 إغلاق القرار (بفخامة)
-    # =========================
+    # -------------------------
+    # 🏁 القرار النهائي
+    # -------------------------
     if final_decision:
         content_text += (
             "\n\n🏁 القرار الاستثماري النهائي\n\n"
             f"التوصية: {final_decision.action}\n"
             f"درجة الثقة: {int(final_decision.confidence * 100)}%\n"
             f"الأفق الزمني: {final_decision.horizon}\n\n"
-            f"{final_decision.summary}\n\n"
-            "لماذا هذا القرار:\n"
-            + "\n".join(f"- {r}" for r in final_decision.rationale)
-            + "\n\nالمخاطر التي نراقبها:\n"
-            + "\n".join(f"- {r}" for r in final_decision.risks)
-            + "\n\nيتغير هذا القرار إذا:\n"
-            + "\n".join(f"- {c}" for c in final_decision.change_triggers)
+            f"{final_decision.summary_text}\n\n"
+            "أسباب هذا القرار:\n"
+            + "\n".join(f"• {r}" for r in final_decision.rationale)
             + "\n\n"
         )
 
+        # -------------------------
+        # 🧠 كسر الخوف النفسي (الخطوة 3)
+        # -------------------------
+        invalid_block = decision_invalid_conditions_block(final_decision)
+        if invalid_block and invalid_block.get("content"):
+            content_text += (
+                "\n\n"
+                + invalid_block["content"]
+                + "\n\n"
+            )
+
+    # -------------------------
     # الرسومات
+    # -------------------------
     if df is not None:
         df = unify_columns(df)
         df = ensure_required_columns(df)
