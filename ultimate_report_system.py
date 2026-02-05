@@ -7,16 +7,35 @@
 from datetime import datetime
 
 
-def build_execution_closure(final_decision):
+class UltimateReportSystem:
     """
-    يحوّل القرار الاستثماري إلى أداة تنفيذ لمدة 12 شهر
-    بدون أوامر مباشرة – بأسلوب استشاري هادئ
+    واجهة موحدة يستخدمها Streamlit
+    لتطبيق الإغلاق التنفيذي على التقرير
     """
 
-    if not final_decision:
-        return ""
+    def __init__(self, final_decision=None):
+        self.final_decision = final_decision
 
-    return f"""
+    def apply(self, report_text: str) -> str:
+        """
+        يضيف الإغلاق التنفيذي + الختم الزمني
+        """
+        if not report_text:
+            return report_text
+
+        report_text = self._append_execution_closure(report_text)
+        report_text = self._stamp_report(report_text)
+
+        return report_text
+
+    # =====================================
+    # الإغلاق التنفيذي (12 شهر)
+    # =====================================
+    def _build_execution_closure(self) -> str:
+        if not self.final_decision:
+            return ""
+
+        return f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🧭 كيف تستخدم هذا القرار خلال الـ 12 شهر القادمة؟
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -86,9 +105,6 @@ def build_execution_closure(final_decision):
 • إذا واجهت تضاربًا بين الأرقام والواقع
 • أو إذا أردت رأيًا ثانيًا قبل أي خطوة كبيرة
 
-نحن لا نتابع السوق بدلًا عنك…
-نساعدك فقط أن لا تواجهه وحدك.
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📌 ملاحظة ختامية
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -101,24 +117,14 @@ def build_execution_closure(final_decision):
 لكنه يصنع راحة، واستمرارية، وقرارات يمكن العيش معها.
 """
 
+    def _append_execution_closure(self, report_text: str) -> str:
+        closure = self._build_execution_closure()
+        if not closure:
+            return report_text
+        return report_text + "\n\n" + closure
 
-def append_execution_closure(report_text, final_decision):
-    """
-    يضيف الإغلاق التنفيذي في آخر التقرير
-    """
-    closure = build_execution_closure(final_decision)
-
-    if not closure:
-        return report_text
-
-    return report_text + "\n\n" + closure
-
-
-def stamp_report(report_text):
-    """
-    ختم زمني هادئ – احترافي
-    """
-    return (
-        report_text
-        + f"\n\n—\nتم إعداد هذا التقرير بتاريخ: {datetime.now().strftime('%Y-%m-%d')}"
-    )
+    def _stamp_report(self, report_text: str) -> str:
+        return (
+            report_text
+            + f"\n\n—\nتم إعداد هذا التقرير بتاريخ: {datetime.now().strftime('%Y-%m-%d')}"
+        )
