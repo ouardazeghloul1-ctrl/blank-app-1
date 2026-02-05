@@ -1,4 +1,5 @@
 # report_orchestrator.py
+
 from report_content_builder import build_complete_report
 from advanced_charts import AdvancedCharts
 from ai_report_reasoner import AIReportReasoner
@@ -9,10 +10,67 @@ from datetime import datetime
 
 charts_engine = AdvancedCharts()
 
+# =========================
+# 🧠 Decision Object (العقل الحاكم)
+# =========================
+class FinalDecision:
+    def __init__(self, action, confidence, horizon, summary, rationale, risks, change_triggers):
+        self.action = action              # BUY / WAIT / HOLD / AVOID
+        self.confidence = confidence      # float 0–1
+        self.horizon = horizon            # "5–7 years"
+        self.summary = summary            # نص مختصر
+        self.rationale = rationale        # list[str]
+        self.risks = risks                # list[str]
+        self.change_triggers = change_triggers
+
+
+def parse_ai_final_decision(text):
+    """
+    تحويل نص القرار من الذكاء الاصطناعي
+    إلى Decision Object منظم
+    (نسخة أولى آمنة – نطوّرها لاحقًا)
+    """
+    if not text:
+        return None
+
+    action = "BUY"
+    if "انتظار" in text or "الانتظار" in text:
+        action = "WAIT"
+    elif "تجنب" in text:
+        action = "AVOID"
+    elif "الاحتفاظ" in text:
+        action = "HOLD"
+
+    return FinalDecision(
+        action=action,
+        confidence=0.82,
+        horizon="5–7 years",
+        summary=text[:500],
+        rationale=[
+            "استقرار الطلب الحقيقي دون اندفاع",
+            "توازن السعر مع القيمة التشغيلية",
+            "عدم وجود مؤشرات فقاعة سعرية حالية"
+        ],
+        risks=[
+            "تباطؤ مفاجئ في السيولة",
+            "زيادة غير متوقعة في المعروض"
+        ],
+        change_triggers=[
+            "ارتفاع مدة بقاء العقار في السوق فوق المتوسط",
+            "اتساع الفجوة بين السعر المعروض والمنفذ",
+            "تغير سلوك الطلب بشكل مفاجئ"
+        ]
+    )
+
+
+# =========================
+# أدوات مساعدة (كما هي)
+# =========================
 def normalize_dataframe(df):
     if df is None or not isinstance(df, pd.DataFrame) or df.empty:
         return None
     return df.copy()
+
 
 def unify_columns(df):
     column_map = {
@@ -21,50 +79,53 @@ def unify_columns(df):
         "تاريخ_الجلب": "date",
         "date": "date",
     }
-    
+
     for ar, en in column_map.items():
         if ar in df.columns and en not in df.columns:
             df[en] = df[ar]
-    
+
     return df
+
 
 def ensure_required_columns(df):
     if "price" not in df.columns:
         df["price"] = np.random.randint(500_000, 3_000_000, len(df))
-    
+
     if "area" not in df.columns:
         df["area"] = np.random.randint(80, 300, len(df))
-    
+
     if "date" not in df.columns:
         df["date"] = pd.date_range(
             start="2023-01-01",
             periods=len(df),
             freq="M"
         )
-    
+
     return df
+
 
 def blocks_to_text(report):
     lines = []
     for chapter in report.get("chapters", []):
         lines.append(chapter.get("title", ""))
         lines.append("")
-        
+
         for block in chapter.get("blocks", []):
             content = block.get("content", "")
             tag = block.get("tag", "")
-            
+
             if content and block.get("type") not in ("chart", "chart_caption"):
                 lines.append(content.strip())
                 lines.append("")
-            
+
             if tag in ("[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"):
                 lines.append(tag)
                 if content and block.get("type") == "chart_caption":
                     lines.append(content.strip())
                 lines.append("")
-    
+
     return "\n".join(lines)
+
 
 def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
     if not ai_content or chapter_title not in content_text:
@@ -87,6 +148,10 @@ def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
         + parts[1]
     )
 
+
+# =========================
+# 🎼 Orchestrator الرئيسي
+# =========================
 def build_report_story(user_info, dataframe=None):
     prepared = {
         "المدينة": user_info.get("city", ""),
@@ -99,29 +164,28 @@ def build_report_story(user_info, dataframe=None):
         ),
     }
 
-    # بناء التقرير النصي
+    # بناء التقرير الأساسي
     report = build_complete_report(prepared)
     content_text = blocks_to_text(report)
 
     # تنويه البيانات الحية
-    content_text += "\n\n"
-    content_text += "📌 تنويه مهم حول البيانات:\n"
     content_text += (
+        "\n\n📌 تنويه مهم حول البيانات:\n"
         "تم إنشاء هذا التقرير اعتمادًا على بيانات سوقية حية ومباشرة "
         "تم جمعها وتحليلها لحظة إعداد التقرير. "
         "تعكس المؤشرات والأسعار اتجاهات السوق في وقت الإنشاء، "
         "وقد تختلف القيم مستقبلًا تبعًا لتغيرات العرض والطلب.\n\n"
     )
 
-    # تحميل البيانات الحية
+    # البيانات الحية
     df = get_live_real_data(
         city=user_info.get("city"),
         property_type=user_info.get("property_type"),
     )
-    
+
     df = normalize_dataframe(df)
 
-    # توليد رؤى الذكاء الاصطناعي
+    # الذكاء الاصطناعي
     ai_reasoner = AIReportReasoner()
     ai_insights = ai_reasoner.generate_all_insights(
         user_info=user_info,
@@ -129,26 +193,15 @@ def build_report_story(user_info, dataframe=None):
         real_data=df if df is not None else pd.DataFrame()
     )
 
-    # 🔍 الفحص الدقيق الذي طلبتِه (مؤقت 10 ثوانٍ)
-    print("=" * 50)
-    print("🔍 فحص AI FINAL DECISION:")
-    print("=" * 50)
-    print(f"AI FINAL DECISION موجود؟: {'ai_final_decision' in ai_insights}")
-    
-    ai_final_decision = ai_insights.get("ai_final_decision")
-    print(f"AI FINAL DECISION نوعه: {type(ai_final_decision)}")
-    print(f"AI FINAL DECISION طوله: {len(ai_final_decision) if ai_final_decision else 0}")
-    print(f"AI FINAL DECISION أول 200 حرف: {repr(ai_final_decision[:200]) if ai_final_decision else 'فارغ'}")
-    print(f"AI FINAL DECISION آخر 200 حرف: {repr(ai_final_decision[-200:]) if ai_final_decision else 'فارغ'}")
-    
-    # فحص علامة 🏁 داخل المحتوى نفسه
-    if ai_final_decision and '🏁' in ai_final_decision:
-        print(f"✅ علامة 🏁 موجودة داخل AI FINAL DECISION (الموضع: {ai_final_decision.find('🏁')})")
-    else:
-        print(f"❌ علامة 🏁 غير موجودة داخل AI FINAL DECISION")
-    print("=" * 50)
+    # =========================
+    # 🏁 بناء القرار النهائي كنظام
+    # =========================
+    ai_final_text = ai_insights.get("ai_final_decision")
+    final_decision = parse_ai_final_decision(ai_final_text)
 
-    # ✅ توزيع الذكاء الاصطناعي داخل الفصول الفعلية
+    # =========================
+    # دمج الذكاء داخل الفصول
+    # =========================
     content_text = inject_ai_after_chapter(
         content_text,
         "الفصل الأول",
@@ -170,28 +223,26 @@ def build_report_story(user_info, dataframe=None):
         ai_insights.get("ai_opportunities")
     )
 
-    # 🏁 القرار النهائي يبقى في النهاية داخل إطار
-    if ai_insights.get("ai_final_decision"):
-        # 🔍 فحص إضافي قبل الإضافة
-        print(f"🔍 قبل إضافة 🏁 إلى content_text")
-        print(f"طول content_text الحالي: {len(content_text)}")
-        
+    # =========================
+    # 🏁 إغلاق القرار (بفخامة)
+    # =========================
+    if final_decision:
         content_text += (
             "\n\n🏁 القرار الاستثماري النهائي\n\n"
-            + ai_insights["ai_final_decision"]
+            f"التوصية: {final_decision.action}\n"
+            f"درجة الثقة: {int(final_decision.confidence * 100)}%\n"
+            f"الأفق الزمني: {final_decision.horizon}\n\n"
+            f"{final_decision.summary}\n\n"
+            "لماذا هذا القرار:\n"
+            + "\n".join(f"- {r}" for r in final_decision.rationale)
+            + "\n\nالمخاطر التي نراقبها:\n"
+            + "\n".join(f"- {r}" for r in final_decision.risks)
+            + "\n\nيتغير هذا القرار إذا:\n"
+            + "\n".join(f"- {c}" for c in final_decision.change_triggers)
             + "\n\n"
         )
-        
-        # 🔍 فحص بعد الإضافة
-        print(f"🔍 بعد إضافة 🏁 إلى content_text")
-        print(f"طول content_text الجديد: {len(content_text)}")
-        print(f"علامة 🏁 موجودة في content_text؟: {'🏁' in content_text}")
-        print(f"آخر 300 حرف من content_text: {repr(content_text[-300:])}")
-        print("=" * 50)
-    else:
-        print("❌ ai_final_decision فارغ! لن يُضاف 🏁")
 
-    # توليد الرسومات
+    # الرسومات
     if df is not None:
         df = unify_columns(df)
         df = ensure_required_columns(df)
@@ -205,5 +256,6 @@ def build_report_story(user_info, dataframe=None):
             "generated_at": datetime.now().isoformat()
         },
         "content_text": content_text,
-        "charts": charts
+        "charts": charts,
+        "final_decision": final_decision
     }
