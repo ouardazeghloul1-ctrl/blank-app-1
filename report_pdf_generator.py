@@ -38,6 +38,9 @@ def ar(text):
         return str(text)
 
 
+# =========================
+# Clean text
+# =========================
 def clean_text(text: str) -> str:
     if not text:
         return ""
@@ -55,18 +58,21 @@ def clean_text(text: str) -> str:
 
 
 # =========================
-# 📦 Executive Decision Box
+# Executive Decision Box
 # =========================
 def executive_decision_box(text, width_cm=16):
     return Table(
-        [[Paragraph(ar(text), ParagraphStyle(
-            "DecisionText",
-            fontName="Amiri",
-            fontSize=14.5,
-            leading=28,
-            alignment=TA_RIGHT,
-            textColor=colors.HexColor("#222222"),
-        ))]],
+        [[Paragraph(
+            ar(text),
+            ParagraphStyle(
+                "DecisionText",
+                fontName="Amiri",
+                fontSize=14.5,
+                leading=28,
+                alignment=TA_RIGHT,
+                textColor=colors.HexColor("#222222"),
+            )
+        )]],
         colWidths=[width_cm * cm],
         style=TableStyle([
             ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F2F3F5")),
@@ -80,14 +86,14 @@ def executive_decision_box(text, width_cm=16):
     )
 
 
-def elegant_divider(width="60%", thickness=0.8, color=colors.HexColor("#7a0000")):
+def elegant_divider():
     return HRFlowable(
-        width=width,
-        thickness=thickness,
-        color=color,
+        width="60%",
+        thickness=0.8,
+        color=colors.HexColor("#7a0000"),
         spaceBefore=14,
         spaceAfter=16,
-        lineCap='round'
+        lineCap="round"
     )
 
 
@@ -103,25 +109,27 @@ def create_pdf_from_content(
     ai_recommendations=None
 ):
     buffer = BytesIO()
+
     # -------------------------
-    # FONT (robust loading)
+    # FONT (correct & robust)
     # -------------------------
     font_path = None
     for p in [
-    "Amiri-Regular.ttf",
-    os.path.join(os.getcwd(), "Amiri-Regular.ttf"),
-]:
-    if os.path.exists(p):
-        font_path = p
-        break
+        "Amiri-Regular.ttf",
+        os.path.join(os.getcwd(), "Amiri-Regular.ttf"),
+    ]:
+        if os.path.exists(p):
+            font_path = p
+            break
 
     if not font_path:
-    raise FileNotFoundError("Amiri-Regular.ttf not found in project root")
+        raise FileNotFoundError("Amiri-Regular.ttf not found in project root")
 
-pdfmetrics.registerFont(TTFont("Amiri", font_path))
+    pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
-
-    
+    # -------------------------
+    # DOCUMENT
+    # -------------------------
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
@@ -190,7 +198,7 @@ pdfmetrics.registerFont(TTFont("Amiri", font_path))
     story.append(PageBreak())
 
     # =========================
-    # CONTENT
+    # CONTENT + DECISION
     # =========================
     decision_buffer = []
     decision_mode = False
