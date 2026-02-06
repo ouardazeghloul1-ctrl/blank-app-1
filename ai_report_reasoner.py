@@ -123,26 +123,47 @@ def extract_market_signals(real_data: pd.DataFrame) -> dict:
     if real_data is None or real_data.empty:
         return {}
 
-    # 🔹 مستوى الطلب (من سرعة التداول)
-    avg_days = real_data.get("days_on_market", pd.Series()).mean()
-    if pd.notna(avg_days):
-        if avg_days < 30:
-            signals["مستوى_الطلب"] = "مرتفع"
-        elif avg_days < 60:
-            signals["مستوى_الطلب"] = "متوسط"
-        else:
-            signals["مستوى_الطلب"] = "ضعيف"
-
-    # 🔹 حالة السوق (من تذبذب الأسعار)
-    price_std = real_data["price"].std()
-    price_mean = real_data["price"].mean()
-
-    if price_std / price_mean < 0.1:
-        signals["حالة_السوق"] = "حالة توازن"
-    elif price_std / price_mean < 0.2:
-        signals["حالة_السوق"] = "توازن حذر"
+    # 🔹 مستوى الطلب (من سرعة التداول – بشكل آمن)
+    days_col = None
+    for col in ["days_on_market", "مدة_السوق", "أيام_السوق"]:
+        if col in real_data.columns:
+            days_col = col
+            break
+    
+    if days_col:
+        avg_days = real_data[days_col].mean()
+        if pd.notna(avg_days):
+            if avg_days < 30:
+                signals["مستوى_الطلب"] = "مرتفع"
+            elif avg_days < 60:
+                signals["مستوى_الطلب"] = "متوسط"
+            else:
+                signals["مستوى_الطلب"] = "ضعيف"
     else:
-        signals["حالة_السوق"] = "تذبذب مرتفع"
+        signals["مستوى_الطلب"] = "غير محدد"
+
+    # 🔹 حالة السوق (من تذبذب الأسعار – بشكل آمن)
+    price_col = None
+    for col in ["price", "السعر", "سعر", "سعر_المتر"]:
+        if col in real_data.columns:
+            price_col = col
+            break
+
+    if price_col:
+        price_std = real_data[price_col].std()
+        price_mean = real_data[price_col].mean()
+
+        if pd.notna(price_std) and pd.notna(price_mean) and price_mean > 0:
+            if price_std / price_mean < 0.1:
+                signals["حالة_السوق"] = "حالة توازن"
+            elif price_std / price_mean < 0.2:
+                signals["حالة_السوق"] = "توازن حذر"
+            else:
+                signals["حالة_السوق"] = "تذبذب مرتفع"
+        else:
+            signals["حالة_السوق"] = "بيانات غير كافية"
+    else:
+        signals["حالة_السوق"] = "بيانات غير كاملة"
 
     # 🔹 مزاج السوق
     if signals.get("مستوى_الطلب") == "مرتفع" and signals.get("حالة_السوق") == "حالة توازن":
