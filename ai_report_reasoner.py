@@ -272,19 +272,23 @@ class AIReportReasoner:
         # =========================
         # تطبيق إشارات السوق على النصوص (المصدر النهائي للحقيقة)
         # =========================
+        
+        # دمج values و market_signals في قاموس واحد لكل القوالب
+        all_values = {**values, **market_signals}
+        
         live_market_text = apply_policy(
             "live_market",
-            LIVE_MARKET_SNAPSHOT.format(**values)
+            LIVE_MARKET_SNAPSHOT.format(**all_values)
         )
         
         opportunities_text = apply_policy(
             "opportunities",
-            OPPORTUNITY_INSIGHT.format(**values)
+            OPPORTUNITY_INSIGHT.format(**all_values)
         )
         
         risk_text = apply_policy(
             "risk",
-            RISK_INSIGHT.format(**values)
+            RISK_INSIGHT.format(**all_values)
         )
 
         return {
