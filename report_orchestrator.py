@@ -45,35 +45,26 @@ def ensure_required_columns(df):
     return df
 
 def blocks_to_text(report):
-    sections = []
-
+    lines = []
     for chapter in report.get("chapters", []):
-        # عنوان الفصل
-        title = chapter.get("title", "").strip()
-        if title:
-            sections.append(title)
-            sections.append("")  # سطر فارغ بعد العنوان
-
-        # تجميع الفقرات كوحدات
+        lines.append(chapter.get("title", ""))
+        lines.append("")
+        
         for block in chapter.get("blocks", []):
-            if block.get("type") in ("chart", "chart_caption"):
-                continue
-
             content = block.get("content", "")
-            if content:
-                # تنظيف المحتوى
-                paragraph = content.strip()
-
-                # إزالة أي أسطر زائدة داخل الفقرة
-                paragraph = "\n".join(
-                    line.strip() for line in paragraph.splitlines() if line.strip()
-                )
-
-                sections.append(paragraph)
-                sections.append("")  # فاصل فقرة واضح
-
-    # دمج نهائي بنمط مستقر
-    return "\n\n".join(sections).strip()
+            tag = block.get("tag", "")
+            
+            if content and block.get("type") not in ("chart", "chart_caption"):
+                lines.append(content.strip())
+                lines.append("")
+            
+            if tag in ("[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"):
+                lines.append(tag)
+                if content and block.get("type") == "chart_caption":
+                    lines.append(content.strip())
+                lines.append("")
+    
+    return "\n".join(lines)
 
 def inject_ai_by_anchor(content_text, anchor, title, ai_content):
     """حقن محتوى الذكاء الاصطناعي باستخدام Anchors المضمونة"""
@@ -85,7 +76,7 @@ def inject_ai_by_anchor(content_text, anchor, title, ai_content):
 
     return content_text.replace(
         anchor,
-        f"\n\n---\n\n{title}\n\n{ai_content}\n\n---\n\n"
+        f"\n\n{title}\n\n{ai_content}\n\n"
     )
 
 def build_report_story(user_info, dataframe=None):
