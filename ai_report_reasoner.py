@@ -218,6 +218,14 @@ class AIReportReasoner:
         market_signals = extract_market_signals(real_data)
 
         # =========================
+        # ضمان وجود كل المتغيرات التحليلية (حتى بدون بيانات)
+        # =========================
+        market_signals.setdefault("حالة_السوق", "غير متاحة حاليًا")
+        market_signals.setdefault("مستوى_الطلب", "غير محدد")
+        market_signals.setdefault("مستوى_العرض", "غير محدد")
+        market_signals.setdefault("مزاج_السوق", "محايد")
+
+        # =========================
         # البيانات الحية
         # =========================
         self.live_system.update_live_data(real_data)
