@@ -66,24 +66,17 @@ def blocks_to_text(report):
     
     return "\n".join(lines)
 
-def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
-    if not ai_content or chapter_title not in content_text:
+def inject_ai_by_anchor(content_text, anchor, title, ai_content):
+    """حقن محتوى الذكاء الاصطناعي باستخدام Anchors المضمونة"""
+    if not ai_content:
         return content_text
 
-    marker = chapter_title + "\n"
-    parts = content_text.split(marker, 1)
-
-    if len(parts) != 2:
+    if anchor not in content_text:
         return content_text
 
-    return (
-        parts[0]
-        + marker
-        + "\n\n"
-        + ai_title + "\n\n"
-        + ai_content
-        + "\n\n"
-        + parts[1]
+    return content_text.replace(
+        anchor,
+        f"\n\n{title}\n\n{ai_content}\n\n"
     )
 
 def build_report_story(user_info, dataframe=None):
@@ -154,27 +147,49 @@ def build_report_story(user_info, dataframe=None):
         print(f"يحتوي على 🏁: {'نعم' if '🏁' in ai_insights['ai_final_decision'] else 'لا'}")
     print("="*50)
 
-    # ✅ توزيع الذكاء الاصطناعي داخل الفصول الفعلية (بالتعديل الذي طلبته)
-    content_text = inject_ai_after_chapter(
+    # 🔍 التحقق من وجود Anchors في التقرير
+    print("\n🔍 فحص وجود Anchors في التقرير:")
+    print("="*30)
+    anchors = ["[[AI_SLOT_CH1]]", "[[AI_SLOT_CH2]]", "[[AI_SLOT_CH3]]"]
+    for anchor in anchors:
+        if anchor in content_text:
+            print(f"✅ {anchor} موجود في التقرير")
+        else:
+            print(f"❌ {anchor} غير موجود في التقرير")
+    print("="*30)
+
+    # ✅ إدخال الذكاء الاصطناعي باستخدام Anchors (مضمون)
+    content_text = inject_ai_by_anchor(
         content_text,
-        "الفصل الأول:",
+        "[[AI_SLOT_CH1]]",
         "📊 لقطة السوق الحية",
         ai_insights.get("ai_live_market", "")
     )
 
-    content_text = inject_ai_after_chapter(
+    content_text = inject_ai_by_anchor(
         content_text,
-        "الفصل الثاني:",
-        "⚠️ تقييم المخاطر",
+        "[[AI_SLOT_CH2]]",
+        "⚠️ تقييم المخاطر الذكي",
         ai_insights.get("ai_risk", "")
     )
 
-    content_text = inject_ai_after_chapter(
+    content_text = inject_ai_by_anchor(
         content_text,
-        "الفصل الثالث:",
+        "[[AI_SLOT_CH3]]",
         "💎 تحليل الفرص الاستثمارية",
         ai_insights.get("ai_opportunities", "")
     )
+
+    # 🔍 التحقق بعد الحقن
+    print("\n🔍 التحقق بعد إدخال نصوص الذكاء الاصطناعي:")
+    print("="*30)
+    ai_markers = ["📊 لقطة السوق الحية", "⚠️ تقييم المخاطر الذكي", "💎 تحليل الفرص الاستثمارية"]
+    for marker in ai_markers:
+        if marker in content_text:
+            print(f"✅ '{marker}' تم إدراجه بنجاح")
+        else:
+            print(f"❌ '{marker}' لم يتم إدراجه")
+    print("="*30)
 
     # 🏁 القرار النهائي يبقى في النهاية داخل إطار واضح
     if ai_insights.get("ai_final_decision"):
