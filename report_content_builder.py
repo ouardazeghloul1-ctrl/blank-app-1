@@ -1,3 +1,4 @@
+# report_content_builder.py - النسخة المعدلة
 """
 Advanced Real Estate Investment Report Builder
 Version: 3.0.1 (Content-Rich - Corrected)
@@ -224,6 +225,11 @@ def chapter_1_blocks(user_info):
 بل بداية طريقة تفكير.
 """
         },
+        # ✅ هنا أضفنا علامة الذكاء الاصطناعي في نهاية الفصل الأول
+        {
+            "type": "text",
+            "content": "[[AI_SLOT_CH1]]"
+        }
     ]
 
 # =========================
@@ -426,6 +432,11 @@ def chapter_2_blocks(user_info):
 حان وقت النظر إلى الجهة الأخرى من الصورة.
 """
         },
+        # ✅ هنا أضفنا علامة الذكاء الاصطناعي في نهاية الفصل الثاني
+        {
+            "type": "text",
+            "content": "[[AI_SLOT_CH2]]"
+        }
     ]
 
 # =========================
@@ -622,6 +633,11 @@ def chapter_3_blocks(user_info):
 تحتاج نظامًا يحميها ويُنمّيها.
 """
         },
+        # ✅ هنا أضفنا علامة الذكاء الاصطناعي في نهاية الفصل الثالث
+        {
+            "type": "text",
+            "content": "[[AI_SLOT_CH3]]"
+        }
     ]
 
 # =========================
@@ -2060,6 +2076,7 @@ def build_complete_report(user_info):
             )
 
     return report
+
 # =========================
 # DECISION STRESS TEST BLOCK
 # =========================
