@@ -79,7 +79,6 @@ def inject_ai_after_chapter(content_text, chapter_title, ai_title, ai_content):
     return (
         parts[0]
         + marker
-        + parts[1].split("\n", 1)[0]
         + "\n\n"
         + ai_title + "\n\n"
         + ai_content
@@ -129,65 +128,73 @@ def build_report_story(user_info, dataframe=None):
         real_data=df if df is not None else pd.DataFrame()
     )
 
-    # 🔍 الفحص الدقيق الذي طلبتِه (مؤقت 10 ثوانٍ)
-    print("=" * 50)
-    print("🔍 فحص AI FINAL DECISION:")
-    print("=" * 50)
-    print(f"AI FINAL DECISION موجود؟: {'ai_final_decision' in ai_insights}")
+    # 🔍 المرحلة 1: فحص نصوص الذكاء الاصطناعي
+    print("="*50)
+    print("🔍 المرحلة 1: فحص نصوص الذكاء الاصطناعي")
+    print("="*50)
+    print(f"AI LIVE موجود: {'نعم' if ai_insights.get('ai_live_market') else 'لا'}")
+    if ai_insights.get('ai_live_market'):
+        print(f"طول AI LIVE: {len(ai_insights['ai_live_market'])} حرف")
+        print(f"العينة: {ai_insights['ai_live_market'][:150]}...")
     
-    ai_final_decision = ai_insights.get("ai_final_decision")
-    print(f"AI FINAL DECISION نوعه: {type(ai_final_decision)}")
-    print(f"AI FINAL DECISION طوله: {len(ai_final_decision) if ai_final_decision else 0}")
-    print(f"AI FINAL DECISION أول 200 حرف: {repr(ai_final_decision[:200]) if ai_final_decision else 'فارغ'}")
-    print(f"AI FINAL DECISION آخر 200 حرف: {repr(ai_final_decision[-200:]) if ai_final_decision else 'فارغ'}")
+    print(f"\nAI RISK موجود: {'نعم' if ai_insights.get('ai_risk') else 'لا'}")
+    if ai_insights.get('ai_risk'):
+        print(f"طول AI RISK: {len(ai_insights['ai_risk'])} حرف")
+        print(f"العينة: {ai_insights['ai_risk'][:150]}...")
     
-    # فحص علامة 🏁 داخل المحتوى نفسه
-    if ai_final_decision and '🏁' in ai_final_decision:
-        print(f"✅ علامة 🏁 موجودة داخل AI FINAL DECISION (الموضع: {ai_final_decision.find('🏁')})")
-    else:
-        print(f"❌ علامة 🏁 غير موجودة داخل AI FINAL DECISION")
-    print("=" * 50)
+    print(f"\nAI OPPORTUNITIES موجود: {'نعم' if ai_insights.get('ai_opportunities') else 'لا'}")
+    if ai_insights.get('ai_opportunities'):
+        print(f"طول AI OPPORTUNITIES: {len(ai_insights['ai_opportunities'])} حرف")
+        print(f"العينة: {ai_insights['ai_opportunities'][:150]}...")
+    
+    print(f"\nAI FINAL DECISION موجود: {'نعم' if ai_insights.get('ai_final_decision') else 'لا'}")
+    if ai_insights.get('ai_final_decision'):
+        print(f"طول AI FINAL DECISION: {len(ai_insights['ai_final_decision'])} حرف")
+        print(f"العينة: {ai_insights['ai_final_decision'][:150]}...")
+        print(f"يحتوي على 🏁: {'نعم' if '🏁' in ai_insights['ai_final_decision'] else 'لا'}")
+    print("="*50)
 
-    # ✅ توزيع الذكاء الاصطناعي داخل الفصول الفعلية
+    # ✅ توزيع الذكاء الاصطناعي داخل الفصول الفعلية (بالتعديل الذي طلبته)
     content_text = inject_ai_after_chapter(
         content_text,
-        "الفصل الأول",
+        "الفصل الأول:",
         "📊 لقطة السوق الحية",
-        ai_insights.get("ai_live_market")
+        ai_insights.get("ai_live_market", "")
     )
 
     content_text = inject_ai_after_chapter(
         content_text,
-        "الفصل الثاني",
+        "الفصل الثاني:",
         "⚠️ تقييم المخاطر",
-        ai_insights.get("ai_risk")
+        ai_insights.get("ai_risk", "")
     )
 
     content_text = inject_ai_after_chapter(
         content_text,
-        "الفصل الثالث",
+        "الفصل الثالث:",
         "💎 تحليل الفرص الاستثمارية",
-        ai_insights.get("ai_opportunities")
+        ai_insights.get("ai_opportunities", "")
     )
 
-    # 🏁 القرار النهائي يبقى في النهاية داخل إطار
+    # 🏁 القرار النهائي يبقى في النهاية داخل إطار واضح
     if ai_insights.get("ai_final_decision"):
-        # 🔍 فحص إضافي قبل الإضافة
-        print(f"🔍 قبل إضافة 🏁 إلى content_text")
-        print(f"طول content_text الحالي: {len(content_text)}")
-        
-        content_text += (
-            "\n\n🏁 القرار الاستثماري النهائي\n\n"
+        final_frame = (
+            "\n\n" + "★"*60 + "\n"
+            + "🏁 القرار الاستثماري النهائي\n"
+            + "★"*60 + "\n\n"
             + ai_insights["ai_final_decision"]
-            + "\n\n"
+            + "\n\n" + "★"*60 + "\n"
+            + "📋 التوصيات العملية الفورية:\n"
+            + "★"*60 + "\n\n"
+            + "• راجع هذا القرار خلال 72 ساعة كحد أقصى\n"
+            + "• قم بمراجعة السيولة المالية المتاحة لديك\n"
+            + "• حدد موعدًا مع مستشار مالي لمناقشة التفاصيل\n"
+            + "• قم بمتابعة تحركات السوق أسبوعيًا\n"
+            + "\n" + "★"*60 + "\n"
         )
         
-        # 🔍 فحص بعد الإضافة
-        print(f"🔍 بعد إضافة 🏁 إلى content_text")
-        print(f"طول content_text الجديد: {len(content_text)}")
-        print(f"علامة 🏁 موجودة في content_text؟: {'🏁' in content_text}")
-        print(f"آخر 300 حرف من content_text: {repr(content_text[-300:])}")
-        print("=" * 50)
+        content_text += final_frame
+        print("✅ تم إضافة القرار النهائي مع علامة 🏁 والإطار المميز")
     else:
         print("❌ ai_final_decision فارغ! لن يُضاف 🏁")
 
