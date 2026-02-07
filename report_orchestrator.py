@@ -73,31 +73,29 @@ def blocks_to_text(report):
 
             # التعامل مع النص العادي
             if content and block_type not in ("chart", "chart_caption"):
-                # تنظيف المحتوى
-                paragraph = content.strip()
-
-                # إزالة أي أسطر زائدة داخل الفقرة
+                # تنظيف المحتوى مع الحفاظ على المسافات الطبيعية
                 paragraph = "\n".join(
-                    line.strip() for line in paragraph.splitlines() if line.strip()
-                )
-
-                sections.append(paragraph)
-                sections.append("")  # فاصل فقرة واضح
+                    line.rstrip() for line in content.splitlines()
+                ).strip()
+                
+                if paragraph:  # فقط إذا كان هناك محتوى بعد التنظيف
+                    sections.append(paragraph)
+                    sections.append("")  # فاصل فقرة واضح
 
     # دمج نهائي بنمط مستقر
     return "\n\n".join(sections).strip()
 
 def inject_ai_by_anchor(content_text, anchor, title, ai_content):
     """حقن محتوى الذكاء الاصطناعي باستخدام Anchors المضمونة"""
-    if not ai_content:
-        return content_text
-
-    if anchor not in content_text:
+    if not ai_content or anchor not in content_text:
         return content_text
 
     return content_text.replace(
         anchor,
-        f"\n\n---\n\n{title}\n\n{ai_content}\n\n---\n\n{anchor}"  # ✅ أعد إدراج الـ anchor للأمان
+        f"\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{title}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"{ai_content}\n\n"
     )
 
 def build_report_story(user_info, dataframe=None):
@@ -211,6 +209,14 @@ def build_report_story(user_info, dataframe=None):
         else:
             print(f"❌ '{marker}' لم يتم إدراجه")
     print("="*30)
+
+    # 🔄 فصل نهاية التحليل عن الخلاصة التنفيذية
+    content_text += (
+        "\n\n"
+        "══════════════════════════════════\n"
+        "نهاية التحليل التفصيلي\n"
+        "══════════════════════════════════\n\n"
+    )
 
     # 🏁 الخلاصة التنفيذية النهائية كوحدة مستقلة
     if ai_insights.get("ai_final_decision"):
