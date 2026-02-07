@@ -54,13 +54,25 @@ def blocks_to_text(report):
             sections.append(title)
             sections.append("")  # سطر فارغ بعد العنوان
 
-        # تجميع الفقرات كوحدات
+        # تجميع الفقرات كوحدات مع الحفاظ على الرسومات
         for block in chapter.get("blocks", []):
-            if block.get("type") in ("chart", "chart_caption"):
+            block_type = block.get("type")
+            content = block.get("content", "")
+            tag = block.get("tag", "")
+
+            # التعامل مع الرسومات والعلامات
+            if block_type == "chart":
+                sections.append(tag)   # 👈 هذا هو الجسر للرسومات
+                sections.append("")
                 continue
 
-            content = block.get("content", "")
-            if content:
+            if block_type == "chart_caption" and content:
+                sections.append(content.strip())
+                sections.append("")
+                continue
+
+            # التعامل مع النص العادي
+            if content and block_type not in ("chart", "chart_caption"):
                 # تنظيف المحتوى
                 paragraph = content.strip()
 
@@ -85,7 +97,7 @@ def inject_ai_by_anchor(content_text, anchor, title, ai_content):
 
     return content_text.replace(
         anchor,
-        f"\n\n---\n\n{title}\n\n{ai_content}\n\n---\n\n"
+        f"\n\n---\n\n{title}\n\n{ai_content}\n\n---\n\n{anchor}"  # ✅ أعد إدراج الـ anchor للأمان
     )
 
 def build_report_story(user_info, dataframe=None):
