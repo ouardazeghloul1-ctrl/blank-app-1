@@ -60,9 +60,25 @@ class ExecutiveDecision:
             lines.append(f"- {t}")
 
         lines.append("")
+        lines.append("متى يظل هذا القرار صالحًا دون مراجعة؟")
+        lines.append(
+            "- طالما بقيت إشارات القيمة الحالية قائمة\n"
+            "- وطالما لم يتحول سلوك السوق إلى اندفاعي أو ركودي\n"
+            "- وطالما بقي هذا القرار مريحًا نفسيًا وغير ضاغط في التطبيق"
+        )
+
+        lines.append("")
         lines.append("كيف تتصرف بعد إغلاق هذا التقرير؟")
         for p in self.execution_principles:
             lines.append(f"- {p}")
+
+        lines.append("")
+        lines.append("بوصلة التعامل الذهني مع هذا القرار:")
+        lines.append(
+            "- لا تبحث عن تأكيد يومي، القرار لا يحتاج ذلك\n"
+            "- تجاهل المقارنات مع صفقات فردية معزولة\n"
+            "- إن شعرت بالهدوء عند قراءة هذا القرار، فهذا بحد ذاته إشارة صحة"
+        )
 
         return "\n".join(lines)
 
@@ -183,4 +199,6 @@ def generate_executive_summary(user_info, market_data, real_data):
 
     # إضافة طبقة الطمأنينة الاستشارية
     peace_layer = generate_peace_layer(decision.stance)
-    return decision.to_text() + "\n\n" + peace_layer
+    final_text = decision.to_text() + "\n\n" + peace_layer
+    final_text += "\n\n—\nهذا القرار صُمم ليكون إطارًا تعيش به، لا توصية لحظة واحدة."
+    return final_text
