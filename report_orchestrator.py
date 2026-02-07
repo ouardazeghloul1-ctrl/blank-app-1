@@ -45,26 +45,35 @@ def ensure_required_columns(df):
     return df
 
 def blocks_to_text(report):
-    lines = []
+    sections = []
+
     for chapter in report.get("chapters", []):
-        lines.append(chapter.get("title", ""))
-        lines.append("")
-        
+        # عنوان الفصل
+        title = chapter.get("title", "").strip()
+        if title:
+            sections.append(title)
+            sections.append("")  # سطر فارغ بعد العنوان
+
+        # تجميع الفقرات كوحدات
         for block in chapter.get("blocks", []):
+            if block.get("type") in ("chart", "chart_caption"):
+                continue
+
             content = block.get("content", "")
-            tag = block.get("tag", "")
-            
-            if content and block.get("type") not in ("chart", "chart_caption"):
-                lines.append(content.strip())
-                lines.append("")
-            
-            if tag in ("[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"):
-                lines.append(tag)
-                if content and block.get("type") == "chart_caption":
-                    lines.append(content.strip())
-                lines.append("")
-    
-    return "\n".join(lines)
+            if content:
+                # تنظيف المحتوى
+                paragraph = content.strip()
+
+                # إزالة أي أسطر زائدة داخل الفقرة
+                paragraph = "\n".join(
+                    line.strip() for line in paragraph.splitlines() if line.strip()
+                )
+
+                sections.append(paragraph)
+                sections.append("")  # فاصل فقرة واضح
+
+    # دمج نهائي بنمط مستقر
+    return "\n\n".join(sections).strip()
 
 def inject_ai_by_anchor(content_text, anchor, title, ai_content):
     """حقن محتوى الذكاء الاصطناعي باستخدام Anchors المضمونة"""
@@ -76,7 +85,7 @@ def inject_ai_by_anchor(content_text, anchor, title, ai_content):
 
     return content_text.replace(
         anchor,
-        f"\n\n{title}\n\n{ai_content}\n\n"
+        f"\n\n---\n\n{title}\n\n{ai_content}\n\n---\n\n"
     )
 
 def build_report_story(user_info, dataframe=None):
@@ -191,27 +200,30 @@ def build_report_story(user_info, dataframe=None):
             print(f"❌ '{marker}' لم يتم إدراجه")
     print("="*30)
 
-    # 🏁 القرار النهائي يبقى في النهاية داخل إطار واضح
+    # 🏁 الخلاصة التنفيذية النهائية كوحدة مستقلة
     if ai_insights.get("ai_final_decision"):
-        final_frame = (
-            "\n\n" + "★"*60 + "\n"
-            + "🏁 القرار الاستثماري النهائي\n"
-            + "★"*60 + "\n\n"
-            + ai_insights["ai_final_decision"]
-            + "\n\n" + "★"*60 + "\n"
-            + "📋 التوصيات العملية الفورية:\n"
-            + "★"*60 + "\n\n"
-            + "• راجع هذا القرار خلال 72 ساعة كحد أقصى\n"
-            + "• قم بمراجعة السيولة المالية المتاحة لديك\n"
-            + "• حدد موعدًا مع مستشار مالي لمناقشة التفاصيل\n"
-            + "• قم بمتابعة تحركات السوق أسبوعيًا\n"
-            + "\n" + "★"*60 + "\n"
+        executive_block = (
+            "\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🏁 الخلاصة التنفيذية النهائية\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "ما يلي ليس ملخصًا للتقرير،\n"
+            "بل هو القرار الذي بُني بعد قراءة كل ما سبق.\n\n"
+            + ai_insights["ai_final_decision"] +
+            "\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "📌 ملاحظة مهمة\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "هذا القرار لا يُطلب منك تنفيذه فورًا،\n"
+            "ولا يُقاس بصحة حركة واحدة،\n"
+            "بل بمدى راحته، وثباته، وقدرته على الصمود\n"
+            "أمام تغيّر السوق دون الحاجة لإعادة التفكير كل أسبوع.\n"
         )
         
-        content_text += final_frame
-        print("✅ تم إضافة القرار النهائي مع علامة 🏁 والإطار المميز")
+        content_text += executive_block
+        print("✅ تم إضافة القرار النهائي كوحدة تنفيذية مستقلة")
     else:
-        print("❌ ai_final_decision فارغ! لن يُضاف 🏁")
+        print("❌ ai_final_decision فارغ! لن يُضاف القرار النهائي")
 
     # توليد الرسومات
     if df is not None:
