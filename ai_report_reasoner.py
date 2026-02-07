@@ -16,6 +16,26 @@ from ai_text_templates import (
 )
 
 # =========================================
+# قيم افتراضية شاملة (تمنع أي KeyError)
+# =========================================
+
+DEFAULT_AI_VALUES = {
+    "المدينة": "غير محددة",
+    "سرعة_البيع": "متوسطة",
+    "التغير_اليومي": "0%",
+    "اتجاه_الأسعار": "مستقر",
+    "مستوى_الطلب": "انتقائي",
+    "مستوى_العرض": "متوازن",
+    "حالة_السوق": "مستقرة نسبيًا",
+    "مزاج_السوق": "محايد",
+    "مستوى_المخاطر_العام": "متوسط",
+    "عمق_التحليل": "مرتفع",
+    "نبرة_التحليل": "استشاري",
+    "مستوى_الثقة": "عالية",
+    "ملاحظة_البيانات": "التحليل مبني على بيانات سوقية حية",
+}
+
+# =========================================
 # سياسات الباقات
 # =========================================
 
@@ -27,36 +47,14 @@ AI_PACKAGE_POLICY = {
     "مجانية": {"live_market": "summary", "opportunities": "hidden", "risk": "hidden", "final_decision": "hidden"},
 }
 
-AI_INTELLIGENCE_CAP = {
-    "ماسية متميزة": "مرتفع",
-    "ماسية": "مرتفع",
-    "ذهبية": "متوسط",
-    "فضية": "منخفض",
-    "مجانية": "منخفض",
-}
-
 # =========================================
-# إشارات السوق (مصدر الحقيقة)
+# أدوات مساعدة
 # =========================================
-
-def extract_market_signals(real_data: pd.DataFrame) -> dict:
-    signals = {}
-
-    # قيم افتراضية آمنة 100%
-    signals["سرعة_البيع"] = "متوسطة"
-    signals["مستوى_الطلب"] = "انتقائي"
-    signals["مستوى_العرض"] = "متوازن"
-    signals["حالة_السوق"] = "مستقرة نسبيًا"
-    signals["مزاج_السوق"] = "محايد"
-
-    return signals
-
 
 def fill_ai_template(template: str, values: dict) -> str:
     if not template:
         return ""
     return template.format(**values)
-
 
 # =========================================
 # AI Report Reasoner
@@ -73,22 +71,23 @@ class AIReportReasoner:
         package = user_info.get("package") or user_info.get("chosen_pkg") or "مجانية"
         policy = AI_PACKAGE_POLICY.get(package, AI_PACKAGE_POLICY["مجانية"])
 
-        # إشارات السوق
-        market_signals = extract_market_signals(real_data)
+        # إشارات السوق (إن وُجدت)
+        market_signals = {
+            "سرعة_البيع": market_data.get("سرعة_البيع", "متوسطة"),
+            "التغير_اليومي": market_data.get("التغير_اليومي", "0%"),
+        }
 
-        # قيم عامة ثابتة
         base_values = {
             "المدينة": city,
             "اتجاه_الأسعار": market_data.get("اتجاه_الاسعار", "مستقر"),
-            "مستوى_المخاطر_العام": "متوسط",
-            "عمق_التحليل": "مرتفع",
-            "نبرة_التحليل": "استشاري",
-            "مستوى_الثقة": "عالية",
-            "ملاحظة_البيانات": "التحليل مبني على بيانات سوقية حية",
         }
 
-        # دمج شامل (يمنع أي KeyError)
-        all_values = {**base_values, **market_signals}
+        # دمج شامل وآمن
+        all_values = {
+            **DEFAULT_AI_VALUES,
+            **base_values,
+            **market_signals,
+        }
 
         def apply_policy(key, text):
             mode = policy.get(key, "hidden")
@@ -98,7 +97,6 @@ class AIReportReasoner:
                 return text.split("\n")[0] + "\n(ملخص تنفيذي)"
             return ""
 
-        # الخلاصة التنفيذية (الكتل الست)
         final_decision_text = generate_executive_summary(
             user_info=user_info,
             market_data=market_data,
