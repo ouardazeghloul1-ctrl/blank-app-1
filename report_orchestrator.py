@@ -134,9 +134,33 @@ def build_report_story(user_info, dataframe=None):
 
     # توليد رؤى الذكاء الاصطناعي
     ai_reasoner = AIReportReasoner()
+    
+    # ✅ بناء market_data من البيانات الحية - بعد توحيد الأعمدة
+    if df is not None:
+        df = unify_columns(df)
+        df = ensure_required_columns(df)
+        
+        # حساب معدل النمو بأمان باستخدام median بدل mean (أكثر دقة)
+        if "price" in df.columns:
+            growth_value = df["price"].pct_change().median()
+            growth_value = growth_value if pd.notna(growth_value) else 0.01
+            growth_rate = round(float(growth_value * 100), 2)
+        else:
+            growth_rate = 1.0
+        
+        market_data = {
+            "مؤشر_السيولة": int(min(100, max(30, len(df) * 2))),
+            "معدل_النمو_الشهري": growth_rate
+        }
+    else:
+        market_data = {
+            "مؤشر_السيولة": 50,
+            "معدل_النمو_الشهري": 1.0
+        }
+
     ai_insights = ai_reasoner.generate_all_insights(
         user_info=user_info,
-        market_data={},
+        market_data=market_data,   # ✅ لم تعد {}
         real_data=df if df is not None else pd.DataFrame()
     )
 
@@ -245,8 +269,6 @@ def build_report_story(user_info, dataframe=None):
 
     # توليد الرسومات
     if df is not None:
-        df = unify_columns(df)
-        df = ensure_required_columns(df)
         charts = charts_engine.generate_all_charts(df)
     else:
         charts = {}
