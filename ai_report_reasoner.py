@@ -76,7 +76,7 @@ def get_analysis_depth(real_data):
             "level": "منخفض",
             "tone": "تحفظي",
             "confidence": "محدودة",
-            "note": "التحليل مبني على عينة بيانات محدودة"
+            "note": "التحليل مبني على عينة بيانات محدودة",
         }
 
     if count < 150:
@@ -84,14 +84,14 @@ def get_analysis_depth(real_data):
             "level": "متوسط",
             "tone": "تحليلي",
             "confidence": "جيدة",
-            "note": "التحليل يعكس اتجاهات مستقرة نسبيًا"
+            "note": "التحليل يعكس اتجاهات مستقرة نسبيًا",
         }
 
     return {
         "level": "مرتفع",
         "tone": "استشاري",
         "confidence": "عالية",
-        "note": "التحليل يستند إلى قاعدة بيانات قوية"
+        "note": "التحليل يستند إلى قاعدة بيانات قوية",
     }
 
 
@@ -111,61 +111,54 @@ def apply_intelligence_cap(depth_info, package):
 
 
 # =========================================
-# استخراج إشارات السوق الذكية من البيانات الحية
+# استخراج إشارات السوق الذكية
 # =========================================
 
 def extract_market_signals(real_data: pd.DataFrame) -> dict:
-    """
-    استخراج إشارات السوق الذكية من البيانات الحية
-    """
     signals = {}
 
     if real_data is None or real_data.empty:
-        return {}
+        return signals
 
-    # 🔹 مستوى الطلب (من سرعة التداول – بشكل آمن)
-    days_col = None
-    for col in ["days_on_market", "مدة_السوق", "أيام_السوق"]:
-        if col in real_data.columns:
-            days_col = col
-            break
-    
+    # الطلب
+    days_col = next(
+        (c for c in ["days_on_market", "مدة_السوق", "أيام_السوق"] if c in real_data.columns),
+        None,
+    )
+
     if days_col:
         avg_days = real_data[days_col].mean()
         if pd.notna(avg_days):
-            if avg_days < 30:
-                signals["مستوى_الطلب"] = "مرتفع"
-            elif avg_days < 60:
-                signals["مستوى_الطلب"] = "متوسط"
-            else:
-                signals["مستوى_الطلب"] = "ضعيف"
+            signals["مستوى_الطلب"] = (
+                "مرتفع" if avg_days < 30 else "متوسط" if avg_days < 60 else "ضعيف"
+            )
     else:
         signals["مستوى_الطلب"] = "غير محدد"
 
-    # 🔹 حالة السوق (من تذبذب الأسعار – بشكل آمن)
-    price_col = None
-    for col in ["price", "السعر", "سعر", "سعر_المتر"]:
-        if col in real_data.columns:
-            price_col = col
-            break
+    # حالة السوق
+    price_col = next(
+        (c for c in ["price", "السعر", "سعر", "سعر_المتر"] if c in real_data.columns),
+        None,
+    )
 
     if price_col:
-        price_std = real_data[price_col].std()
-        price_mean = real_data[price_col].mean()
-
-        if pd.notna(price_std) and pd.notna(price_mean) and price_mean > 0:
-            if price_std / price_mean < 0.1:
-                signals["حالة_السوق"] = "حالة توازن"
-            elif price_std / price_mean < 0.2:
-                signals["حالة_السوق"] = "توازن حذر"
-            else:
-                signals["حالة_السوق"] = "تذبذب مرتفع"
+        std = real_data[price_col].std()
+        mean = real_data[price_col].mean()
+        if pd.notna(std) and pd.notna(mean) and mean > 0:
+            ratio = std / mean
+            signals["حالة_السوق"] = (
+                "حالة توازن"
+                if ratio < 0.1
+                else "توازن حذر"
+                if ratio < 0.2
+                else "تذبذب مرتفع"
+            )
         else:
             signals["حالة_السوق"] = "بيانات غير كافية"
     else:
-        signals["حالة_السوق"] = "بيانات غير كاملة"
+        signals["حالة_السوق"] = "غير متاحة"
 
-    # 🔹 مزاج السوق
+    # مزاج السوق
     if signals.get("مستوى_الطلب") == "مرتفع" and signals.get("حالة_السوق") == "حالة توازن":
         signals["مزاج_السوق"] = "إيجابي غير اندفاعي"
     elif signals.get("مستوى_الطلب") == "ضعيف":
@@ -177,15 +170,10 @@ def extract_market_signals(real_data: pd.DataFrame) -> dict:
 
 
 def fill_ai_template(template: str, signals: dict) -> str:
-    """
-    ملء القوالب النصية بإشارات السوق الحقيقية
-    """
     if not template:
         return ""
-
-    for key, value in signals.items():
-        template = template.replace(f"{{{key}}}", value)
-
+    for k, v in signals.items():
+        template = template.replace(f"{{{k}}}", str(v))
     return template
 
 
@@ -201,110 +189,73 @@ class AIReportReasoner:
 
     def generate_all_insights(self, user_info, market_data, real_data):
         city = user_info.get("city", "المدينة")
-        package = (
-            user_info.get("package")
-            or user_info.get("chosen_pkg")
-            or "مجانية"
-        )
-
+        package = user_info.get("package") or user_info.get("chosen_pkg") or "مجانية"
         policy = AI_PACKAGE_POLICY.get(package, AI_PACKAGE_POLICY["مجانية"])
 
         raw_depth = get_analysis_depth(real_data)
         analysis_depth = apply_intelligence_cap(raw_depth, package)
 
-        # =========================
-        # استخراج إشارات السوق من البيانات الحية (المصدر النهائي)
-        # =========================
         market_signals = extract_market_signals(real_data)
 
-        # =========================
-        # ضمان وجود كل المتغيرات التحليلية (حتى بدون بيانات)
-        # =========================
-        market_signals.setdefault("حالة_السوق", "غير متاحة حاليًا")
-        market_signals.setdefault("مستوى_الطلب", "غير محدد")
-        market_signals.setdefault("مستوى_العرض", "غير محدد")
-        market_signals.setdefault("مزاج_السوق", "محايد")
+        # ضمان market_data (عدم السماح بالأصفار)
+        liquidity = market_data.get("مؤشر_السيولة", 50) or 50
+        growth = market_data.get("معدل_النمو_الشهري", 1.0) or 1.0
 
-        # =========================
+        safe_market_data = {
+            "مؤشر_السيولة": liquidity,
+            "معدل_النمو_الشهري": growth,
+        }
+
         # البيانات الحية
-        # =========================
         self.live_system.update_live_data(real_data)
         live_summary = self.live_system.get_live_data_summary(city)
         live_indicators = live_summary.get("مؤشرات_حية", {})
 
-        # =========================
-        # ذكاء السوق
-        # =========================
-        market_insights = self.market_intel.advanced_market_analysis(
-            real_data, user_info
-        )
+        market_insights = self.market_intel.advanced_market_analysis(real_data, user_info)
 
-        # =========================
-        # القيم المستخدمة في القوالب النصية
-        # (فقط المتغيرات غير التحليلية - التحليلية تأتي من market_signals)
-        # =========================
         values = {
             "المدينة": city,
             "سرعة_البيع": live_indicators.get("سرعة_البيع", "غير متوفر"),
             "التغير_اليومي": live_indicators.get("التغير_اليومي", "غير متوفر"),
             "اتجاه_الأسعار": market_data.get("اتجاه_الاسعار", "مستقر"),
-            "مستوى_المخاطر_العام": market_insights
-                .get("risk_assessment", {})
-                .get("overall_risk", "متوسط"),
+            "مستوى_المخاطر_العام": market_insights.get("risk_assessment", {}).get(
+                "overall_risk", "متوسط"
+            ),
             "عمق_التحليل": analysis_depth["level"],
             "نبرة_التحليل": analysis_depth["tone"],
             "مستوى_الثقة": analysis_depth["confidence"],
             "ملاحظة_البيانات": analysis_depth["note"],
         }
 
-        def apply_policy(key, full_text):
+        def apply_policy(key, text):
             mode = policy.get(key, "hidden")
-
             if mode == "full":
-                return full_text
-
+                return text
             if mode == "summary":
-                return full_text.split("\n\n")[0] + "\n\n(ملخص تنفيذي مختصر)"
-
+                return text.split("\n\n")[0] + "\n\n(ملخص تنفيذي مختصر)"
             return ""
 
-        # =========================
-        # القرار الاستشاري النهائي (الموقف)
-        # =========================
+        # ✅ الخلاصة التنفيذية – الكتل الست
         final_decision_text = generate_executive_summary(
             user_info=user_info,
-            market_data=market_data,
-            real_data=real_data
+            market_data=safe_market_data,
+            real_data=real_data,
         )
 
-        # =========================
-        # تطبيق إشارات السوق على النصوص (المصدر النهائي للحقيقة)
-        # =========================
-        
-        # دمج values و market_signals في قاموس واحد لكل القوالب
         all_values = {**values, **market_signals}
-        
-        live_market_text = apply_policy(
-            "live_market",
-            LIVE_MARKET_SNAPSHOT.format(**all_values)
-        )
-        
-        opportunities_text = apply_policy(
-            "opportunities",
-            OPPORTUNITY_INSIGHT.format(**all_values)
-        )
-        
-        risk_text = apply_policy(
-            "risk",
-            RISK_INSIGHT.format(**all_values)
-        )
 
         return {
-            "ai_live_market": fill_ai_template(live_market_text, market_signals),
-            "ai_opportunities": fill_ai_template(opportunities_text, market_signals),
-            "ai_risk": fill_ai_template(risk_text, market_signals),
-            "ai_final_decision": apply_policy(
-                "final_decision",
-                final_decision_text
+            "ai_live_market": fill_ai_template(
+                apply_policy("live_market", LIVE_MARKET_SNAPSHOT.format(**all_values)),
+                market_signals,
             ),
+            "ai_opportunities": fill_ai_template(
+                apply_policy("opportunities", OPPORTUNITY_INSIGHT.format(**all_values)),
+                market_signals,
+            ),
+            "ai_risk": fill_ai_template(
+                apply_policy("risk", RISK_INSIGHT.format(**all_values)),
+                market_signals,
+            ),
+            "ai_final_decision": apply_policy("final_decision", final_decision_text),
         }
