@@ -79,7 +79,7 @@ def blocks_to_text(report):
                 continue
 
             # التعامل مع النص العادي
-            if content and block_type not in ("chart", "chart_caption"):
+            if block_type in ("text", "rich_text") and content:
                 # تنظيف المحتوى مع الحفاظ على المسافات الطبيعية
                 paragraph = "\n".join(
                     line.rstrip() for line in content.splitlines()
