@@ -48,17 +48,24 @@ def blocks_to_text(report):
     sections = []
 
     for chapter in report.get("chapters", []):
-        # عنوان الفصل
-        title = chapter.get("title", "").strip()
-        if title:
-            sections.append(title)
-            sections.append("")  # سطر فارغ بعد العنوان
+        # استخراج عنوان الفصل من blocks
+        for block in chapter.get("blocks", []):
+            if block.get("type") == "chapter_title":
+                title = block.get("content", "").strip()
+                if title:
+                    sections.append(title)
+                    sections.append("")  # سطر فارغ بعد العنوان
+                break
 
         # تجميع الفقرات كوحدات مع الحفاظ على الرسومات
         for block in chapter.get("blocks", []):
             block_type = block.get("type")
             content = block.get("content", "")
             tag = block.get("tag", "")
+
+            # تخطي عنوان الفصل (تم معالجته أعلاه)
+            if block_type == "chapter_title":
+                continue
 
             # التعامل مع الرسومات والعلامات
             if block_type == "chart":
@@ -193,7 +200,7 @@ def build_report_story(user_info, dataframe=None):
     # 🔍 التحقق من وجود Anchors في التقرير
     print("\n🔍 فحص وجود Anchors في التقرير:")
     print("="*30)
-    anchors = ["[[AI_SLOT_CH1]]", "[[AI_SLOT_CH2]]", "[[AI_SLOT_CH3]]"]
+    anchors = ["[[AI_SLOT_CH1]]", "[[AI_SLOT_CH2]]", "[[AI_SLOT_CH3]]", "[[AI_EXECUTIVE_DECISION]]"]
     for anchor in anchors:
         if anchor in content_text:
             print(f"✅ {anchor} موجود في التقرير")
@@ -223,6 +230,14 @@ def build_report_story(user_info, dataframe=None):
         ai_insights.get("ai_opportunities", "")
     )
 
+    # 🏁 ربط القرار التنفيذي التنبؤي بالـ Anchor الرسمي
+    content_text = inject_ai_by_anchor(
+        content_text,
+        "[[AI_EXECUTIVE_DECISION]]",
+        "",
+        ai_insights.get("ai_final_decision", "")
+    )
+
     # 🔍 التحقق بعد الحقن
     print("\n🔍 التحقق بعد إدخال نصوص الذكاء الاصطناعي:")
     print("="*30)
@@ -233,31 +248,6 @@ def build_report_story(user_info, dataframe=None):
         else:
             print(f"❌ '{marker}' لم يتم إدراجه")
     print("="*30)
-
-    # =========================================
-    # 🏁 Executive Predictive Decision (قسم مستقل)
-    # =========================================
-
-    if ai_insights.get("ai_final_decision"):
-        executive_section = (
-            "\n\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "🏁 Executive Predictive Decision\n"
-            "الخلاصة التنفيذية التنبؤية – Warda Intelligence\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            + ai_insights["ai_final_decision"] +
-            "\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            "هذه الخلاصة ناتج نظام ذكاء اصطناعي تنبؤي.\n"
-            "جميع الأرقام والاحتمالات مبنية على بيانات سوقية حية\n"
-            "وليست توصية بشرية أو رأيًا عامًا.\n"
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        )
-
-        content_text += executive_section
-        print("✅ تم إضافة القسم التنفيذي التنبؤي ككتلة مستقلة")
-    else:
-        print("❌ ai_final_decision فارغ! لن يُضاف القسم التنفيذي")
 
     # توليد الرسومات
     if df is not None:
