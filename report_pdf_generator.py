@@ -3,10 +3,10 @@ from io import BytesIO
 from datetime import datetime
 import os
 import tempfile
+import streamlit as st
 import re
 import unicodedata
 
-import streamlit as st
 import arabic_reshaper
 from bidi.algorithm import get_display
 
@@ -26,7 +26,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helpers
+# Arabic helper
 # =========================
 def ar(text):
     if not text:
@@ -39,7 +39,7 @@ def ar(text):
 
 
 # =========================
-# Clean text (no emojis)
+# Clean bullets & junk - النسخة النهائية القاطعة
 # =========================
 def clean_text(text: str) -> str:
     if not text:
@@ -48,19 +48,27 @@ def clean_text(text: str) -> str:
     cleaned = []
     for ch in text:
         cat = unicodedata.category(ch)
-        # Allow letters, numbers, punctuation, spaces
+
+        # نسمح فقط بالحروف والأرقام والمسافات وعلامات الترقيم الأساسية
         if cat.startswith(("L", "N", "P", "Z")):
             cleaned.append(ch)
 
     text = "".join(cleaned)
+
+    # تنظيف بدايات الأسطر
+    text = re.sub(r"^[\-\*\d\.\)]\s*", "", text)
+
+    # توحيد المسافات
     text = re.sub(r"\s+", " ", text)
+
     return text.strip()
 
 
 # =========================
-# Executive decision box
+# 📦 الصندوق التنفيذي الحقيقي للقرار النهائي (إصدار محسّن)
 # =========================
 def executive_decision_box(text, width_cm=16):
+    """صندوق تنفيذي فاخر يليق بتقرير استشاري مدفوع"""
     return Table(
         [[Paragraph(ar(text), ParagraphStyle(
             "DecisionText",
@@ -72,13 +80,16 @@ def executive_decision_box(text, width_cm=16):
         ))]],
         colWidths=[width_cm * cm],
         style=TableStyle([
+            # 🎨 خلفية "وثيقة مجلس إدارة"
             ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F2F3F5")),
-            ("BOX", (0, 0), (-1, -1), 1.6, colors.HexColor("#7a0000")),
-            ("INNERPADDING", (0, 0), (-1, -1), 18),
-            ("TOPPADDING", (0, 0), (-1, -1), 20),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 20),
-            ("LEFTPADDING", (0, 0), (-1, -1), 16),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 16),
+            # 🖋️ إطار سميك فاخر
+            ("BOX", (0, 0), (-1, -1), 1.8, colors.HexColor("#7a0000")),
+            # 📐 مساحة داخلية مريحة
+            ("INNERPADDING", (0, 0), (-1, -1), 20),
+            ("TOPPADDING", (0, 0), (-1, -1), 22),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 22),
+            ("LEFTPADDING", (0, 0), (-1, -1), 18),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 18),
         ])
     )
 
@@ -104,7 +115,7 @@ def plotly_to_image(fig, width_cm, height_cm):
 
 
 # =========================
-# Divider
+# دالة فاصل فاخر (استشاري)
 # =========================
 def elegant_divider(width="80%", thickness=0.6, color=colors.HexColor("#B0B0B0")):
     return HRFlowable(
@@ -170,7 +181,9 @@ def create_pdf_from_content(
         fontSize=14.5,
         leading=28,
         alignment=TA_RIGHT,
-        spaceAfter=18,
+        spaceAfter=22,
+        allowWidows=0,
+        allowOrphans=0,
     )
 
     chapter = ParagraphStyle(
@@ -179,10 +192,46 @@ def create_pdf_from_content(
         fontName="Amiri",
         fontSize=18,
         alignment=TA_RIGHT,
-        textColor=colors.HexColor("#7a0000"),
-        spaceBefore=30,
-        spaceAfter=14,
+        textColor=colors.HexColor("#9c1c1c"),
+        spaceBefore=36,
+        spaceAfter=18,
         keepWithNext=1
+    )
+
+    ai_sub_title = ParagraphStyle(
+        "AISubTitle",
+        parent=styles["Heading3"],
+        fontName="Amiri",
+        fontSize=15.5,
+        alignment=TA_RIGHT,
+        textColor=colors.HexColor("#444444"),
+        spaceBefore=18,
+        spaceAfter=10,
+    )
+
+    ai_decision_box = ParagraphStyle(
+        "AIDecisionBox",
+        parent=body,
+        backColor=colors.HexColor("#F7F7F7"),
+        borderPadding=12,
+        rightIndent=6,
+        leftIndent=6,
+        spaceBefore=16,
+        spaceAfter=20,
+    )
+
+    # =========================
+    # 🧠 AI INSIGHT BOX (للفصول 1–3)
+    # =========================
+    ai_insight_box = ParagraphStyle(
+        "AIInsightBox",
+        parent=body,
+        backColor=colors.HexColor("#F2F4F7"),
+        leftIndent=14,
+        rightIndent=14,
+        spaceBefore=14,
+        spaceAfter=18,
+        leading=26,
     )
 
     title = ParagraphStyle(
@@ -192,71 +241,288 @@ def create_pdf_from_content(
         fontSize=22,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
-        spaceAfter=40
+        spaceAfter=50
     )
 
-    executive_header = ParagraphStyle(
-        "ExecutiveHeader",
+    # =========================
+    # 🧠 ستايل العنوان التنفيذي الفاخر
+    # =========================
+    ai_executive_header = ParagraphStyle(
+        "AIExecutiveHeader",
         parent=chapter,
         alignment=TA_CENTER,
-        fontSize=19,
-        textColor=colors.HexColor("#5a0000"),
-        spaceBefore=20,
+        textColor=colors.HexColor("#7a0000"),
+        fontSize=17,
+        spaceBefore=30,
         spaceAfter=14,
+    )
+
+    SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
+    chart_caption_style = ParagraphStyle(
+        "ChartCaption",
+        parent=body,
+        fontSize=13,
+        textColor=colors.HexColor("#666666"),
+        alignment=TA_CENTER,
+        spaceBefore=8,
+        spaceAfter=18,
+        fontName="Amiri"
     )
 
     story = []
 
     # =========================
-    # COVER
+    # COVER (NO EMPTY PAGE AFTER)
     # =========================
-    story.append(Spacer(1, 7 * cm))
+    story.append(Spacer(1, 7.5 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     story.append(PageBreak())
 
     # =========================
     # CONTENT
     # =========================
-    lines = content_text.split("\n")
+    charts_by_chapter = st.session_state.get("charts_by_chapter", {})
+
+    chapter_index = 0
+    chart_cursor = {}
+    first_chapter_processed = False
+    decision_mode = False
+    ai_mode = False
     decision_buffer = []
-    in_decision = False
 
-    for raw in lines:
-        clean = clean_text(raw)
+    # تحويل النص إلى iterator للوصول للسطور التالية
+    lines_list = content_text.split("\n")
+    lines_iter = iter(lines_list)
 
-        if not clean:
+    for raw in lines_iter:
+        raw_stripped = raw.strip()
+        
+        # 📌 PATCH B: إصلاح تنويه البيانات (إصلاح القطع نهائيًا)
+        if raw_stripped.startswith("📌 تنويه مهم"):
             story.append(Spacer(1, 0.6 * cm))
+            story.append(Paragraph(ar(raw_stripped), body))
+
+            # 👇 التقاط الأسطر التالية كجزء من التنويه
+            while True:
+                try:
+                    next_line = next(lines_iter)
+                    if not next_line.strip():
+                        break
+                    story.append(Paragraph(ar(next_line.strip()), body))
+                except StopIteration:
+                    break
+
+            story.append(Spacer(1, 0.8 * cm))
+            continue
+        
+        # ⛔ الحل الأساسي: الوسوم لا تمر على clean_text
+        if raw_stripped in SPECIAL_TAGS:
+            clean = raw_stripped
+        else:
+            clean = clean_text(raw)
+        
+        # ✅ تحسين شرط الفراغ
+        if not raw_stripped:
+            story.append(Spacer(1, 0.8 * cm))
             continue
 
         # =========================
-        # EXECUTIVE DECISION START
+        # 🧠 🏁 التعديل الجوهري: عرض الاستشارة النهائية بشكل تنفيذي
         # =========================
-        if clean.startswith("EXECUTIVE_DECISION_START"):
+
+        # 🏁 القرار الاستثماري النهائي (التعديل الذكي)
+        if clean.startswith("🏁"):
+            # صفحة مستقلة للقرار النهائي
             story.append(PageBreak())
-            story.append(Spacer(1, 1.2 * cm))
-            story.append(Paragraph(ar("الخلاصة التنفيذية التنبؤية"), executive_header))
+
+            # مساحة مريحة قبل العنوان
+            story.append(Spacer(1, 1.5 * cm))
+            
+            # عنوان تنفيذي قوي يليق بقرار استشاري
+            story.append(
+                Paragraph(
+                    ar("🧠 الخلاصة الاستشارية النهائية"),
+                    ParagraphStyle(
+                        "FinalExecutiveTitle",
+                        parent=ai_executive_header,
+                        fontSize=19,
+                        textColor=colors.HexColor("#5a0000"),
+                        spaceAfter=0.8 * cm,
+                    )
+                )
+            )
+            
+            # فاصل أنيق
             story.append(elegant_divider(width="50%", thickness=0.8, color=colors.HexColor("#7a0000")))
             story.append(Spacer(1, 0.6 * cm))
-            in_decision = True
-            decision_buffer = []
+
+            # تفعيل وضع تجميع نص القرار
+            decision_mode = True
+            ai_mode = False
+            decision_buffer = []  # بدء تجميع جديد
+            
+            # ❗️ مهم: لا نضيف عنوان 🏁 القرار الاستثماري النهائي هنا
+            # لقد استهلكناه كمشغل فقط
             continue
 
-        if in_decision:
-            decision_buffer.append(clean)
+        # 📊 💎 ⚠️ عناوين الذكاء الاصطناعي داخل الفصول
+        if clean.startswith(("📊", "💎", "⚠️")):
+            story.append(Spacer(1, 0.8 * cm))
+            story.append(elegant_divider())
+            story.append(Paragraph(ar(clean), ai_sub_title))
+            story.append(Spacer(1, 0.4 * cm))
+            ai_mode = True
+            decision_mode = False
             continue
 
-        # =========================
-        # NORMAL TEXT
-        # =========================
-        story.append(Paragraph(ar(clean), body))
+        # -------- CHAPTER --------
+        if clean.startswith("الفصل"):
+            # ✅ التحسين الاحترافي: إغلاق وضع القرار عند بداية فصل جديد
+            if decision_mode:
+                decision_mode = False  # 🔒 نقطة إغلاق صريحة
+            
+            # ✅ لا نكسر الصفحة قبل أول فصل
+            if first_chapter_processed:
+                story.append(PageBreak())
+
+            chapter_index += 1
+            chart_cursor[chapter_index] = 0
+            decision_mode = False
+            ai_mode = False
+
+            story.append(
+                KeepTogether([
+                    Paragraph(ar(clean), chapter),
+                    Spacer(1, 0.6 * cm)
+                ])
+            )
+
+            first_chapter_processed = True
+            continue
+
+        # -------- NO CHARTS IN 9–10 --------
+        if chapter_index >= 9:
+            # ✅ الفلترة النهائية: فلترة UTF-8 قبل Paragraph
+            clean = clean.encode("utf-8", "ignore").decode("utf-8")
+            
+            if decision_mode:
+                # ✅ تجميع النص للصندوق التنفيذي
+                if clean:  # فقط الأسطر غير الفارغة
+                    decision_buffer.append(clean)
+            elif ai_mode:
+                # 🔴 PATCH FINAL: إغلاق ai_mode بدون فاصل زائد
+                story.append(Paragraph(ar(clean), ai_insight_box))
+                ai_mode = False
+            else:
+                story.append(Paragraph(ar(clean), body))
+            continue
+
+        charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
+        cursor = chart_cursor.get(chapter_index, 0)
+
+        # -------- CHART CAPTION --------
+        if clean == "[[CHART_CAPTION]]":
+            try:
+                next_line = next(lines_iter)
+                while not next_line.strip():
+                    next_line = next(lines_iter)
+
+                caption = ar(next_line.strip())
+                story.append(Paragraph(caption, chart_caption_style))
+                story.append(Spacer(1, 1.2 * cm))
+            except StopIteration:
+                story.append(Spacer(1, 1.2 * cm))
+            decision_mode = False
+            ai_mode = False
+            continue
+
+        # -------- ANCHOR CHART --------
+        if clean == "[[ANCHOR_CHART]]":
+            if cursor < len(charts):
+                img = plotly_to_image(charts[cursor], 16.8, 8.8)
+                if img:
+                    story.append(Spacer(1, 1.6 * cm))
+                    story.append(img)
+                    story.append(Spacer(1, 0.6 * cm))
+                chart_cursor[chapter_index] += 1
+            decision_mode = False
+            ai_mode = False
+            continue
+
+        # -------- RHYTHM CHART --------
+        if clean == "[[RHYTHM_CHART]]":
+            if cursor < len(charts):
+                # ⭐⭐ الحل الذكي: تحديد حجم الرسم بناءً على نوعها
+                fig = charts[cursor]
+                
+                # ✅ الكشف الآمن: تجنب IndexError إذا كان fig.data فارغ
+                is_donut = (
+                    fig is not None
+                    and hasattr(fig, 'data')
+                    and len(fig.data) > 0
+                    and isinstance(fig.data[0], go.Pie)
+                )
+                
+                is_indicator = (
+                    fig is not None
+                    and hasattr(fig, 'data')
+                    and len(fig.data) > 0
+                    and isinstance(fig.data[0], go.Indicator)
+                )
+                
+                # ⭐ تحديد الحجم بناءً على نوع الرسمة
+                if is_donut:
+                    # ✅ الدونت: استخدم حجم ANCHOR (كبير)
+                    img = plotly_to_image(fig, 16.8, 8.8)
+                elif is_indicator:
+                    # ✅ المؤشر: استخدم حجم كبير تنفيذي
+                    img = plotly_to_image(fig, 17.5, 9.5)
+                else:
+                    img = plotly_to_image(fig, 16.8, 8.8)
+                
+                if img:
+                    if is_indicator:
+                        story.append(Spacer(1, 1.8 * cm))
+                    else:
+                        story.append(Spacer(1, 1.4 * cm))
+                    
+                    story.append(img)
+                    story.append(Spacer(1, 0.6 * cm))
+                
+                chart_cursor[chapter_index] += 1
+            decision_mode = False
+            ai_mode = False
+            continue
+
+        # -------- NORMAL TEXT --------
+        # ✅ التأكد من أن هذا ليس وسمًا قبل معالجة النص
+        if clean not in SPECIAL_TAGS:
+            clean = clean.encode("utf-8", "ignore").decode("utf-8")
+            
+            if decision_mode:
+                # ✅ تجميع النص للصندوق التنفيذي (فقط الأسطر غير الفارغة)
+                if clean:
+                    decision_buffer.append(clean)
+            elif ai_mode:
+                # 🔴 PATCH FINAL: إغلاق ai_mode بدون فاصل زائد
+                story.append(Paragraph(ar(clean), ai_insight_box))
+                ai_mode = False
+            else:
+                story.append(Paragraph(ar(clean), body))
 
     # =========================
-    # ADD EXECUTIVE BOX
+    # 📦 إضافة الصندوق التنفيذي للقرار النهائي
     # =========================
-    if decision_buffer:
+    if decision_buffer:  # ✅ الحل الحاسم: إزالة شرط decision_mode
+        # مسافة مناسبة قبل الصندوق
         story.append(Spacer(1, 0.8 * cm))
-        story.append(executive_decision_box("\n\n".join(decision_buffer)))
-        story.append(Spacer(1, 1.2 * cm))
+        
+        # إضافة الصندوق التنفيذي الفاخر
+        decision_text = "\n\n".join(decision_buffer)
+        story.append(executive_decision_box(decision_text))
+        
+        # مسافة نهائية بعد الصندوق
+        story.append(Spacer(1, 1.5 * cm))
 
     # =========================
     # BUILD
