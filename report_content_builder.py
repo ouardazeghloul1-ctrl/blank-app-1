@@ -37,16 +37,16 @@ PACKAGE_RULES = {
         "chapters": [1, 2],
     },
     "silver": {
-        "chapters": [1, 2, 3, 4],
+        "chapters": [1, 2, 3, 4, 11],
     },
     "gold": {
-        "chapters": [1, 2, 3, 4, 5, 6],
+        "chapters": [1, 2, 3, 4, 5, 6, 11],
     },
     "diamond": {
-        "chapters": [1, 2, 3, 4, 5, 6, 7, 8],
+        "chapters": [1, 2, 3, 4, 5, 6, 7, 8, 11],
     },
     "diamond_plus": {
-        "chapters": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        "chapters": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
     },
 }
 
@@ -2034,6 +2034,22 @@ def chapter_10_blocks(user_info):
     ]
 
 # =========================
+# EXECUTIVE PREDICTIVE DECISION (AI FINAL)
+# =========================
+def executive_decision_blocks(user_info):
+    return [
+        {
+            "type": "chapter_title",
+            "content": "🏁 Executive Predictive Decision",
+        },
+        {
+            "type": "text",
+            "content": "[[AI_EXECUTIVE_DECISION]]"
+        }
+    ]
+
+
+# =========================
 # BUILD COMPLETE REPORT
 # =========================
 def build_complete_report(user_info):
@@ -2052,6 +2068,7 @@ def build_complete_report(user_info):
         chapter_8_blocks,
         chapter_9_blocks,
         chapter_10_blocks,
+        executive_decision_blocks,
     ]
 
     report = {
