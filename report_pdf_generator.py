@@ -65,36 +65,6 @@ def clean_text(text: str) -> str:
 
 
 # =========================
-# 📦 الصندوق التنفيذي الحقيقي للقرار النهائي (إصدار محسّن)
-# =========================
-def executive_decision_box(text, width_cm=16):
-    """صندوق تنفيذي فاخر يليق بتقرير استشاري مدفوع"""
-    return Table(
-        [[Paragraph(ar(text), ParagraphStyle(
-            "DecisionText",
-            fontName="Amiri",
-            fontSize=14.5,
-            leading=28,
-            alignment=TA_RIGHT,
-            textColor=colors.HexColor("#222222"),
-        ))]],
-        colWidths=[width_cm * cm],
-        style=TableStyle([
-            # 🎨 خلفية "وثيقة مجلس إدارة"
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F2F3F5")),
-            # 🖋️ إطار سميك فاخر
-            ("BOX", (0, 0), (-1, -1), 1.8, colors.HexColor("#7a0000")),
-            # 📐 مساحة داخلية مريحة
-            ("INNERPADDING", (0, 0), (-1, -1), 20),
-            ("TOPPADDING", (0, 0), (-1, -1), 22),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 22),
-            ("LEFTPADDING", (0, 0), (-1, -1), 18),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 18),
-        ])
-    )
-
-
-# =========================
 # Plotly → Image
 # =========================
 def plotly_to_image(fig, width_cm, height_cm):
@@ -209,17 +179,6 @@ def create_pdf_from_content(
         spaceAfter=10,
     )
 
-    ai_decision_box = ParagraphStyle(
-        "AIDecisionBox",
-        parent=body,
-        backColor=colors.HexColor("#F7F7F7"),
-        borderPadding=12,
-        rightIndent=6,
-        leftIndent=6,
-        spaceBefore=16,
-        spaceAfter=20,
-    )
-
     # =========================
     # 🧠 AI INSIGHT BOX (للفصول 1–3)
     # =========================
@@ -286,9 +245,6 @@ def create_pdf_from_content(
     chapter_index = 0
     chart_cursor = {}
     first_chapter_processed = False
-    decision_mode = False
-    ai_mode = False
-    decision_buffer = []
 
     # تحويل النص إلى iterator للوصول للسطور التالية
     lines_list = content_text.split("\n")
@@ -336,33 +292,9 @@ def create_pdf_from_content(
             story.append(PageBreak())
 
             # مساحة مريحة قبل العنوان
-            story.append(Spacer(1, 1.5 * cm))
-            
-            # عنوان تنفيذي قوي يليق بقرار استشاري
-            story.append(
-                Paragraph(
-                    ar("🧠 الخلاصة الاستشارية النهائية"),
-                    ParagraphStyle(
-                        "FinalExecutiveTitle",
-                        parent=ai_executive_header,
-                        fontSize=19,
-                        textColor=colors.HexColor("#5a0000"),
-                        spaceAfter=0.8 * cm,
-                    )
-                )
-            )
-            
-            # فاصل أنيق
-            story.append(elegant_divider(width="50%", thickness=0.8, color=colors.HexColor("#7a0000")))
+            story.append(Spacer(1, 1.2 * cm))
+            story.append(Paragraph(ar("الخلاصة التنفيذية التنبؤية"), chapter))
             story.append(Spacer(1, 0.6 * cm))
-
-            # تفعيل وضع تجميع نص القرار
-            decision_mode = True
-            ai_mode = False
-            decision_buffer = []  # بدء تجميع جديد
-            
-            # ❗️ مهم: لا نضيف عنوان 🏁 القرار الاستثماري النهائي هنا
-            # لقد استهلكناه كمشغل فقط
             continue
 
         # 📊 💎 ⚠️ عناوين الذكاء الاصطناعي داخل الفصول
@@ -371,24 +303,16 @@ def create_pdf_from_content(
             story.append(elegant_divider())
             story.append(Paragraph(ar(clean), ai_sub_title))
             story.append(Spacer(1, 0.4 * cm))
-            ai_mode = True
-            decision_mode = False
             continue
 
         # -------- CHAPTER --------
         if clean.startswith("الفصل"):
-            # ✅ التحسين الاحترافي: إغلاق وضع القرار عند بداية فصل جديد
-            if decision_mode:
-                decision_mode = False  # 🔒 نقطة إغلاق صريحة
-            
             # ✅ لا نكسر الصفحة قبل أول فصل
             if first_chapter_processed:
                 story.append(PageBreak())
 
             chapter_index += 1
             chart_cursor[chapter_index] = 0
-            decision_mode = False
-            ai_mode = False
 
             story.append(
                 KeepTogether([
@@ -404,17 +328,7 @@ def create_pdf_from_content(
         if chapter_index >= 9:
             # ✅ الفلترة النهائية: فلترة UTF-8 قبل Paragraph
             clean = clean.encode("utf-8", "ignore").decode("utf-8")
-            
-            if decision_mode:
-                # ✅ تجميع النص للصندوق التنفيذي
-                if clean:  # فقط الأسطر غير الفارغة
-                    decision_buffer.append(clean)
-            elif ai_mode:
-                # 🔴 PATCH FINAL: إغلاق ai_mode بدون فاصل زائد
-                story.append(Paragraph(ar(clean), ai_insight_box))
-                ai_mode = False
-            else:
-                story.append(Paragraph(ar(clean), body))
+            story.append(Paragraph(ar(clean), body))
             continue
 
         charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
@@ -432,8 +346,6 @@ def create_pdf_from_content(
                 story.append(Spacer(1, 1.2 * cm))
             except StopIteration:
                 story.append(Spacer(1, 1.2 * cm))
-            decision_mode = False
-            ai_mode = False
             continue
 
         # -------- ANCHOR CHART --------
@@ -445,8 +357,6 @@ def create_pdf_from_content(
                     story.append(img)
                     story.append(Spacer(1, 0.6 * cm))
                 chart_cursor[chapter_index] += 1
-            decision_mode = False
-            ai_mode = False
             continue
 
         # -------- RHYTHM CHART --------
@@ -490,46 +400,13 @@ def create_pdf_from_content(
                     story.append(Spacer(1, 0.6 * cm))
                 
                 chart_cursor[chapter_index] += 1
-            decision_mode = False
-            ai_mode = False
             continue
 
         # -------- NORMAL TEXT --------
         # ✅ التأكد من أن هذا ليس وسمًا قبل معالجة النص
         if clean not in SPECIAL_TAGS:
             clean = clean.encode("utf-8", "ignore").decode("utf-8")
-            
-            if decision_mode:
-                # ✅ تجميع النص للصندوق التنفيذي (فقط الأسطر غير الفارغة)
-                if clean:
-                    decision_buffer.append(clean)
-            elif ai_mode:
-                # 🔴 PATCH FINAL: إغلاق ai_mode بدون فاصل زائد
-                story.append(Paragraph(ar(clean), ai_insight_box))
-                ai_mode = False
-            else:
-                story.append(Paragraph(ar(clean), body))
-
-    # 🛟 Fallback أمان: إذا تم تفعيل القرار ولم يُجمع نص
-    if not decision_buffer:
-        if "EXECUTIVE_PREDICTIVE_DECISION" in content_text:
-            decision_buffer.append(
-                content_text.split("=== EXECUTIVE_PREDICTIVE_DECISION ===", 1)[-1].strip()
-            )
-
-    # =========================
-    # 📦 إضافة الصندوق التنفيذي للقرار النهائي
-    # =========================
-    if decision_buffer:  # ✅ الحل الحاسم: إزالة شرط decision_mode
-        # مسافة مناسبة قبل الصندوق
-        story.append(Spacer(1, 0.8 * cm))
-        
-        # إضافة الصندوق التنفيذي الفاخر
-        decision_text = "\n\n".join(decision_buffer)
-        story.append(executive_decision_box(decision_text))
-        
-        # مسافة نهائية بعد الصندوق
-        story.append(Spacer(1, 1.5 * cm))
+            story.append(Paragraph(ar(clean), body))
 
     # =========================
     # BUILD
