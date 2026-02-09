@@ -32,12 +32,8 @@ def ar(text):
     if not text:
         return ""
     try:
-        text = str(text)
-        reshaped = arabic_reshaper.reshape(text)
-        bidi_text = get_display(reshaped)
-
-        # 🔑 إجبار اتجاه RTL لمنع انقلاب السطر
-        return "\u202B" + bidi_text + "\u202C"
+        reshaped = arabic_reshaper.reshape(str(text))
+        return get_display(reshaped)
     except Exception:
         return str(text)
 
@@ -158,7 +154,6 @@ def create_pdf_from_content(
         spaceAfter=22,
         allowWidows=0,
         allowOrphans=0,
-        wordWrap='RTL',   # ⭐ مهم
     )
 
     chapter = ParagraphStyle(
@@ -251,50 +246,12 @@ def create_pdf_from_content(
     chart_cursor = {}
     first_chapter_processed = False
 
-    # إضافة حالة Executive Mode
-    in_executive_decision = False
-
     # تحويل النص إلى iterator للوصول للسطور التالية
     lines_list = content_text.split("\n")
     lines_iter = iter(lines_list)
 
     for raw in lines_iter:
         raw_stripped = raw.strip()
-        
-        # =========================
-        # EXECUTIVE DECISION MODE
-        # =========================
-        if raw_stripped == "EXECUTIVE_DECISION_START":
-            in_executive_decision = True
-            if story:  # منع PageBreak زائد إذا كانت الصفحة الأولى
-                story.append(PageBreak())
-            story.append(Spacer(1, 1.5 * cm))
-            story.append(Paragraph(ar("الخلاصة التنفيذية التنبؤية"), ai_executive_header))
-            story.append(elegant_divider())
-            continue
-
-        if raw_stripped == "EXECUTIVE_DECISION_END":
-            in_executive_decision = False
-            story.append(Spacer(1, 0.8 * cm))  # تقليل المسافة قليلاً
-            continue
-
-        if in_executive_decision:
-            # تجاهل وسم الإغلاق
-            if raw_stripped == "[END_DECISION_BLOCK]":
-                story.append(Spacer(1, 0.6 * cm))
-                continue
-
-            # عنوان كتلة تنفيذية
-            if raw_stripped.startswith("[DECISION_BLOCK:"):
-                story.append(Spacer(1, 0.8 * cm))
-                story.append(elegant_divider())
-                continue
-
-            # محتوى داخل الكتلة
-            clean = clean_text(raw)
-            if clean:  # فقط إذا كان هناك محتوى بعد التنظيف
-                story.append(Paragraph(ar(clean), body))
-            continue
         
         # 📌 PATCH B: إصلاح تنويه البيانات (إصلاح القطع نهائيًا)
         if raw_stripped.startswith("📌 تنويه مهم"):
