@@ -2,6 +2,7 @@
 from report_content_builder import build_complete_report
 from advanced_charts import AdvancedCharts
 from ai_report_reasoner import AIReportReasoner
+from ai_executive_summary import generate_executive_summary
 from live_real_data_provider import get_live_real_data
 import pandas as pd
 import numpy as np
@@ -200,7 +201,7 @@ def build_report_story(user_info, dataframe=None):
     # 🔍 التحقق من وجود Anchors في التقرير
     print("\n🔍 فحص وجود Anchors في التقرير:")
     print("="*30)
-    anchors = ["[[AI_SLOT_CH1]]", "[[AI_SLOT_CH2]]", "[[AI_SLOT_CH3]]", "[[AI_EXECUTIVE_DECISION]]"]
+    anchors = ["[[AI_SLOT_CH1]]", "[[AI_SLOT_CH2]]", "[[AI_SLOT_CH3]]"]
     for anchor in anchors:
         if anchor in content_text:
             print(f"✅ {anchor} موجود في التقرير")
@@ -230,14 +231,6 @@ def build_report_story(user_info, dataframe=None):
         ai_insights.get("ai_opportunities", "")
     )
 
-    # 🏁 ربط القرار التنفيذي التنبؤي بالـ Anchor الرسمي
-    content_text = inject_ai_by_anchor(
-        content_text,
-        "[[AI_EXECUTIVE_DECISION]]",
-        "",
-        ai_insights.get("ai_final_decision", "")
-    )
-
     # 🔍 التحقق بعد الحقن
     print("\n🔍 التحقق بعد إدخال نصوص الذكاء الاصطناعي:")
     print("="*30)
@@ -248,6 +241,19 @@ def build_report_story(user_info, dataframe=None):
         else:
             print(f"❌ '{marker}' لم يتم إدراجه")
     print("="*30)
+
+    # =========================
+    # 🧠 EXECUTIVE PREDICTIVE DECISION (FINAL – SOURCE OF TRUTH)
+    # =========================
+    executive_decision = generate_executive_summary(
+        user_info=user_info,
+        market_data=market_data,
+        real_data=df if df is not None else pd.DataFrame()
+    )
+
+    content_text += "\n\n=== EXECUTIVE_PREDICTIVE_DECISION ===\n"
+    content_text += executive_decision
+    content_text += "\n"
 
     # توليد الرسومات
     if df is not None:
