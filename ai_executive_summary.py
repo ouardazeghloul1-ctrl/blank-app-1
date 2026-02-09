@@ -74,15 +74,18 @@ def generate_executive_summary(user_info, market_data, real_data):
     lines.append("")
 
     # الكتلة 1: تعريف القرار
+    lines.append("[DECISION_BLOCK:DECISION_DEFINITION]")
     lines.append("تعريف القرار التنبؤي")
     lines.append(
         "هذا القرار ناتج عن نظام ذكاء اصطناعي تنبؤي مبني على بيانات سوقية حية، "
         "مقارنة تاريخية، رصد فجوات قيمة، وتحليل سلوك فعلي للسوق."
     )
     lines.append("لا يعتمد على آراء بشرية أو توصيات عامة.")
+    lines.append("[END_DECISION_BLOCK]")
     lines.append("")
 
     # الكتلة 2: وضع السوق
+    lines.append("[DECISION_BLOCK:MARKET_STATUS]")
     lines.append("وضع السوق الحالي (قراءة رقمية)")
     lines.append(f"قوة النشاط السوقي: {activity_score}%")
     lines.append(f"درجة الانتقائية: {selectivity_score}/10")
@@ -94,23 +97,29 @@ def generate_executive_summary(user_info, market_data, real_data):
         f"الإشارات الإيجابية مقابل السلبية: "
         f"{positive_signals} مقابل {negative_signals}"
     )
+    lines.append("[END_DECISION_BLOCK]")
     lines.append("")
 
     # الكتلة 3: الإشارات التنبؤية
+    lines.append("[DECISION_BLOCK:PREDICTIVE_SIGNALS]")
     lines.append("الإشارات التنبؤية")
     lines.append(f"أفق 3 أشهر: استقرار انتقائي باحتمالية تقريبية {p_3m}%")
     lines.append(f"أفق 6 أشهر: تحسن موضعي باحتمالية تقريبية {p_6m}%")
     lines.append(f"أفق 12 شهرًا: إعادة تسعير قائمة على القيمة باحتمالية {p_12m}%")
+    lines.append("[END_DECISION_BLOCK]")
     lines.append("")
 
     # الكتلة 4: السيناريوهات
+    lines.append("[DECISION_BLOCK:SCENARIOS]")
     lines.append("السيناريوهات المحتملة")
     lines.append("في حال ثبات المعطيات: القرار الحالي يظل صالحًا دون تعديل.")
     lines.append("في حال تحسن السوق: تتوسع فرص الحركة دون تغيير جوهر القرار.")
     lines.append("في حال تراجع السوق: يتحول القرار تلقائيًا إلى وضع حماية.")
+    lines.append("[END_DECISION_BLOCK]")
     lines.append("")
 
     # الكتلة 5: الموقف الأمثل
+    lines.append("[DECISION_BLOCK:OPTIMAL_POSITION]")
     lines.append("الموقف الأمثل في المرحلة الحالية")
     if liquidity >= 60 and len(undervalued) >= 3:
         lines.append("تموضع يسمح بالحركة الهادئة ضمن نطاق محسوب.")
@@ -118,9 +127,11 @@ def generate_executive_summary(user_info, market_data, real_data):
         lines.append("تثبيت الموقع الحالي مع جاهزية عالية للتغيير.")
     else:
         lines.append("جاهزية كاملة دون التزام حتى نضوج الإشارات.")
+    lines.append("[END_DECISION_BLOCK]")
     lines.append("")
 
     # الكتلة 6: ضمان القرار
+    lines.append("[DECISION_BLOCK:DECISION_GUARANTEE]")
     lines.append("ضمان القرار")
     lines.append("لا حاجة لإعادة التفكير طالما لم تتغير المؤشرات الأساسية.")
     lines.append("يُعاد التقييم فقط عند تغيّر السيولة أو اختفاء فجوات القيمة.")
@@ -130,5 +141,8 @@ def generate_executive_summary(user_info, market_data, real_data):
         "قيمة هذا القرار أنه يهدف إلى تقليل الخطأ الاستثماري "
         "قبل السعي وراء مكسب لحظي."
     )
+    lines.append("[END_DECISION_BLOCK]")
+    lines.append("")
+    lines.append("EXECUTIVE_DECISION_END")
 
     return "\n".join(lines)
