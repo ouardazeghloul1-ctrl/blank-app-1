@@ -149,9 +149,9 @@ def create_pdf_from_content(
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=14.5,
-        leading=28,
+        leading=22,          # 🔑 التعديل هنا: من 28 إلى 22
         alignment=TA_RIGHT,
-        spaceAfter=22,
+        spaceAfter=18,       # 🔑 التعديل هنا: من 22 إلى 18
         allowWidows=0,
         allowOrphans=0,
     )
