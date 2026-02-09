@@ -243,7 +243,7 @@ def build_report_story(user_info, dataframe=None):
     print("="*30)
 
     # =========================
-    # 🧠 EXECUTIVE PREDICTIVE DECISION (FINAL – SOURCE OF TRUTH)
+    # 🧠 حقن الخلاصة التنفيذية في مكانها الصحيح
     # =========================
     executive_decision = generate_executive_summary(
         user_info=user_info,
@@ -251,9 +251,14 @@ def build_report_story(user_info, dataframe=None):
         real_data=df if df is not None else pd.DataFrame()
     )
 
-    content_text += "\n\n=== EXECUTIVE_PREDICTIVE_DECISION ===\n"
-    content_text += executive_decision
-    content_text += "\n"
+    # ✅ ضمان وجود وسم الخلاصة التنفيذية في التقرير
+    if "[[AI_EXECUTIVE_DECISION]]" not in content_text:
+        content_text += "\n\n[[AI_EXECUTIVE_DECISION]]\n"
+
+    content_text = content_text.replace(
+        "[[AI_EXECUTIVE_DECISION]]",
+        executive_decision
+    )
 
     # توليد الرسومات
     if df is not None:
