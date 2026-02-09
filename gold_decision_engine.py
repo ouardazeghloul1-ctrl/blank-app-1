@@ -1,29 +1,37 @@
+"""
+Gold Decision Engine
+--------------------
+محرك القرار الرقمي التنفيذي – Warda Intelligence
+
+• يدعم جميع المدن
+• يدعم جميع أنواع العقار (شقة – فيلا – محل – أرض ...)
+• يعتمد فقط على البيانات الحية بعد الفلترة
+• لا يحتوي أي افتراضات سوقية مسبقة
+• يُستخدم حصريًا في الخلاصة التنفيذية
+"""
+
 # =========================================
 # Gold Decision Engine
-# Warda Intelligence
-# =========================================
-# هذه الطبقة هي العقل الرقمي للقرار التنفيذي
-# لا تحتوي نصوصًا – أرقام فقط + منطق فقط
 # =========================================
 
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from real_data_repository import load_real_data
 
 
 # -----------------------------------------
-# أدوات مساعدة
+# أدوات مساعدة عامة
 # -----------------------------------------
 
 def clamp(value, min_value, max_value):
     return max(min_value, min(value, max_value))
 
 
-def safe_div(a, b, default=0):
+def safe_div(a, b, default=0.0):
     try:
-        return a / b if b != 0 else default
+        return a / b if b else default
     except Exception:
         return default
 
@@ -35,40 +43,41 @@ def safe_div(a, b, default=0):
 def calculate_dci(real_data: pd.DataFrame) -> int:
     """
     مؤشر موثوقية القرار (0 – 100)
+
     يعتمد على:
-    - اكتمال البيانات
-    - حداثة البيانات
-    - حجم العينة
-    - استقرار الأسعار
+    • اكتمال البيانات
+    • حجم العينة
+    • حداثة البيانات
+    • استقرار الأسعار
     """
 
     if real_data is None or real_data.empty:
         return 0
 
-    score = 0
+    score = 0.0
 
-    # اكتمال البيانات
+    # اكتمال البيانات (30%)
     completeness = real_data[["price", "area"]].notnull().mean().mean()
-    score += completeness * 30  # 30%
+    score += completeness * 30
 
-    # حجم العينة
+    # حجم العينة (25%)
     sample_size = len(real_data)
-    sample_score = clamp(sample_size / 500, 0, 1)  # 500 عقار = مثالي
-    score += sample_score * 25  # 25%
+    sample_score = clamp(sample_size / 500, 0, 1)  # 500 عقار = ممتاز
+    score += sample_score * 25
 
-    # حداثة البيانات
+    # حداثة البيانات (25%)
     if "date" in real_data.columns:
         latest_date = real_data["date"].max()
         if pd.notnull(latest_date):
             days_diff = (datetime.now() - latest_date).days
             freshness = clamp(1 - (days_diff / 180), 0, 1)  # 6 أشهر
-            score += freshness * 25  # 25%
+            score += freshness * 25
 
-    # استقرار الأسعار (تذبذب)
+    # استقرار الأسعار (20%)
     if "price" in real_data.columns and len(real_data) > 5:
         volatility = real_data["price"].pct_change().std()
-        stability = clamp(1 - safe_div(volatility, 0.1), 0, 1)  # 10% تذبذب = خطر
-        score += stability * 20  # 20%
+        stability = clamp(1 - safe_div(volatility, 0.10), 0, 1)
+        score += stability * 20
 
     return int(round(clamp(score, 0, 100)))
 
@@ -80,7 +89,7 @@ def calculate_dci(real_data: pd.DataFrame) -> int:
 def calculate_vgs(real_data: pd.DataFrame) -> float:
     """
     فجوة القيمة (%)
-    الفرق بين متوسط سعر المتر وسعر السوق الفعلي
+    الفرق بين السعر الحالي ومتوسط السوق
     """
 
     if real_data is None or real_data.empty:
@@ -89,14 +98,13 @@ def calculate_vgs(real_data: pd.DataFrame) -> float:
     if "price" not in real_data.columns or "area" not in real_data.columns:
         return 0.0
 
-    real_data = real_data.copy()
-    real_data["price_per_m2"] = real_data["price"] / real_data["area"]
+    df = real_data.copy()
+    df["price_per_m2"] = df["price"] / df["area"]
 
-    market_avg = real_data["price_per_m2"].mean()
-    current_avg = real_data["price_per_m2"].median()
+    market_avg = df["price_per_m2"].mean()
+    current_median = df["price_per_m2"].median()
 
-    gap = safe_div((current_avg - market_avg), market_avg) * 100
-
+    gap = safe_div((current_median - market_avg), market_avg) * 100
     return round(gap, 2)
 
 
@@ -106,11 +114,12 @@ def calculate_vgs(real_data: pd.DataFrame) -> float:
 
 def calculate_raos(real_data: pd.DataFrame, vgs: float) -> int:
     """
-    الفرصة المعدلة بالمخاطر (0 – 100)
-    تعتمد على:
-    - فجوة القيمة
-    - التذبذب
-    - كثافة السوق (سيولة تقريبية)
+    مؤشر الفرصة بعد خصم المخاطر (0 – 100)
+
+    يعتمد على:
+    • فجوة القيمة
+    • التذبذب
+    • السيولة التقريبية
     """
 
     if real_data is None or real_data.empty:
@@ -118,16 +127,16 @@ def calculate_raos(real_data: pd.DataFrame, vgs: float) -> int:
 
     score = 50  # نقطة تعادل
 
-    # فجوة القيمة
-    score += clamp(abs(vgs), 0, 20)  # حتى +20
+    # تأثير فجوة القيمة (+20)
+    score += clamp(abs(vgs), 0, 20)
 
-    # التذبذب
+    # التذبذب (خصم حتى 25)
     if "price" in real_data.columns and len(real_data) > 5:
         volatility = real_data["price"].pct_change().std()
-        volatility_penalty = clamp(volatility * 200, 0, 25)
-        score -= volatility_penalty
+        penalty = clamp(volatility * 200, 0, 25)
+        score -= penalty
 
-    # السيولة التقريبية (كثافة البيانات)
+    # السيولة التقريبية (+15)
     liquidity_score = clamp(len(real_data) / 300, 0, 1) * 15
     score += liquidity_score
 
@@ -140,8 +149,10 @@ def calculate_raos(real_data: pd.DataFrame, vgs: float) -> int:
 
 def calculate_scm(real_data: pd.DataFrame) -> dict:
     """
-    تقاطع السيناريوهات
-    نحاكي 20 سيناريو مبسط اعتمادًا على توزيع الأسعار
+    تقاطع السيناريوهات (%)
+
+    نحاكي 20 سيناريو سعري مبسط
+    ونقيس كم منها يؤدي لنفس القرار
     """
 
     TOTAL_SCENARIOS = 20
@@ -155,11 +166,10 @@ def calculate_scm(real_data: pd.DataFrame) -> dict:
 
     matched = 0
 
-    for i in range(TOTAL_SCENARIOS):
+    for _ in range(TOTAL_SCENARIOS):
         simulated_price = np.random.normal(mean_price, std_price)
 
-        # منطق القرار المبسط:
-        # هل السعر ضمن نطاق أمان (±15%)؟
+        # منطق الأمان السعري (±15%)
         if abs(simulated_price - mean_price) / mean_price <= 0.15:
             matched += 1
 
@@ -173,12 +183,12 @@ def calculate_scm(real_data: pd.DataFrame) -> dict:
 
 
 # -----------------------------------------
-# الدالة الذهبية – واجهة واحدة فقط
+# الواجهة الذهبية – دالة واحدة فقط
 # -----------------------------------------
 
 def generate_gold_decision_metrics(city: str, property_type: str) -> dict:
     """
-    الدالة الوحيدة التي يجب استدعاؤها من الخارج
+    الواجهة الوحيدة المسموح باستدعائها من بقية النظام
     """
 
     real_data = load_real_data(city=city, property_type=property_type)
@@ -194,12 +204,3 @@ def generate_gold_decision_metrics(city: str, property_type: str) -> dict:
         "RAOS": raos,
         "SCM": scm
     }
-
-
-# -----------------------------------------
-# اختبار محلي
-# -----------------------------------------
-
-if __name__ == "__main__":
-    metrics = generate_gold_decision_metrics("الرياض", "شقة")
-    print(metrics)
