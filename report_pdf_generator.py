@@ -287,7 +287,6 @@ def create_pdf_from_content(
         # =========================
 
         # 🏁 القرار الاستثماري النهائي (التعديل الذكي)
-        if raw_stripped.startswith("=== EXECUTIVE_PREDICTIVE_DECISION ==="):
             # صفحة مستقلة للقرار النهائي
             story.append(PageBreak())
 
