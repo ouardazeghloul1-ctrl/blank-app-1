@@ -37,7 +37,7 @@ def ar(text):
         bidi_text = get_display(reshaped)
 
         # 🔑 إجبار اتجاه RTL لمنع انقلاب السطر
-        return "\u202B" + bidi_text
+        return "\u202B" + bidi_text + "\u202C"
     except Exception:
         return str(text)
 
