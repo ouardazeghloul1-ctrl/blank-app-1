@@ -32,8 +32,12 @@ def ar(text):
     if not text:
         return ""
     try:
-        reshaped = arabic_reshaper.reshape(str(text))
-        return get_display(reshaped)
+        text = str(text)
+        reshaped = arabic_reshaper.reshape(text)
+        bidi_text = get_display(reshaped)
+
+        # 🔑 إجبار اتجاه RTL لمنع انقلاب السطر
+        return "\u202B" + bidi_text
     except Exception:
         return str(text)
 
@@ -154,6 +158,7 @@ def create_pdf_from_content(
         spaceAfter=22,
         allowWidows=0,
         allowOrphans=0,
+        wordWrap='RTL',   # ⭐ مهم
     )
 
     chapter = ParagraphStyle(
