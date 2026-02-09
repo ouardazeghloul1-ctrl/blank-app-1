@@ -254,7 +254,7 @@ def create_pdf_from_content(
         raw_stripped = raw.strip()
         
         # 📌 PATCH B: إصلاح تنويه البيانات (إصلاح القطع نهائيًا)
-        if raw_stripped.startswith("📌 تنويه مهم"):
+        
             story.append(Spacer(1, 0.6 * cm))
             story.append(Paragraph(ar(raw_stripped), body))
 
