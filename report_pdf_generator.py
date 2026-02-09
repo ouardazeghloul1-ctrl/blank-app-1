@@ -331,7 +331,7 @@ def create_pdf_from_content(
         # =========================
 
         # 🏁 القرار الاستثماري النهائي (التعديل الذكي)
-        if clean.startswith("🏁"):
+        if raw_stripped.startswith("=== EXECUTIVE_PREDICTIVE_DECISION ==="):
             # صفحة مستقلة للقرار النهائي
             story.append(PageBreak())
 
@@ -509,6 +509,13 @@ def create_pdf_from_content(
                 ai_mode = False
             else:
                 story.append(Paragraph(ar(clean), body))
+
+    # 🛟 Fallback أمان: إذا تم تفعيل القرار ولم يُجمع نص
+    if not decision_buffer:
+        if "EXECUTIVE_PREDICTIVE_DECISION" in content_text:
+            decision_buffer.append(
+                content_text.split("=== EXECUTIVE_PREDICTIVE_DECISION ===", 1)[-1].strip()
+            )
 
     # =========================
     # 📦 إضافة الصندوق التنفيذي للقرار النهائي
