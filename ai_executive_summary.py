@@ -32,11 +32,13 @@ def generate_executive_summary(user_info, market_data, real_data):
     property_type = user_info.get("property_type", "غير محدد")
 
     # =====================================
-    # 🟡 استدعاء القرار الذهبي (Gold Metrics)
+    # 🟡 استدعاء القرار الذهبي (Gold Metrics) - التعديل هنا
     # =====================================
     gold = generate_gold_decision_metrics(
         city=city,
-        property_type=property_type
+        property_type=property_type,
+        real_data=real_data,
+        market_data=market_data
     )
 
     dci = gold.get("DCI", 0)
