@@ -99,6 +99,7 @@ def create_pdf_from_content(
     market_data,
     real_data,
     content_text,
+    executive_decision,   # ⭐ جديد - الخلاصة التنفيذية المستقلة
     package_level,
     ai_recommendations=None
 ):
@@ -201,16 +202,9 @@ def create_pdf_from_content(
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     story.append(PageBreak())
 
-    charts_by_chapter = st.session_state.get("charts_by_chapter", {})
-    chapter_index = 0
-    chart_cursor = {}
-    first_chapter_processed = False
-
-    # ===== START EXECUTIVE SUMMARY PATCH =====
-    inside_executive = False
-    executive_story = []  # ⭐ التعديل (1): قائمة مستقلة للخلاصة
-
-    # تعيين عناوين عربية للكتل التنفيذية
+    # =========================
+    # EXECUTIVE DECISION (INDEPENDENT)
+    # =========================
     DECISION_BLOCK_TITLES = {
         "DECISION_DEFINITION": "تعريف القرار التنبؤي",
         "MARKET_STATUS": "وضع السوق الحالي",
@@ -219,62 +213,52 @@ def create_pdf_from_content(
         "OPTIMAL_POSITION": "القرار التنفيذي",
         "DECISION_GUARANTEE": "ضمان القرار"
     }
-    # ===== END EXECUTIVE SUMMARY PATCH =====
+
+    if executive_decision and executive_decision.strip():
+        story.append(Spacer(1, 1.5 * cm))
+        story.append(Paragraph(ar("الخلاصة التنفيذية التنبؤية"), ai_executive_header))
+        story.append(elegant_divider("60%"))
+        story.append(Spacer(1, 0.8 * cm))
+
+        for line in executive_decision.split("\n"):
+            line = line.strip()
+            if not line:
+                story.append(Spacer(1, 0.4 * cm))
+                continue
+
+            # عناوين الكتل
+            if line.startswith("[DECISION_BLOCK:"):
+                key = line.replace("[DECISION_BLOCK:", "").replace("]", "")
+                title_text = DECISION_BLOCK_TITLES.get(key, "")
+                if title_text:
+                    story.append(Spacer(1, 0.9 * cm))
+                    story.append(Paragraph(ar(title_text), chapter))
+                    story.append(elegant_divider("50%"))
+                continue
+
+            if line == "[END_DECISION_BLOCK]":
+                continue
+
+            # النص الفعلي
+            story.append(Paragraph(ar(line), body))
+            story.append(Spacer(1, 0.35 * cm))
+
+        story.append(Spacer(1, 1.2 * cm))
+        story.append(elegant_divider("30%"))
+        story.append(PageBreak())
+
+    charts_by_chapter = st.session_state.get("charts_by_chapter", {})
+    chapter_index = 0
+    chart_cursor = {}
+    first_chapter_processed = False
 
     lines_iter = iter(content_text.split("\n"))
 
     for raw in lines_iter:
         raw_stripped = raw.strip()
 
-        # ===== EXECUTIVE SUMMARY PATCH =====
-        if raw_stripped == "EXECUTIVE_DECISION_START":
-            inside_executive = True
-            story.append(PageBreak())
-            story.append(Spacer(1, 1.5 * cm))
-            story.append(Paragraph(ar("الخلاصة التنفيذية التنبؤية"), ai_executive_header))
-            story.append(elegant_divider("60%"))
-            story.append(Spacer(1, 0.8 * cm))
-            continue
-
-        if raw_stripped == "EXECUTIVE_DECISION_END":
-            inside_executive = False
-
-            # ⭐ التعديل (3): إدراج الخلاصة كوحدة واحدة فاخرة
-            story.append(Spacer(1, 0.6 * cm))
-            story.append(
-                KeepTogether(executive_story)
-            )
-            executive_story = []
-
-            story.append(Spacer(1, 1.2 * cm))
-            story.append(elegant_divider("30%"))
-            story.append(PageBreak())
-            continue
-
-        # معالجة عناوين الكتل التنفيذية
-        if raw_stripped.startswith("[DECISION_BLOCK:"):
-            key = raw_stripped.replace("[DECISION_BLOCK:", "").replace("]", "")
-            title_text = DECISION_BLOCK_TITLES.get(key, "")
-            if title_text and inside_executive:
-                executive_story.append(Spacer(1, 0.9 * cm))
-                executive_story.append(Paragraph(ar(title_text), chapter))
-                executive_story.append(elegant_divider("50%"))
-            continue
-
-        # تجاهل END فقط
-        if raw_stripped in ["[END_DECISION_BLOCK]"]:
-            continue
-        # ===== END PATCH =====
-
         if not raw_stripped:
             story.append(Spacer(1, 0.8 * cm))
-            continue
-
-        if inside_executive:
-            text = raw_stripped
-            # ⭐ التعديل (2): إضافة إلى executive_story بدل story
-            executive_story.append(Paragraph(ar(text), body))
-            executive_story.append(Spacer(1, 0.35 * cm))
             continue
 
         clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
