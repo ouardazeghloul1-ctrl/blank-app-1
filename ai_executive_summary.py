@@ -31,16 +31,13 @@ def compute_long_term_forecast(real_data: pd.DataFrame):
 
     prices = real_data["price"].dropna()
 
-    # نمو سنوي تاريخي فعلي (median لتقليل الضجيج)
     annual_growth = prices.pct_change().median()
     annual_growth = annual_growth if pd.notna(annual_growth) else 0.01
 
-    # تدرج زمني محافظ
     y1_3 = safe_pct(annual_growth * 0.7)
     y4_6 = safe_pct(annual_growth * 1.2)
     y7_10 = safe_pct(annual_growth * 1.7)
 
-    # العائد التراكمي (نطاق)
     cumulative_min = safe_pct((1 + annual_growth * 0.6) ** 10 - 1)
     cumulative_max = safe_pct((1 + annual_growth * 1.1) ** 10 - 1)
 
@@ -56,7 +53,6 @@ def compute_long_term_forecast(real_data: pd.DataFrame):
 def generate_executive_summary(user_info, market_data, real_data):
     """
     الخلاصة التنفيذية التنبؤية – Diamond
-    رقمية، حية، قابلة للطباعة مباشرة
     """
 
     if real_data is None or real_data.empty:
@@ -71,7 +67,7 @@ def generate_executive_summary(user_info, market_data, real_data):
     property_type = user_info.get("property_type", "غير محدد")
 
     # =========================
-    # Gold Decision Metrics (LIVE)
+    # Gold Metrics (LIVE)
     # =========================
     gold = generate_gold_decision_metrics(
         city=city,
@@ -86,7 +82,7 @@ def generate_executive_summary(user_info, market_data, real_data):
     scm = gold.get("SCM", {}).get("percentage", 0)
 
     # =========================
-    # Forecast 10 Years (LIVE)
+    # Forecast 10 Years
     # =========================
     forecast = compute_long_term_forecast(real_data)
 
@@ -103,7 +99,7 @@ def generate_executive_summary(user_info, market_data, real_data):
     )
 
     # =========================
-    # BUILD EXECUTIVE SUMMARY
+    # BUILD SUMMARY
     # =========================
     lines = []
 
@@ -113,14 +109,14 @@ def generate_executive_summary(user_info, market_data, real_data):
     lines.append("تمت معايرة هذه المؤشرات مقابل نطاقات تاريخية مماثلة لدورات سوقية سابقة.")
     lines.append("")
 
-    # ---- Block 1
+    # 🧱 1 — تعريف القرار
     lines.append("[DECISION_BLOCK:DECISION_DEFINITION]")
     lines.append(f"مؤشر موثوقية القرار: {dci} من 100")
-    lines.append("هذا المؤشر يؤكد صلاحية البيانات لاتخاذ قرار استثماري طويل المدى.")
+    lines.append("يشير هذا المستوى إلى أن البيانات الحالية صالحة لاتخاذ قرار استثماري طويل المدى.")
     lines.append("[END_DECISION_BLOCK]")
     lines.append("")
 
-    # ---- Block 2
+    # 🧱 2 — وضع السوق
     lines.append("[DECISION_BLOCK:MARKET_STATUS]")
     lines.append(f"فجوة القيمة الحالية: {vgs} بالمئة")
     lines.append(f"مستوى التذبذب السعري: {volatility} بالمئة")
@@ -128,7 +124,7 @@ def generate_executive_summary(user_info, market_data, real_data):
     lines.append("[END_DECISION_BLOCK]")
     lines.append("")
 
-    # ---- Block 3
+    # 🧱 3 — الإشارات التنبؤية
     lines.append("[DECISION_BLOCK:PREDICTIVE_SIGNALS]")
     lines.append(f"تقاطع السيناريوهات التنبؤية: {scm} بالمئة")
     lines.append(f"عدد الفرص منخفضة القيمة المكتشفة: {len(undervalued)}")
@@ -136,7 +132,7 @@ def generate_executive_summary(user_info, market_data, real_data):
     lines.append("[END_DECISION_BLOCK]")
     lines.append("")
 
-    # ---- Block 4 (10 Years Forecast)
+    # 🧱 4 — التنبؤ الزمني 10 سنوات
     lines.append("[DECISION_BLOCK:SCENARIOS]")
     lines.append(f"السنوات 1 إلى 3: نمو سنوي متوقع {forecast['y1_3']} بالمئة")
     lines.append(f"السنوات 4 إلى 6: نمو سنوي متوقع {forecast['y4_6']} بالمئة")
@@ -148,19 +144,34 @@ def generate_executive_summary(user_info, market_data, real_data):
     lines.append("[END_DECISION_BLOCK]")
     lines.append("")
 
-    # ---- Block 5
+    # 🧱 5 — الوضع التنفيذي الحالي (القرار اللغوي الذكي)
     lines.append("[DECISION_BLOCK:OPTIMAL_POSITION]")
-    lines.append(
-        "الدخول الانتقائي طويل المدى في أصول أقل من متوسط مناطقها، "
-        "مع تجنب الشراء الواسع أو القرارات قصيرة الأجل."
-    )
+    lines.append("الوضع التنفيذي الحالي")
+
+    if dci >= 65 and raos >= 45 and scm >= 65:
+        lines.append(
+            "المرحلة الحالية تسمح بالتحرك الانتقائي الهادئ، "
+            "مع التركيز على الأصول التي تُظهر فجوة قيمة واضحة، "
+            "دون الحاجة إلى تسريع القرار أو توسيع نطاق التعرض."
+        )
+    elif dci >= 55 and scm >= 60:
+        lines.append(
+            "المرحلة الحالية مناسبة للتموضع المرحلي والمراقبة المستمرة، "
+            "مع الجاهزية للتحرك عند تحسن جودة الإشارات."
+        )
+    else:
+        lines.append(
+            "المرحلة الحالية تتطلب التريث والمراقبة النشطة، "
+            "مع الحفاظ على الجاهزية دون التزام حتى تتضح الصورة بشكل أفضل."
+        )
+
     lines.append("[END_DECISION_BLOCK]")
     lines.append("")
 
-    # ---- Block 6
+    # 🧱 6 — ضمان القرار
     lines.append("[DECISION_BLOCK:DECISION_GUARANTEE]")
     lines.append(
-        "يبقى هذا القرار صالحًا طالما ظل مؤشر الموثوقية فوق 55 "
+        "يبقى هذا التوجه صالحًا طالما ظل مؤشر الموثوقية فوق 55 "
         "ولم ينخفض تقاطع السيناريوهات تحت 60 بالمئة."
     )
     lines.append("[END_DECISION_BLOCK]")
