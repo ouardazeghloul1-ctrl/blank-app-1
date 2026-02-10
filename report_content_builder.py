@@ -2034,22 +2034,6 @@ def chapter_10_blocks(user_info):
     ]
 
 # =========================
-# EXECUTIVE PREDICTIVE DECISION (AI FINAL)
-# =========================
-def executive_decision_blocks(user_info):
-    return [
-        {
-            "type": "chapter_title",
-            "content": "🏁 Executive Predictive Decision",
-        },
-        {
-            "type": "text",
-            "content": "[[AI_EXECUTIVE_DECISION]]"
-        }
-    ]
-
-
-# =========================
 # BUILD COMPLETE REPORT
 # =========================
 def build_complete_report(user_info):
@@ -2068,7 +2052,6 @@ def build_complete_report(user_info):
         chapter_8_blocks,
         chapter_9_blocks,
         chapter_10_blocks,
-        executive_decision_blocks,
     ]
 
     report = {
