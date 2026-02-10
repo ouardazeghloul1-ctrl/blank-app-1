@@ -191,11 +191,6 @@ def build_report_story(user_info, dataframe=None):
         print(f"طول AI OPPORTUNITIES: {len(ai_insights['ai_opportunities'])} حرف")
         print(f"العينة: {ai_insights['ai_opportunities'][:150]}...")
     
-    print(f"\nAI FINAL DECISION موجود: {'نعم' if ai_insights.get('ai_final_decision') else 'لا'}")
-    if ai_insights.get('ai_final_decision'):
-        print(f"طول AI FINAL DECISION: {len(ai_insights['ai_final_decision'])} حرف")
-        print(f"العينة: {ai_insights['ai_final_decision'][:150]}...")
-        print(f"يحتوي على 🏁: {'نعم' if '🏁' in ai_insights['ai_final_decision'] else 'لا'}")
     print("="*50)
 
     # 🔍 التحقق من وجود Anchors في التقرير
@@ -242,22 +237,11 @@ def build_report_story(user_info, dataframe=None):
             print(f"❌ '{marker}' لم يتم إدراجه")
     print("="*30)
 
-    # =========================
-    # 🧠 حقن الخلاصة التنفيذية في مكانها الصحيح
-    # =========================
+    # توليد الخلاصة التنفيذية بشكل مستقل
     executive_decision = generate_executive_summary(
         user_info=user_info,
         market_data=market_data,
         real_data=df if df is not None else pd.DataFrame()
-    )
-
-    # ✅ ضمان وجود وسم الخلاصة التنفيذية في التقرير
-    if "[[AI_EXECUTIVE_DECISION]]" not in content_text:
-        content_text += "\n\n[[AI_EXECUTIVE_DECISION]]\n"
-
-    content_text = content_text.replace(
-        "[[AI_EXECUTIVE_DECISION]]",
-        executive_decision
     )
 
     # توليد الرسومات
@@ -272,5 +256,6 @@ def build_report_story(user_info, dataframe=None):
             "generated_at": datetime.now().isoformat()
         },
         "content_text": content_text,
+        "executive_decision": executive_decision,  # ⭐ عنصر مستقل
         "charts": charts
     }
