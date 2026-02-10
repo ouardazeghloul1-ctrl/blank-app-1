@@ -195,16 +195,17 @@ def create_pdf_from_content(
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
 
     # ===== START EXECUTIVE SUMMARY PATCH =====
-
-    INTERNAL_MARKERS = (
-        "EXECUTIVE_DECISION_START",
-        "EXECUTIVE_DECISION_END",
-        "[DECISION_BLOCK:",
-        "[END_DECISION_BLOCK]"
-    )
-
     inside_executive = False
 
+    # تعيين عناوين عربية للكتل التنفيذية
+    DECISION_BLOCK_TITLES = {
+        "DECISION_DEFINITION": "تعريف القرار التنبؤي",
+        "MARKET_STATUS": "وضع السوق الحالي",
+        "PREDICTIVE_SIGNALS": "الإشارات التنبؤية",
+        "SCENARIOS": "السيناريوهات المحتملة",
+        "OPTIMAL_POSITION": "القرار التنفيذي",
+        "DECISION_GUARANTEE": "ضمان القرار"
+    }
     # ===== END EXECUTIVE SUMMARY PATCH =====
 
     story = []
@@ -236,11 +237,24 @@ def create_pdf_from_content(
 
         if raw_stripped == "EXECUTIVE_DECISION_END":
             inside_executive = False
-            story.append(Spacer(1, 1.2 * cm))
-            story.append(elegant_divider("40%"))
+            story.append(Spacer(1, 0.8 * cm))
+            story.append(Paragraph(ar("— نهاية الخلاصة التنفيذية —"), ai_sub_title))
+            story.append(Spacer(1, 0.6 * cm))
+            story.append(elegant_divider("30%"))
             continue
 
-        if raw_stripped.startswith(INTERNAL_MARKERS):
+        # معالجة عناوين الكتل التنفيذية
+        if raw_stripped.startswith("[DECISION_BLOCK:"):
+            key = raw_stripped.replace("[DECISION_BLOCK:", "").replace("]", "")
+            title = DECISION_BLOCK_TITLES.get(key, "")
+            if title and inside_executive:
+                story.append(Spacer(1, 0.9 * cm))
+                story.append(Paragraph(ar(title), chapter))
+                story.append(elegant_divider("50%"))
+            continue
+
+        # تجاهل END فقط، والتعامل مع START بشكل منفصل
+        if raw_stripped in ["[END_DECISION_BLOCK]"]:
             continue
         # ===== END PATCH =====
 
@@ -250,8 +264,6 @@ def create_pdf_from_content(
 
         if inside_executive:
             text = raw_stripped
-            if re.search(r":\s*0(/100|%)", text):
-                text = text.replace("0", "غير متاح حاليًا")
             story.append(Paragraph(ar(text), body))
             story.append(Spacer(1, 0.4 * cm))
             continue
