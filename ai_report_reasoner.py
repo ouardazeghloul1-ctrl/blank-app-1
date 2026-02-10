@@ -6,7 +6,6 @@
 from live_data_system import LiveDataSystem
 from market_intelligence import MarketIntelligence
 from smart_opportunities import SmartOpportunityFinder
-from ai_executive_summary import generate_executive_summary
 import pandas as pd
 
 from ai_text_templates import (
@@ -97,12 +96,6 @@ class AIReportReasoner:
                 return text.split("\n")[0] + "\n(ملخص تنفيذي)"
             return ""
 
-        final_decision_text = generate_executive_summary(
-            user_info=user_info,
-            market_data=market_data,
-            real_data=real_data,
-        )
-
         return {
             "ai_live_market": apply_policy(
                 "live_market",
@@ -115,9 +108,5 @@ class AIReportReasoner:
             "ai_risk": apply_policy(
                 "risk",
                 fill_ai_template(RISK_INSIGHT, all_values),
-            ),
-            "ai_final_decision": apply_policy(
-                "final_decision",
-                final_decision_text,
             ),
         }
