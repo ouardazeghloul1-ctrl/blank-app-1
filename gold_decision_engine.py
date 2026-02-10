@@ -186,13 +186,28 @@ def calculate_scm(real_data: pd.DataFrame) -> dict:
 # الواجهة الذهبية – دالة واحدة فقط
 # -----------------------------------------
 
-def generate_gold_decision_metrics(city: str, property_type: str) -> dict:
+def generate_gold_decision_metrics(
+    city: str,
+    property_type: str,
+    real_data=None,
+    market_data=None
+) -> dict:
     """
-    الواجهة الوحيدة المسموح باستدعائها من بقية النظام
+    Gold Decision Metrics Engine
+    ----------------------------
+    يحسب مؤشرات القرار الذهبي اعتمادًا على البيانات الحية.
+    يقبل real_data و market_data إن توفرت، وإلا يعمل بوضع افتراضي آمن.
     """
 
-    real_data = load_real_data(city=city, property_type=property_type)
+    # 🔒 حماية من البيانات غير الصالحة
+    if real_data is None or not isinstance(real_data, pd.DataFrame) or real_data.empty:
+        # إذا كانت البيانات غير متوفرة، نحمّلها من المستودع
+        real_data = load_real_data(city=city, property_type=property_type)
+    
+    if market_data is None or not isinstance(market_data, dict):
+        market_data = {}
 
+    # احتساب المؤشرات الذهبية
     dci = calculate_dci(real_data)
     vgs = calculate_vgs(real_data)
     raos = calculate_raos(real_data, vgs)
