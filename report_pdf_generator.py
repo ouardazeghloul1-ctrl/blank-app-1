@@ -194,20 +194,6 @@ def create_pdf_from_content(
 
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
 
-    # ===== START EXECUTIVE SUMMARY PATCH =====
-    inside_executive = False
-
-    # تعيين عناوين عربية للكتل التنفيذية
-    DECISION_BLOCK_TITLES = {
-        "DECISION_DEFINITION": "تعريف القرار التنبؤي",
-        "MARKET_STATUS": "وضع السوق الحالي",
-        "PREDICTIVE_SIGNALS": "الإشارات التنبؤية",
-        "SCENARIOS": "السيناريوهات المحتملة",
-        "OPTIMAL_POSITION": "القرار التنفيذي",
-        "DECISION_GUARANTEE": "ضمان القرار"
-    }
-    # ===== END EXECUTIVE SUMMARY PATCH =====
-
     story = []
 
     # COVER
@@ -219,6 +205,21 @@ def create_pdf_from_content(
     chapter_index = 0
     chart_cursor = {}
     first_chapter_processed = False
+
+    # ===== START EXECUTIVE SUMMARY PATCH =====
+    inside_executive = False
+    executive_story = []  # ⭐ التعديل (1): قائمة مستقلة للخلاصة
+
+    # تعيين عناوين عربية للكتل التنفيذية
+    DECISION_BLOCK_TITLES = {
+        "DECISION_DEFINITION": "تعريف القرار التنبؤي",
+        "MARKET_STATUS": "وضع السوق الحالي",
+        "PREDICTIVE_SIGNALS": "الإشارات التنبؤية",
+        "SCENARIOS": "السيناريوهات المحتملة",
+        "OPTIMAL_POSITION": "القرار التنفيذي",
+        "DECISION_GUARANTEE": "ضمان القرار"
+    }
+    # ===== END EXECUTIVE SUMMARY PATCH =====
 
     lines_iter = iter(content_text.split("\n"))
 
@@ -237,23 +238,30 @@ def create_pdf_from_content(
 
         if raw_stripped == "EXECUTIVE_DECISION_END":
             inside_executive = False
-            story.append(Spacer(1, 0.8 * cm))
-            story.append(Paragraph(ar("— نهاية الخلاصة التنفيذية —"), ai_sub_title))
+
+            # ⭐ التعديل (3): إدراج الخلاصة كوحدة واحدة فاخرة
             story.append(Spacer(1, 0.6 * cm))
+            story.append(
+                KeepTogether(executive_story)
+            )
+            executive_story = []
+
+            story.append(Spacer(1, 1.2 * cm))
             story.append(elegant_divider("30%"))
+            story.append(PageBreak())
             continue
 
         # معالجة عناوين الكتل التنفيذية
         if raw_stripped.startswith("[DECISION_BLOCK:"):
             key = raw_stripped.replace("[DECISION_BLOCK:", "").replace("]", "")
-            title = DECISION_BLOCK_TITLES.get(key, "")
-            if title and inside_executive:
-                story.append(Spacer(1, 0.9 * cm))
-                story.append(Paragraph(ar(title), chapter))
-                story.append(elegant_divider("50%"))
+            title_text = DECISION_BLOCK_TITLES.get(key, "")
+            if title_text and inside_executive:
+                executive_story.append(Spacer(1, 0.9 * cm))
+                executive_story.append(Paragraph(ar(title_text), chapter))
+                executive_story.append(elegant_divider("50%"))
             continue
 
-        # تجاهل END فقط، والتعامل مع START بشكل منفصل
+        # تجاهل END فقط
         if raw_stripped in ["[END_DECISION_BLOCK]"]:
             continue
         # ===== END PATCH =====
@@ -264,8 +272,9 @@ def create_pdf_from_content(
 
         if inside_executive:
             text = raw_stripped
-            story.append(Paragraph(ar(text), body))
-            story.append(Spacer(1, 0.4 * cm))
+            # ⭐ التعديل (2): إضافة إلى executive_story بدل story
+            executive_story.append(Paragraph(ar(text), body))
+            executive_story.append(Spacer(1, 0.35 * cm))
             continue
 
         clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
