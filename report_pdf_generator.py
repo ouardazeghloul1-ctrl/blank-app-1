@@ -39,7 +39,7 @@ def ar(text):
 
 
 # =========================
-# Clean bullets & junk - النسخة النهائية القاطعة
+# Clean bullets & junk
 # =========================
 def clean_text(text: str) -> str:
     if not text:
@@ -48,19 +48,12 @@ def clean_text(text: str) -> str:
     cleaned = []
     for ch in text:
         cat = unicodedata.category(ch)
-
-        # نسمح فقط بالحروف والأرقام والمسافات وعلامات الترقيم الأساسية
         if cat.startswith(("L", "N", "P", "Z")):
             cleaned.append(ch)
 
     text = "".join(cleaned)
-
-    # تنظيف بدايات الأسطر
     text = re.sub(r"^[\-\*\d\.\)]\s*", "", text)
-
-    # توحيد المسافات
     text = re.sub(r"\s+", " ", text)
-
     return text.strip()
 
 
@@ -85,7 +78,7 @@ def plotly_to_image(fig, width_cm, height_cm):
 
 
 # =========================
-# دالة فاصل فاخر (استشاري)
+# Elegant divider
 # =========================
 def elegant_divider(width="80%", thickness=0.6, color=colors.HexColor("#B0B0B0")):
     return HRFlowable(
@@ -179,20 +172,6 @@ def create_pdf_from_content(
         spaceAfter=10,
     )
 
-    # =========================
-    # 🧠 AI INSIGHT BOX (للفصول 1–3)
-    # =========================
-    ai_insight_box = ParagraphStyle(
-        "AIInsightBox",
-        parent=body,
-        backColor=colors.HexColor("#F2F4F7"),
-        leftIndent=14,
-        rightIndent=14,
-        spaceBefore=14,
-        spaceAfter=18,
-        leading=26,
-    )
-
     title = ParagraphStyle(
         "ArabicTitle",
         parent=styles["Title"],
@@ -203,9 +182,6 @@ def create_pdf_from_content(
         spaceAfter=50
     )
 
-    # =========================
-    # 🧠 ستايل العنوان التنفيذي الفاخر
-    # =========================
     ai_executive_header = ParagraphStyle(
         "AIExecutiveHeader",
         parent=chapter,
@@ -217,86 +193,71 @@ def create_pdf_from_content(
     )
 
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
-    chart_caption_style = ParagraphStyle(
-        "ChartCaption",
-        parent=body,
-        fontSize=13,
-        textColor=colors.HexColor("#666666"),
-        alignment=TA_CENTER,
-        spaceBefore=8,
-        spaceAfter=18,
-        fontName="Amiri"
+
+    # ===== START EXECUTIVE SUMMARY PATCH =====
+
+    INTERNAL_MARKERS = (
+        "EXECUTIVE_DECISION_START",
+        "EXECUTIVE_DECISION_END",
+        "[DECISION_BLOCK:",
+        "[END_DECISION_BLOCK]"
     )
+
+    inside_executive = False
+
+    # ===== END EXECUTIVE SUMMARY PATCH =====
 
     story = []
 
-    # =========================
-    # COVER (NO EMPTY PAGE AFTER)
-    # =========================
+    # COVER
     story.append(Spacer(1, 7.5 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     story.append(PageBreak())
 
-    # =========================
-    # CONTENT
-    # =========================
     charts_by_chapter = st.session_state.get("charts_by_chapter", {})
-
     chapter_index = 0
     chart_cursor = {}
     first_chapter_processed = False
 
-    # تحويل النص إلى iterator للوصول للسطور التالية
-    lines_list = content_text.split("\n")
-    lines_iter = iter(lines_list)
+    lines_iter = iter(content_text.split("\n"))
 
     for raw in lines_iter:
         raw_stripped = raw.strip()
-        
-        # 📌 PATCH B: إصلاح تنويه البيانات (إصلاح القطع نهائيًا)
-        if raw_stripped.startswith("📌 تنويه مهم"):
-            story.append(Spacer(1, 0.6 * cm))
-            story.append(Paragraph(ar(raw_stripped), body))
 
-            # 👇 التقاط الأسطر التالية كجزء من التنويه
-            while True:
-                try:
-                    next_line = next(lines_iter)
-                    if not next_line.strip():
-                        break
-                    story.append(Paragraph(ar(next_line.strip()), body))
-                except StopIteration:
-                    break
-
+        # ===== EXECUTIVE SUMMARY PATCH =====
+        if raw_stripped == "EXECUTIVE_DECISION_START":
+            inside_executive = True
+            story.append(PageBreak())
+            story.append(Spacer(1, 1.5 * cm))
+            story.append(Paragraph(ar("الخلاصة التنفيذية التنبؤية"), ai_executive_header))
+            story.append(elegant_divider("60%"))
             story.append(Spacer(1, 0.8 * cm))
             continue
-        
-        # ⛔ الحل الأساسي: الوسوم لا تمر على clean_text
-        if raw_stripped in SPECIAL_TAGS:
-            clean = raw_stripped
-        else:
-            clean = clean_text(raw)
-        
-        # ✅ تحسين شرط الفراغ
+
+        if raw_stripped == "EXECUTIVE_DECISION_END":
+            inside_executive = False
+            story.append(Spacer(1, 1.2 * cm))
+            story.append(elegant_divider("40%"))
+            continue
+
+        if raw_stripped.startswith(INTERNAL_MARKERS):
+            continue
+        # ===== END PATCH =====
+
         if not raw_stripped:
             story.append(Spacer(1, 0.8 * cm))
             continue
 
-        # =========================
-        # 🧠 🏁 التعديل الجوهري: عرض الاستشارة النهائية بشكل تنفيذي
-        # =========================
-
-        # 🏁 القرار الاستثماري النهائي (التعديل الذكي)
-            # صفحة مستقلة للقرار النهائي
-            story.append(PageBreak())
-
-            # مساحة مريحة قبل العنوان
-            story.append(Spacer(1, 1.2 * cm))
-            story.append(Paragraph(ar("الخلاصة التنفيذية التنبؤية"), chapter))
-            story.append(Spacer(1, 0.6 * cm))
+        if inside_executive:
+            text = raw_stripped
+            if re.search(r":\s*0(/100|%)", text):
+                text = text.replace("0", "غير متاح حاليًا")
+            story.append(Paragraph(ar(text), body))
+            story.append(Spacer(1, 0.4 * cm))
             continue
 
-        # 📊 💎 ⚠️ عناوين الذكاء الاصطناعي داخل الفصول
+        clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
+
         if clean.startswith(("📊", "💎", "⚠️")):
             story.append(Spacer(1, 0.8 * cm))
             story.append(elegant_divider())
@@ -304,51 +265,21 @@ def create_pdf_from_content(
             story.append(Spacer(1, 0.4 * cm))
             continue
 
-        # -------- CHAPTER --------
         if clean.startswith("الفصل"):
-            # ✅ لا نكسر الصفحة قبل أول فصل
             if first_chapter_processed:
                 story.append(PageBreak())
-
             chapter_index += 1
             chart_cursor[chapter_index] = 0
-
-            story.append(
-                KeepTogether([
-                    Paragraph(ar(clean), chapter),
-                    Spacer(1, 0.6 * cm)
-                ])
-            )
-
+            story.append(KeepTogether([
+                Paragraph(ar(clean), chapter),
+                Spacer(1, 0.6 * cm)
+            ]))
             first_chapter_processed = True
             continue
 
-        # -------- NO CHARTS IN 9–10 --------
-        if chapter_index >= 9:
-            # ✅ الفلترة النهائية: فلترة UTF-8 قبل Paragraph
-            clean = clean.encode("utf-8", "ignore").decode("utf-8")
-            story.append(Paragraph(ar(clean), body))
-            continue
-
-        charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
-        cursor = chart_cursor.get(chapter_index, 0)
-
-        # -------- CHART CAPTION --------
-        if clean == "[[CHART_CAPTION]]":
-            try:
-                next_line = next(lines_iter)
-                while not next_line.strip():
-                    next_line = next(lines_iter)
-
-                caption = ar(next_line.strip())
-                story.append(Paragraph(caption, chart_caption_style))
-                story.append(Spacer(1, 1.2 * cm))
-            except StopIteration:
-                story.append(Spacer(1, 1.2 * cm))
-            continue
-
-        # -------- ANCHOR CHART --------
         if clean == "[[ANCHOR_CHART]]":
+            charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
+            cursor = chart_cursor.get(chapter_index, 0)
             if cursor < len(charts):
                 img = plotly_to_image(charts[cursor], 16.8, 8.8)
                 if img:
@@ -358,58 +289,28 @@ def create_pdf_from_content(
                 chart_cursor[chapter_index] += 1
             continue
 
-        # -------- RHYTHM CHART --------
         if clean == "[[RHYTHM_CHART]]":
+            charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
+            cursor = chart_cursor.get(chapter_index, 0)
             if cursor < len(charts):
-                # ⭐⭐ الحل الذكي: تحديد حجم الرسم بناءً على نوعها
                 fig = charts[cursor]
-                
-                # ✅ الكشف الآمن: تجنب IndexError إذا كان fig.data فارغ
-                is_donut = (
-                    fig is not None
-                    and hasattr(fig, 'data')
-                    and len(fig.data) > 0
-                    and isinstance(fig.data[0], go.Pie)
-                )
-                
                 is_indicator = (
                     fig is not None
                     and hasattr(fig, 'data')
                     and len(fig.data) > 0
                     and isinstance(fig.data[0], go.Indicator)
                 )
-                
-                # ⭐ تحديد الحجم بناءً على نوع الرسمة
-                if is_donut:
-                    # ✅ الدونت: استخدم حجم ANCHOR (كبير)
-                    img = plotly_to_image(fig, 16.8, 8.8)
-                elif is_indicator:
-                    # ✅ المؤشر: استخدم حجم كبير تنفيذي
-                    img = plotly_to_image(fig, 17.5, 9.5)
-                else:
-                    img = plotly_to_image(fig, 16.8, 8.8)
-                
+                img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
+                                       9.5 if is_indicator else 8.8)
                 if img:
-                    if is_indicator:
-                        story.append(Spacer(1, 1.8 * cm))
-                    else:
-                        story.append(Spacer(1, 1.4 * cm))
-                    
+                    story.append(Spacer(1, 1.8 * cm if is_indicator else 1.4 * cm))
                     story.append(img)
                     story.append(Spacer(1, 0.6 * cm))
-                
                 chart_cursor[chapter_index] += 1
             continue
 
-        # -------- NORMAL TEXT --------
-        # ✅ التأكد من أن هذا ليس وسمًا قبل معالجة النص
-        if clean not in SPECIAL_TAGS:
-            clean = clean.encode("utf-8", "ignore").decode("utf-8")
-            story.append(Paragraph(ar(clean), body))
+        story.append(Paragraph(ar(clean), body))
 
-    # =========================
-    # BUILD
-    # =========================
     doc.build(story)
     buffer.seek(0)
     return buffer
