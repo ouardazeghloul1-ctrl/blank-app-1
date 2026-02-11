@@ -69,7 +69,7 @@ except ImportError:
     # تعريف بديل إذا لم تكن الملفات موجودة
     class SmartOpportunityFinder:
         def analyze_all_opportunities(self, user_info, market_data, real_data):
-            return {'عقارات_مخفضة': [], 'مناطق_صاعدة': [], 'توقيت_الاستثمار': 'محايد', 'ملخص_الفرص': 'تحتاج بيانات أكثر'}
+            return {'عقارات_مخفضة': [], 'مناطق_صادة': [], 'توقيت_الاستثمار': 'محايد', 'ملخص_الفرص': 'تحتاج بيانات أكثر'}
     
     class FinanceComparator:
         def generate_financing_report(self, user_info, property_price):
@@ -830,17 +830,18 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 
                 # 🔍 التحقق الإلزامي من محتوى التقرير
                 final_content_text = story.get("content_text", "")
+                executive_decision = story.get("executive_decision", "")
 
                 if not final_content_text or final_content_text.strip() == "":
                     st.error("❌ خطأ حرج: محتوى التقرير النصي فارغ.")
                     st.stop()
 
-                if "🏁" not in final_content_text:
-                    st.error("❌ خطأ حرج: القرار الاستثماري النهائي 🏁 غير موجود.")
-                    st.code(final_content_text[-500:] if len(final_content_text) > 500 else final_content_text)
+                if not executive_decision or not executive_decision.strip():
+                    st.error("❌ خطأ حرج: القرار التنفيذي غير موجود.")
                     st.stop()
 
-                st.success(f"✅ المحتوى سليم ({len(final_content_text)} حرف) ويحتوي على القرار النهائي")
+                st.success(f"✅ المحتوى سليم ({len(final_content_text)} حرف)")
+                st.success(f"✅ القرار التنفيذي جاهز ({len(executive_decision)} حرف)")
                 
                 charts_by_chapter = story.get("charts", {})
                 
@@ -855,6 +856,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                     market_data=market_data,
                     real_data=real_data,
                     content_text=final_content_text,
+                    executive_decision=executive_decision,  # ⭐ السطر المنقذ
                     package_level=chosen_pkg,
                     ai_recommendations=st.session_state.get("ai_recommendations")
                 )
