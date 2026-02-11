@@ -69,7 +69,7 @@ except ImportError:
     # تعريف بديل إذا لم تكن الملفات موجودة
     class SmartOpportunityFinder:
         def analyze_all_opportunities(self, user_info, market_data, real_data):
-            return {'عقارات_مخفضة': [], 'مناطق_صادة': [], 'توقيت_الاستثمار': 'محايد', 'ملخص_الفرص': 'تحتاج بيانات أكثر'}
+            return {'عقارات_مخفضة': [], 'مناطق_صاعدة': [], 'توقيت_الاستثمار': 'محايد', 'ملخص_الفرص': 'تحتاج بيانات أكثر'}
     
     class FinanceComparator:
         def generate_financing_report(self, user_info, property_price):
