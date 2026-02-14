@@ -216,7 +216,7 @@ def create_pdf_from_content(
 
     if executive_decision and executive_decision.strip():
         story.append(Spacer(1, 1.5 * cm))
-        story.append(Paragraph(ar("الخلاصة التنفيذية التنبؤية"), ai_executive_header))
+        story.append(Paragraph(ar("الخلاصة التنفيذية للقرار"), ai_executive_header))
         story.append(elegant_divider("60%"))
         story.append(Spacer(1, 0.8 * cm))
 
@@ -246,6 +246,45 @@ def create_pdf_from_content(
         story.append(Spacer(1, 1.2 * cm))
         story.append(elegant_divider("30%"))
         story.append(PageBreak())
+
+    # =========================
+    # TRANSITION PAGE – HOW TO READ THIS REPORT
+    # =========================
+    story.append(Spacer(1, 3 * cm))
+
+    story.append(Paragraph(
+        ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"),
+        ai_executive_header
+    ))
+
+    story.append(elegant_divider("55%"))
+    story.append(Spacer(1, 1.2 * cm))
+
+    story.append(Paragraph(ar(
+        "الخلاصة التنفيذية للقرار تمثل القرار المعتمد لهذا التقرير، "
+        "وقد تم اشتقاقه بناءً على مؤشرات رقمية ومعايير تحليلية محددة."
+    ), body))
+
+    story.append(Paragraph(ar(
+        "الفصول التالية لا تُقرأ كتحليل عام للسوق، ولا كمسار للوصول إلى قرار جديد، "
+        "بل كشرح منهجي للأسس التي بُني عليها القرار الصادر."
+    ), body))
+
+    story.append(Paragraph(ar(
+        "كل فصل يفسر جانبًا محددًا من القرار، ويبيّن السياق السوقي، "
+        "وحدود المخاطر، وطبيعة الفرص، وشروط التوقيت والتنفيذ، "
+        "بهدف توضيح لماذا جاء القرار بهذه الصيغة تحديدًا."
+    ), body))
+
+    story.append(Paragraph(ar(
+        "القرار موجود في الأعلى، "
+        "وما يلي هو الإطار التحليلي الذي يبرره، "
+        "ويحدّد نطاق صلاحيته، ويضبط تطبيقه."
+    ), body))
+
+    story.append(Spacer(1, 1.5 * cm))
+    story.append(elegant_divider("30%"))
+    story.append(PageBreak())
 
     charts_by_chapter = st.session_state.get("charts_by_chapter", {})
     chapter_index = 0
