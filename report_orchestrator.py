@@ -238,10 +238,25 @@ def build_report_story(user_info, dataframe=None):
     print("="*30)
 
     # توليد الخلاصة التنفيذية بشكل مستقل
+    # ⭐ تعديل مهم: تمرير package إجباريًا
+    package_level = user_info.get("package") or user_info.get("chosen_pkg") or "مجانية"
+    
+    # تحويل اسم الباقة العربي إلى المفتاح الإنجليزي
+    package_key_map = {
+        "مجانية": "free",
+        "فضية": "silver",
+        "ذهبية": "gold",
+        "ماسية": "diamond",
+        "ماسية متميزة": "diamond_plus"
+    }
+    
+    package_key = package_key_map.get(package_level, "free")
+
     executive_decision = generate_executive_summary(
         user_info=user_info,
         market_data=market_data,
-        real_data=df if df is not None else pd.DataFrame()
+        real_data=df if df is not None else pd.DataFrame(),
+        package=package_key  # ✅ تمرير package إجباريًا
     )
 
     # توليد الرسومات
