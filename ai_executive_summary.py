@@ -173,11 +173,20 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
             "volatility": volatility
         }
 
-def generate_executive_summary(user_info, market_data, real_data, package="free"):
+def generate_executive_summary(user_info, market_data, real_data, package):
     """
     الخلاصة التنفيذية للقرار – Warda Intelligence
     يتم التحكم في عمق المحتوى حسب الباقة المحددة
     """
+    
+    if not package:
+        raise ValueError("Package must be explicitly provided.")
+    
+    if package not in PACKAGE_CONFIG:
+        raise ValueError(
+            f"Invalid package '{package}'. "
+            f"Allowed: {list(PACKAGE_CONFIG.keys())}"
+        )
     
     if real_data is None or real_data.empty:
         return (
