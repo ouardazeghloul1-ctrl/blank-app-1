@@ -9,6 +9,7 @@
 
 from smart_opportunities import SmartOpportunityFinder
 from gold_decision_engine import generate_gold_decision_metrics
+from decision_terminology import TERMS
 import numpy as np
 import pandas as pd
 
@@ -190,7 +191,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     
     if real_data is None or real_data.empty:
         return (
-            "الخلاصة التنفيذية للقرار – Warda Intelligence\n\n"
+            f"{TERMS['DECISION']['label']} – Warda Intelligence\n\n"
             "تعذر توليد الخلاصة لعدم توفر بيانات سوقية حقيقية."
         )
 
@@ -229,7 +230,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     # =========================
     # العنوان الرئيسي (موحد لجميع الباقات)
     # =========================
-    lines.append("الخلاصة التنفيذية للقرار")
+    lines.append(TERMS['DECISION']['label'])
     lines.append("")
     lines.append("Warda Intelligence")
     lines.append("")
@@ -247,7 +248,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     # DCI (يظهر للجميع لكن بمستويات مختلفة)
     # =========================
     if config["show_dci"]:
-        lines.append("أولاً: مؤشر موثوقية القرار (DCI)")
+        lines.append(f"أولاً: {TERMS['DCI']['label']} (DCI)")
         lines.append("")
         lines.append(f"{dci} / 100")
         lines.append("")
@@ -279,7 +280,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     # VGS (يظهر للجميع)
     # =========================
     if config["show_vgs"]:
-        lines.append("ثانياً: فجوة القيمة السوقية (VGS)")
+        lines.append(f"ثانياً: {TERMS['VGS']['label']} (VGS)")
         lines.append("")
         vgs_display = f"{vgs}%" if vgs < 0 else f"+{vgs}%"
         lines.append(f"{vgs_display}")
@@ -313,7 +314,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     # RAOS (للباقات الفضية فأعلى)
     # =========================
     if config["show_raos"]:
-        lines.append("ثالثاً: مؤشر الفرصة المعدلة بالمخاطر (RAOS)")
+        lines.append(f"ثالثاً: {TERMS['RAOS']['label']} (RAOS)")
         lines.append("")
         lines.append(f"{raos} / 100")
         lines.append("")
@@ -346,7 +347,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     if config["show_scm"]:
         lines.append(f"رابعاً: {config['scm_title']} (SCM)")
         lines.append("")
-        lines.append(f"{scm}% توافق")
+        lines.append(f"{scm}% {TERMS['SCM']['display']}")
         
         if config["executive_depth"] == "intermediate":
             lines.append("")
@@ -484,7 +485,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     # Executive Protocol
     # =========================
     if config["show_protocol"]:
-        lines.append("البروتوكول التنفيذي")
+        lines.append(TERMS['PROTOCOL']['label'])
         lines.append("")
         
         if config["executive_depth"] == "advanced":
@@ -512,11 +513,11 @@ def generate_executive_summary(user_info, market_data, real_data, package):
         lines.append("")
         lines.append("يبقى هذا القرار سارياً طالما:")
         lines.append("")
-        lines.append(f"DCI أعلى من 55")
-        lines.append(f"VGS بين –8% و +5%")
+        lines.append(f"{TERMS['DCI']['label']} أعلى من 55")
+        lines.append(f"{TERMS['VGS']['label']} بين –8% و +5%")
         
         if config["executive_depth"] == "comprehensive":
-            lines.append(f"SCM أعلى من 60%")
+            lines.append(f"{TERMS['SCM']['display']} أعلى من 60%")
             lines.append("")
             lines.append("عند كسر أي شرط، يتم تفعيل إعادة المعايرة الرقمية فوراً.")
         
