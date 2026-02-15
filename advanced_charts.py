@@ -3,6 +3,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
+from decision_terminology import TERMS
 
 
 class AdvancedCharts:
@@ -172,9 +173,9 @@ class AdvancedCharts:
 
         caption = self._executive_caption(
             state,
-            positive="القرار التنفيذي: مناطق بأسعار أقل من المرجع، تدعم الانتقاء المرحلي.",
-            neutral="القرار التنفيذي: أسعار ضمن النطاق المرجعي، التحرك مشروط بالتميز.",
-            negative="القرار التنفيذي: مناطق تتجاوز المرجع، تتطلب انتقاءً أشد."
+            positive=f"{TERMS['DECISION']['label']}: مناطق بأسعار أقل من المرجع، تدعم الانتقاء المرحلي.",
+            neutral=f"{TERMS['DECISION']['label']}: أسعار ضمن النطاق المرجعي، التحرك مشروط بالتميز.",
+            negative=f"{TERMS['DECISION']['label']}: مناطق تتجاوز المرجع، تتطلب انتقاءً أشد."
         )
 
         fig.add_annotation(
@@ -247,9 +248,9 @@ class AdvancedCharts:
 
         caption = self._executive_caption(
             state,
-            positive="القرار التنفيذي: اتجاه صاعد يدعم الاستراتيجية طويلة المدى.",
-            neutral="القرار التنفيذي: استقرار اتجاهي، التحرك وفق البروتوكول.",
-            negative="القرار التنفيذي: اتجاه هابط يتطلب حذراً وانتقاءً أشد."
+            positive=f"{TERMS['DECISION']['label']}: اتجاه صاعد يدعم الاستراتيجية طويلة المدى.",
+            neutral=f"{TERMS['DECISION']['label']}: استقرار اتجاهي، التحرك وفق {TERMS['PROTOCOL']['label']}.",
+            negative=f"{TERMS['DECISION']['label']}: اتجاه هابط يتطلب حذراً وانتقاءً أشد."
         )
 
         fig.add_annotation(
@@ -313,9 +314,9 @@ class AdvancedCharts:
 
         caption = self._executive_caption(
             state,
-            positive="القرار التنفيذي: التسعير دون المستوى المرجعي، الانتقاء المرحلي مدعوم.",
-            neutral="القرار التنفيذي: السوق ضمن النطاق المرجعي، التحرك مشروط بالتميز.",
-            negative="القرار التنفيذي: التسعير أعلى من المرجع، لا يدعم توسعاً أفقيًا."
+            positive=f"{TERMS['DECISION']['label']}: التسعير دون المستوى المرجعي، الانتقاء المرحلي مدعوم.",
+            neutral=f"{TERMS['DECISION']['label']}: السوق ضمن النطاق المرجعي، التحرك مشروط بالتميز.",
+            negative=f"{TERMS['DECISION']['label']}: التسعير أعلى من المرجع، لا يدعم توسعاً أفقيًا."
         )
 
         fig.add_annotation(
@@ -411,9 +412,9 @@ class AdvancedCharts:
 
         caption = self._executive_caption(
             state,
-            positive="القرار التنفيذي: العلاقة السعر-مساحة تدعم الانتقاء الانتقائي.",
-            neutral="القرار التنفيذي: العلاقة ضمن النطاق، التحرك مشروط بالميزة.",
-            negative="القرار التنفيذي: العلاقة تتجاوز المرجع، تتطلب انتقاءً أشد."
+            positive=f"{TERMS['DECISION']['label']}: العلاقة السعر-مساحة تدعم الانتقاء الانتقائي.",
+            neutral=f"{TERMS['DECISION']['label']}: العلاقة ضمن النطاق، التحرك مشروط بالميزة.",
+            negative=f"{TERMS['DECISION']['label']}: العلاقة تتجاوز المرجع، تتطلب انتقاءً أشد."
         )
 
         fig.add_annotation(
@@ -504,9 +505,9 @@ class AdvancedCharts:
 
         caption = self._executive_caption(
             state,
-            positive="القرار التنفيذي: المؤشرات تدعم تفعيل استراتيجية الانتقاء المرحلي.",
-            neutral="القرار التنفيذي: المؤشرات متوازنة، الالتزام بالبروتوكول.",
-            negative="القرار التنفيذي: المؤشرات تتطلب انتقاءً أشد، لا توسع أفقي."
+            positive=f"{TERMS['DECISION']['label']}: المؤشرات تدعم تفعيل استراتيجية الانتقاء المرحلي.",
+            neutral=f"{TERMS['DECISION']['label']}: المؤشرات متوازنة، الالتزام بـ {TERMS['PROTOCOL']['label']}.",
+            negative=f"{TERMS['DECISION']['label']}: المؤشرات تتطلب انتقاءً أشد، لا توسع أفقي."
         )
 
         fig.add_annotation(
@@ -570,7 +571,7 @@ class AdvancedCharts:
         ))
 
         fig.update_layout(
-            title="مؤشر القرار التنفيذي",
+            title=TERMS['DCI']['label'],
             height=540,
             margin=dict(l=30, r=30, t=90, b=90),
             font=dict(family="Tajawal", size=18)
@@ -586,9 +587,9 @@ class AdvancedCharts:
 
         caption = self._executive_caption(
             state,
-            positive="القرار التنفيذي: المؤشر يدعم التحرك المنضبط وفق البروتوكول.",
-            neutral="القرار التنفيذي: المؤشر يتطلب انتقاءً صارماً دون توسع.",
-            negative="القرار التنفيذي: البيئة الحالية تتطلب حذراً وانتقاءً أشد."
+            positive=f"{TERMS['DECISION']['label']}: {TERMS['DCI']['display']} مرتفع يدعم التحرك المنضبط وفق {TERMS['PROTOCOL']['label']}.",
+            neutral=f"{TERMS['DECISION']['label']}: {TERMS['DCI']['display']} متوسط، يتطلب انتقاءً صارماً دون توسع.",
+            negative=f"{TERMS['DECISION']['label']}: {TERMS['DCI']['display']} منخفض، البيئة الحالية تتطلب حذراً وانتقاءً أشد."
         )
 
         fig.add_annotation(
@@ -632,7 +633,7 @@ class AdvancedCharts:
         fig.add_trace(
             go.Bar(
                 x=[score],
-                y=["قرار الاستثمار"],
+                y=[TERMS['DECISION']['label']],
                 orientation="h",
                 marker=dict(color=self.COLORS["emerald"]),
                 text=[f"{score:.0f}"],
@@ -641,7 +642,7 @@ class AdvancedCharts:
         )
 
         fig.update_layout(
-            title="قرار الاستثمار التنفيذي",
+            title=TERMS['DECISION']['label'],
             xaxis=dict(
                 range=[0, 100],
                 visible=False
@@ -665,9 +666,9 @@ class AdvancedCharts:
 
         caption = self._executive_caption(
             state,
-            positive="القرار التنفيذي: درجة قرار عالية، تفعيل الاستراتيجية طويل المدى.",
-            neutral="القرار التنفيذي: درجة قرار متوسطة، انتقاء صارم فقط.",
-            negative="القرار التنفيذي: درجة قرار منخفضة، تعليق أي توسع أفقي."
+            positive=f"{TERMS['DECISION']['label']}: درجة قرار عالية، تفعيل الاستراتيجية طويل المدى.",
+            neutral=f"{TERMS['DECISION']['label']}: درجة قرار متوسطة، {TERMS['PROTOCOL']['label']} صارم.",
+            negative=f"{TERMS['DECISION']['label']}: درجة قرار منخفضة، تعليق أي توسع أفقي."
         )
 
         fig.add_annotation(
@@ -729,9 +730,9 @@ class AdvancedCharts:
 
         caption = self._executive_caption(
             state,
-            positive="القرار التنفيذي: المؤشرات الختامية تؤكد صلاحية القرار المعلن.",
-            neutral="القرار التنفيذي: المؤشرات الختامية متوازنة، لا تعديل على القرار.",
-            negative="القرار التنفيذي: المؤشرات الختامية تحذّر، استمرار الانضباط."
+            positive=f"{TERMS['DECISION']['label']}: المؤشرات الختامية تؤكد صلاحية {TERMS['DECISION']['label']}.",
+            neutral=f"{TERMS['DECISION']['label']}: المؤشرات الختامية متوازنة، لا تعديل على {TERMS['DECISION']['label']}.",
+            negative=f"{TERMS['DECISION']['label']}: المؤشرات الختامية تحذّر، استمرار الانضباط."
         )
 
         fig.add_annotation(
