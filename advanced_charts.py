@@ -28,6 +28,8 @@ class AdvancedCharts:
     # DECISION CONSTANTS
     # =====================
     DECISION_BASE_PRICE_PER_SQM = 20000  # قاعدة القرار التنفيذي
+    LOWER_DECISION_BOUND = 0.9  # الحد الأدنى للنطاق المرجعي
+    UPPER_DECISION_BOUND = 1.1  # الحد الأعلى للنطاق المرجعي
 
     # =====================
     # HELPERS
@@ -71,7 +73,7 @@ class AdvancedCharts:
         fig.update_layout(
             template="plotly_white",
             height=height,
-            margin=dict(l=70, r=70, t=90, b=70),
+            margin=dict(l=70, r=70, t=90, b=90),  # مسافة موحدة للجميع
             font=dict(size=15, color=self.COLORS["text"], family="Tajawal"),
             xaxis=dict(tickfont=dict(size=16)),
             yaxis=dict(tickfont=dict(size=16)),
@@ -81,7 +83,7 @@ class AdvancedCharts:
             ),
             plot_bgcolor=self.COLORS["light_gray"],
             paper_bgcolor="white",
-            hovermode="closest",  # ✅ التعديل: من "x unified" إلى "closest"
+            hovermode="closest",
             hoverlabel=dict(font_size=15, font_family="Tajawal"),
         )
 
@@ -89,6 +91,28 @@ class AdvancedCharts:
         fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.05)", zeroline=False)
 
         return fig
+
+    def _executive_caption(self, condition, positive, neutral, negative):
+        """
+        مولد قراءة تنفيذية ديناميكية - نبرة موحدة لجميع الباقات
+        """
+        if condition == "positive":
+            return positive
+        elif condition == "negative":
+            return negative
+        else:
+            return neutral
+
+    def _get_decision_state(self, ratio):
+        """
+        تحديد حالة القرار بناءً على النسبة من القيمة المرجعية
+        """
+        if ratio < self.LOWER_DECISION_BOUND:
+            return "positive"
+        elif ratio > self.UPPER_DECISION_BOUND:
+            return "negative"
+        else:
+            return "neutral"
 
     # =====================
     # CHAPTER 1 – PRICE PER SQM BY DISTRICT
@@ -141,7 +165,30 @@ class AdvancedCharts:
             yaxis=dict(autorange="reversed"),
         )
 
-        return self._safe(fig, height=520)
+        # إضافة القراءة التنفيذية
+        max_price = agg.max() if not agg.empty else 0
+        decision_ratio = max_price / self.DECISION_BASE_PRICE_PER_SQM
+        state = self._get_decision_state(decision_ratio)
+
+        caption = self._executive_caption(
+            state,
+            positive="القرار التنفيذي: مناطق بأسعار أقل من المرجع، تدعم الانتقاء المرحلي.",
+            neutral="القرار التنفيذي: أسعار ضمن النطاق المرجعي، التحرك مشروط بالتميز.",
+            negative="القرار التنفيذي: مناطق تتجاوز المرجع، تتطلب انتقاءً أشد."
+        )
+
+        fig.add_annotation(
+            text=caption,
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=-0.18,
+            showarrow=False,
+            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
+            align="center"
+        )
+
+        return self._safe(fig, height=540)
 
     # =====================
     # CHAPTER 2 – TIME FLOW
@@ -183,7 +230,40 @@ class AdvancedCharts:
             yaxis=dict(title_standoff=10),
         )
 
-        return self._safe(fig, height=520)
+        # إضافة القراءة التنفيذية
+        if len(tmp) > 1:
+            first_price = tmp["price"].iloc[0]
+            last_price = tmp["price"].iloc[-1]
+            trend = (last_price - first_price) / first_price if first_price > 0 else 0
+            
+            if trend > 0.05:
+                state = "positive"
+            elif trend < -0.05:
+                state = "negative"
+            else:
+                state = "neutral"
+        else:
+            state = "neutral"
+
+        caption = self._executive_caption(
+            state,
+            positive="القرار التنفيذي: اتجاه صاعد يدعم الاستراتيجية طويلة المدى.",
+            neutral="القرار التنفيذي: استقرار اتجاهي، التحرك وفق البروتوكول.",
+            negative="القرار التنفيذي: اتجاه هابط يتطلب حذراً وانتقاءً أشد."
+        )
+
+        fig.add_annotation(
+            text=caption,
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=-0.18,
+            showarrow=False,
+            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
+            align="center"
+        )
+
+        return self._safe(fig, height=540)
 
     # =====================
     # CHAPTER 3 – PRICE DISTRIBUTION
@@ -225,7 +305,31 @@ class AdvancedCharts:
 
         fig.update_layout(title=title)
         fig.update_xaxes(tickformat="~s")
-        return self._safe(fig, height=520)
+
+        # إضافة القراءة التنفيذية
+        mean_price = p.mean()
+        decision_ratio = mean_price / self.DECISION_BASE_PRICE_PER_SQM
+        state = self._get_decision_state(decision_ratio)
+
+        caption = self._executive_caption(
+            state,
+            positive="القرار التنفيذي: التسعير دون المستوى المرجعي، الانتقاء المرحلي مدعوم.",
+            neutral="القرار التنفيذي: السوق ضمن النطاق المرجعي، التحرك مشروط بالتميز.",
+            negative="القرار التنفيذي: التسعير أعلى من المرجع، لا يدعم توسعاً أفقيًا."
+        )
+
+        fig.add_annotation(
+            text=caption,
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=-0.18,
+            showarrow=False,
+            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
+            align="center"
+        )
+
+        return self._safe(fig, height=540)
 
     # =====================
     # CHAPTER 4 – MARKET RELATION
@@ -300,7 +404,30 @@ class AdvancedCharts:
         fig.update_xaxes(showgrid=False, zeroline=False)
         fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.06)", zeroline=False)
 
-        return self._safe(fig, height=460)
+        # إضافة القراءة التنفيذية
+        avg_price_per_sqm = (tmp["price"] / tmp["area"]).mean()
+        decision_ratio = avg_price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM
+        state = self._get_decision_state(decision_ratio)
+
+        caption = self._executive_caption(
+            state,
+            positive="القرار التنفيذي: العلاقة السعر-مساحة تدعم الانتقاء الانتقائي.",
+            neutral="القرار التنفيذي: العلاقة ضمن النطاق، التحرك مشروط بالميزة.",
+            negative="القرار التنفيذي: العلاقة تتجاوز المرجع، تتطلب انتقاءً أشد."
+        )
+
+        fig.add_annotation(
+            text=caption,
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=-0.18,
+            showarrow=False,
+            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
+            align="center"
+        )
+
+        return self._safe(fig, height=540)
 
     # =====================
     # CHAPTER 5 – MARKET INDICATORS
@@ -371,7 +498,29 @@ class AdvancedCharts:
             bargap=0.4
         )
 
-        return self._safe(fig, height=460)
+        # إضافة القراءة التنفيذية
+        decision_ratio = price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM if price_per_sqm > 0 else 1
+        state = self._get_decision_state(decision_ratio)
+
+        caption = self._executive_caption(
+            state,
+            positive="القرار التنفيذي: المؤشرات تدعم تفعيل استراتيجية الانتقاء المرحلي.",
+            neutral="القرار التنفيذي: المؤشرات متوازنة، الالتزام بالبروتوكول.",
+            negative="القرار التنفيذي: المؤشرات تتطلب انتقاءً أشد، لا توسع أفقي."
+        )
+
+        fig.add_annotation(
+            text=caption,
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=-0.18,
+            showarrow=False,
+            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
+            align="center"
+        )
+
+        return self._safe(fig, height=540)
 
     # =====================
     # CHAPTER 6 – GAUGE
@@ -396,7 +545,7 @@ class AdvancedCharts:
         
         if avg_area > 0:
             price_per_sqm = avg_price / avg_area
-            score = min(100, max(0, (price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM) * 100))  # ✅ التعديل: ثابت مركزي
+            score = min(100, max(0, (price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM) * 100))
         else:
             score = 50
 
@@ -422,9 +571,35 @@ class AdvancedCharts:
 
         fig.update_layout(
             title="مؤشر القرار التنفيذي",
-            height=520,
-            margin=dict(l=30, r=30, t=90, b=30),
+            height=540,
+            margin=dict(l=30, r=30, t=90, b=90),
             font=dict(family="Tajawal", size=18)
+        )
+
+        # إضافة القراءة التنفيذية
+        if score >= 70:
+            state = "positive"
+        elif score <= 40:
+            state = "negative"
+        else:
+            state = "neutral"
+
+        caption = self._executive_caption(
+            state,
+            positive="القرار التنفيذي: المؤشر يدعم التحرك المنضبط وفق البروتوكول.",
+            neutral="القرار التنفيذي: المؤشر يتطلب انتقاءً صارماً دون توسع.",
+            negative="القرار التنفيذي: البيئة الحالية تتطلب حذراً وانتقاءً أشد."
+        )
+
+        fig.add_annotation(
+            text=caption,
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=-0.18,
+            showarrow=False,
+            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
+            align="center"
         )
 
         return fig
@@ -450,7 +625,7 @@ class AdvancedCharts:
         price_per_sqm = (tmp["price"] / tmp["area"]).mean()
 
         # تحويله إلى مقياس قرار (0 – 100)
-        score = min(100, max(0, (price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM) * 100))  # ✅ التعديل: ثابت مركزي
+        score = min(100, max(0, (price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM) * 100))
 
         fig = go.Figure()
 
@@ -475,12 +650,38 @@ class AdvancedCharts:
                 visible=False
             ),
             showlegend=False,
-            height=300,
-            margin=dict(l=70, r=70, t=90, b=70),
+            height=360,
+            margin=dict(l=70, r=70, t=90, b=90),
             font=dict(family="Tajawal")
         )
 
-        return self._safe(fig, height=300)  # ✅ التعديل: تمرير عبر _safe
+        # إضافة القراءة التنفيذية
+        if score >= 70:
+            state = "positive"
+        elif score <= 40:
+            state = "negative"
+        else:
+            state = "neutral"
+
+        caption = self._executive_caption(
+            state,
+            positive="القرار التنفيذي: درجة قرار عالية، تفعيل الاستراتيجية طويل المدى.",
+            neutral="القرار التنفيذي: درجة قرار متوسطة، انتقاء صارم فقط.",
+            negative="القرار التنفيذي: درجة قرار منخفضة، تعليق أي توسع أفقي."
+        )
+
+        fig.add_annotation(
+            text=caption,
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=-0.18,
+            showarrow=False,
+            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
+            align="center"
+        )
+
+        return self._safe(fig, height=400)
 
     # =====================
     # CHAPTER 8 – FINAL CURVE
@@ -520,8 +721,31 @@ class AdvancedCharts:
         
         fig.update_xaxes(tickformat="~s", showgrid=False)
         fig.update_yaxes(showticklabels=False, showgrid=False)
+
+        # إضافة القراءة التنفيذية
+        mean_price = p.mean()
+        decision_ratio = mean_price / self.DECISION_BASE_PRICE_PER_SQM
+        state = self._get_decision_state(decision_ratio)
+
+        caption = self._executive_caption(
+            state,
+            positive="القرار التنفيذي: المؤشرات الختامية تؤكد صلاحية القرار المعلن.",
+            neutral="القرار التنفيذي: المؤشرات الختامية متوازنة، لا تعديل على القرار.",
+            negative="القرار التنفيذي: المؤشرات الختامية تحذّر، استمرار الانضباط."
+        )
+
+        fig.add_annotation(
+            text=caption,
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=-0.18,
+            showarrow=False,
+            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
+            align="center"
+        )
         
-        return self._safe(fig, height=520)
+        return self._safe(fig, height=540)
 
     # =====================
     # ENGINE
