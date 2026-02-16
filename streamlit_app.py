@@ -28,9 +28,9 @@ import os
 import streamlit.components.v1 as components
 
 # ===== Robo Chat System =====
-from robo_chat.robo_brain import RoboAdvisor
-from robo_chat.robo_guard import RoboGuard
-from robo_chat.robo_knowledge import RoboKnowledge
+from robo_brain import RoboAdvisor
+from robo_guard import RoboGuard
+from robo_knowledge import RoboKnowledge
 
 # ✅ استيراد نظام التنبيهات
 try:
