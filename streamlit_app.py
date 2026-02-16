@@ -25,6 +25,7 @@ from bidi.algorithm import get_display
 import paypalrestsdk
 from dotenv import load_dotenv
 import os
+import streamlit.components.v1 as components
 
 # ✅ استيراد الأنماط والخطوط لـ ReportLab
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -186,7 +187,6 @@ def setup_arabic_support():
         font-family: 'Tajawal', 'Arial', sans-serif !important;
         direction: rtl !important;
         background-color: gold !important;
-        color: black !important;
         font-weight: bold !important;
         border-radius: 15px !important;
         padding: 1em 2em !important;
@@ -194,6 +194,14 @@ def setup_arabic_support():
         width: 100% !important;
         font-size: 18px !important;
         transition: all 0.3s ease !important;
+    }
+    
+    /* ✅ إصلاح لون النص في الأزرار الصفراء فقط */
+    .stButton button,
+    .stButton button span {
+        color: #000000 !important;   /* أسود واضح */
+        text-shadow: none !important;
+        font-weight: 800 !important;
     }
     
     .stButton button:hover {
@@ -878,29 +886,29 @@ total_benefit_with_report = (
 
 net_decision_advantage = total_benefit_with_report - total_price
 
-# ===== عرض المقارنة جنباً إلى جنب مع unsafe_allow_html=True =====
-st.markdown(f"""
-<div style='display:flex; gap:20px; margin-top:20px;'>
+# ===== عرض المقارنة باستخدام components.html (حل قاطع للمربع الأبيض) =====
+components.html(f"""
+<div style='display:flex; gap:20px; margin-top:20px; font-family: Tajawal, Arial, sans-serif; direction: rtl;'>
     <div style='flex:1; background:#1a1a1a; padding:25px; border-radius:15px; border:1px solid #444;'>
-        <h4 style='color:#ff4d4d; text-align:center;'>❌ بدون تقرير</h4>
-        <p style='margin-top:15px;'>• تسعير غير دقيق: <strong>{int(loss_wrong_pricing):,}$</strong></p>
-        <p>• توقيت خاطئ: <strong>{int(loss_bad_timing):,}$</strong></p>
-        <p>• تجاهل المخاطر: <strong>{int(loss_risk_blindness):,}$</strong></p>
+        <h4 style='color:#ff4d4d; text-align:center; margin:0 0 15px 0;'>❌ بدون تقرير</h4>
+        <p style='margin:10px 0; color:#EAEAEA;'>• تسعير غير دقيق: <strong style='color:#00FFD1;'>{int(loss_wrong_pricing):,}$</strong></p>
+        <p style='margin:10px 0; color:#EAEAEA;'>• توقيت خاطئ: <strong style='color:#00FFD1;'>{int(loss_bad_timing):,}$</strong></p>
+        <p style='margin:10px 0; color:#EAEAEA;'>• تجاهل المخاطر: <strong style='color:#00FFD1;'>{int(loss_risk_blindness):,}$</strong></p>
         <hr style='border:1px solid #444; margin:15px 0;'>
-        <p style='font-size:18px;'><strong>تكلفة القرار غير المدروس:</strong> {int(total_loss_without_report):,}$</p>
+        <p style='font-size:18px; margin:0; color:#EAEAEA;'><strong style='color:#ff4d4d;'>تكلفة القرار غير المدروس:</strong> {int(total_loss_without_report):,}$</p>
     </div>
 
     <div style='flex:1; background:#1a1a1a; padding:25px; border-radius:15px; border:2px solid #00FFD1;'>
-        <h4 style='color:#00FFD1; text-align:center;'>✅ مع تقرير Warda</h4>
-        <p style='margin-top:15px;'>• تقليل المخاطر: <strong>{int(risk_reduction):,}$</strong></p>
-        <p>• تحسين سعر الدخول: <strong>{int(pricing_gain):,}$</strong></p>
-        <p>• تحسين التوقيت: <strong>{int(timing_gain):,}$</strong></p>
+        <h4 style='color:#00FFD1; text-align:center; margin:0 0 15px 0;'>✅ مع تقرير Warda</h4>
+        <p style='margin:10px 0; color:#EAEAEA;'>• تقليل المخاطر: <strong style='color:#00FFD1;'>{int(risk_reduction):,}$</strong></p>
+        <p style='margin:10px 0; color:#EAEAEA;'>• تحسين سعر الدخول: <strong style='color:#00FFD1;'>{int(pricing_gain):,}$</strong></p>
+        <p style='margin:10px 0; color:#EAEAEA;'>• تحسين التوقيت: <strong style='color:#00FFD1;'>{int(timing_gain):,}$</strong></p>
         <hr style='border:1px solid #00FFD1; margin:15px 0;'>
-        <p style='font-size:18px;'><strong>ميزة القرار:</strong> {int(net_decision_advantage):,}$</p>
-        <p style='font-size:13px; color:#888; margin-top:5px;'>ناتجة عن تحليل السوق + توقيت الدخول + إدارة المخاطر</p>
+        <p style='font-size:18px; margin:0; color:#EAEAEA;'><strong style='color:#00FFD1;'>ميزة القرار:</strong> {int(net_decision_advantage):,}$</p>
+        <p style='font-size:13px; color:#888; margin:5px 0 0 0;'>ناتجة عن تحليل السوق + توقيت الدخول + إدارة المخاطر</p>
     </div>
 </div>
-""", unsafe_allow_html=True)
+""", height=350)
 
 # ===== الدليل والحسابات (يثبت المصداقية - بدون أي مربع أبيض) =====
 with st.expander("🔍 لماذا هذه الأرقام واقعية؟ (اضغط لرؤية الحسابات)"):
