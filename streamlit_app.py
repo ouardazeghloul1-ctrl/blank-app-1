@@ -121,11 +121,9 @@ def setup_arabic_support():
     
     * {
         font-family: 'Tajawal', 'Arial', sans-serif !important;
-        direction: rtl !important;
-        text-align: right !important;
     }
     
-    .main .block-container {
+    html, body, .main .block-container {
         direction: rtl !important;
         text-align: right !important;
     }
@@ -150,7 +148,7 @@ def setup_arabic_support():
     }
     
     .stTextInput label, .stNumberInput label, .stSelectbox label, 
-    .stTextArea label, .stSlider label, .stRadio label {
+    .stTextArea label, .stRadio label {
         direction: rtl !important;
         text-align: right !important;
         font-family: 'Tajawal', 'Arial', sans-serif !important;
@@ -269,24 +267,17 @@ def setup_arabic_support():
         direction: rtl !important;
         text-align: right !important;
     }
-    
-    .stSlider > div {
-        direction: rtl !important;
-    }
-    
-    /* 🔒 حل نهائي لمشكلة خروج رقم الـ slider */
-    [data-testid="stSlider"] span[data-testid="stSliderValue"] {
-        display: none !important;
-    }
-
-    /* منع أي عنصر من الخروج خارج السطر */
-    [data-testid="stSlider"] {
-        overflow: hidden !important;
-    }
     </style>
     """, unsafe_allow_html=True)
 
 setup_arabic_support()
+
+# ========== دالة LTR Slider (الحل النهائي للمشكلة) ==========
+def ltr_slider(label, min_value, max_value, value, key):
+    st.markdown("<div style='direction:ltr; text-align:left'>", unsafe_allow_html=True)
+    v = st.slider(label, min_value, max_value, value, key=key)
+    st.markdown("</div>", unsafe_allow_html=True)
+    return v
 
 # ========== نظام الباقات ==========
 PACKAGES = {
@@ -735,10 +726,12 @@ with col1:
     property_type = st.selectbox("نوع العقار:", 
                                 ["شقة", "فيلا", "أرض", "محل تجاري"])
     status = st.selectbox("الحالة:", ["للبيع", "للشراء", "للإيجار"])
-    area = st.slider("المساحة (م²):", 50, 1000, 120)
+    
+    # استخدام دالة ltr_slider بدلاً من st.slider مباشرة
+    area = ltr_slider("المساحة (م²):", 50, 1000, 120, key="area_slider")
     st.markdown(f"**المساحة المختارة:** {area} م²")
     
-    property_count = st.slider("🔢 عدد العقارات للتحليل:", 50, 1000, 200)
+    property_count = ltr_slider("🔢 عدد العقارات للتحليل:", 50, 1000, 200, key="count_slider")
     st.markdown(f"**عدد العقارات المختارة:** {property_count}")
 
 with col2:
