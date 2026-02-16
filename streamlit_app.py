@@ -878,7 +878,7 @@ total_benefit_with_report = (
 
 net_decision_advantage = total_benefit_with_report - total_price
 
-# ===== عرض المقارنة جنباً إلى جنب =====
+# ===== عرض المقارنة جنباً إلى جنب مع unsafe_allow_html=True =====
 st.markdown(f"""
 <div style='display:flex; gap:20px; margin-top:20px;'>
     <div style='flex:1; background:#1a1a1a; padding:25px; border-radius:15px; border:1px solid #444;'>
