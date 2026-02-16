@@ -272,13 +272,6 @@ def setup_arabic_support():
 
 setup_arabic_support()
 
-# ========== دالة LTR Slider (الحل النهائي للمشكلة) ==========
-def ltr_slider(label, min_value, max_value, value, key):
-    st.markdown("<div style='direction:ltr; text-align:left'>", unsafe_allow_html=True)
-    v = st.slider(label, min_value, max_value, value, key=key)
-    st.markdown("</div>", unsafe_allow_html=True)
-    return v
-
 # ========== نظام الباقات ==========
 PACKAGES = {
     "مجانية": {
@@ -727,31 +720,137 @@ with col1:
                                 ["شقة", "فيلا", "أرض", "محل تجاري"])
     status = st.selectbox("الحالة:", ["للبيع", "للشراء", "للإيجار"])
     
-    # استخدام دالة ltr_slider بدلاً من st.slider مباشرة
-    area = ltr_slider("المساحة (م²):", 50, 1000, 120, key="area_slider")
+    # 🔄 استبدال السلايدر بـ Selectbox (حل نهائي لمشكلة السهم)
+    area_options = [80, 100, 120, 150, 180, 200, 250, 300, 400, 500, 600, 800, 1000]
+    area_index = st.selectbox(
+        "📐 المساحة المستهدفة (م²)",
+        range(len(area_options)),
+        format_func=lambda i: f"{area_options[i]} م²",
+        key="area_select"
+    )
+    area = area_options[area_index]
     st.markdown(f"**المساحة المختارة:** {area} م²")
     
-    property_count = ltr_slider("🔢 عدد العقارات للتحليل:", 50, 1000, 200, key="count_slider")
+    property_count_options = [50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000]
+    count_index = st.selectbox(
+        "🔢 عدد العقارات للتحليل",
+        range(len(property_count_options)),
+        format_func=lambda i: f"{property_count_options[i]} عقار",
+        key="count_select"
+    )
+    property_count = property_count_options[count_index]
     st.markdown(f"**عدد العقارات المختارة:** {property_count}")
 
 with col2:
     st.markdown("### 💎 اختيار الباقة")
     chosen_pkg = st.radio("اختر باقتك:", list(PACKAGES.keys()))
     base_price = PACKAGES[chosen_pkg]["price"]
-    total_price = base_price
+    
+    # ========== معادلة التسعير الديناميكي الذكية ==========
+    extra_price = 0
+    
+    # إضافة تكلفة للعقارات الإضافية فوق الـ 50
+    if property_count > 50:
+        extra_price += (property_count - 50) * 2.5
+    
+    # إضافة تكلفة للمساحات الكبيرة فوق الـ 150 متر
+    if area > 150:
+        extra_price += ((area - 150) / 10) * 0.5
+    
+    total_price = base_price + round(extra_price, 2)
     
     st.markdown(f"""
     <div class='package-card'>
     <h3>باقة {chosen_pkg}</h3>
-    <h2>{base_price} $</h2>
+    <h2>{total_price} $</h2>
     <p>📊 تقرير تحليلي ديناميكي حسب البيانات</p>
     <p>🏠 تحليل {PACKAGES[chosen_pkg]['data_scope']} عقار حقيقي</p>
     </div>
     """, unsafe_allow_html=True)
     
+    # نص قصير يشرح التسعير (غير مخيف)
+    st.caption("التسعير ديناميكي ويعتمد على حجم التحليل، وليس عدد الصفحات.")
+    
     st.markdown("**المميزات الحصرية:**")
     for i, feature in enumerate(PACKAGES[chosen_pkg]["features"][:8]):
         st.write(f"🎯 {feature}")
+
+# ========== حاسبة الأثر المالي الذكية ==========
+st.markdown("---")
+st.markdown("### 📈 احسب العائد المتوقع من التقرير")
+
+col3, col4 = st.columns([1, 1])
+
+with col3:
+    investment_value = st.number_input(
+        "💰 قيمة الاستثمار المتوقع ($)",
+        min_value=50000,
+        max_value=5000000,
+        step=50000,
+        value=300000,
+        format="%d"
+    )
+    
+    # إظهار مؤشر المخاطر فقط للباقات المدفوعة
+    if chosen_pkg != "مجانية":
+        risk_level = st.select_slider(
+            "مستوى المخاطر المقبول",
+            options=["منخفض", "متوسط", "مرتفع"],
+            value="متوسط"
+        )
+    else:
+        risk_level = "متوسط"  # قيمة افتراضية للمجانية
+        st.info("🔍 للباقات المدفوعة: تحليل متقدم لمستوى المخاطر")
+
+with col4:
+    st.markdown("#### نسب التحسين الاستثماري")
+    
+    # ===== التمييز الذكي بين المجاني والمدفوع =====
+    if chosen_pkg == "مجانية":
+        # المجاني: نسب منخفضة جداً - مجرد لمحة (أقل من 2% إجمالي)
+        risk_avoidance = 0.01      # 1% فقط
+        pricing_optimization = 0.005 # 0.5% فقط
+        timing_advantage = 0.005     # 0.5% فقط
+        analysis_type = "تقدير مبدئي مبني على تحليل أساسي"
+        result_color = "#FFA500"  # برتقالي للمجانية
+    else:
+        # المدفوع: نسب كاملة حسب مستوى المخاطر
+        if risk_level == "منخفض":
+            risk_avoidance = 0.08
+            pricing_optimization = 0.05
+            timing_advantage = 0.03
+        elif risk_level == "متوسط":
+            risk_avoidance = 0.12
+            pricing_optimization = 0.08
+            timing_advantage = 0.05
+        else:  # مرتفع
+            risk_avoidance = 0.15
+            pricing_optimization = 0.10
+            timing_advantage = 0.07
+        analysis_type = "الأثر الاستثماري المتوقع"
+        result_color = "#00d8a4"  # أخضر للمدفوع
+    
+    # حساب الأثر المالي
+    gain_from_risk = investment_value * risk_avoidance
+    gain_from_pricing = investment_value * pricing_optimization
+    gain_from_timing = investment_value * timing_advantage
+    
+    total_estimated_gain = gain_from_risk + gain_from_pricing + gain_from_timing
+    net_benefit = total_estimated_gain - total_price
+    
+    # عرض النتائج بشكل أنيق
+    st.markdown(f"""
+    <div style='background: linear-gradient(135deg, #1a1a1a, #2d2d2d); padding: 20px; border-radius: 15px; border: 2px solid #d4af37;'>
+        <p style='color: gold; font-size: 14px; margin: 5px 0;'>{analysis_type}</p>
+        <p style='color: gold; font-size: 16px; margin: 5px 0;'>📉 تجنب خسائر القرارات العشوائية: <strong style='color: white;'>{int(gain_from_risk):,} $</strong></p>
+        <p style='color: gold; font-size: 16px; margin: 5px 0;'>💎 تحسين سعر الشراء: <strong style='color: white;'>{int(gain_from_pricing):,} $</strong></p>
+        <p style='color: gold; font-size: 16px; margin: 5px 0;'>⏱️ استغلال توقيت السوق: <strong style='color: white;'>{int(gain_from_timing):,} $</strong></p>
+        <hr style='border: 1px solid #d4af37; margin: 15px 0;'>
+        <p style='color: gold; font-size: 18px; font-weight: bold;'>✅ {analysis_type}: <strong style='color: {result_color};'>{int(net_benefit):,} $</strong></p>
+        <p style='color: #888; font-size: 14px;'>مقابل استثمار في التقرير بقيمة <strong>{int(total_price)} $</strong></p>
+        <p style='color: #666; font-size: 12px; margin-top: 10px;'>الأرقام تقديرية مبنية على نماذج تحليلية ولا تمثل ضمانًا للعائد.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ========== نظام الدفع ==========
 st.markdown("---")
