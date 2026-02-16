@@ -27,6 +27,11 @@ from dotenv import load_dotenv
 import os
 import streamlit.components.v1 as components
 
+# ===== Robo Chat System =====
+from robo_chat.robo_brain import RoboAdvisor
+from robo_chat.robo_guard import RoboGuard
+from robo_chat.robo_knowledge import RoboKnowledge
+
 # ✅ استيراد نظام التنبيهات
 try:
     from alerts.daily_alert_engine import generate_daily_city_alerts
@@ -784,7 +789,7 @@ if filtered_alerts:
     # تحديد عدد الأعمدة بناءً على عدد التنبيهات
     cols = st.columns(2) if len(filtered_alerts) > 1 else [st.container()]
     
-    for i, alert in enumerate(filtered_alerts):  # ✅ تم إزالة [:4]
+    for i, alert in enumerate(filtered_alerts):
         with cols[i % 2] if len(filtered_alerts) > 1 else cols[0]:
             # اختيار اللون حسب نوع التنبيه
             alert_class = "alert-golden"
@@ -873,6 +878,9 @@ with col2:
     chosen_pkg = st.radio("اختر باقتك:", list(PACKAGES.keys()))
     base_price = PACKAGES[chosen_pkg]["price"]
     
+    # حفظ الباقة في session_state
+    st.session_state["chosen_pkg"] = chosen_pkg
+    
     # ========== معادلة التسعير الديناميكي الذكية ==========
     extra_price = 0
     
@@ -901,6 +909,71 @@ with col2:
     st.markdown("**المميزات الحصرية:**")
     for i, feature in enumerate(PACKAGES[chosen_pkg]["features"][:8]):
         st.write(f"🎯 {feature}")
+
+# ========== تجهيز بيانات Robo (بعد بيانات المستخدم) ==========
+with st.spinner("🧠 تحديث المستشار الذكي..."):
+    # تجهيز الفرص الذكية
+    opportunity_finder = SmartOpportunityFinder()
+    opportunities = opportunity_finder.analyze_all_opportunities(
+        user_info=st.session_state.get("user_info", {}),
+        market_data=st.session_state.get("market_data", {}),
+        real_data=st.session_state.get("real_data", pd.DataFrame())
+    )
+    
+    # تحديث معرفة الروبو في كل مرة
+    st.session_state.robo_knowledge = RoboKnowledge(
+        real_data=st.session_state.get("real_data", pd.DataFrame()),
+        opportunities=opportunities,
+        alerts=st.session_state.get("daily_alerts", []),
+        market_data=st.session_state.get("market_data", {})
+    )
+
+# ========== Robo Chat ==========
+st.markdown("---")
+st.markdown("## 🧠 مستشارك الذكي")
+st.caption("اسأل عن السوق، الفرص، أو التوقيت — وسيجيبك حسب باقتك")
+
+if "robo_open" not in st.session_state:
+    st.session_state.robo_open = False
+
+if st.button("💬 اسأل مستشارك الذكي", key="robo_button"):
+    st.session_state.robo_open = True
+
+if st.session_state.robo_open:
+    # الحصول على الباقة من session_state مع قيمة افتراضية
+    current_pkg = st.session_state.get("chosen_pkg", "مجانية")
+    
+    # إنشاء Robo حسب المستخدم
+    robo_guard = RoboGuard(package=current_pkg)
+    robo = RoboAdvisor(
+        user_profile={
+            "city": city,
+            "package": current_pkg,
+            "user_type": user_type
+        },
+        knowledge=st.session_state.robo_knowledge,
+        guard=robo_guard
+    )
+    
+    question = st.text_input("✍️ اكتب سؤالك هنا (مثال: ما وضع السوق في الرياض؟)")
+    
+    if question:
+        with st.spinner("🤖 يفكر المستشار الذكي..."):
+            answer = robo.answer(question)
+            st.markdown(f"""
+            <div style="
+                background:#1a1a1a;
+                padding:20px;
+                border-radius:15px;
+                border:2px solid #00FFD1;
+                margin-top:10px;
+                direction:rtl;
+                text-align:right;
+            ">
+            <strong style='color:#00FFD1;'>📌 رد المستشار:</strong><br><br>
+            <p style='color:#EAEAEA; line-height:1.8;'>{answer}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
 # ========== حاسبة الأثر المالي الذكية ==========
 st.markdown("---")
@@ -1142,6 +1215,11 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                 "property_count": property_count,
                 "status": status
             }
+            
+            # حفظ user_info في session_state
+            st.session_state["user_info"] = user_info
+            st.session_state["market_data"] = market_data
+            st.session_state["real_data"] = real_data
 
             # 🔧 إنشاء التقرير الذكي (للعرض فقط)
             user_category = USER_CATEGORIES.get(user_type, "investor")
@@ -1222,9 +1300,6 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
 
             st.session_state.pdf_data = pdf_buffer.getvalue()
             st.session_state.report_generated = True
-            st.session_state.real_data = real_data
-            st.session_state.user_info = user_info
-            st.session_state.market_data = market_data
 
             st.success("✅ تم إنشاء التقرير بنجاح!")
             st.balloons()
@@ -1290,6 +1365,10 @@ if 'charts_by_chapter' not in st.session_state:
     st.session_state.charts_by_chapter = {}
 if 'paid' not in st.session_state:
     st.session_state.paid = False
+if 'robo_knowledge' not in st.session_state:
+    st.session_state.robo_knowledge = None
+if 'chosen_pkg' not in st.session_state:
+    st.session_state.chosen_pkg = "مجانية"
 
 st.markdown("---")
 st.markdown("""
