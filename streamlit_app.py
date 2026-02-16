@@ -873,6 +873,14 @@ with col1:
     property_count = property_count_options[count_index]
     st.markdown(f"**عدد العقارات المختارة:** {property_count}")
 
+    # ✅ حفظ معلومات المستخدم فور اختياره للمدينة
+    st.session_state["user_info"] = {
+        "city": city,
+        "property_type": property_type,
+        "status": status,
+        "package": st.session_state.get("chosen_pkg", "مجانية")
+    }
+
 with col2:
     st.markdown("### 💎 اختيار الباقة")
     chosen_pkg = st.radio("اختر باقتك:", list(PACKAGES.keys()))
@@ -880,6 +888,10 @@ with col2:
     
     # حفظ الباقة في session_state
     st.session_state["chosen_pkg"] = chosen_pkg
+    
+    # تحديث user_info بالباقة الجديدة
+    if "user_info" in st.session_state:
+        st.session_state["user_info"]["package"] = chosen_pkg
     
     # ========== معادلة التسعير الديناميكي الذكية ==========
     extra_price = 0
@@ -909,6 +921,39 @@ with col2:
     st.markdown("**المميزات الحصرية:**")
     for i, feature in enumerate(PACKAGES[chosen_pkg]["features"][:8]):
         st.write(f"🎯 {feature}")
+
+# ===============================
+# 🧠 تغذية ذكية مبكرة للروبو (مُحسّنة)
+# تعمل قبل إنشاء التقرير وتتغير مع تغيير المدينة
+# ===============================
+
+if (
+    st.session_state.get("last_city") != city
+    or st.session_state.get("last_property_type") != property_type
+):
+    with st.spinner("🧠 تجهيز بيانات ذكية للمستشار..."):
+        try:
+            # 1️⃣ جلب بيانات حقيقية
+            real_data = get_live_real_data(
+                city=city,
+                property_type=property_type
+            )
+
+            # 2️⃣ توليد بيانات السوق
+            market_data = generate_advanced_market_data(
+                city, property_type, status, real_data
+            )
+
+            # 3️⃣ حفظها في الجلسة
+            st.session_state["real_data"] = real_data
+            st.session_state["market_data"] = market_data
+            
+            # 4️⃣ تحديث آخر مدينة ونوع عقار
+            st.session_state["last_city"] = city
+            st.session_state["last_property_type"] = property_type
+
+        except Exception as e:
+            st.warning("⚠️ لم يتم تحميل البيانات الذكية بعد.")
 
 # ========== تجهيز بيانات Robo (بعد بيانات المستخدم) ==========
 with st.spinner("🧠 تحديث المستشار الذكي..."):
@@ -1369,6 +1414,10 @@ if 'robo_knowledge' not in st.session_state:
     st.session_state.robo_knowledge = None
 if 'chosen_pkg' not in st.session_state:
     st.session_state.chosen_pkg = "مجانية"
+if 'last_city' not in st.session_state:
+    st.session_state.last_city = None
+if 'last_property_type' not in st.session_state:
+    st.session_state.last_property_type = None
 
 st.markdown("---")
 st.markdown("""
