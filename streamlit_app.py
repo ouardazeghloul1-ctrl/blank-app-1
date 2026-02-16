@@ -27,6 +27,18 @@ from dotenv import load_dotenv
 import os
 import streamlit.components.v1 as components
 
+# ✅ استيراد نظام التنبيهات
+try:
+    from alerts.daily_alert_engine import generate_daily_city_alerts
+    ALERTS_AVAILABLE = True
+except ImportError as e:
+    ALERTS_AVAILABLE = False
+    print(f"⚠️ تحذير: نظام التنبيهات غير متوفر: {e}")
+    
+    # دالة بديلة في حالة عدم وجود نظام التنبيهات
+    def generate_daily_city_alerts():
+        return []
+
 # ✅ استيراد الأنماط والخطوط لـ ReportLab
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
@@ -333,6 +345,60 @@ def setup_arabic_support():
     
     .stMarkdown {
         background-color: transparent !important;
+    }
+    
+    /* ===== تنسيق التنبيهات ===== */
+    .alert-golden {
+        background: linear-gradient(135deg, #1a3a1a, #0a2a0a) !important;
+        border-right: 5px solid gold !important;
+        padding: 15px !important;
+        border-radius: 10px !important;
+        margin: 10px 0 !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+    }
+    
+    .alert-shift {
+        background: linear-gradient(135deg, #1a3a4a, #0a2a3a) !important;
+        border-right: 5px solid #00a8ff !important;
+        padding: 15px !important;
+        border-radius: 10px !important;
+        margin: 10px 0 !important;
+    }
+    
+    .alert-warning {
+        background: linear-gradient(135deg, #4a1a1a, #3a0a0a) !important;
+        border-right: 5px solid #ff4444 !important;
+        padding: 15px !important;
+        border-radius: 10px !important;
+        margin: 10px 0 !important;
+    }
+    
+    .alert-timing {
+        background: linear-gradient(135deg, #4a3a1a, #3a2a0a) !important;
+        border-right: 5px solid #ffaa00 !important;
+        padding: 15px !important;
+        border-radius: 10px !important;
+        margin: 10px 0 !important;
+    }
+    
+    .alert-header {
+        font-size: 18px !important;
+        font-weight: bold !important;
+        color: gold !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .alert-meta {
+        font-size: 14px !important;
+        color: #888 !important;
+        margin-top: 10px !important;
+        border-top: 1px solid #333 !important;
+        padding-top: 10px !important;
+    }
+    
+    .alert-confidence-high {
+        color: #00FFD1 !important;
+        font-weight: bold !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -692,6 +758,83 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
+# ========== التنبيهات الحية (مُعدلة حسب الملاحظات) ==========
+st.markdown("---")
+st.markdown("## 🔔 التنبيهات الاستثمارية الحية (اليوم)")
+st.caption("🔒 جميع التنبيهات محفوظة ويمكن الرجوع إليها لاحقًا")
+
+# جلب التنبيهات مرة واحدة فقط في الجلسة
+if "daily_alerts" not in st.session_state:
+    with st.spinner("🔄 جاري تحليل السوق ورصد الفرص..."):
+        if ALERTS_AVAILABLE:
+            st.session_state.daily_alerts = generate_daily_city_alerts()
+        else:
+            st.session_state.daily_alerts = []
+            st.info("⚠️ نظام التنبيهات قيد التفعيل قريبًا")
+
+# فلترة التنبيهات حسب المدن المستهدفة
+TARGET_CITIES = ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"]
+filtered_alerts = [
+    alert for alert in st.session_state.daily_alerts
+    if alert.get("city") in TARGET_CITIES
+]
+
+# عرض التنبيهات (بدون تقييد بـ 4)
+if filtered_alerts:
+    # تحديد عدد الأعمدة بناءً على عدد التنبيهات
+    cols = st.columns(2) if len(filtered_alerts) > 1 else [st.container()]
+    
+    for i, alert in enumerate(filtered_alerts):  # ✅ تم إزالة [:4]
+        with cols[i % 2] if len(filtered_alerts) > 1 else cols[0]:
+            # اختيار اللون حسب نوع التنبيه
+            alert_class = "alert-golden"
+            alert_icon = "💰"
+            if alert["type"] == "MARKET_SHIFT":
+                alert_class = "alert-shift"
+                alert_icon = "📈"
+            elif alert["type"] == "RISK_WARNING":
+                alert_class = "alert-warning"
+                alert_icon = "⚠️"
+            elif alert["type"] == "TIMING_SIGNAL":
+                alert_class = "alert-timing"
+                alert_icon = "⏰"
+            
+            confidence_class = "alert-confidence-high" if alert.get("confidence") == "HIGH" else ""
+            
+            # تحديد التاريخ (إذا لم يوجد، استخدم التاريخ الحالي)
+            alert_time = alert.get('generated_at', datetime.now().strftime('%Y-%m-%d %H:%M'))
+            
+            # بناء HTML التنبيه
+            html_content = f"""
+            <div class='{alert_class}'>
+                <div class='alert-header'>
+                    {alert_icon} {alert['city']} – {alert.get('title', 'فرصة استثمارية')}
+                </div>
+                <div>
+                    <p style='color: #EAEAEA;'>{alert.get('description', 'اكتشاف جديد في السوق')}</p>
+                    <p><strong>النوع:</strong> {alert['type']}</p>
+            """
+            
+            # إضافة الخصم فقط إذا كان موجودًا
+            discount = alert.get("signal", {}).get("discount_percent")
+            if discount:
+                html_content += f"<p><strong>الخصم:</strong> {discount}%</p>"
+            
+            html_content += f"""
+                    <p><strong>الثقة:</strong> <span class='{confidence_class}'>{alert.get('confidence', 'HIGH')}</span></p>
+                </div>
+                <div class='alert-meta'>
+                    🕒 {alert_time}
+                </div>
+            </div>
+            """
+            
+            st.markdown(html_content, unsafe_allow_html=True)
+else:
+    st.info("🔍 لا توجد تنبيهات جديدة الآن. سنقوم بإعلامك فور ظهور فرصة.")
+
+# ========== بيانات المستخدم ==========
+st.markdown("---")
 col1, col2 = st.columns([1, 1])
 
 with col1:
@@ -836,7 +979,7 @@ with col4:
     </div>
     """, unsafe_allow_html=True)
 
-# ========== الآلة الحاسبة العالمية النهائية (مُغلقة نهائيًا) ==========
+# ========== الآلة الحاسبة العالمية النهائية ==========
 st.markdown("---")
 st.markdown("### 🧠 محاكاة القرار: بدون تقرير مقابل تقرير Warda")
 
@@ -886,7 +1029,7 @@ total_benefit_with_report = (
 
 net_decision_advantage = total_benefit_with_report - total_price
 
-# ===== عرض المقارنة باستخدام components.html (حل قاطع للمربع الأبيض) =====
+# ===== عرض المقارنة باستخدام components.html =====
 components.html(f"""
 <div style='display:flex; gap:20px; margin-top:20px; font-family: Tajawal, Arial, sans-serif; direction: rtl;'>
     <div style='flex:1; background:#1a1a1a; padding:25px; border-radius:15px; border:1px solid #444;'>
@@ -910,7 +1053,7 @@ components.html(f"""
 </div>
 """, height=350)
 
-# ===== الدليل والحسابات (يثبت المصداقية - بدون أي مربع أبيض) =====
+# ===== الدليل والحسابات =====
 with st.expander("🔍 لماذا هذه الأرقام واقعية؟ (اضغط لرؤية الحسابات)"):
     st.markdown(f"""
     **مؤشرات السوق الحقيقية المستخدمة في المحاكاة:**
@@ -1061,7 +1204,7 @@ if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generat
                     market_data=market_data,
                     real_data=real_data,
                     content_text=final_content_text,
-                    executive_decision=executive_decision,  # ⭐ السطر المنقذ
+                    executive_decision=executive_decision,
                     package_level=chosen_pkg,
                     ai_recommendations=st.session_state.get("ai_recommendations")
                 )
