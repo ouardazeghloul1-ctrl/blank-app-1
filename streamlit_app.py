@@ -41,13 +41,35 @@ from advanced_charts import AdvancedCharts
 # ✅ النظام الموحد لإنشاء PDF
 from report_pdf_generator import create_pdf_from_content
 
+# 🔧 استيراد مزود البيانات الحية الحقيقي (الملف الصحيح)
+try:
+    from live_real_data_provider import get_live_real_data
+    LIVE_DATA_AVAILABLE = True
+except ImportError as e:
+    LIVE_DATA_AVAILABLE = False
+    print(f"⚠️ تحذير: لم يتم العثور على live_real_data_provider: {e}")
+    
+    # دالة بديلة مؤقتة في حالة عدم وجود الملف
+    def get_live_real_data(city, property_type, district=None):
+        """نسخة احتياطية في حالة عدم وجود الملف الحقيقي"""
+        return pd.DataFrame({
+            'العقار': [f'{property_type} تجريبي 1', f'{property_type} تجريبي 2'],
+            'السعر': [1000000, 1200000],
+            'المساحة': [120, 150],
+            'المنطقة': [district or city, district or city],
+            'المدينة': [city, city],
+            'نوع_العقار': [property_type, property_type],
+            'العائد_المتوقع': [7.5, 8.2],
+            'سعر_المتر': [8333, 8000],
+            'مستوى_الخطورة': ['منخفض', 'متوسط'],
+            'تاريخ_الجلب': [datetime.now().strftime('%Y-%m-%d %H:%M'), datetime.now().strftime('%Y-%m-%d %H:%M')]
+        })
+
 # 🔧 استيراد النظام الذكي للتقارير - الإصدار المحسّن
 try:
-    # محاولة استيراد النظام الذكي
     from smart_report_system import SmartReportSystem
     SMART_SYSTEM_LOADED = True
 except ImportError as e:
-    # إذا فشل الاستيراد، نستخدم البديل
     SMART_SYSTEM_LOADED = False
     
     class SmartReportSystem:
@@ -66,7 +88,6 @@ try:
     from finance_comparison import FinanceComparator
     from live_data_system import LiveDataSystem
 except ImportError:
-    # تعريف بديل إذا لم تكن الملفات موجودة
     class SmartOpportunityFinder:
         def analyze_all_opportunities(self, user_info, market_data, real_data):
             return {'عقارات_مخفضة': [], 'مناطق_صاعدة': [], 'توقيت_الاستثمار': 'محايد', 'ملخص_الفرص': 'تحتاج بيانات أكثر'}
@@ -113,7 +134,7 @@ rcParams['font.family'] = 'DejaVu Sans'
 rcParams['font.sans-serif'] = ['DejaVu Sans']
 rcParams['axes.unicode_minus'] = False
 
-# ========== الإصلاح الكامل للغة العربية ==========
+# ========== الإصلاح الكامل للغة العربية مع إزالة المربع الأبيض ==========
 def setup_arabic_support():
     st.markdown("""
     <style>
@@ -253,24 +274,57 @@ def setup_arabic_support():
         direction: rtl !important;
     }
     
+    /* ===== إصلاح المربع الأبيض بشكل نهائي ===== */
+    .streamlit-expanderHeader {
+        background-color: #1a1a1a !important;
+        color: #FFD700 !important;
+        border-radius: 10px !important;
+        border: 1px solid #333 !important;
+        padding: 10px !important;
+        margin: 5px 0 !important;
+        font-weight: bold !important;
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
     .streamlit-expanderContent {
+        background-color: #0E1117 !important;
+        color: #EAEAEA !important;
+        border: 1px solid #333 !important;
+        border-radius: 0 0 10px 10px !important;
+        padding: 15px !important;
+        margin-top: -1px !important;
         direction: rtl !important;
         text-align: right !important;
     }
     
-    .stRadio > div {
-        direction: rtl !important;
-        text-align: right !important;
+    /* إزالة أي خلفيات بيضاء غير مرغوب فيها */
+    div[data-testid="stExpander"] {
+        background-color: transparent !important;
+        border: none !important;
     }
     
-    .stRadio label {
-        direction: rtl !important;
-        text-align: right !important;
+    div[data-testid="stExpander"] > div {
+        background-color: transparent !important;
     }
     
-    .stSelectbox > div > div {
-        direction: rtl !important;
-        text-align: right !important;
+    /* تنسيق الـ Expander عند التوسيع */
+    .streamlit-expanderHeader:hover {
+        background-color: #2a2a2a !important;
+        border-color: #FFD700 !important;
+    }
+    
+    /* إزالة أي مربعات بيضاء جانبية */
+    .css-1kyxreq, .css-1r6slb0, .css-12w0qpk {
+        background-color: transparent !important;
+    }
+    
+    .element-container {
+        background-color: transparent !important;
+    }
+    
+    .stMarkdown {
+        background-color: transparent !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -423,6 +477,8 @@ USER_CATEGORIES = {
 }
 
 # ========== نظام السكرابر ==========
+# ملاحظة: هذا الملف لم يعد مستخدمًا في جلب البيانات الحقيقية
+# تم استبداله بـ live_real_data_provider.py
 class RealEstateScraper:
     def __init__(self):
         self.headers = {
@@ -430,100 +486,15 @@ class RealEstateScraper:
         }
     
     def fetch_data(self, city, property_type, num_properties=100):
-        try:
-            market_stats = {
-                "الرياض": {
-                    "شقة": {"avg_price": 750000, "avg_area": 120, "avg_psm": 6250},
-                    "فيلا": {"avg_price": 2000000, "avg_area": 350, "avg_psm": 5714},
-                    "أرض": {"avg_price": 1500000, "avg_area": 500, "avg_psm": 3000},
-                    "محل تجاري": {"avg_price": 1200000, "avg_area": 100, "avg_psm": 12000}
-                },
-                "جدة": {
-                    "شقة": {"avg_price": 650000, "avg_area": 110, "avg_psm": 5909},
-                    "فيلا": {"avg_price": 1800000, "avg_area": 320, "avg_psm": 5625},
-                    "أرض": {"avg_price": 1300000, "avg_area": 450, "avg_psm": 2889},
-                    "محل تجاري": {"avg_price": 1100000, "avg_area": 90, "avg_psm": 12222}
-                },
-                "الدمام": {
-                    "شقة": {"avg_price": 550000, "avg_area": 100, "avg_psm": 5500},
-                    "فيلا": {"avg_price": 1500000, "avg_area": 300, "avg_psm": 5000},
-                    "أرض": {"avg_price": 1100000, "avg_area": 400, "avg_psm": 2750},
-                    "محل تجاري": {"avg_price": 900000, "avg_area": 80, "avg_psm": 11250}
-                }
-            }
-            
-            districts_data = {
-                "الرياض": ["النخيل", "الملز", "العليا", "المرسلات", "الغدير"],
-                "جدة": ["الروضة", "الزهراء", "الشاطئ", "النسيم", "الفيصلية"],
-                "الدمام": ["الحمراء", "الشاطئ", "الريان", "الثقبة", "الفيصلية"]
-            }
-            
-            city_stats = market_stats.get(city, market_stats["الرياض"])
-            prop_stats = city_stats.get(property_type, city_stats["شقة"])
-            available_districts = districts_data.get(city, ["المركز"])
-            
-            properties = []
-            for i in range(num_properties):
-                price_variation = random.uniform(0.75, 1.25)
-                price = int(prop_stats["avg_price"] * price_variation)
-                
-                area_variation = random.uniform(0.8, 1.2)
-                area = int(prop_stats["avg_area"] * area_variation)
-                
-                property_district = random.choice(available_districts)
-                
-                if property_type == "شقة":
-                    expected_return = random.uniform(6.0, 9.0)
-                elif property_type == "فيلا":
-                    expected_return = random.uniform(5.0, 8.0)
-                elif property_type == "أرض":
-                    expected_return = random.uniform(8.0, 12.0)
-                else:
-                    expected_return = random.uniform(7.0, 11.0)
-                
-                if expected_return > 10:
-                    risk_level = "مرتفع"
-                elif expected_return > 7:
-                    risk_level = "متوسط"
-                else:
-                    risk_level = "منخفض"
-                
-                properties.append({
-                    "المصدر": "السوق الحقيقي",
-                    "العقار": f"{property_type} في {property_district}",
-                    "السعر": price,
-                    "المساحة": f"{area} م²",
-                    "المنطقة": property_district,
-                    "المدينة": city,
-                    "نوع_العقار": property_type,
-                    "الغرف": str(random.randint(1, 6)),
-                    "الحمامات": str(random.randint(1, 4)),
-                    "سعر_المتر": int(price / area),
-                    "العائد_المتوقع": round(expected_return, 1),
-                    "مستوى_الخطورة": risk_level,
-                    "تاريخ_الجلب": datetime.now().strftime('%Y-%m-%d %H:%M')
-                })
-            
-            df = pd.DataFrame(properties)
-            return self.clean_property_data(df)
-            
-        except Exception as e:
-            print(f"❌ خطأ في جلب البيانات: {e}")
-            return self.get_fallback_data(city, property_type, num_properties)
+        # هذه دالة احتياطية فقط - لم تعد مستخدمة في جلب البيانات الحقيقية
+        return self.get_fallback_data(city, property_type, num_properties)
     
     def clean_property_data(self, df):
-        try:
-            if df.empty:
-                return df
-            df = df.drop_duplicates(subset=['العقار', 'السعر', 'المساحة', 'المنطقة'])
-            return df.reset_index(drop=True)
-        except Exception as e:
-            print(f"⚠️ خطأ في تنظيف البيانات: {e}")
-            return df
+        return df
     
     def get_fallback_data(self, city, property_type, num_properties):
         properties = []
-        for i in range(num_properties):
+        for i in range(min(num_properties, 10)):  # تقليل العدد لأنها احتياطية فقط
             properties.append({
                 "المصدر": "البيانات الاحتياطية",
                 "العقار": f"{property_type} {i+1}",
@@ -931,7 +902,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ===== الدليل والحسابات (يثبت المصداقية) =====
+# ===== الدليل والحسابات (يثبت المصداقية - بدون أي مربع أبيض) =====
 with st.expander("🔍 لماذا هذه الأرقام واقعية؟ (اضغط لرؤية الحسابات)"):
     st.markdown(f"""
     **مؤشرات السوق الحقيقية المستخدمة في المحاكاة:**
@@ -967,8 +938,28 @@ st.markdown("### 🚀 إنشاء التقرير")
 if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
     with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
         try:
-            scraper = RealEstateScraper()
-            real_data = scraper.get_real_data(city, property_type, property_count)
+            # ✅ استخدام مزود البيانات الحية الحقيقي
+            if LIVE_DATA_AVAILABLE:
+                real_data = get_live_real_data(
+                    city=city,
+                    property_type=property_type
+                )
+                st.success(f"✅ تم جلب {len(real_data)} عقار حقيقي من السوق")
+            else:
+                # خطة طوارئ إذا لم يتوفر الملف
+                st.warning("⚠️ ملف البيانات الحية غير متوفر، استخدام بيانات تجريبية...")
+                real_data = pd.DataFrame({
+                    'العقار': ['شقة نموذجية 1', 'شقة نموذجية 2'],
+                    'السعر': [1000000, 1200000],
+                    'المساحة': [120, 150],
+                    'المنطقة': [city, city],
+                    'المدينة': [city, city],
+                    'نوع_العقار': [property_type, property_type],
+                    'العائد_المتوقع': [7.5, 8.2],
+                    'سعر_المتر': [8333, 8000],
+                    'مستوى_الخطورة': ['منخفض', 'متوسط'],
+                    'تاريخ_الجلب': [datetime.now().strftime('%Y-%m-%d %H:%M'), datetime.now().strftime('%Y-%m-%d %H:%M')]
+                })
 
             if real_data.empty:
                 st.error("❌ لا توجد بيانات! جاري استخدام بيانات تجريبية...")
