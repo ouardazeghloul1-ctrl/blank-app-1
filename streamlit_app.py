@@ -32,16 +32,35 @@ from robo_brain import RoboAdvisor
 from robo_guard import RoboGuard
 from robo_knowledge import RoboKnowledge
 
-# ✅ استيراد نظام التنبيهات
+# ✅ استيراد نظام التنبيهات الموحد (ملف واحد فقط)
 try:
-    from alerts.daily_alert_engine import generate_daily_city_alerts
+    from alerts_system import (
+        get_today_alerts,
+        get_alerts_by_city,
+        format_alert_for_display,
+        get_alert_count,
+        refresh_alerts
+    )
     ALERTS_AVAILABLE = True
+    print("✅ نظام التنبيهات الموحد متصل بنجاح")
 except ImportError as e:
     ALERTS_AVAILABLE = False
     print(f"⚠️ تحذير: نظام التنبيهات غير متوفر: {e}")
     
-    # دالة بديلة في حالة عدم وجود نظام التنبيهات
-    def generate_daily_city_alerts():
+    # دوال بديلة في حالة عدم وجود النظام
+    def get_today_alerts(force_refresh=False):
+        return []
+    
+    def get_alerts_by_city(city):
+        return []
+    
+    def format_alert_for_display(alert):
+        return {}
+    
+    def get_alert_count():
+        return 0
+    
+    def refresh_alerts():
         return []
 
 # ✅ استيراد الأنماط والخطوط لـ ReportLab
@@ -763,18 +782,20 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# ========== التنبيهات الحية (مُعدلة حسب الملاحظات) ==========
+# ========== التنبيهات الحية (باستخدام النظام الموحد) ==========
 st.markdown("---")
 st.markdown("## 🔔 التنبيهات الاستثمارية الحية (اليوم)")
-st.caption("🔒 جميع التنبيهات محفوظة ويمكن الرجوع إليها لاحقًا")
 
-# جلب التنبيهات مرة واحدة فقط في الجلسة
+# جلب التنبيهات مرة واحدة فقط في الجلسة باستخدام النظام الموحد
 if "daily_alerts" not in st.session_state:
     with st.spinner("🔄 جاري تحليل السوق ورصد الفرص..."):
         if ALERTS_AVAILABLE:
-            st.session_state.daily_alerts = generate_daily_city_alerts()
+            # ✅ استخدام الدالة الموحدة من النظام
+            st.session_state.daily_alerts = get_today_alerts()
+            st.session_state.last_alert_refresh = datetime.now()
         else:
             st.session_state.daily_alerts = []
+            st.session_state.last_alert_refresh = datetime.now()
             st.info("⚠️ نظام التنبيهات قيد التفعيل قريبًا")
 
 # فلترة التنبيهات حسب المدن المستهدفة
@@ -784,52 +805,68 @@ filtered_alerts = [
     if alert.get("city") in TARGET_CITIES
 ]
 
-# عرض التنبيهات (بدون تقييد بـ 4)
+# عرض عدد التنبيهات وآخر تحديث
+col_refresh, col_info = st.columns([1, 3])
+with col_refresh:
+    if st.button("🔄 تحديث", key="refresh_alerts"):
+        with st.spinner("جاري تحديث التنبيهات..."):
+            if ALERTS_AVAILABLE:
+                st.session_state.daily_alerts = refresh_alerts()
+                st.session_state.last_alert_refresh = datetime.now()
+                st.rerun()
+
+with col_info:
+    last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
+    refresh_time = last_refresh.strftime('%H:%M:%S') if isinstance(last_refresh, datetime) else str(last_refresh)
+    st.caption(f"🔒 عدد التنبيهات اليوم: {len(st.session_state.daily_alerts)} | 🕒 آخر تحديث: {refresh_time}")
+
+# عرض التنبيهات باستخدام دالة التنسيق من النظام الموحد
 if filtered_alerts:
     # تحديد عدد الأعمدة بناءً على عدد التنبيهات
     cols = st.columns(2) if len(filtered_alerts) > 1 else [st.container()]
     
     for i, alert in enumerate(filtered_alerts):
         with cols[i % 2] if len(filtered_alerts) > 1 else cols[0]:
-            # اختيار اللون حسب نوع التنبيه
+            # استخدام دالة التنسيق من النظام الموحد
+            formatted = format_alert_for_display(alert)
+            
+            # تحديد اللون حسب نوع التنبيه
             alert_class = "alert-golden"
-            alert_icon = "💰"
-            if alert["type"] == "MARKET_SHIFT":
+            if alert.get("type") == "MARKET_SHIFT":
                 alert_class = "alert-shift"
-                alert_icon = "📈"
-            elif alert["type"] == "RISK_WARNING":
+            elif alert.get("type") == "RISK_WARNING":
                 alert_class = "alert-warning"
-                alert_icon = "⚠️"
-            elif alert["type"] == "TIMING_SIGNAL":
+            elif alert.get("type") == "TIMING_SIGNAL":
                 alert_class = "alert-timing"
-                alert_icon = "⏰"
             
             confidence_class = "alert-confidence-high" if alert.get("confidence") == "HIGH" else ""
             
-            # تحديد التاريخ (إذا لم يوجد، استخدم التاريخ الحالي)
-            alert_time = alert.get('generated_at', datetime.now().strftime('%Y-%m-%d %H:%M'))
+            # اقتطاع الوصف الطويل إذا لزم الأمر
+            description = formatted['description']
+            if len(description) > 300:
+                description = description[:300] + "..."
             
             # بناء HTML التنبيه
             html_content = f"""
             <div class='{alert_class}'>
                 <div class='alert-header'>
-                    {alert_icon} {alert['city']} – {alert.get('title', 'فرصة استثمارية')}
+                    {formatted['icon']} {alert['city']} – {formatted['title']}
                 </div>
                 <div>
-                    <p style='color: #EAEAEA;'>{alert.get('description', 'اكتشاف جديد في السوق')}</p>
-                    <p><strong>النوع:</strong> {alert['type']}</p>
+                    <p style='color: #EAEAEA;'>{description}</p>
+                    <p><strong>النوع:</strong> {alert.get('type', 'GOLDEN_OPPORTUNITY')}</p>
             """
             
-            # إضافة الخصم فقط إذا كان موجودًا
+            # إضافة الخصم إذا كان موجودًا (حتى لو كان 0)
             discount = alert.get("signal", {}).get("discount_percent")
-            if discount:
+            if discount is not None:
                 html_content += f"<p><strong>الخصم:</strong> {discount}%</p>"
             
             html_content += f"""
-                    <p><strong>الثقة:</strong> <span class='{confidence_class}'>{alert.get('confidence', 'HIGH')}</span></p>
+                    <p><strong>الثقة:</strong> <span class='{confidence_class}'>{formatted['confidence']}</span></p>
                 </div>
                 <div class='alert-meta'>
-                    🕒 {alert_time}
+                    🕒 {formatted['time']}
                 </div>
             </div>
             """
@@ -969,7 +1006,7 @@ with st.spinner("🧠 تحديث المستشار الذكي..."):
     st.session_state.robo_knowledge = RoboKnowledge(
         real_data=st.session_state.get("real_data", pd.DataFrame()),
         opportunities=opportunities,
-        alerts=st.session_state.get("daily_alerts", []),
+        alerts=st.session_state.get("daily_alerts", []),  # ✅ نفس التنبيهات التي تظهر للمستخدم
         market_data=st.session_state.get("market_data", {})
     )
 
@@ -1418,6 +1455,8 @@ if 'last_city' not in st.session_state:
     st.session_state.last_city = None
 if 'last_property_type' not in st.session_state:
     st.session_state.last_property_type = None
+if 'last_alert_refresh' not in st.session_state:
+    st.session_state.last_alert_refresh = datetime.now()
 
 st.markdown("---")
 st.markdown("""
