@@ -1006,7 +1006,7 @@ with st.spinner("🧠 تحديث المستشار الذكي..."):
     st.session_state.robo_knowledge = RoboKnowledge(
         real_data=st.session_state.get("real_data", pd.DataFrame()),
         opportunities=opportunities,
-        alerts = get_today_alerts(force_refresh=True)
+        alerts = get_today_alerts(force_refresh=True),
         market_data=st.session_state.get("market_data", {})
     )
 
