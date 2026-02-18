@@ -32,14 +32,14 @@ from robo_brain import RoboAdvisor
 from robo_guard import RoboGuard
 from robo_knowledge import RoboKnowledge
 
-# ✅ استيراد نظام التنبيهات الموحد (ملف واحد فقط)
+# ✅ استيراد نظام التنبيهات الموحد (ملف واحد فقط) - الإصدار النهائي
 try:
     from alerts_system import (
         get_today_alerts,
         get_alerts_by_city,
         format_alert_for_display,
-        get_alert_count,
-        refresh_alerts
+        refresh_alerts,
+        get_alerts_stats  # 🔥 تمت الإضافة للحصول على إحصائيات متقدمة
     )
     ALERTS_AVAILABLE = True
     print("✅ نظام التنبيهات الموحد متصل بنجاح")
@@ -57,11 +57,16 @@ except ImportError as e:
     def format_alert_for_display(alert):
         return {}
     
-    def get_alert_count():
-        return 0
-    
     def refresh_alerts():
         return []
+    
+    def get_alerts_stats():
+        """إحصائيات بديلة عند عدم توفر النظام"""
+        return {
+            "total": 0,
+            "by_city": {},
+            "by_confidence": {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
+        }
 
 # ✅ استيراد الأنماط والخطوط لـ ReportLab
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -790,7 +795,7 @@ st.markdown("## 🔔 التنبيهات الاستثمارية الحية (ال�
 if "daily_alerts" not in st.session_state:
     with st.spinner("🔄 جاري تحليل السوق ورصد الفرص..."):
         if ALERTS_AVAILABLE:
-            # ✅ استخدام الدالة الموحدة من النظام
+            # ✅ استخدام الدالة الموحدة من النظام (بدون force_refresh في أول تحميل)
             st.session_state.daily_alerts = get_today_alerts()
             st.session_state.last_alert_refresh = datetime.now()
         else:
@@ -805,12 +810,28 @@ filtered_alerts = [
     if alert.get("city") in TARGET_CITIES
 ]
 
+# الحصول على إحصائيات التنبيهات
+alert_stats = get_alerts_stats() if ALERTS_AVAILABLE else {"total": 0, "by_confidence": {"HIGH": 0, "MEDIUM": 0, "LOW": 0}}
+
+# عرض إحصائيات سريعة
+if filtered_alerts:
+    col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+    with col_stat1:
+        st.metric("📊 إجمالي", alert_stats["total"])
+    with col_stat2:
+        st.metric("🔴 قوية", alert_stats["by_confidence"].get("HIGH", 0))
+    with col_stat3:
+        st.metric("🟡 متوسطة", alert_stats["by_confidence"].get("MEDIUM", 0))
+    with col_stat4:
+        st.metric("🟢 خفيفة", alert_stats["by_confidence"].get("LOW", 0))
+
 # عرض عدد التنبيهات وآخر تحديث
 col_refresh, col_info = st.columns([1, 3])
 with col_refresh:
     if st.button("🔄 تحديث", key="refresh_alerts"):
         with st.spinner("جاري تحديث التنبيهات..."):
             if ALERTS_AVAILABLE:
+                # ✅ استخدام force_refresh=True فقط عند الضغط على زر التحديث
                 st.session_state.daily_alerts = refresh_alerts()
                 st.session_state.last_alert_refresh = datetime.now()
                 st.rerun()
@@ -846,11 +867,14 @@ if filtered_alerts:
             if len(description) > 300:
                 description = description[:300] + "..."
             
+            # أيقونة مستوى الثقة
+            confidence_icon = formatted.get('confidence_icon', '💰')
+            
             # بناء HTML التنبيه
             html_content = f"""
             <div class='{alert_class}'>
                 <div class='alert-header'>
-                    {formatted['icon']} {alert['city']} – {formatted['title']}
+                    {confidence_icon} {alert['city']} – {formatted['title']}
                 </div>
                 <div>
                     <p style='color: #EAEAEA;'>{description}</p>
@@ -1006,7 +1030,8 @@ with st.spinner("🧠 تحديث المستشار الذكي..."):
     st.session_state.robo_knowledge = RoboKnowledge(
         real_data=st.session_state.get("real_data", pd.DataFrame()),
         opportunities=opportunities,
-        alerts = get_today_alerts(force_refresh=True),
+        # ✅ استخدام التنبيهات المخزنة في الجلسة، بدون force_refresh
+        alerts=st.session_state.get("daily_alerts", []),
         market_data=st.session_state.get("market_data", {})
     )
 
