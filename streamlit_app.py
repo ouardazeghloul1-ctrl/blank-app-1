@@ -149,19 +149,21 @@ except ImportError:
     class MarketIntelligence:
         pass
 
-# 🔔 ربط manifest الخاص بتطبيق الهاتف (PWA)
-st.markdown("""
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#FFD700">
-""", unsafe_allow_html=True)
-
-# ========== إعداد الصفحة ==========
+# ========== إعداد الصفحة (يجب أن يكون أول استدعاء لـ st) ==========
 st.set_page_config(
     page_title="التحليل العقاري الذهبي | Warda Intelligence",
     page_icon="🏙️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# ===============================
+# 📱 PWA – ربط manifest (تطبيق الهاتف) بعد set_page_config مباشرة
+# ===============================
+st.markdown("""
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FFD700">
+""", unsafe_allow_html=True)
 
 # إعداد الدفع
 load_dotenv()
