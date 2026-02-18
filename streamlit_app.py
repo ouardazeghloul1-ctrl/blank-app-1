@@ -148,6 +148,13 @@ try:
 except ImportError:
     class MarketIntelligence:
         pass
+# ===============================
+# 📱 PWA – ربط manifest (تطبيق الهاتف)
+# ===============================
+st.markdown("""
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FFD700">
+""", unsafe_allow_html=True)
 
 # ========== إعداد الصفحة ==========
 st.set_page_config(
