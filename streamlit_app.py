@@ -149,6 +149,12 @@ except ImportError:
     class MarketIntelligence:
         pass
 
+# 🔔 ربط manifest الخاص بتطبيق الهاتف (PWA)
+st.markdown("""
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FFD700">
+""", unsafe_allow_html=True)
+
 # ========== إعداد الصفحة ==========
 st.set_page_config(
     page_title="التحليل العقاري الذهبي | Warda Intelligence",
