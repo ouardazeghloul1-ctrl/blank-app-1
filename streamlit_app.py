@@ -817,7 +817,7 @@ alert_stats = get_alerts_stats() if ALERTS_AVAILABLE else {"total": 0, "by_confi
 if filtered_alerts:
     col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
     with col_stat1:
-        st.metric("📊 إجمالي", alert_stats["total"])
+        st.metric("📊 إجمالي", len(filtered_alerts))
     with col_stat2:
         st.metric("🔴 قوية", alert_stats["by_confidence"].get("HIGH", 0))
     with col_stat3:
