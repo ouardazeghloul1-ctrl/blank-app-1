@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime
 
 from realfetcher import fetch_data
-
+from market_memory import store_snapshot
 
 def get_live_real_data(city: str, property_type: str, district: str = "") -> pd.DataFrame:
     """
