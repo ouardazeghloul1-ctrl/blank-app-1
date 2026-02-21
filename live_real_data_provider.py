@@ -21,8 +21,9 @@ def get_live_real_data(city: str, property_type: str, district: str = "") -> pd.
             city=city,
             district=district or "",
             property_type=property_type
-        )
-
+        )  
+        
+        store_snapshot(df, city, property_type)
         if df is None or df.empty:
             raise ValueError("لا توجد بيانات حية متاحة")
 
