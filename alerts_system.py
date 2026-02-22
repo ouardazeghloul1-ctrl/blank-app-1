@@ -50,6 +50,25 @@ ALERT_TYPES = {
 }
 
 # ==============================
+# دالة موحدة لحساب مستوى الثقة
+# ==============================
+
+def compute_confidence(score, rules=None):
+    """
+    توحيد مستوى الثقة لجميع التنبيهات
+    score: رقم صحيح (0 → n)
+    rules: dict اختياري لتخصيص العتبات
+    """
+    rules = rules or {"HIGH": 3, "MEDIUM": 2}
+
+    if score >= rules["HIGH"]:
+        return "HIGH"
+    elif score >= rules["MEDIUM"]:
+        return "MEDIUM"
+    else:
+        return "LOW"
+
+# ==============================
 # 2️⃣ التخزين الدائم مع منع التكرار (Alert Storage)
 # ==============================
 
@@ -86,20 +105,12 @@ def save_alert(alert: dict):
             ):
                 print(f"⚠️ تنبيه خصم مكرر تجاهل: {alert.get('city')} - {alert.get('district')}")
                 return
-        elif alert.get("type") in ["SUPPLY_ABSORPTION", "LIQUIDITY_INFLOW"]:
+        elif alert.get("type") in ["SUPPLY_ABSORPTION", "LIQUIDITY_INFLOW", "BUYER_BEHAVIOR_SHIFT"]:
             if (
                 existing.get("type") == alert.get("type")
                 and existing.get("city") == alert.get("city")
                 and existing.get("property_type") == alert.get("property_type")
             ):
-                # مقارنة النسبة مع تسامح 1%
-                if alert.get("type") == "SUPPLY_ABSORPTION":
-                    existing_pct = existing.get("signal", {}).get("supply_drop_percent", 0)
-                    new_pct = alert.get("signal", {}).get("supply_drop_percent", 0)
-                else:  # LIQUIDITY_INFLOW
-                    existing_pct = existing.get("signal", {}).get("liquidity_change_percent", 0)
-                    new_pct = alert.get("signal", {}).get("liquidity_change_percent", 0)
-                
                 # مقارنة الزمن (48 ساعة)
                 existing_time = datetime.strptime(
                     existing.get("generated_at"), "%Y-%m-%d %H:%M"
@@ -108,8 +119,7 @@ def save_alert(alert: dict):
                     alert.get("generated_at"), "%Y-%m-%d %H:%M"
                 )
 
-                if (abs(existing_pct - new_pct) < 1 and 
-                    abs((new_time - existing_time).total_seconds()) < 48 * 3600):
+                if abs((new_time - existing_time).total_seconds()) < 48 * 3600:
                     print(f"⚠️ تنبيه {alert.get('type')} مكرر تجاهل: {alert.get('city')} - {alert.get('property_type')}")
                     return
 
@@ -385,14 +395,35 @@ class AlertEngine:
                     behavior_signals.append("تركيز الشراء في أحياء محددة")
                     confidence_score += 1
 
-            # ---- إطلاق التنبيه ----
+            # ---- 4. سلوك الصفقة (حجم الصفقة) ----
+            # نراقب هل السوق يتجه لصفقات أصغر (أفراد) أو أكبر (مستثمرين)
+            
+            def avg_transaction_size(df):
+                if "المساحة" in df.columns and df["المساحة"].dropna().any():
+                    return df["المساحة"].mean()
+                elif "السعر" in df.columns and df["السعر"].dropna().any():
+                    return df["السعر"].mean()
+                return None
+
+            prev_tx_size = avg_transaction_size(previous_df)
+            curr_tx_size = avg_transaction_size(current_df)
+
+            if prev_tx_size and curr_tx_size:
+                change_pct = ((curr_tx_size - prev_tx_size) / prev_tx_size) * 100
+
+                # انتقال نحو صفقات أصغر (شراء أفراد / سرعة دوران)
+                if change_pct <= -15:
+                    behavior_signals.append("انتقال السوق نحو صفقات أصغر وأسرع")
+                    confidence_score += 1
+
+                # انتقال نحو صفقات أكبر (شراء استثماري ثقيل)
+                elif change_pct >= 15:
+                    behavior_signals.append("اتجاه السوق نحو صفقات أكبر واستثمار طويل")
+                    confidence_score += 1
+
+            # ---- إطلاق التنبيه باستخدام دالة الثقة الموحدة ----
             if confidence_score >= 1:
-                if confidence_score >= 3:
-                    confidence = "HIGH"
-                elif confidence_score == 2:
-                    confidence = "MEDIUM"
-                else:
-                    confidence = "LOW"
+                confidence = compute_confidence(confidence_score)
 
                 alert = {
                     "type": "BUYER_BEHAVIOR_SHIFT",
