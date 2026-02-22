@@ -230,20 +230,23 @@ class AlertEngine:
 
             # شروط إطلاق التنبيه
             if supply_change_pct >= 10 and district_loss_ratio >= 15:
-                # تصنيف القوة الأساسي
+                # حساب score رقمي بدلاً من تصنيف مباشر
+                confidence_score = 0
+
+                # قوة انخفاض المعروض
                 if supply_change_pct >= 30:
-                    confidence = "HIGH"
+                    confidence_score += 3
                 elif supply_change_pct >= 20:
-                    confidence = "MEDIUM"
-                else:
-                    confidence = "LOW"
-                
-                # ⭐ ترقية الثقة إذا اختفت 3 أحياء أو أكثر
+                    confidence_score += 2
+                elif supply_change_pct >= 10:
+                    confidence_score += 1
+
+                # دعم إضافي إذا اختفت أحياء كثيرة
                 if len(districts_lost) >= 3:
-                    if confidence == "MEDIUM":
-                        confidence = "HIGH"
-                    elif confidence == "LOW":
-                        confidence = "MEDIUM"
+                    confidence_score += 1
+
+                # حساب مستوى الثقة عبر الدالة الموحدة
+                confidence = compute_confidence(confidence_score)
                 
                 # عرض الأحياء المختفية (أول 3 فقط)
                 districts_display = ", ".join(list(districts_lost)[:3]) or "عدة أحياء"
@@ -306,13 +309,23 @@ class AlertEngine:
 
             # شروط إطلاق التنبيه
             if liquidity_change_pct >= 15 and -2 <= price_change_pct <= 1:
-                
+                # حساب score رقمي بدلاً من تصنيف مباشر
+                confidence_score = 0
+
+                # قوة زيادة السيولة
                 if liquidity_change_pct >= 30:
-                    confidence = "HIGH"
+                    confidence_score += 3
                 elif liquidity_change_pct >= 20:
-                    confidence = "MEDIUM"
-                else:
-                    confidence = "LOW"
+                    confidence_score += 2
+                elif liquidity_change_pct >= 15:
+                    confidence_score += 1
+
+                # دعم إضافي إذا ظهرت أحياء جديدة
+                if len(active_districts) >= 2:
+                    confidence_score += 1
+
+                # حساب مستوى الثقة عبر الدالة الموحدة
+                confidence = compute_confidence(confidence_score)
 
                 alert = {
                     "type": "LIQUIDITY_INFLOW",
@@ -448,18 +461,15 @@ class AlertEngine:
                 print(f"🧠 {city} | {property_type}: تغير سلوك الشراء ({confidence})")
 
             # ==============================
-            # تنبيهات الخصم السعري (المنطق القديم)
+            # 💰 تنبيهات الخصم السعري (GOLDEN_OPPORTUNITY) – موحّد بالـ score
             # ==============================
 
-            # 🔇 منع التنبيهات إذا لم يحدث تغير كمي في السوق
-            if len(current_df) == len(previous_df):
-                print(f"⏸️ {city} | {property_type}: لا تغير كمي واضح في السوق")
+            # إشارات سياقية من نفس الجولة (تعزيز ذكي)
+            context_bias = {
+                "SUPPLY_ABSORPTION": any(a.get("type") == "SUPPLY_ABSORPTION" for a in alerts),
+                "LIQUIDITY_INFLOW": any(a.get("type") == "LIQUIDITY_INFLOW" for a in alerts),
+            }
 
-            if real_data.empty:
-                print(f"⚠️ {city}: لا توجد بيانات")
-                return alerts
-
-            # البحث عن العقارات المخفضة
             undervalued = self.opportunity_finder.find_undervalued_properties(
                 real_data, city
             )
@@ -468,65 +478,74 @@ class AlertEngine:
                 print(f"⚠️ {city}: لا توجد عقارات مخفضة")
                 return alerts
 
-            # تحويل كل فرصة إلى تنبيه (بدون استثناء)
             for prop in undervalued:
-                # تحويل الخصم من نص إلى رقم مع أمان
+                # ---- قراءة الخصم بأمان ----
                 discount_raw = prop.get("الخصم", "0").replace("%", "")
                 try:
                     discount = float(discount_raw)
                 except:
-                    discount = 0
+                    discount = 0.0
 
-                # 🔥 تجاهل التنبيه إذا لم يصل للحد الأدنى للخصم
+                # فلتر الظهور
                 if discount < MIN_DISCOUNT_PERCENT:
                     continue
 
-                # 🔥 تصنيف قوة التنبيه بدل إلغائه
-                if discount >= 15:
-                    confidence = "HIGH"
-                elif discount >= 8:
-                    confidence = "MEDIUM"
-                elif discount >= 5:
-                    confidence = "LOW"
-                else:
-                    continue  # أقل من 5% لا نعرضه
+                # ---- حساب score ----
+                confidence_score = 0
 
-                # أمان لأسماء الحقول - نحاول أكثر من مفتاح
+                # (1) الخصم – الأساس
+                if discount >= 20:
+                    confidence_score += 3
+                elif discount >= 12:
+                    confidence_score += 2
+                elif discount >= 5:
+                    confidence_score += 1
+
+                # (2) تعزيز سياقي إذا السوق يدعم
+                if context_bias["SUPPLY_ABSORPTION"]:
+                    confidence_score += 1
+                if context_bias["LIQUIDITY_INFLOW"]:
+                    confidence_score += 1
+
+                # حساب مستوى الثقة الموحد
+                confidence = compute_confidence(confidence_score)
+
+                # ---- أمان الحقول ----
                 current_price = prop.get("السعر_الحالي") or prop.get("السعر") or 0
-                
-                # 🔥 منع قتل التنبيهات إذا المتوسط مفقود
-                avg_price = prop.get("متوسط_المنطقة") or prop.get("متوسط_السعر") or current_price * 1.1
-                
+                avg_price = (
+                    prop.get("متوسط_المنطقة")
+                    or prop.get("متوسط_السعر")
+                    or (current_price * 1.1 if current_price else 0)
+                )
                 district = prop.get("المنطقة") or prop.get("الحي") or "غير محدد"
                 expected_return = prop.get("العائد_المتوقع", "غير متاح")
-                
-                # إنشاء كائن التنبيه
+
                 alert = {
                     "type": "GOLDEN_OPPORTUNITY",
                     "city": city,
                     "district": district,
-                    "title": f"💰 فرصة {'قوية' if discount >= 15 else 'متوسطة' if discount >= 8 else 'خفيفة'} في {city}",
+                    "title": f"💰 فرصة {('قوية' if confidence=='HIGH' else 'متوسطة' if confidence=='MEDIUM' else 'خفيفة')} في {city}",
                     "description": f"عقار {property_type} في {district} بخصم {discount:.1f}% عن متوسط المنطقة",
                     "signal": {
-                        "discount_percent": discount,
+                        "discount_percent": round(discount, 1),
                         "current_price": current_price,
                         "avg_area_price": avg_price,
                         "expected_return": expected_return,
                         "window_hours": 48,
-                        "property_type": property_type
+                        "property_type": property_type,
+                        "context_bias": context_bias,
+                        "score": confidence_score
                     },
-                    "confidence": confidence,  # HIGH/MEDIUM/LOW حسب الخصم
+                    "confidence": confidence,
                     "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "source": "AlertEngine",
                     "property_type": property_type
                 }
-                
+
                 alerts.append(alert)
-                
-                # 🔥 حفظ التنبيه مع منع التكرار
                 save_alert(alert)
-                
-                print(f"✅ {city}: تم إنشاء تنبيه {confidence} بخصم {discount}%")
+
+                print(f"💰 {city} | {property_type}: فرصة {confidence} بخصم {discount:.1f}% (score={confidence_score})")
 
             return alerts
             
@@ -780,6 +799,7 @@ def format_alert_for_display(alert):
         details_text = f"""
 **المدينة:** {alert.get('city', 'غير محدد')} | **الحي:** {alert.get('district', 'غير محدد')}
 **الخصم:** {discount:.1f}% | **السعر:** {price_str} ريال
+**سياق السوق:** {'🔥 امتصاص' if signal.get('context_bias', {}).get('SUPPLY_ABSORPTION') else ''} {'💧 سيولة' if signal.get('context_bias', {}).get('LIQUIDITY_INFLOW') else ''}
 **نافذة الفرصة:** {signal.get('window_hours', 48)} ساعة
         """
         
@@ -790,7 +810,8 @@ def format_alert_for_display(alert):
             "price": price_str,
             "window": signal.get("window_hours", 48),
             "property_type": signal.get("property_type", "غير محدد"),
-            "expected_return": signal.get("expected_return", "غير متاح")
+            "expected_return": signal.get("expected_return", "غير متاح"),
+            "context_bias": signal.get("context_bias", {})
         }
     
     # إضافة رمز حسب مستوى الثقة
@@ -881,7 +902,13 @@ def print_alerts_summary():
                 print(f"  {i+1}. {icon} {conf_icon} {alert['city']}: {signals_text} ({confidence})")
             else:
                 discount = alert.get("signal", {}).get("discount_percent", 0)
-                print(f"  {i+1}. {icon} {conf_icon} {alert['city']} - {alert.get('district', 'غير محدد')}: خصم {discount:.1f}% ({confidence})")
+                context = alert.get("signal", {}).get("context_bias", {})
+                context_text = ""
+                if context.get("SUPPLY_ABSORPTION"):
+                    context_text += "🔥"
+                if context.get("LIQUIDITY_INFLOW"):
+                    context_text += "💧"
+                print(f"  {i+1}. {icon} {conf_icon} {alert['city']} - {alert.get('district', 'غير محدد')}: خصم {discount:.1f}% {context_text}({confidence})")
 
 # ==============================
 # 8️⃣ اختبار سريع (يشتغل فقط إذا شغلت الملف مباشرة)
