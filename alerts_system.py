@@ -13,6 +13,7 @@ import json
 import random
 from datetime import datetime, timedelta
 from pathlib import Path
+import pandas as pd
 
 # ==============================
 # استيرادات ذاكرة السوق للمقارنة الزمنية
@@ -44,7 +45,8 @@ ALERT_TYPES = {
     "MARKET_SHIFT": "📊 تحول سعري غير طبيعي",
     "RISK_WARNING": "⚠️ خطر خفي يظهر",
     "SUPPLY_ABSORPTION": "🔥 اختفاء المعروض - السوق يشتري بصمت",
-    "LIQUIDITY_INFLOW": "💧 دخول سيولة ذكية - السوق يتحرك قبل السعر"
+    "LIQUIDITY_INFLOW": "💧 دخول سيولة ذكية - السوق يتحرك قبل السعر",
+    "BUYER_BEHAVIOR_SHIFT": "🧠 تغير سلوك الشراء - من يشتري ماذا وأين"
 }
 
 # ==============================
@@ -336,6 +338,85 @@ class AlertEngine:
                 )
 
             # ==============================
+            # 🧠 تنبيه تغير سلوك الشراء (Buyer Behavior Shift)
+            # ==============================
+
+            behavior_signals = []
+            confidence_score = 0
+
+            # ---- 1. تغير نوع العقار المهيمن ----
+            def dominant_type(df):
+                return df["نوع_العقار"].value_counts(normalize=True).to_dict() if "نوع_العقار" in df.columns else {}
+
+            prev_types = dominant_type(previous_df)
+            curr_types = dominant_type(current_df)
+
+            for t, pct in curr_types.items():
+                prev_pct = prev_types.get(t, 0)
+                if pct - prev_pct >= 0.20:
+                    behavior_signals.append(f"تحول قوي نحو {t}")
+                    confidence_score += 1
+
+            # ---- 2. انتقال الشراء بين الشرائح السعرية ----
+            if "سعر_المتر" in previous_df.columns and "سعر_المتر" in current_df.columns:
+                prev_prices = previous_df["سعر_المتر"].dropna()
+                curr_prices = current_df["سعر_المتر"].dropna()
+
+                if len(prev_prices) > 10 and len(curr_prices) > 10:
+                    p_low, p_high = prev_prices.quantile([0.33, 0.66])
+                    prev_segment = pd.cut(prev_prices, [-1, p_low, p_high, 1e9], labels=["منخفض", "متوسط", "مرتفع"])
+                    curr_segment = pd.cut(curr_prices, [-1, p_low, p_high, 1e9], labels=["منخفض", "متوسط", "مرتفع"])
+
+                    prev_dist = prev_segment.value_counts(normalize=True)
+                    curr_dist = curr_segment.value_counts(normalize=True)
+
+                    for seg in curr_dist.index:
+                        if curr_dist[seg] - prev_dist.get(seg, 0) >= 0.15:
+                            behavior_signals.append(f"انتقال الشراء نحو الشريحة {seg}")
+                            confidence_score += 1
+
+            # ---- 3. تركّز الشراء في أحياء محددة ----
+            dominant_districts = []
+            if "الحي" in current_df.columns:
+                district_dist = current_df["الحي"].value_counts(normalize=True)
+                dominant_districts = district_dist[district_dist >= 0.15].index.tolist()
+
+                if len(dominant_districts) >= 3:
+                    behavior_signals.append("تركيز الشراء في أحياء محددة")
+                    confidence_score += 1
+
+            # ---- إطلاق التنبيه ----
+            if confidence_score >= 1:
+                if confidence_score >= 3:
+                    confidence = "HIGH"
+                elif confidence_score == 2:
+                    confidence = "MEDIUM"
+                else:
+                    confidence = "LOW"
+
+                alert = {
+                    "type": "BUYER_BEHAVIOR_SHIFT",
+                    "city": city,
+                    "district": ", ".join(dominant_districts[:3]) if dominant_districts else "عدة أحياء",
+                    "title": f"🧠 تغير سلوك الشراء في {city}",
+                    "description": " | ".join(behavior_signals),
+                    "signal": {
+                        "signals": behavior_signals,
+                        "window_hours": 96,
+                        "property_type": property_type
+                    },
+                    "confidence": confidence,
+                    "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "source": "MarketMemory",
+                    "property_type": property_type
+                }
+
+                alerts.append(alert)
+                save_alert(alert)
+
+                print(f"🧠 {city} | {property_type}: تغير سلوك الشراء ({confidence})")
+
+            # ==============================
             # تنبيهات الخصم السعري (المنطق القديم)
             # ==============================
 
@@ -622,6 +703,33 @@ def format_alert_for_display(alert):
             "current_count": signal.get("current_count", 0),
             "window": signal.get("window_hours", 48)
         }
+
+    elif alert_type == "BUYER_BEHAVIOR_SHIFT":
+        icon = "🧠"
+        title = alert.get("title", f"🧠 تغير سلوك الشراء في {alert.get('city')}")
+        description = alert.get("description", "")
+        signals_list = signal.get("signals", [])
+        
+        signals_text = "\n".join([f"• {s}" for s in signals_list]) if signals_list else "لا توجد إشارات محددة"
+        
+        details_text = f"""
+**المدينة:** {alert.get('city', 'غير محدد')}
+**نوع العقار:** {signal.get('property_type', 'غير محدد')}
+**الإشارات:**
+{signals_text}
+
+**نافذة الرصد:** {signal.get('window_hours', 96)} ساعة
+
+🧠 تغير في هوية المشتري – السوق ينتقي بشكل مختلف.
+القرار: إعادة تقييم الخريطة الاستثمارية.
+        """
+        
+        details = {
+            "city": alert.get("city", "غير محدد"),
+            "property_type": signal.get("property_type", "غير محدد"),
+            "signals": signals_list,
+            "window": signal.get("window_hours", 96)
+        }
         
     else:  # GOLDEN_OPPORTUNITY
         discount = signal.get("discount_percent", 0)
@@ -692,6 +800,8 @@ def print_alerts_summary():
             icon = "🔥"
         elif alert_type == "LIQUIDITY_INFLOW":
             icon = "💧"
+        elif alert_type == "BUYER_BEHAVIOR_SHIFT":
+            icon = "🧠"
         else:
             icon = "💰"
         print(f"  {icon} {alert_type}: {count}")
@@ -716,6 +826,8 @@ def print_alerts_summary():
                 icon = "🔥"
             elif alert_type == "LIQUIDITY_INFLOW":
                 icon = "💧"
+            elif alert_type == "BUYER_BEHAVIOR_SHIFT":
+                icon = "🧠"
             else:
                 icon = "💰"
             
@@ -732,6 +844,10 @@ def print_alerts_summary():
                 active = alert.get("signal", {}).get("active_districts", [])
                 active_text = ", ".join(active[:2]) if active else "عدة أحياء"
                 print(f"  {i+1}. {icon} {conf_icon} {alert['city']} - {active_text}: سيولة {liquidity:.1f}% ({confidence})")
+            elif alert_type == "BUYER_BEHAVIOR_SHIFT":
+                signals = alert.get("signal", {}).get("signals", [])
+                signals_text = signals[0][:30] + "..." if signals else "تغير في السلوك"
+                print(f"  {i+1}. {icon} {conf_icon} {alert['city']}: {signals_text} ({confidence})")
             else:
                 discount = alert.get("signal", {}).get("discount_percent", 0)
                 print(f"  {i+1}. {icon} {conf_icon} {alert['city']} - {alert.get('district', 'غير محدد')}: خصم {discount:.1f}% ({confidence})")
