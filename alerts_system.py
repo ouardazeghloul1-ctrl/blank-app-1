@@ -11,6 +11,7 @@
 
 import json
 import random
+import hashlib
 from datetime import datetime, timedelta
 from pathlib import Path
 import pandas as pd
@@ -32,9 +33,6 @@ PROPERTY_TYPES = ["شقة", "فيلا", "أرض"]
 
 # الحد الأدنى للخصم لاعتبارها فرصة (5% كحد أدنى للظهور)
 MIN_DISCOUNT_PERCENT = 5
-
-# مدة التخزين المؤقت (بالساعات)
-CACHE_HOURS = 6
 
 # مسار ملف التخزين الدائم
 ALERTS_FILE = Path("alerts/alerts_db.json")
@@ -69,6 +67,55 @@ def compute_confidence(score, rules=None):
         return "LOW"
 
 # ==============================
+# دالة إنشاء بصمة فريدة للتنبيه (لمنع التكرار)
+# ==============================
+
+def alert_fingerprint(alert):
+    """إنشاء بصمة فريدة للتنبيه بناءً على النوع والمدينة والحي ووقت الحدث"""
+    key = f"{alert.get('type')}-{alert.get('city')}-{alert.get('district', '')}-{alert.get('property_type', '')}"
+    # استخدام تاريخ التنبيه نفسه، وليس وقت التنفيذ
+    date_str = alert.get("generated_at", datetime.now().strftime("%Y-%m-%d"))[:10]
+    return hashlib.md5(f"{key}-{date_str}".encode()).hexdigest()
+
+# ==============================
+# دالة بناء رسالة بشرية (بدون HTML أو كود)
+# ==============================
+
+def build_human_message(alert):
+    """تحويل التنبيه إلى رسالة مفهومة للبشر (بدون HTML أو أكواد)"""
+    t = alert.get("type")
+    city = alert.get("city")
+    conf = alert.get("confidence")
+    signal = alert.get("signal", {})
+    window = signal.get("window_hours", 24)
+
+    if t == "BUYER_BEHAVIOR_SHIFT":
+        signals = signal.get("signals", [])
+        main = signals[0] if signals else "تغير غير معتاد في سلوك المشترين"
+        return f"📍 {city}: خلال آخر {window} ساعة لوحظ {main}. (قوة الإشارة: {conf})"
+
+    if t == "SUPPLY_ABSORPTION":
+        drop = signal.get("supply_drop_percent", 0)
+        districts = signal.get("districts_lost", [])
+        districts_text = f" في {', '.join(districts[:2])}" if districts else ""
+        return f"📍 {city}{districts_text}: خلال آخر {window} ساعة انخفض المعروض بنسبة {drop:.1f}%. السوق يشتري بصمت."
+
+    if t == "LIQUIDITY_INFLOW":
+        liq = signal.get("liquidity_change_percent", 0)
+        active = signal.get("active_districts", [])
+        active_text = f" في {', '.join(active[:2])}" if active else ""
+        return f"📍 {city}{active_text}: خلال آخر {window} ساعة دخلت سيولة ذكية (+{liq:.1f}%) بدون ارتفاع في السعر."
+
+    if t == "GOLDEN_OPPORTUNITY":
+        d = signal.get("discount_percent", 0)
+        dist = alert.get("district", "")
+        prop_type = signal.get("property_type", "عقار")
+        exclusive = "📢 خبر حصري – " if alert.get("is_exclusive") else ""
+        return f"{exclusive}💰 فرصة في {city} ({dist}): {prop_type} بخصم {d:.1f}% عن السوق. (نافذة الفرصة: {window} ساعة)"
+
+    return f"📍 {city}: حركة سوق غير اعتيادية خلال آخر {window} ساعة."
+
+# ==============================
 # 2️⃣ التخزين الدائم مع منع التكرار (Alert Storage)
 # ==============================
 
@@ -89,39 +136,18 @@ def load_alerts():
 def save_alert(alert: dict):
     """
     حفظ تنبيه جديد في الملف الدائم مع منع التكرار
-    ✅ لا يتم حفظ نفس التنبيه أكثر من مرة
+    ✅ لا يتم حفظ نفس التنبيه أكثر من مرة باستخدام fingerprint
     """
     alerts = load_alerts()
 
-    # 🔥 منع التكرار: نفس المدينة + نفس الحي + نفس الخصم (لتنبيهات الخصم)
-    # ولتنبيهات اختفاء المعروض والسيولة: نفس المدينة + نفس نوع العقار + نفس النسبة + خلال 48 ساعة
+    # إضافة بصمة فريدة للتنبيه (تعتمد على generated_at)
+    alert["fingerprint"] = alert_fingerprint(alert)
+    
+    # 🔥 منع التكرار: نفس البصمة خلال نفس اليوم
     for existing in alerts:
-        if alert.get("type") == "GOLDEN_OPPORTUNITY":
-            if (
-                existing.get("city") == alert.get("city")
-                and existing.get("district") == alert.get("district")
-                and existing.get("signal", {}).get("discount_percent")
-                   == alert.get("signal", {}).get("discount_percent")
-            ):
-                print(f"⚠️ تنبيه خصم مكرر تجاهل: {alert.get('city')} - {alert.get('district')}")
-                return
-        elif alert.get("type") in ["SUPPLY_ABSORPTION", "LIQUIDITY_INFLOW", "BUYER_BEHAVIOR_SHIFT"]:
-            if (
-                existing.get("type") == alert.get("type")
-                and existing.get("city") == alert.get("city")
-                and existing.get("property_type") == alert.get("property_type")
-            ):
-                # مقارنة الزمن (48 ساعة)
-                existing_time = datetime.strptime(
-                    existing.get("generated_at"), "%Y-%m-%d %H:%M"
-                )
-                new_time = datetime.strptime(
-                    alert.get("generated_at"), "%Y-%m-%d %H:%M"
-                )
-
-                if abs((new_time - existing_time).total_seconds()) < 48 * 3600:
-                    print(f"⚠️ تنبيه {alert.get('type')} مكرر تجاهل: {alert.get('city')} - {alert.get('property_type')}")
-                    return
+        if existing.get("fingerprint") == alert["fingerprint"]:
+            print(f"⚠️ تنبيه مكرر تجاهل: {alert.get('type')} - {alert.get('city')} - {alert.get('district', '')}")
+            return
 
     alert["saved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     alerts.append(alert)
@@ -150,23 +176,104 @@ def get_today_stored_alerts(city: str = None):
     
     return today_alerts
 
-def clear_old_alerts(days=30):
-    """حذف التنبيهات الأقدم من عدد محدد من الأيام"""
+def get_alerts_history(days=7, city=None, alert_type=None):
+    """
+    جلب التنبيهات من الأيام السابقة (للتاريخ والتحليل)
+    days: عدد الأيام الماضية (افتراضي: 7 أيام)
+    city: فلترة حسب المدينة (اختياري)
+    alert_type: فلترة حسب نوع التنبيه (اختياري)
+    """
+    cutoff = datetime.now() - timedelta(days=days)
+    
+    all_alerts = load_alerts()
+    history_alerts = []
+    
+    for alert in all_alerts:
+        try:
+            # تحويل النص إلى كائن datetime للمقارنة الدقيقة
+            alert_time = datetime.strptime(alert.get("generated_at", "2000-01-01 00:00"), "%Y-%m-%d %H:%M")
+            if alert_time >= cutoff:
+                history_alerts.append(alert)
+        except:
+            # إذا فشل التحويل، نتجاهل هذا التنبيه
+            continue
+    
+    # تصفية حسب المدينة إذا طلبت
+    if city:
+        history_alerts = [a for a in history_alerts if a.get("city") == city]
+    
+    # تصفية حسب نوع التنبيه إذا طلب
+    if alert_type:
+        history_alerts = [a for a in history_alerts if a.get("type") == alert_type]
+    
+    return history_alerts
+
+def get_latest_alert_by_city(city, alert_type=None):
+    """
+    جلب آخر تنبيه لمدينة محددة
+    city: اسم المدينة
+    alert_type: نوع التنبيه المطلوب (اختياري)
+    """
+    all_alerts = load_alerts()
+    
+    # تصفية حسب المدينة
+    city_alerts = [a for a in all_alerts if a.get("city") == city]
+    
+    # تصفية حسب النوع إذا طلب
+    if alert_type:
+        city_alerts = [a for a in city_alerts if a.get("type") == alert_type]
+    
+    if not city_alerts:
+        return None
+    
+    # ترتيب تنازلي حسب الوقت وأخذ الأحدث
+    city_alerts.sort(key=lambda x: x.get("generated_at", ""), reverse=True)
+    return city_alerts[0]
+
+def get_latest_alerts_summary():
+    """
+    الحصول على ملخص آخر التنبيهات لكل مدينة
+    يعرض أحدث تنبيه من كل نوع لكل مدينة
+    """
+    summary = {}
+    
+    for city in CITIES:
+        city_summary = {}
+        for alert_type in ALERT_TYPES.keys():
+            latest = get_latest_alert_by_city(city, alert_type)
+            if latest:
+                city_summary[alert_type] = {
+                    "message": build_human_message(latest),
+                    "time": latest.get("generated_at"),
+                    "confidence": latest.get("confidence"),
+                    "is_exclusive": latest.get("is_exclusive", True)
+                }
+        if city_summary:
+            summary[city] = city_summary
+    
+    return summary
+
+def clear_old_alerts(days=365):
+    """حذف التنبيهات الأقدم من عدد محدد من الأيام (افتراضي: سنة كاملة)"""
     alerts = load_alerts()
     cutoff = datetime.now() - timedelta(days=days)
-    cutoff_str = cutoff.strftime("%Y-%m-%d")
     
-    new_alerts = [
-        a for a in alerts
-        if a.get("generated_at", "").split()[0] >= cutoff_str
-    ]
+    new_alerts = []
+    for alert in alerts:
+        try:
+            alert_time = datetime.strptime(alert.get("generated_at", "2000-01-01 00:00"), "%Y-%m-%d %H:%M")
+            if alert_time >= cutoff:
+                new_alerts.append(alert)
+        except:
+            # إذا فشل التحويل، نحتفظ بالتنبيه
+            new_alerts.append(alert)
     
     if len(new_alerts) != len(alerts):
         ALERTS_FILE.write_text(
             json.dumps(new_alerts, ensure_ascii=False, indent=2),
             encoding="utf-8"
         )
-        print(f"🧹 تم حذف {len(alerts) - len(new_alerts)} تنبيه قديم")
+        print(f"🧹 تم حذف {len(alerts) - len(new_alerts)} تنبيه قديم (أقدم من {days} يوم)")
     
     return new_alerts
 
@@ -174,7 +281,6 @@ def clear_old_alerts(days=30):
 # 3️⃣ محرك التنبيهات (Alert Engine)
 # ==============================
 
-from live_real_data_provider import get_live_real_data
 from smart_opportunities import SmartOpportunityFinder
 
 class AlertEngine:
@@ -267,13 +373,14 @@ class AlertEngine:
                         "current_count": curr_count,
                         "districts_lost": list(districts_lost)[:5],
                         "district_loss_ratio": round(district_loss_ratio, 1),
-                        "window_hours": 72,
+                        "window_hours": 24,
                         "property_type": property_type
                     },
                     "confidence": confidence,
                     "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "source": "MarketMemory",
-                    "property_type": property_type
+                    "property_type": property_type,
+                    "is_exclusive": True
                 }
 
                 alerts.append(alert)
@@ -343,13 +450,14 @@ class AlertEngine:
                         "active_districts": list(active_districts)[:5],
                         "previous_count": prev_count,
                         "current_count": curr_count,
-                        "window_hours": 48,
+                        "window_hours": 24,
                         "property_type": property_type
                     },
                     "confidence": confidence,
                     "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "source": "MarketMemory",
-                    "property_type": property_type
+                    "property_type": property_type,
+                    "is_exclusive": True
                 }
 
                 alerts.append(alert)
@@ -446,13 +554,14 @@ class AlertEngine:
                     "description": " | ".join(behavior_signals),
                     "signal": {
                         "signals": behavior_signals,
-                        "window_hours": 96,
+                        "window_hours": 24,
                         "property_type": property_type
                     },
                     "confidence": confidence,
                     "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "source": "MarketMemory",
-                    "property_type": property_type
+                    "property_type": property_type,
+                    "is_exclusive": True
                 }
 
                 alerts.append(alert)
@@ -531,7 +640,7 @@ class AlertEngine:
                         "current_price": current_price,
                         "avg_area_price": avg_price,
                         "expected_return": expected_return,
-                        "window_hours": 48,
+                        "window_hours": 24,
                         "property_type": property_type,
                         "context_bias": context_bias,
                         "score": confidence_score
@@ -539,7 +648,8 @@ class AlertEngine:
                     "confidence": confidence,
                     "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "source": "AlertEngine",
-                    "property_type": property_type
+                    "property_type": property_type,
+                    "is_exclusive": True
                 }
 
                 alerts.append(alert)
@@ -554,14 +664,35 @@ class AlertEngine:
             return []
 
 # ==============================
-# 4️⃣ تجميع كل المدن (Daily Aggregator)
+# دالة لحظية للتنبيهات (تستخدم مباشرة بعد حفظ snapshot)
+# ==============================
+
+def check_and_emit_alert(city, property_type):
+    """
+    دالة لحظية لتوليد التنبيهات مباشرة بعد حفظ snapshot جديد
+    هذه هي الدالة الموصى باستخدامها للتنبيهات الفورية
+    """
+    engine = AlertEngine()
+    alerts = engine.generate_city_alerts(city, property_type)
+    
+    # إذا كان هناك تنبيهات جديدة، يمكن إرسال إشعار فوري هنا
+    if alerts:
+        print(f"📢 تنبيه جديد الآن في {city}: {len(alerts)} تنبيه")
+        for alert in alerts:
+            print(f"  → {build_human_message(alert)}")
+    
+    return alerts
+
+# ==============================
+# 4️⃣ تجميع كل المدن (وظيفة إدارية للاستخدام الدفعي)
 # ==============================
 
 def generate_all_alerts():
     """
-    يجمع كل التنبيهات من جميع المدن وجميع أنواع العقارات
-    هذه هي الدالة الرئيسية لتوليد التنبيهات
+    ⚠️ وظيفة إدارية فقط - تجمع كل التنبيهات من جميع المدن دفعة واحدة
+    تستخدم للصيانة أو التهيئة الأولية، وليس للاستخدام اليومي
     """
+    print("⚠️ تحذير: generate_all_alerts هي وظيفة إدارية ثقيلة، يفضل استخدام check_and_emit_alert للتنبيهات اللحظية")
     engine = AlertEngine()
     all_alerts = []
 
@@ -580,60 +711,31 @@ def generate_all_alerts():
     return all_alerts
 
 # ==============================
-# 5️⃣ التخزين المؤقت (Cache Layer - منفصل عن Streamlit)
-# ==============================
-
-class AlertCache:
-    """طبقة تخزين مؤقت مستقلة عن Streamlit"""
-    
-    def __init__(self):
-        self.alerts = []
-        self.alerts_time = None
-        self.cache_hours = CACHE_HOURS
-    
-    def get(self, force_refresh=False):
-        """الحصول على التنبيهات من الكاش"""
-        if force_refresh:
-            self.alerts = generate_all_alerts()
-            self.alerts_time = datetime.now()
-            return self.alerts
-        
-        if self.alerts_time:
-            time_diff = datetime.now() - self.alerts_time
-            if time_diff < timedelta(hours=self.cache_hours):
-                return self.alerts
-        
-        self.alerts = generate_all_alerts()
-        self.alerts_time = datetime.now()
-        return self.alerts
-    
-    def refresh(self):
-        """تحديث الكاش"""
-        return self.get(force_refresh=True)
-
-# إنشاء كائن الكاش العام (مرة واحدة)
-_alert_cache = AlertCache()
-
-# ==============================
-# 6️⃣ واجهة الاستخدام (API) - للاستخدام من الملفات الأخرى
+# 5️⃣ واجهة الاستخدام (API) - للاستخدام من الملفات الأخرى
 # ==============================
 
 def get_today_alerts(force_refresh=False):
     """
-    ✅ المصدر الوحيد للتنبيهات في الواجهة
-    يستخدم التخزين المؤقت لمدة 6 ساعات
+    ✅ المصدر الرئيسي للتنبيهات في الواجهة
+    يقرأ من الملف مباشرة للحصول على آخر التنبيهات المحفوظة
     
     المعاملات:
-        force_refresh: إذا كان True، يتجاهل الكاش ويجلب بيانات جديدة
-    
-    ترجع:
-        قائمة التنبيهات
+        force_refresh: إذا كان True، يولد تنبيهات جديدة قبل العرض
     """
-    return _alert_cache.get(force_refresh=force_refresh)
+    if force_refresh:
+        # تحديث إجباري: يولد تنبيهات جديدة ويحفظها
+        print("🔄 تحديث إجباري للتنبيهات...")
+        generate_all_alerts()
+    
+    # قراءة التنبيهات من الملف مباشرة
+    return get_today_stored_alerts()
 
 def refresh_alerts():
-    """تحديث إجباري للتنبيهات (للاستخدام اليدوي)"""
-    return _alert_cache.refresh()
+    """
+    تحديث إجباري للتنبيهات (للاستخدام اليدوي)
+    """
+    print("🔄 تحديث يدوي للتنبيهات...")
+    return generate_all_alerts()
 
 def get_alerts_by_city(city):
     """ترجع تنبيهات مدينة محددة فقط"""
@@ -676,7 +778,7 @@ def get_alerts_stats():
     return stats
 
 # ==============================
-# 7️⃣ أدوات التنسيق والعرض (مستقلة عن Streamlit)
+# 6️⃣ أدوات التنسيق والعرض (مستقلة عن Streamlit)
 # ==============================
 
 def format_alert_for_display(alert):
@@ -690,95 +792,49 @@ def format_alert_for_display(alert):
     # تنسيق حسب نوع التنبيه
     if alert_type == "SUPPLY_ABSORPTION":
         drop_pct = signal.get("supply_drop_percent", 0)
-        prev_count = signal.get("previous_count", 0)
-        curr_count = signal.get("current_count", 0)
-        districts_lost = signal.get("districts_lost", [])
-        district_loss_ratio = signal.get("district_loss_ratio", 0)
         
         icon = "🔥"
         title = alert.get("title", f"🔥 اختفاء معروض في {alert.get('city')}")
-        description = alert.get("description", "")
-        
-        districts_text = ", ".join(districts_lost[:3]) if districts_lost else "عدة أحياء"
-        
-        details_text = f"""
-**المدينة:** {alert.get('city', 'غير محدد')}
-**نوع العقار:** {signal.get('property_type', 'غير محدد')}
-**انخفاض المعروض:** {drop_pct:.1f}%
-**الأحياء المختفية:** {districts_text}
-**نسبة اختفاء الأحياء:** {district_loss_ratio:.1f}%
-**العدد السابق:** {prev_count} | **الحالي:** {curr_count}
-**نافذة الفرصة:** {signal.get('window_hours', 72)} ساعة
-
-🔥 هذا ليس تصحيح سعر، بل **شراء صامت**.
-القرار: المراقبة الدقيقة – الفرص التالية أقل عددًا وأقوى أثرًا.
-        """
         
         details = {
             "city": alert.get("city", "غير محدد"),
             "property_type": signal.get("property_type", "غير محدد"),
             "supply_drop": drop_pct,
-            "districts_lost": districts_text,
-            "district_loss_ratio": district_loss_ratio,
-            "previous_count": prev_count,
-            "current_count": curr_count,
-            "window": signal.get("window_hours", 72)
+            "districts_lost": alert.get("district", "عدة أحياء"),
+            "district_loss_ratio": signal.get("district_loss_ratio", 0),
+            "previous_count": signal.get("previous_count", 0),
+            "current_count": signal.get("current_count", 0),
+            "window": signal.get("window_hours", 24),
+            "is_exclusive": alert.get("is_exclusive", True)
         }
         
     elif alert_type == "LIQUIDITY_INFLOW":
         icon = "💧"
         title = alert.get("title", f"💧 دخول سيولة في {alert.get('city')}")
-        description = alert.get("description", "")
-        
-        details_text = f"""
-**المدينة:** {alert.get('city', 'غير محدد')}
-**نوع العقار:** {signal.get('property_type', 'غير محدد')}
-**زيادة السيولة:** {signal.get('liquidity_change_percent', 0):.1f}%
-**تغير السعر:** {signal.get('price_change_percent', 0):.1f}%
-**الأحياء النشطة:** {", ".join(signal.get('active_districts', [])) or "عدة أحياء"}
-**العدد السابق:** {signal.get('previous_count', 0)} | **الحالي:** {signal.get('current_count', 0)}
-**نافذة الإشارة:** {signal.get('window_hours', 48)} ساعة
-
-💧 السوق يتحرك بهدوء قبل أن ينعكس على السعر.
-القرار: المراقبة الدقيقة وبناء المراكز.
-        """
         
         details = {
             "city": alert.get("city", "غير محدد"),
             "property_type": signal.get("property_type", "غير محدد"),
             "liquidity_change": signal.get("liquidity_change_percent", 0),
             "price_change": signal.get("price_change_percent", 0),
-            "active_districts": ", ".join(signal.get("active_districts", [])) or "عدة أحياء",
+            "active_districts": alert.get("district", "عدة أحياء"),
             "previous_count": signal.get("previous_count", 0),
             "current_count": signal.get("current_count", 0),
-            "window": signal.get("window_hours", 48)
+            "window": signal.get("window_hours", 24),
+            "is_exclusive": alert.get("is_exclusive", True)
         }
 
     elif alert_type == "BUYER_BEHAVIOR_SHIFT":
         icon = "🧠"
         title = alert.get("title", f"🧠 تغير سلوك الشراء في {alert.get('city')}")
-        description = alert.get("description", "")
         signals_list = signal.get("signals", [])
-        
-        signals_text = "\n".join([f"• {s}" for s in signals_list]) if signals_list else "لا توجد إشارات محددة"
-        
-        details_text = f"""
-**المدينة:** {alert.get('city', 'غير محدد')}
-**نوع العقار:** {signal.get('property_type', 'غير محدد')}
-**الإشارات:**
-{signals_text}
-
-**نافذة الرصد:** {signal.get('window_hours', 96)} ساعة
-
-🧠 تغير في هوية المشتري – السوق ينتقي بشكل مختلف.
-القرار: إعادة تقييم الخريطة الاستثمارية.
-        """
         
         details = {
             "city": alert.get("city", "غير محدد"),
             "property_type": signal.get("property_type", "غير محدد"),
             "signals": signals_list,
-            "window": signal.get("window_hours", 96)
+            "window": signal.get("window_hours", 24),
+            "is_exclusive": alert.get("is_exclusive", True)
         }
         
     else:  # GOLDEN_OPPORTUNITY
@@ -794,24 +850,17 @@ def format_alert_for_display(alert):
         
         icon = "💰"
         title = alert.get("title", f"💰 فرصة في {alert.get('city')}")
-        description = alert.get("description", "")
-        
-        details_text = f"""
-**المدينة:** {alert.get('city', 'غير محدد')} | **الحي:** {alert.get('district', 'غير محدد')}
-**الخصم:** {discount:.1f}% | **السعر:** {price_str} ريال
-**سياق السوق:** {'🔥 امتصاص' if signal.get('context_bias', {}).get('SUPPLY_ABSORPTION') else ''} {'💧 سيولة' if signal.get('context_bias', {}).get('LIQUIDITY_INFLOW') else ''}
-**نافذة الفرصة:** {signal.get('window_hours', 48)} ساعة
-        """
         
         details = {
             "city": alert.get("city", "غير محدد"),
             "district": alert.get("district", "غير محدد"),
             "discount": discount,
             "price": price_str,
-            "window": signal.get("window_hours", 48),
+            "window": signal.get("window_hours", 24),
             "property_type": signal.get("property_type", "غير محدد"),
             "expected_return": signal.get("expected_return", "غير متاح"),
-            "context_bias": signal.get("context_bias", {})
+            "context_bias": signal.get("context_bias", {}),
+            "is_exclusive": alert.get("is_exclusive", True)
         }
     
     # إضافة رمز حسب مستوى الثقة
@@ -827,12 +876,12 @@ def format_alert_for_display(alert):
         "icon": icon,
         "confidence_icon": confidence_icon,
         "title": title,
-        "description": description,
+        "message": build_human_message(alert),  # ✅ رسالة بشرية نظيفة
         "details": details,
-        "details_text": details_text,
         "confidence": confidence,
         "time": alert.get("generated_at", "وقت غير محدد"),
-        "type": alert_type
+        "type": alert_type,
+        "is_exclusive": alert.get("is_exclusive", True)
     }
 
 def print_alerts_summary():
@@ -873,52 +922,18 @@ def print_alerts_summary():
     if alerts:
         print(f"\n📌 أبرز التنبيهات:")
         for i, alert in enumerate(alerts[:5]):
-            alert_type = alert.get("type", "GOLDEN_OPPORTUNITY")
-            if alert_type == "SUPPLY_ABSORPTION":
-                icon = "🔥"
-            elif alert_type == "LIQUIDITY_INFLOW":
-                icon = "💧"
-            elif alert_type == "BUYER_BEHAVIOR_SHIFT":
-                icon = "🧠"
-            else:
-                icon = "💰"
-            
-            confidence = alert.get("confidence", "MEDIUM")
-            conf_icon = "🔴" if confidence == "HIGH" else "🟡" if confidence == "MEDIUM" else "🟢"
-            
-            if alert_type == "SUPPLY_ABSORPTION":
-                drop = alert.get("signal", {}).get("supply_drop_percent", 0)
-                districts = alert.get("signal", {}).get("districts_lost", [])
-                districts_text = ", ".join(districts[:2]) if districts else "عدة أحياء"
-                print(f"  {i+1}. {icon} {conf_icon} {alert['city']} - {districts_text}: اختفاء {drop:.1f}% ({confidence})")
-            elif alert_type == "LIQUIDITY_INFLOW":
-                liquidity = alert.get("signal", {}).get("liquidity_change_percent", 0)
-                active = alert.get("signal", {}).get("active_districts", [])
-                active_text = ", ".join(active[:2]) if active else "عدة أحياء"
-                print(f"  {i+1}. {icon} {conf_icon} {alert['city']} - {active_text}: سيولة {liquidity:.1f}% ({confidence})")
-            elif alert_type == "BUYER_BEHAVIOR_SHIFT":
-                signals = alert.get("signal", {}).get("signals", [])
-                signals_text = signals[0][:30] + "..." if signals else "تغير في السلوك"
-                print(f"  {i+1}. {icon} {conf_icon} {alert['city']}: {signals_text} ({confidence})")
-            else:
-                discount = alert.get("signal", {}).get("discount_percent", 0)
-                context = alert.get("signal", {}).get("context_bias", {})
-                context_text = ""
-                if context.get("SUPPLY_ABSORPTION"):
-                    context_text += "🔥"
-                if context.get("LIQUIDITY_INFLOW"):
-                    context_text += "💧"
-                print(f"  {i+1}. {icon} {conf_icon} {alert['city']} - {alert.get('district', 'غير محدد')}: خصم {discount:.1f}% {context_text}({confidence})")
+            exclusive = "📢 " if alert.get("is_exclusive") else ""
+            print(f"  {i+1}. {exclusive}{build_human_message(alert)}")
 
 # ==============================
-# 8️⃣ اختبار سريع (يشتغل فقط إذا شغلت الملف مباشرة)
+# 7️⃣ اختبار سريع (يشتغل فقط إذا شغلت الملف مباشرة)
 # ==============================
 
 if __name__ == "__main__":
     print("\n🧪 تشغيل اختبار نظام التنبيهات...")
     
-    # تنظيف التنبيهات القديمة
-    clear_old_alerts(days=30)
+    # تنظيف التنبيهات القديمة (سنة كاملة)
+    clear_old_alerts(days=365)
     
     # اختبار توليد التنبيهات الحقيقية
     print("\n🔍 جاري البحث عن تنبيهات حقيقية...")
@@ -939,5 +954,24 @@ if __name__ == "__main__":
     print(f"  • إجمالي اليوم: {stats['total']}")
     print(f"  • توزيع المدن: {stats['by_city']}")
     print(f"  • توزيع الأنواع: {stats['by_type']}")
+    
+    # عرض نموذج لرسالة بشرية
+    if alerts:
+        print(f"\n📝 نموذج رسالة بشرية:")
+        exclusive = "📢 " if alerts[0].get("is_exclusive") else ""
+        print(f"  {exclusive}{build_human_message(alerts[0])}")
+    
+    # اختبار التاريخ
+    print(f"\n📜 اختبار جلب آخر 7 أيام:")
+    history = get_alerts_history(days=7)
+    print(f"  ✅ عدد التنبيهات في آخر 7 أيام: {len(history)}")
+    
+    # اختبار آخر تنبيه لكل مدينة
+    print(f"\n📍 اختبار آخر تنبيه لكل مدينة:")
+    latest_summary = get_latest_alerts_summary()
+    for city, alerts in latest_summary.items():
+        print(f"  {city}:")
+        for alert_type, info in alerts.items():
+            print(f"    • {info['message']}")
     
     print("\n✅ انتهى الاختبار")
