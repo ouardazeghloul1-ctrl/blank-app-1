@@ -43,12 +43,9 @@ ALERT_TYPES = {
     "GOLDEN_OPPORTUNITY": "💰 فرصة ذهبية - خصم قوي عن السوق",
     "MARKET_SHIFT": "📊 تحول سعري غير طبيعي",
     "RISK_WARNING": "⚠️ خطر خفي يظهر",
+    "SUPPLY_ABSORPTION": "🔥 اختفاء المعروض - السوق يشتري بصمت",
+    "LIQUIDITY_INFLOW": "💧 دخول سيولة ذكية - السوق يتحرك قبل السعر"
 }
-
-# إضافة نوع تنبيه اختفاء المعروض
-ALERT_TYPES.update({
-    "SUPPLY_ABSORPTION": "🔥 اختفاء المعروض - السوق يشتري بصمت"
-})
 
 # ==============================
 # 2️⃣ التخزين الدائم مع منع التكرار (Alert Storage)
@@ -76,7 +73,7 @@ def save_alert(alert: dict):
     alerts = load_alerts()
 
     # 🔥 منع التكرار: نفس المدينة + نفس الحي + نفس الخصم (لتنبيهات الخصم)
-    # ولتنبيهات اختفاء المعروض: نفس المدينة + نفس نوع العقار + نفس النسبة + خلال 48 ساعة
+    # ولتنبيهات اختفاء المعروض والسيولة: نفس المدينة + نفس نوع العقار + نفس النسبة + خلال 48 ساعة
     for existing in alerts:
         if alert.get("type") == "GOLDEN_OPPORTUNITY":
             if (
@@ -87,15 +84,19 @@ def save_alert(alert: dict):
             ):
                 print(f"⚠️ تنبيه خصم مكرر تجاهل: {alert.get('city')} - {alert.get('district')}")
                 return
-        elif alert.get("type") == "SUPPLY_ABSORPTION":
+        elif alert.get("type") in ["SUPPLY_ABSORPTION", "LIQUIDITY_INFLOW"]:
             if (
-                existing.get("type") == "SUPPLY_ABSORPTION"
+                existing.get("type") == alert.get("type")
                 and existing.get("city") == alert.get("city")
                 and existing.get("property_type") == alert.get("property_type")
             ):
                 # مقارنة النسبة مع تسامح 1%
-                existing_pct = existing.get("signal", {}).get("supply_drop_percent", 0)
-                new_pct = alert.get("signal", {}).get("supply_drop_percent", 0)
+                if alert.get("type") == "SUPPLY_ABSORPTION":
+                    existing_pct = existing.get("signal", {}).get("supply_drop_percent", 0)
+                    new_pct = alert.get("signal", {}).get("supply_drop_percent", 0)
+                else:  # LIQUIDITY_INFLOW
+                    existing_pct = existing.get("signal", {}).get("liquidity_change_percent", 0)
+                    new_pct = alert.get("signal", {}).get("liquidity_change_percent", 0)
                 
                 # مقارنة الزمن (48 ساعة)
                 existing_time = datetime.strptime(
@@ -107,7 +108,7 @@ def save_alert(alert: dict):
 
                 if (abs(existing_pct - new_pct) < 1 and 
                     abs((new_time - existing_time).total_seconds()) < 48 * 3600):
-                    print(f"⚠️ تنبيه اختفاء معروض مكرر تجاهل: {alert.get('city')} - {alert.get('property_type')}")
+                    print(f"⚠️ تنبيه {alert.get('type')} مكرر تجاهل: {alert.get('city')} - {alert.get('property_type')}")
                     return
 
     alert["saved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -188,15 +189,20 @@ class AlertEngine:
             real_data = current_df
 
             # ==============================
-            # 🔥 تنبيه اختفاء المعروض (Supply Absorption)
+            # متغيرات مشتركة (مرة واحدة فقط)
             # ==============================
-            
             prev_count = len(previous_df)
             curr_count = len(current_df)
 
-            # تحليل الأحياء المختفية
+            # تحليل الأحياء (للتنبيهات التي تحتاجه)
             prev_districts = set(previous_df.get("الحي", [])) if "الحي" in previous_df.columns else set()
             curr_districts = set(current_df.get("الحي", [])) if "الحي" in current_df.columns else set()
+
+            alerts = []
+
+            # ==============================
+            # 🔥 تنبيه اختفاء المعروض (Supply Absorption)
+            # ==============================
 
             districts_lost = prev_districts - curr_districts
             district_loss_ratio = (
@@ -211,9 +217,6 @@ class AlertEngine:
                 supply_change_pct = 0
 
             # شروط إطلاق التنبيه
-            alerts = []
-
-            # ⛔ لا تنبيه إذا لم ينخفض المعروض بشكل حقيقي (عدد + أحياء)
             if supply_change_pct >= 10 and district_loss_ratio >= 15:
                 # تصنيف القوة الأساسي
                 if supply_change_pct >= 30:
@@ -264,6 +267,72 @@ class AlertEngine:
                 print(
                     f"🔥 {city} | {property_type}: اختفاء معروض "
                     f"{supply_change_pct:.1f}% من {len(districts_lost)} أحياء ({confidence})"
+                )
+
+            # ==============================
+            # 💧 تنبيه دخول السيولة (Liquidity Inflow)
+            # ==============================
+
+            # حساب تغير الحجم
+            if prev_count > 0:
+                liquidity_change_pct = ((curr_count - prev_count) / prev_count) * 100
+            else:
+                liquidity_change_pct = 0
+
+            # حساب تغير السعر (مع التحقق من وجود العمود)
+            if ("سعر_المتر" in previous_df.columns and "سعر_المتر" in current_df.columns 
+                and len(previous_df["سعر_المتر"].dropna()) > 0 and len(current_df["سعر_المتر"].dropna()) > 0):
+                prev_price = previous_df["سعر_المتر"].mean()
+                curr_price = current_df["سعر_المتر"].mean()
+                price_change_pct = ((curr_price - prev_price) / prev_price) * 100 if prev_price else 0
+            else:
+                price_change_pct = 0
+                print(f"ℹ️ {city} | {property_type}: لا توجد بيانات سعر كافية، التنبيه سيعتمد على الحجم فقط")
+
+            # تحليل الأحياء المتداولة
+            active_districts = curr_districts - prev_districts
+
+            # شروط إطلاق التنبيه
+            if liquidity_change_pct >= 15 and -2 <= price_change_pct <= 1:
+                
+                if liquidity_change_pct >= 30:
+                    confidence = "HIGH"
+                elif liquidity_change_pct >= 20:
+                    confidence = "MEDIUM"
+                else:
+                    confidence = "LOW"
+
+                alert = {
+                    "type": "LIQUIDITY_INFLOW",
+                    "city": city,
+                    "district": ", ".join(list(active_districts)[:3]) or "عدة أحياء",
+                    "title": f"💧 دخول سيولة ذكية في {city}",
+                    "description": (
+                        f"ارتفع حجم التداول لعقارات {property_type} بنسبة "
+                        f"{liquidity_change_pct:.1f}% بينما بقي السعر شبه ثابت "
+                        f"({price_change_pct:.1f}%)."
+                    ),
+                    "signal": {
+                        "liquidity_change_percent": round(liquidity_change_pct, 1),
+                        "price_change_percent": round(price_change_pct, 2),
+                        "active_districts": list(active_districts)[:5],
+                        "previous_count": prev_count,
+                        "current_count": curr_count,
+                        "window_hours": 48,
+                        "property_type": property_type
+                    },
+                    "confidence": confidence,
+                    "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "source": "MarketMemory",
+                    "property_type": property_type
+                }
+
+                alerts.append(alert)
+                save_alert(alert)
+
+                print(
+                    f"💧 {city} | {property_type}: دخول سيولة "
+                    f"{liquidity_change_pct:.1f}% ({confidence})"
                 )
 
             # ==============================
@@ -525,6 +594,35 @@ def format_alert_for_display(alert):
             "window": signal.get("window_hours", 72)
         }
         
+    elif alert_type == "LIQUIDITY_INFLOW":
+        icon = "💧"
+        title = alert.get("title", f"💧 دخول سيولة في {alert.get('city')}")
+        description = alert.get("description", "")
+        
+        details_text = f"""
+**المدينة:** {alert.get('city', 'غير محدد')}
+**نوع العقار:** {signal.get('property_type', 'غير محدد')}
+**زيادة السيولة:** {signal.get('liquidity_change_percent', 0):.1f}%
+**تغير السعر:** {signal.get('price_change_percent', 0):.1f}%
+**الأحياء النشطة:** {", ".join(signal.get('active_districts', [])) or "عدة أحياء"}
+**العدد السابق:** {signal.get('previous_count', 0)} | **الحالي:** {signal.get('current_count', 0)}
+**نافذة الإشارة:** {signal.get('window_hours', 48)} ساعة
+
+💧 السوق يتحرك بهدوء قبل أن ينعكس على السعر.
+القرار: المراقبة الدقيقة وبناء المراكز.
+        """
+        
+        details = {
+            "city": alert.get("city", "غير محدد"),
+            "property_type": signal.get("property_type", "غير محدد"),
+            "liquidity_change": signal.get("liquidity_change_percent", 0),
+            "price_change": signal.get("price_change_percent", 0),
+            "active_districts": ", ".join(signal.get("active_districts", [])) or "عدة أحياء",
+            "previous_count": signal.get("previous_count", 0),
+            "current_count": signal.get("current_count", 0),
+            "window": signal.get("window_hours", 48)
+        }
+        
     else:  # GOLDEN_OPPORTUNITY
         discount = signal.get("discount_percent", 0)
         current_price = signal.get('current_price', 0)
@@ -590,7 +688,12 @@ def print_alerts_summary():
     # توزيع حسب النوع
     print(f"\n📌 توزيع التنبيهات حسب النوع:")
     for alert_type, count in stats["by_type"].items():
-        icon = "🔥" if alert_type == "SUPPLY_ABSORPTION" else "💰"
+        if alert_type == "SUPPLY_ABSORPTION":
+            icon = "🔥"
+        elif alert_type == "LIQUIDITY_INFLOW":
+            icon = "💧"
+        else:
+            icon = "💰"
         print(f"  {icon} {alert_type}: {count}")
     
     # توزيع حسب مستوى الثقة
@@ -609,7 +712,13 @@ def print_alerts_summary():
         print(f"\n📌 أبرز التنبيهات:")
         for i, alert in enumerate(alerts[:5]):
             alert_type = alert.get("type", "GOLDEN_OPPORTUNITY")
-            icon = "🔥" if alert_type == "SUPPLY_ABSORPTION" else "💰"
+            if alert_type == "SUPPLY_ABSORPTION":
+                icon = "🔥"
+            elif alert_type == "LIQUIDITY_INFLOW":
+                icon = "💧"
+            else:
+                icon = "💰"
+            
             confidence = alert.get("confidence", "MEDIUM")
             conf_icon = "🔴" if confidence == "HIGH" else "🟡" if confidence == "MEDIUM" else "🟢"
             
@@ -618,94 +727,17 @@ def print_alerts_summary():
                 districts = alert.get("signal", {}).get("districts_lost", [])
                 districts_text = ", ".join(districts[:2]) if districts else "عدة أحياء"
                 print(f"  {i+1}. {icon} {conf_icon} {alert['city']} - {districts_text}: اختفاء {drop:.1f}% ({confidence})")
+            elif alert_type == "LIQUIDITY_INFLOW":
+                liquidity = alert.get("signal", {}).get("liquidity_change_percent", 0)
+                active = alert.get("signal", {}).get("active_districts", [])
+                active_text = ", ".join(active[:2]) if active else "عدة أحياء"
+                print(f"  {i+1}. {icon} {conf_icon} {alert['city']} - {active_text}: سيولة {liquidity:.1f}% ({confidence})")
             else:
                 discount = alert.get("signal", {}).get("discount_percent", 0)
                 print(f"  {i+1}. {icon} {conf_icon} {alert['city']} - {alert.get('district', 'غير محدد')}: خصم {discount:.1f}% ({confidence})")
 
 # ==============================
-# 8️⃣ بيانات تجريبية للاختبار (اختياري)
-# ==============================
-
-def generate_test_alerts():
-    """توليد تنبيهات تجريبية لاختبار المنصة"""
-    test_alerts = []
-    
-    # تنبيهات تجريبية لجميع المدن
-    for city in CITIES:
-        for i, prop_type in enumerate(PROPERTY_TYPES):
-            # تنبيه خصم سعري
-            discount = 5 + i * 5  # 5%, 10%, 15%
-            
-            # تحديد مستوى الثقة حسب الخصم
-            if discount >= 15:
-                confidence = "HIGH"
-            elif discount >= 8:
-                confidence = "MEDIUM"
-            else:
-                confidence = "LOW"
-            
-            test_alerts.append({
-                "type": "GOLDEN_OPPORTUNITY",
-                "city": city,
-                "district": f"حي تجريبي {i+1}",
-                "title": f"💰 فرصة {'قوية' if discount >= 15 else 'متوسطة' if discount >= 8 else 'خفيفة'} في {city}",
-                "description": f"عقار {prop_type} في {city} بخصم {discount}% عن متوسط السوق",
-                "signal": {
-                    "discount_percent": discount,
-                    "current_price": 850000 + i * 50000,
-                    "avg_area_price": 1000000,
-                    "expected_return": f"{7 + i}%",
-                    "window_hours": 48,
-                    "property_type": prop_type
-                },
-                "confidence": confidence,
-                "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "source": "TEST_DATA",
-                "property_type": prop_type
-            })
-            
-            # تنبيه اختفاء معروض تجريبي
-            drop_pct = 10 + i * 10  # 10%, 20%, 30%
-            if drop_pct >= 30:
-                confidence = "HIGH"
-            elif drop_pct >= 20:
-                confidence = "MEDIUM"
-            else:
-                confidence = "LOW"
-            
-            # ترقية الثقة في حالة اختفاء 3 أحياء
-            districts_lost = [f"حي تجريبي {j+1}" for j in range(i+2)]
-            if len(districts_lost) >= 3:
-                if confidence == "MEDIUM":
-                    confidence = "HIGH"
-                elif confidence == "LOW":
-                    confidence = "MEDIUM"
-                
-            test_alerts.append({
-                "type": "SUPPLY_ABSORPTION",
-                "city": city,
-                "district": ", ".join(districts_lost[:3]),
-                "title": f"🔥 اختفاء معروض في {city}",
-                "description": f"انخفض عدد عقارات {prop_type} المعروضة بنسبة {drop_pct}% من {len(districts_lost)} أحياء",
-                "signal": {
-                    "supply_drop_percent": drop_pct,
-                    "previous_count": 100 + i * 20,
-                    "current_count": 80 + i * 10,
-                    "districts_lost": districts_lost,
-                    "district_loss_ratio": (len(districts_lost) / 5) * 100,
-                    "window_hours": 72,
-                    "property_type": prop_type
-                },
-                "confidence": confidence,
-                "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "source": "TEST_DATA",
-                "property_type": prop_type
-            })
-    
-    return test_alerts
-
-# ==============================
-# 9️⃣ اختبار سريع (يشتغل فقط إذا شغلت الملف مباشرة)
+# 8️⃣ اختبار سريع (يشتغل فقط إذا شغلت الملف مباشرة)
 # ==============================
 
 if __name__ == "__main__":
