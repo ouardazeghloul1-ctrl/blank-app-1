@@ -15,6 +15,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # ==============================
+# استيرادات ذاكرة السوق للمقارنة الزمنية
+# ==============================
+from market_memory import load_last_snapshots
+
+# ==============================
 # 1️⃣ القواعد والثوابت (Alert Rules)
 # ==============================
 
@@ -139,13 +144,23 @@ class AlertEngine:
     def generate_city_alerts(self, city, property_type):
         """
         يولد جميع الفرص الذهبية لمدينة واحدة ونوع عقار محدد
+        يعتمد على مقارنة زمنية بين آخر لقطتين من ذاكرة السوق
         """
         try:
-            # جلب البيانات الحقيقية
-            real_data = get_live_real_data(
-                city=city,
-                property_type=property_type
-            )
+            # 🔹 تحميل آخر لقطتين من ذاكرة السوق للمقارنة الزمنية
+            snapshots = load_last_snapshots(city, property_type, limit=2)
+
+            # 🔒 إذا لم تتوفر لقطتان، لا نولد تنبيهات (لا توجد ذاكرة كافية)
+            if len(snapshots) < 2:
+                print(f"ℹ️ {city} | {property_type}: لا توجد بيانات زمنية كافية بعد")
+                return []
+
+            previous_df, current_df = snapshots[1], snapshots[0]
+            real_data = current_df
+
+            # 🔇 منع التنبيهات إذا لم يحدث تغير كمي في السوق
+            if len(current_df) == len(previous_df):
+                print(f"⏸️ {city} | {property_type}: لا تغير كمي واضح في السوق")
 
             if real_data.empty:
                 print(f"⚠️ {city}: لا توجد بيانات")
@@ -170,6 +185,10 @@ class AlertEngine:
                     discount = float(discount_raw)
                 except:
                     discount = 0
+
+                # 🔥 تجاهل التنبيه إذا لم يصل للحد الأدنى للخصم
+                if discount < MIN_DISCOUNT_PERCENT:
+                    continue
 
                 # 🔥 تصنيف قوة التنبيه بدل إلغائه
                 if discount >= 15:
