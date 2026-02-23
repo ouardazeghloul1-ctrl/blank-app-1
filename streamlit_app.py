@@ -801,6 +801,9 @@ tab_main, tab_chat = st.tabs(["📊 التحليل الكامل", "🧠 المس
 
 # ========== التبويب الرئيسي: كل محتوى التحليل ==========
 with tab_main:
+    # إيقاف الشات في هذا التبويب
+    st.session_state["show_chat"] = False
+    
     # ========== التنبيهات الحية (باستخدام النظام الموحد) ==========
     st.markdown("---")
     st.markdown("## 🔔 التنبيهات الاستثمارية الحية (اليوم)")
@@ -953,6 +956,7 @@ with tab_main:
             "city": city,
             "property_type": property_type,
             "status": status,
+            "user_type": user_type,
             "package": st.session_state.get("chosen_pkg", "مجانية")
         }
 
@@ -1428,6 +1432,9 @@ with tab_main:
 
 # ========== تبويب المستشار الذكي ==========
 with tab_chat:
+    # تفعيل الشات في هذا التبويب
+    st.session_state["show_chat"] = True
+    
     st.markdown("## 🧠 مستشارك الذكي")
     
     # زر مسح المحادثة
@@ -1461,46 +1468,57 @@ with tab_chat:
             ✨ اكتب سؤالك في الأسفل للبدء.
             """)
 
-    # حقل الإدخال (يبقى دائمًا)
-    user_input = st.chat_input("اكتب سؤالك هنا...")
+# ===============================
+# 🧠 Chat Input (يجب أن يكون خارج أي Tab أو Container)
+# ===============================
 
-    if user_input:
-        # حماية من الأسئلة القصيرة جدًا
-        if len(user_input.strip()) < 3:
-            st.warning("✋ اكتب سؤالًا أوضح قليلًا.")
-            st.stop()
-        
-        # رسالة المستخدم
-        st.session_state.robo_chat_history.append({
-            "role": "user",
-            "content": user_input
-        })
+# نظهر الإدخال دائمًا في المستوى الأعلى
+user_input = st.chat_input("اكتب سؤالك هنا...")
 
-        with st.chat_message("user"):
-            st.markdown(user_input)
+# التحقق من وجود معرفة الروبو قبل المعالجة
+if user_input and st.session_state.get("show_chat", False):
+    # حماية إضافية: التحقق من تحميل معرفة الروبو
+    if st.session_state.robo_knowledge is None:
+        st.warning("⏳ المستشار الذكي يتم تحميله الآن، أعد المحاولة بعد لحظة.")
+        st.stop()
+    
+    # حماية من الأسئلة القصيرة جدًا
+    if len(user_input.strip()) < 3:
+        st.warning("✋ اكتب سؤالًا أوضح قليلًا.")
+        st.stop()
+    
+    # رسالة المستخدم
+    st.session_state.robo_chat_history.append({
+        "role": "user",
+        "content": user_input
+    })
 
-        # إنشاء الروبو (من النظام الجديد)
-        current_pkg = st.session_state.get("chosen_pkg", "مجانية")
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
-        robo_response = handle_robo_question(
-            user_profile={
-                "city": city,
-                "package": current_pkg,
-                "user_type": user_type
-            },
-            knowledge=st.session_state.robo_knowledge,
-            guard=RoboGuard(package=current_pkg),
-            question=user_input
-        )
+    # إنشاء الروبو (من النظام الجديد) - استخدام user_info من session_state
+    user_info = st.session_state.get("user_info", {})
+    current_pkg = st.session_state.get("chosen_pkg", "مجانية")
 
-        # رد الروبو
-        st.session_state.robo_chat_history.append({
-            "role": "assistant",
-            "content": robo_response
-        })
+    robo_response = handle_robo_question(
+        user_profile={
+            "city": user_info.get("city"),
+            "package": current_pkg,
+            "user_type": user_info.get("user_type")
+        },
+        knowledge=st.session_state.robo_knowledge,
+        guard=RoboGuard(package=current_pkg),
+        question=user_input
+    )
 
-        with st.chat_message("assistant"):
-            st.markdown(robo_response)
+    # رد الروبو
+    st.session_state.robo_chat_history.append({
+        "role": "assistant",
+        "content": robo_response
+    })
+
+    with st.chat_message("assistant"):
+        st.markdown(robo_response)
 
 # ========== تهيئة حالة الجلسة ==========
 if 'report_generated' not in st.session_state:
@@ -1535,6 +1553,8 @@ if 'last_chosen_pkg' not in st.session_state:
     st.session_state.last_chosen_pkg = None
 if 'last_alert_refresh' not in st.session_state:
     st.session_state.last_alert_refresh = datetime.now()
+if 'show_chat' not in st.session_state:
+    st.session_state.show_chat = False
 
 st.markdown("---")
 st.markdown("""
