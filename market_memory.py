@@ -19,10 +19,15 @@ def _build_filename(city, property_type):
 
 def store_snapshot(df: pd.DataFrame, city: str, property_type: str):
     """
-    تخزين لقطة السوق كما هي (بدون تعديل)
+    تخزين لقطة السوق مع ختم زمني داخلي
     """
     if df is None or df.empty:
         return None
+
+    # 🔒 إضافة وقت اللقطة داخل البيانات نفسها
+    snapshot_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    df = df.copy()
+    df["__snapshot_time__"] = snapshot_time
 
     filename = _build_filename(city, property_type)
     path = os.path.join(MEMORY_FOLDER, filename)
