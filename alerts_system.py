@@ -88,30 +88,37 @@ def build_human_message(alert):
     conf = alert.get("confidence")
     signal = alert.get("signal", {})
     window = signal.get("window_hours", 24)
+    priority = alert.get("priority", "MID")
+
+    priority_text = {
+        "GOLD": "🔴 ذهبية",
+        "MID": "🟡 متوسطة",
+        "LOW": "🟢 خفيفة"
+    }.get(priority, "")
 
     if t == "BUYER_BEHAVIOR_SHIFT":
         signals = signal.get("signals", [])
         main = signals[0] if signals else "تغير غير معتاد في سلوك المشترين"
-        return f"📍 {city}: خلال آخر {window} ساعة لوحظ {main}. (قوة الإشارة: {conf})"
+        return f"📍 {city}: خلال آخر {window} ساعة لوحظ {main}. (قوة الإشارة: {conf} | {priority_text})"
 
     if t == "SUPPLY_ABSORPTION":
         drop = signal.get("supply_drop_percent", 0)
         districts = signal.get("districts_lost", [])
         districts_text = f" في {', '.join(districts[:2])}" if districts else ""
-        return f"📍 {city}{districts_text}: خلال آخر {window} ساعة انخفض المعروض بنسبة {drop:.1f}%. السوق يشتري بصمت."
+        return f"📍 {city}{districts_text}: خلال آخر {window} ساعة انخفض المعروض بنسبة {drop:.1f}%. السوق يشتري بصمت. ({priority_text})"
 
     if t == "LIQUIDITY_INFLOW":
         liq = signal.get("liquidity_change_percent", 0)
         active = signal.get("active_districts", [])
         active_text = f" في {', '.join(active[:2])}" if active else ""
-        return f"📍 {city}{active_text}: خلال آخر {window} ساعة دخلت سيولة ذكية (+{liq:.1f}%) بدون ارتفاع في السعر."
+        return f"📍 {city}{active_text}: خلال آخر {window} ساعة دخلت سيولة ذكية (+{liq:.1f}%) بدون ارتفاع في السعر. ({priority_text})"
 
     if t == "GOLDEN_OPPORTUNITY":
         d = signal.get("discount_percent", 0)
         dist = alert.get("district", "")
         prop_type = signal.get("property_type", "عقار")
         exclusive = "📢 خبر حصري – " if alert.get("is_exclusive") else ""
-        return f"{exclusive}💰 فرصة في {city} ({dist}): {prop_type} بخصم {d:.1f}% عن السوق. (نافذة الفرصة: {window} ساعة)"
+        return f"{exclusive}💰 فرصة {priority_text} في {city} ({dist}): {prop_type} بخصم {d:.1f}% عن السوق. (نافذة الفرصة: {window} ساعة)"
 
     return f"📍 {city}: حركة سوق غير اعتيادية خلال آخر {window} ساعة."
 
@@ -246,6 +253,7 @@ def get_latest_alerts_summary():
                     "message": build_human_message(latest),
                     "time": latest.get("generated_at"),
                     "confidence": latest.get("confidence"),
+                    "priority": latest.get("priority"),
                     "is_exclusive": latest.get("is_exclusive", True)
                 }
         if city_summary:
@@ -288,6 +296,25 @@ class AlertEngine:
     
     def __init__(self):
         self.opportunity_finder = SmartOpportunityFinder()
+    
+    # 🛑 حارس زمني: يمنع التنبيهات إذا الفرق بين اللقطتين أقل من 3 ساعات
+    def is_valid_time_gap(self, prev_df, curr_df, min_minutes=180):
+        """
+        التحقق من أن الفرق الزمني بين اللقطتين كافٍ لإصدار تنبيه
+        min_minutes: الحد الأدنى بالدقائق (افتراضي: 180 دقيقة = 3 ساعات)
+        """
+        try:
+            # محاولة قراءة وقت اللقطة من العمود المخصص
+            if "__snapshot_time__" in prev_df.columns and "__snapshot_time__" in curr_df.columns:
+                t1 = pd.to_datetime(prev_df["__snapshot_time__"].iloc[0])
+                t2 = pd.to_datetime(curr_df["__snapshot_time__"].iloc[0])
+                diff_minutes = (t2 - t1).total_seconds() / 60
+                return diff_minutes >= min_minutes
+        except:
+            pass
+        
+        # إذا لم نتمكن من قراءة الوقت، نسمح بالتحليل (للأمان)
+        return True
 
     def generate_city_alerts(self, city, property_type):
         """
@@ -304,6 +331,12 @@ class AlertEngine:
                 return []
 
             previous_df, current_df = snapshots[1], snapshots[0]
+            
+            # 🛑 حارس زمني: لا نحلل فروقات تافهة (أقل من 3 ساعات)
+            if not self.is_valid_time_gap(previous_df, current_df):
+                print(f"⏱️ {city} | {property_type}: فرق زمني ضعيف – تجاهل التنبيهات")
+                return []
+            
             real_data = current_df
 
             # ==============================
@@ -354,6 +387,9 @@ class AlertEngine:
                 # حساب مستوى الثقة عبر الدالة الموحدة
                 confidence = compute_confidence(confidence_score)
                 
+                # تصنيف تجاري
+                priority = "GOLD" if confidence == "HIGH" else "MID" if confidence == "MEDIUM" else "LOW"
+                
                 # عرض الأحياء المختفية (أول 3 فقط)
                 districts_display = ", ".join(list(districts_lost)[:3]) or "عدة أحياء"
 
@@ -377,6 +413,7 @@ class AlertEngine:
                         "property_type": property_type
                     },
                     "confidence": confidence,
+                    "priority": priority,
                     "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "source": "MarketMemory",
                     "property_type": property_type,
@@ -388,7 +425,7 @@ class AlertEngine:
 
                 print(
                     f"🔥 {city} | {property_type}: اختفاء معروض "
-                    f"{supply_change_pct:.1f}% من {len(districts_lost)} أحياء ({confidence})"
+                    f"{supply_change_pct:.1f}% من {len(districts_lost)} أحياء ({confidence}) [{priority}]"
                 )
 
             # ==============================
@@ -433,6 +470,9 @@ class AlertEngine:
 
                 # حساب مستوى الثقة عبر الدالة الموحدة
                 confidence = compute_confidence(confidence_score)
+                
+                # تصنيف تجاري
+                priority = "GOLD" if confidence == "HIGH" else "MID" if confidence == "MEDIUM" else "LOW"
 
                 alert = {
                     "type": "LIQUIDITY_INFLOW",
@@ -454,6 +494,7 @@ class AlertEngine:
                         "property_type": property_type
                     },
                     "confidence": confidence,
+                    "priority": priority,
                     "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "source": "MarketMemory",
                     "property_type": property_type,
@@ -465,7 +506,7 @@ class AlertEngine:
 
                 print(
                     f"💧 {city} | {property_type}: دخول سيولة "
-                    f"{liquidity_change_pct:.1f}% ({confidence})"
+                    f"{liquidity_change_pct:.1f}% ({confidence}) [{priority}]"
                 )
 
             # ==============================
@@ -545,6 +586,9 @@ class AlertEngine:
             # ---- إطلاق التنبيه باستخدام دالة الثقة الموحدة ----
             if confidence_score >= 1:
                 confidence = compute_confidence(confidence_score)
+                
+                # تصنيف تجاري
+                priority = "GOLD" if confidence == "HIGH" else "MID" if confidence == "MEDIUM" else "LOW"
 
                 alert = {
                     "type": "BUYER_BEHAVIOR_SHIFT",
@@ -558,6 +602,7 @@ class AlertEngine:
                         "property_type": property_type
                     },
                     "confidence": confidence,
+                    "priority": priority,
                     "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "source": "MarketMemory",
                     "property_type": property_type,
@@ -567,7 +612,7 @@ class AlertEngine:
                 alerts.append(alert)
                 save_alert(alert)
 
-                print(f"🧠 {city} | {property_type}: تغير سلوك الشراء ({confidence})")
+                print(f"🧠 {city} | {property_type}: تغير سلوك الشراء ({confidence}) [{priority}]")
 
             # ==============================
             # 💰 تنبيهات الخصم السعري (GOLDEN_OPPORTUNITY) – موحّد بالـ score
@@ -618,6 +663,9 @@ class AlertEngine:
 
                 # حساب مستوى الثقة الموحد
                 confidence = compute_confidence(confidence_score)
+                
+                # تصنيف تجاري
+                priority = "GOLD" if confidence == "HIGH" else "MID" if confidence == "MEDIUM" else "LOW"
 
                 # ---- أمان الحقول ----
                 current_price = prop.get("السعر_الحالي") or prop.get("السعر") or 0
@@ -646,6 +694,7 @@ class AlertEngine:
                         "score": confidence_score
                     },
                     "confidence": confidence,
+                    "priority": priority,
                     "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                     "source": "AlertEngine",
                     "property_type": property_type,
@@ -655,7 +704,7 @@ class AlertEngine:
                 alerts.append(alert)
                 save_alert(alert)
 
-                print(f"💰 {city} | {property_type}: فرصة {confidence} بخصم {discount:.1f}% (score={confidence_score})")
+                print(f"💰 {city} | {property_type}: فرصة {confidence} بخصم {discount:.1f}% (score={confidence_score}) [{priority}]")
 
             return alerts
             
@@ -763,16 +812,23 @@ def get_alerts_stats():
             "MEDIUM": 0,
             "LOW": 0
         },
+        "by_priority": {
+            "GOLD": 0,
+            "MID": 0,
+            "LOW": 0
+        },
         "by_type": {}
     }
     
     for alert in alerts:
         city = alert.get("city", "أخرى")
         confidence = alert.get("confidence", "MEDIUM")
+        priority = alert.get("priority", "MID")
         alert_type = alert.get("type", "OTHER")
         
         stats["by_city"][city] = stats["by_city"].get(city, 0) + 1
         stats["by_confidence"][confidence] = stats["by_confidence"].get(confidence, 0) + 1
+        stats["by_priority"][priority] = stats["by_priority"].get(priority, 0) + 1
         stats["by_type"][alert_type] = stats["by_type"].get(alert_type, 0) + 1
     
     return stats
@@ -788,6 +844,7 @@ def format_alert_for_display(alert):
     """
     signal = alert.get("signal", {})
     alert_type = alert.get("type", "GOLDEN_OPPORTUNITY")
+    priority = alert.get("priority", "MID")
     
     # تنسيق حسب نوع التنبيه
     if alert_type == "SUPPLY_ABSORPTION":
@@ -805,7 +862,8 @@ def format_alert_for_display(alert):
             "previous_count": signal.get("previous_count", 0),
             "current_count": signal.get("current_count", 0),
             "window": signal.get("window_hours", 24),
-            "is_exclusive": alert.get("is_exclusive", True)
+            "is_exclusive": alert.get("is_exclusive", True),
+            "priority": priority
         }
         
     elif alert_type == "LIQUIDITY_INFLOW":
@@ -821,7 +879,8 @@ def format_alert_for_display(alert):
             "previous_count": signal.get("previous_count", 0),
             "current_count": signal.get("current_count", 0),
             "window": signal.get("window_hours", 24),
-            "is_exclusive": alert.get("is_exclusive", True)
+            "is_exclusive": alert.get("is_exclusive", True),
+            "priority": priority
         }
 
     elif alert_type == "BUYER_BEHAVIOR_SHIFT":
@@ -834,7 +893,8 @@ def format_alert_for_display(alert):
             "property_type": signal.get("property_type", "غير محدد"),
             "signals": signals_list,
             "window": signal.get("window_hours", 24),
-            "is_exclusive": alert.get("is_exclusive", True)
+            "is_exclusive": alert.get("is_exclusive", True),
+            "priority": priority
         }
         
     else:  # GOLDEN_OPPORTUNITY
@@ -860,7 +920,8 @@ def format_alert_for_display(alert):
             "property_type": signal.get("property_type", "غير محدد"),
             "expected_return": signal.get("expected_return", "غير متاح"),
             "context_bias": signal.get("context_bias", {}),
-            "is_exclusive": alert.get("is_exclusive", True)
+            "is_exclusive": alert.get("is_exclusive", True),
+            "priority": priority
         }
     
     # إضافة رمز حسب مستوى الثقة
@@ -872,13 +933,22 @@ def format_alert_for_display(alert):
     else:
         confidence_icon = "🟢"
     
+    # إضافة رمز حسب الأولوية التجارية
+    priority_icon = {
+        "GOLD": "💎",
+        "MID": "⚡",
+        "LOW": "📌"
+    }.get(priority, "")
+    
     return {
         "icon": icon,
         "confidence_icon": confidence_icon,
+        "priority_icon": priority_icon,
         "title": title,
         "message": build_human_message(alert),  # ✅ رسالة بشرية نظيفة
         "details": details,
         "confidence": confidence,
+        "priority": priority,
         "time": alert.get("generated_at", "وقت غير محدد"),
         "type": alert_type,
         "is_exclusive": alert.get("is_exclusive", True)
@@ -913,6 +983,12 @@ def print_alerts_summary():
         icon = "🔴" if conf == "HIGH" else "🟡" if conf == "MEDIUM" else "🟢"
         print(f"  {icon} {conf}: {count}")
     
+    # توزيع حسب الأولوية التجارية
+    print(f"\n💎 توزيع التنبيهات حسب الأولوية:")
+    for priority, count in stats["by_priority"].items():
+        icon = "💎" if priority == "GOLD" else "⚡" if priority == "MID" else "📌"
+        print(f"  {icon} {priority}: {count}")
+    
     # توزيع حسب المدينة
     print(f"\n📍 التوزيع حسب المدينة:")
     for city, count in stats["by_city"].items():
@@ -923,7 +999,8 @@ def print_alerts_summary():
         print(f"\n📌 أبرز التنبيهات:")
         for i, alert in enumerate(alerts[:5]):
             exclusive = "📢 " if alert.get("is_exclusive") else ""
-            print(f"  {i+1}. {exclusive}{build_human_message(alert)}")
+            priority_icon = "💎" if alert.get("priority") == "GOLD" else "⚡" if alert.get("priority") == "MID" else "📌"
+            print(f"  {i+1}. {priority_icon} {exclusive}{build_human_message(alert)}")
 
 # ==============================
 # 7️⃣ اختبار سريع (يشتغل فقط إذا شغلت الملف مباشرة)
@@ -954,12 +1031,14 @@ if __name__ == "__main__":
     print(f"  • إجمالي اليوم: {stats['total']}")
     print(f"  • توزيع المدن: {stats['by_city']}")
     print(f"  • توزيع الأنواع: {stats['by_type']}")
+    print(f"  • توزيع الأولويات: {stats['by_priority']}")
     
     # عرض نموذج لرسالة بشرية
     if alerts:
         print(f"\n📝 نموذج رسالة بشرية:")
         exclusive = "📢 " if alerts[0].get("is_exclusive") else ""
-        print(f"  {exclusive}{build_human_message(alerts[0])}")
+        priority_icon = "💎" if alerts[0].get("priority") == "GOLD" else "⚡" if alerts[0].get("priority") == "MID" else "📌"
+        print(f"  {priority_icon} {exclusive}{build_human_message(alerts[0])}")
     
     # اختبار التاريخ
     print(f"\n📜 اختبار جلب آخر 7 أيام:")
@@ -972,6 +1051,7 @@ if __name__ == "__main__":
     for city, alerts in latest_summary.items():
         print(f"  {city}:")
         for alert_type, info in alerts.items():
-            print(f"    • {info['message']}")
+            priority_icon = "💎" if info.get("priority") == "GOLD" else "⚡" if info.get("priority") == "MID" else "📌"
+            print(f"    • {priority_icon} {info['message']}")
     
     print("\n✅ انتهى الاختبار")
