@@ -794,16 +794,18 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ========== رسالة توجيه ذكية للمستشار ==========
-st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — انتقل إلى تبويب (المستشار الذكي)")
+st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — انتقل إلى المستشار الذكي")
 
-# ========== تبويبين رئيسيين ==========
-tab_main, tab_chat = st.tabs(["📊 التحليل الكامل", "🧠 المستشار الذكي"])
+# ========== نظام التنقل (بديل عن التبويبات) ==========
+page = st.radio(
+    "التنقل",
+    ["📊 التحليل الكامل", "🧠 المستشار الذكي"],
+    horizontal=True,
+    label_visibility="collapsed"
+)
 
-# ========== التبويب الرئيسي: كل محتوى التحليل ==========
-with tab_main:
-    # إيقاف الشات في هذا التبويب
-    st.session_state["show_chat"] = False
-    
+# ========== صفحة التحليل الكامل ==========
+if page == "📊 التحليل الكامل":
     # ========== التنبيهات الحية (باستخدام النظام الموحد) ==========
     st.markdown("---")
     st.markdown("## 🔔 التنبيهات الاستثمارية الحية (اليوم)")
@@ -1430,19 +1432,31 @@ with tab_main:
             - يحتوي على جميع التحليلات المطلوبة
             """)
 
-# ========== تبويب المستشار الذكي ==========
-with tab_chat:
-    # تفعيل الشات في هذا التبويب
-    st.session_state["show_chat"] = True
-    
+# ========== صفحة المستشار الذكي ==========
+if page == "🧠 المستشار الذكي":
     st.markdown("## 🧠 مستشارك الذكي")
     
-    # زر مسح المحادثة
+    # زر مسح المحادثة مع تأكيد
     col_chat1, col_chat2 = st.columns([3, 1])
     with col_chat2:
         if st.button("🗑️ مسح المحادثة"):
-            st.session_state.robo_chat_history = []
-            st.rerun()
+            # تأكيد قبل المسح
+            st.session_state.confirm_clear = True
+    
+    # إذا طلب المستخدم المسح، نطلب تأكيد
+    if st.session_state.get("confirm_clear", False):
+        st.warning("هل أنت متأكد من مسح المحادثة؟")
+        col_confirm1, col_confirm2 = st.columns(2)
+        with col_confirm1:
+            if st.button("✅ نعم، امسح"):
+                st.session_state.robo_chat_history = []
+                st.session_state.confirm_clear = False
+                st.rerun()
+        with col_confirm2:
+            if st.button("❌ إلغاء"):
+                st.session_state.confirm_clear = False
+                st.rerun()
+    
     with col_chat1:
         st.caption("اسأل عن السوق، الفرص، أو التوقيت — وسيجيبك حسب باقتك")
 
@@ -1454,71 +1468,73 @@ with tab_chat:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # إذا كانت المحادثة فارغة، عرض رسالة ترحيب
+    # إذا كانت المحادثة فارغة، عرض رسالة ترحيب ذكية حسب الباقة
     if not st.session_state.robo_chat_history:
         with st.chat_message("assistant"):
-            st.markdown("""
-            👋 **مرحبًا بك في المستشار الذكي**
+            current_pkg = st.session_state.get("chosen_pkg", "مجانية")
+            user_info = st.session_state.get("user_info", {})
+            city = user_info.get("city", "مدينتك")
             
-            اسألني عن:
-            • وضع السوق  
-            • الفرص الحالية  
-            • توقيت الاستثمار  
+            if current_pkg == "مجانية":
+                welcome_msg = f"👋 **مرحبًا بك في المستشار الذكي**\n\nهل تحب أن أشرح لك وضع السوق العام في {city}؟"
+            elif current_pkg in ["فضية", "ذهبية"]:
+                welcome_msg = f"👋 **أهلاً بك**\n\nهل تريد تحليل فرص استثمارية محددة في {city} الآن؟"
+            else:  # ماسية أو ماسية متميزة
+                welcome_msg = f"👋 **تشرفنا بخدمتك**\n\nأستطيع تحليل الفرص النادرة والتوقيت المثالي للاستثمار في {city}. ماذا تريد أن تعرف؟"
             
-            ✨ اكتب سؤالك في الأسفل للبدء.
-            """)
+            st.markdown(welcome_msg)
 
-# ===============================
-# 🧠 Chat Input (يجب أن يكون خارج أي Tab أو Container)
-# ===============================
-
-# نظهر الإدخال دائمًا في المستوى الأعلى
-user_input = st.chat_input("اكتب سؤالك هنا...")
-
-# التحقق من وجود معرفة الروبو قبل المعالجة
-if user_input and st.session_state.get("show_chat", False):
-    # حماية إضافية: التحقق من تحميل معرفة الروبو
-    if st.session_state.robo_knowledge is None:
-        st.warning("⏳ المستشار الذكي يتم تحميله الآن، أعد المحاولة بعد لحظة.")
-        st.stop()
+    # ===============================
+    # 🧠 Chat Input داخل صفحة المستشار فقط
+    # ===============================
+    user_input = st.chat_input("اكتب سؤالك هنا...")
     
-    # حماية من الأسئلة القصيرة جدًا
-    if len(user_input.strip()) < 3:
-        st.warning("✋ اكتب سؤالًا أوضح قليلًا.")
-        st.stop()
-    
-    # رسالة المستخدم
-    st.session_state.robo_chat_history.append({
-        "role": "user",
-        "content": user_input
-    })
+    # إضافة Hint تحت الإدخال
+    st.caption("💡 مثال: وش وضع السوق في الرياض؟ أو هل الوقت مناسب للشراء؟")
 
-    with st.chat_message("user"):
-        st.markdown(user_input)
+    if user_input:
+        # حماية من الأسئلة القصيرة جدًا
+        if len(user_input.strip()) < 3:
+            st.warning("✋ اكتب سؤالًا أوضح قليلًا.")
+            st.stop()
+        
+        # التحقق من وجود معرفة الروبو
+        if st.session_state.robo_knowledge is None:
+            st.warning("⏳ المستشار الذكي يتم تحميله الآن، أعد المحاولة بعد لحظة.")
+            st.stop()
+        
+        # رسالة المستخدم
+        st.session_state.robo_chat_history.append({
+            "role": "user",
+            "content": user_input
+        })
 
-    # إنشاء الروبو (من النظام الجديد) - استخدام user_info من session_state
-    user_info = st.session_state.get("user_info", {})
-    current_pkg = st.session_state.get("chosen_pkg", "مجانية")
+        with st.chat_message("user"):
+            st.markdown(user_input)
 
-    robo_response = handle_robo_question(
-        user_profile={
-            "city": user_info.get("city"),
-            "package": current_pkg,
-            "user_type": user_info.get("user_type")
-        },
-        knowledge=st.session_state.robo_knowledge,
-        guard=RoboGuard(package=current_pkg),
-        question=user_input
-    )
+        # إنشاء الروبو (من النظام الجديد) - استخدام user_info من session_state
+        user_info = st.session_state.get("user_info", {})
+        current_pkg = st.session_state.get("chosen_pkg", "مجانية")
 
-    # رد الروبو
-    st.session_state.robo_chat_history.append({
-        "role": "assistant",
-        "content": robo_response
-    })
+        robo_response = handle_robo_question(
+            user_profile={
+                "city": user_info.get("city"),
+                "package": current_pkg,
+                "user_type": user_info.get("user_type")
+            },
+            knowledge=st.session_state.robo_knowledge,
+            guard=RoboGuard(package=current_pkg),
+            question=user_input
+        )
 
-    with st.chat_message("assistant"):
-        st.markdown(robo_response)
+        # رد الروبو
+        st.session_state.robo_chat_history.append({
+            "role": "assistant",
+            "content": robo_response
+        })
+
+        with st.chat_message("assistant"):
+            st.markdown(robo_response)
 
 # ========== تهيئة حالة الجلسة ==========
 if 'report_generated' not in st.session_state:
@@ -1553,8 +1569,8 @@ if 'last_chosen_pkg' not in st.session_state:
     st.session_state.last_chosen_pkg = None
 if 'last_alert_refresh' not in st.session_state:
     st.session_state.last_alert_refresh = datetime.now()
-if 'show_chat' not in st.session_state:
-    st.session_state.show_chat = False
+if 'confirm_clear' not in st.session_state:
+    st.session_state.confirm_clear = False
 
 st.markdown("---")
 st.markdown("""
