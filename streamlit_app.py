@@ -27,10 +27,8 @@ from dotenv import load_dotenv
 import os
 import streamlit.components.v1 as components
 
-# ===== Robo Chat System =====
-from robo_brain import RoboAdvisor
-from robo_guard import RoboGuard
-from robo_knowledge import RoboKnowledge
+# ===== Robo Chat System (النسخة الموحدة) =====
+from robo_advisor import handle_robo_question, RoboGuard, RoboKnowledge
 
 # ✅ استيراد نظام التنبيهات الموحد (ملف واحد فقط) - الإصدار النهائي
 try:
@@ -1043,52 +1041,70 @@ with st.spinner("🧠 تحديث المستشار الذكي..."):
         market_data=st.session_state.get("market_data", {})
     )
 
-# ========== Robo Chat ==========
+# ========== Robo Chat (واجهة محادثة حقيقية) ==========
 st.markdown("---")
 st.markdown("## 🧠 مستشارك الذكي")
 st.caption("اسأل عن السوق، الفرص، أو التوقيت — وسيجيبك حسب باقتك")
 
-if "robo_open" not in st.session_state:
-    st.session_state.robo_open = False
+# ==============================
+# 💬 Robo Chat (واجهة محادثة حقيقية)
+# ==============================
 
-if st.button("💬 اسأل مستشارك الذكي", key="robo_button"):
-    st.session_state.robo_open = True
+if "robo_chat_history" not in st.session_state:
+    st.session_state.robo_chat_history = []
 
-if st.session_state.robo_open:
-    # الحصول على الباقة من session_state مع قيمة افتراضية
-    current_pkg = st.session_state.get("chosen_pkg", "مجانية")
+# زر تفريغ المحادثة
+col_clear, _ = st.columns([1, 3])
+with col_clear:
+    if st.button("🗑️ بدء محادثة جديدة"):
+        st.session_state.robo_chat_history = []
+        st.rerun()
+
+# عرض المحادثة
+for msg in st.session_state.robo_chat_history:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+# حقل الإدخال (يبقى دائمًا)
+user_input = st.chat_input("اكتب سؤالك هنا...")
+
+if user_input:
+    # حماية من الأسئلة القصيرة جدًا
+    if len(user_input.strip()) < 3:
+        st.warning("✋ اكتب سؤالًا أوضح قليلًا.")
+        st.stop()
     
-    # إنشاء Robo حسب المستخدم
-    robo_guard = RoboGuard(package=current_pkg)
-    robo = RoboAdvisor(
+    # رسالة المستخدم
+    st.session_state.robo_chat_history.append({
+        "role": "user",
+        "content": user_input
+    })
+
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    # إنشاء الروبو (من النظام الجديد)
+    current_pkg = st.session_state.get("chosen_pkg", "مجانية")
+
+    robo_response = handle_robo_question(
         user_profile={
             "city": city,
             "package": current_pkg,
             "user_type": user_type
         },
         knowledge=st.session_state.robo_knowledge,
-        guard=robo_guard
+        guard=RoboGuard(package=current_pkg),
+        question=user_input
     )
-    
-    question = st.text_input("✍️ اكتب سؤالك هنا (مثال: ما وضع السوق في الرياض؟)")
-    
-    if question:
-        with st.spinner("🤖 يفكر المستشار الذكي..."):
-            answer = robo.answer(question)
-            st.markdown(f"""
-            <div style="
-                background:#1a1a1a;
-                padding:20px;
-                border-radius:15px;
-                border:2px solid #00FFD1;
-                margin-top:10px;
-                direction:rtl;
-                text-align:right;
-            ">
-            <strong style='color:#00FFD1;'>📌 رد المستشار:</strong><br><br>
-            <p style='color:#EAEAEA; line-height:1.8;'>{answer}</p>
-            </div>
-            """, unsafe_allow_html=True)
+
+    # رد الروبو
+    st.session_state.robo_chat_history.append({
+        "role": "assistant",
+        "content": robo_response
+    })
+
+    with st.chat_message("assistant"):
+        st.markdown(robo_response)
 
 # ========== حاسبة الأثر المالي الذكية ==========
 st.markdown("---")
@@ -1490,6 +1506,7 @@ if 'last_property_type' not in st.session_state:
     st.session_state.last_property_type = None
 if 'last_alert_refresh' not in st.session_state:
     st.session_state.last_alert_refresh = datetime.now()
+# تم إزالة التهيئة المكررة لـ robo_chat_history - التهيئة موجودة قرب الشات
 
 st.markdown("---")
 st.markdown("""
