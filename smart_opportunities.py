@@ -1,11 +1,35 @@
 # smart_opportunities.py - نظام اكتشاف الفرص الذكية
+# =================================================
+# ملاحظة معمارية مهمة:
+# هذا الملف محصور فقط داخل AlertEngine
+# لا يُستخدم في التقرير أو الخلاصة التنفيذية أو ai_report_reasoner
+# =================================================
+
 import pandas as pd
 import numpy as np
 from datetime import datetime
 
 class SmartOpportunityFinder:
     def __init__(self):
+        # reserved for future use
         self.opportunity_cache = {}
+    
+    def _safe_col(self, row, *names):
+        """
+        طبقة أمان للوصول إلى الأعمدة - تدعم الأسماء العربية والإنجليزية
+        """
+        for name in names:
+            if name in row and pd.notna(row[name]):
+                return row[name]
+        return None
+    
+    def _has_required_columns(self, df, required_cols):
+        """
+        التحقق من وجود الأعمدة المطلوبة
+        """
+        if df is None or df.empty:
+            return False
+        return all(col in df.columns for col in required_cols)
     
     def find_undervalued_properties(self, real_data, city):
         """اكتشاف العقارات تحت السوق"""
@@ -13,25 +37,46 @@ class SmartOpportunityFinder:
             if real_data.empty:
                 return []
             
+            # التحقق من وجود الأعمدة المطلوبة
+            required = ['price_per_sqm', 'district']
+            if not self._has_required_columns(real_data, required):
+                print("⚠️ الأعمدة المطلوبة غير موجودة: price_per_sqm, district")
+                return []
+            
             # حساب متوسط السعر للمنطقة
-            area_avg_prices = real_data.groupby('المنطقة')['سعر_المتر'].mean()
+            area_avg_prices = real_data.groupby('district')['price_per_sqm'].mean()
             
             undervalued = []
             for _, property in real_data.iterrows():
-                area_avg = area_avg_prices.get(property['المنطقة'], property['سعر_المتر'])
+                district = self._safe_col(property, 'district', 'المنطقة')
+                if district is None:
+                    continue
+                
+                price_per_sqm = self._safe_col(property, 'price_per_sqm', 'سعر_المتر')
+                if price_per_sqm is None:
+                    continue
+                
+                area_avg = area_avg_prices.get(district, price_per_sqm)
                 
                 # إذا السعر أقل من المتوسط بـ 15%
-                if property['سعر_المتر'] < area_avg * 0.85:
-                    discount = ((area_avg - property['سعر_المتر']) / area_avg) * 100
+                if price_per_sqm < area_avg * 0.85:
+                    discount = ((area_avg - price_per_sqm) / area_avg) * 100
+                    
+                    # استخراج باقي الحقول بأمان
+                    property_name = self._safe_col(property, 'العقار', 'property_name', 'name') or f"عقار في {district}"
+                    current_price = self._safe_col(property, 'price', 'السعر')
+                    expected_return = self._safe_col(property, 'العائد_المتوقع', 'expected_return', 'return')
+                    risk_level = self._safe_col(property, 'مستوى_الخطورة', 'risk_level', 'risk')
+                    
                     undervalued.append({
-                        'العقار': property['العقار'],
-                        'المنطقة': property['المنطقة'], 
-                        'السعر_الحالي': property['السعر'],
-                        'سعر_المتر': property['سعر_المتر'],
+                        'العقار': property_name,
+                        'المنطقة': district, 
+                        'السعر_الحالي': current_price,
+                        'سعر_المتر': price_per_sqm,
                         'متوسط_المنطقة': area_avg,
                         'الخصم': f"{discount:.1f}%",
-                        'العائد_المتوقع': property.get('العائد_المتوقع', 'N/A'),
-                        'مستوى_الخطورة': property.get('مستوى_الخطورة', 'غير محدد')
+                        'العائد_المتوقع': expected_return if expected_return is not None else 'N/A',
+                        'مستوى_الخطورة': risk_level if risk_level is not None else 'غير محدد'
                     })
             
             return sorted(undervalued, key=lambda x: float(x['الخصم'][:-1]), reverse=True)[:10]
@@ -46,17 +91,28 @@ class SmartOpportunityFinder:
             if real_data.empty:
                 return []
             
+            # التحقق من وجود الأعمدة المطلوبة
+            required = ['price_per_sqm', 'district']
+            if not self._has_required_columns(real_data, required):
+                print("⚠️ الأعمدة المطلوبة غير موجودة: price_per_sqm, district")
+                return []
+            
             # تحليل النمو بالمناطق
-            area_growth = real_data.groupby('المنطقة').agg({
-                'سعر_المتر': ['mean', 'count'],
-                'العائد_المتوقع': 'mean'
+            area_growth = real_data.groupby('district').agg({
+                'price_per_sqm': ['mean', 'count'],
             }).round(2)
+            
+            # إضافة العائد المتوقع إذا كان موجوداً
+            if 'expected_return' in real_data.columns:
+                area_growth['expected_return'] = real_data.groupby('district')['expected_return'].mean()
+            else:
+                area_growth['expected_return'] = 5.0  # قيمة افتراضية
             
             rising_areas = []
             for area in area_growth.index:
-                avg_price = area_growth.loc[area, ('سعر_المتر', 'mean')]
-                property_count = area_growth.loc[area, ('سعر_المتر', 'count')]
-                avg_return = area_growth.loc[area, ('العائد_المتوقع', 'mean')]
+                avg_price = area_growth.loc[area, ('price_per_sqm', 'mean')]
+                property_count = area_growth.loc[area, ('price_per_sqm', 'count')]
+                avg_return = area_growth.loc[area, 'expected_return'] if isinstance(area_growth.loc[area, 'expected_return'], (int, float)) else 5.0
                 
                 # منطق تحديد المناطق الصاعدة
                 growth_score = (
@@ -82,7 +138,7 @@ class SmartOpportunityFinder:
             return []
     
     def get_golden_timing(self, market_data):
-        """تحديد التوقيت الذهبي للاستثمار"""
+        """تحديد التوقيت الذهبي للاستثمار (نصي إرشادي فقط)"""
         growth = market_data.get('معدل_النمو_الشهري', 0)
         liquidity = market_data.get('مؤشر_السيولة', 0)
         
