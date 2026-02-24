@@ -96,10 +96,9 @@ def elegant_divider(width="80%", thickness=0.6, color=colors.HexColor("#B0B0B0")
 # =========================
 def create_pdf_from_content(
     user_info,
-    market_data,
-    real_data,
     content_text,
-    executive_decision,   # ⭐ جديد - الخلاصة التنفيذية المستقلة
+    executive_decision,
+    charts_by_chapter,
     package_level,
     ai_recommendations=None
 ):
@@ -286,7 +285,6 @@ def create_pdf_from_content(
     story.append(elegant_divider("30%"))
     story.append(PageBreak())
 
-    charts_by_chapter = st.session_state.get("charts_by_chapter", {})
     chapter_index = 0
     chart_cursor = {}
     first_chapter_processed = False
