@@ -15,33 +15,38 @@ def normalize_dataframe(df):
         return None
     return df.copy()
 
-def unify_columns(df):
+def unify_columns_for_charts(df):
+    """
+    توحيد أعمدة البيانات لتتوافق مع Data Contract الخاص بـ AdvancedCharts
+    AdvancedCharts يتوقع: price | area | district | date
+    """
+    if df is None or df.empty:
+        return df
+    
+    df = df.copy()
+    
+    # خريطة تحويل الأعمدة العربية إلى الإنجليزية (إذا وجدت)
     column_map = {
         "السعر": "price",
-        "المساحة": "area",
-        "تاريخ_الجلب": "date",
-        "date": "date",
+        "المساحة": "area", 
+        "المنطقة": "district",
+        "تاريخ_الجلب": "date"
     }
     
-    for ar, en in column_map.items():
-        if ar in df.columns and en not in df.columns:
-            df[en] = df[ar]
+    # تحويل الأعمدة العربية إلى الإنجليزية
+    for ar_col, en_col in column_map.items():
+        if ar_col in df.columns and en_col not in df.columns:
+            df[en_col] = df[ar_col]
     
-    return df
-
-def ensure_required_columns(df):
-    if "price" not in df.columns:
-        df["price"] = np.random.randint(500_000, 3_000_000, len(df))
-    
-    if "area" not in df.columns:
-        df["area"] = np.random.randint(80, 300, len(df))
-    
-    if "date" not in df.columns:
-        df["date"] = pd.date_range(
-            start="2023-01-01",
-            periods=len(df),
-            freq="M"
-        )
+    # التأكد من وجود الأعمدة المطلوبة
+    required_cols = ["price", "area", "district", "date"]
+    for col in required_cols:
+        if col not in df.columns:
+            # إذا كان العمود مفقوداً، نضيفه بقيمة افتراضية
+            if col == "district":
+                df[col] = "غير محدد"
+            elif col == "date":
+                df[col] = datetime.now().strftime("%Y-%m-%d")
     
     return df
 
@@ -106,7 +111,17 @@ def inject_ai_by_anchor(content_text, anchor, title, ai_content):
         f"{ai_content}\n\n"
     )
 
-def build_report_story(user_info, dataframe=None):
+def build_report_story(user_info, provided_dataframe=None):
+    """
+    بناء قصة التقرير الكاملة
+    
+    Args:
+        user_info: معلومات المستخدم (المدينة، نوع العقار، الباقة)
+        provided_dataframe: DataFrame خارجي (اختياري) - إذا تم تمريره، يستخدم بدلاً من جلب البيانات الحية
+    
+    Returns:
+        dict: يحتوي على meta, content_text, executive_decision, charts
+    """
     prepared = {
         "المدينة": user_info.get("city", ""),
         "نوع_العقار": user_info.get("property_type", ""),
@@ -122,32 +137,39 @@ def build_report_story(user_info, dataframe=None):
     report = build_complete_report(prepared)
     content_text = blocks_to_text(report)
 
-    # تنويه البيانات الحية
+    # تنويه البيانات - صادق قانونياً واستثمارياً ✅
     content_text += "\n\n"
     content_text += "📌 تنويه مهم حول البيانات:\n"
     content_text += (
-        "تم إنشاء هذا التقرير اعتمادًا على بيانات سوقية حية ومباشرة "
-        "تم جمعها وتحليلها لحظة إعداد التقرير. "
-        "تعكس المؤشرات والأسعار اتجاهات السوق في وقت الإنشاء، "
-        "وقد تختلف القيم مستقبلًا تبعًا لتغيرات العرض والطلب.\n\n"
+        "تم إنشاء هذا التقرير اعتمادًا على بيانات سوقية متاحة وقت إعداد التقرير، "
+        "تم تحليلها وفق نماذج كمية ومعايير سوقية معتمدة. "
+        "تعكس المؤشرات اتجاهات السوق في لحظة التحليل، "
+        "وقد تختلف النتائج مستقبلًا تبعًا لتغيرات العرض والطلب.\n\n"
     )
 
-    # تحميل البيانات الحية
-    df = get_live_real_data(
-        city=user_info.get("city"),
-        property_type=user_info.get("property_type"),
-    )
+    # تحميل البيانات الحية - استخدام الـ DataFrame المُمرر إذا وُجد، وإلا جلب من المصدر الحي
+    if provided_dataframe is not None:
+        df = provided_dataframe
+        print("📊 استخدام DataFrame مُمرر خارجياً")
+    else:
+        df = get_live_real_data(
+            city=user_info.get("city"),
+            property_type=user_info.get("property_type"),
+        )
+        print("📊 جلب بيانات حية من get_live_real_data")
     
     df = normalize_dataframe(df)
+    
+    # ✅ توحيد الأعمدة لمحرك الرسومات قبل الاستخدام
+    if df is not None:
+        df = unify_columns_for_charts(df)
+        print(f"📊 الأعمدة بعد التوحيد: {list(df.columns)}")
 
     # توليد رؤى الذكاء الاصطناعي
     ai_reasoner = AIReportReasoner()
     
-    # ✅ بناء market_data من البيانات الحية - بعد توحيد الأعمدة
+    # ✅ بناء market_data من البيانات الحية
     if df is not None:
-        df = unify_columns(df)
-        df = ensure_required_columns(df)
-        
         # حساب معدل النمو بأمان باستخدام median بدل mean (أكثر دقة)
         if "price" in df.columns:
             growth_value = df["price"].pct_change().median()
@@ -168,41 +190,9 @@ def build_report_story(user_info, dataframe=None):
 
     ai_insights = ai_reasoner.generate_all_insights(
         user_info=user_info,
-        market_data=market_data,   # ✅ لم تعد {}
+        market_data=market_data,
         real_data=df if df is not None else pd.DataFrame()
     )
-
-    # 🔍 المرحلة 1: فحص نصوص الذكاء الاصطناعي
-    print("="*50)
-    print("🔍 المرحلة 1: فحص نصوص الذكاء الاصطناعي")
-    print("="*50)
-    print(f"AI LIVE موجود: {'نعم' if ai_insights.get('ai_live_market') else 'لا'}")
-    if ai_insights.get('ai_live_market'):
-        print(f"طول AI LIVE: {len(ai_insights['ai_live_market'])} حرف")
-        print(f"العينة: {ai_insights['ai_live_market'][:150]}...")
-    
-    print(f"\nAI RISK موجود: {'نعم' if ai_insights.get('ai_risk') else 'لا'}")
-    if ai_insights.get('ai_risk'):
-        print(f"طول AI RISK: {len(ai_insights['ai_risk'])} حرف")
-        print(f"العينة: {ai_insights['ai_risk'][:150]}...")
-    
-    print(f"\nAI OPPORTUNITIES موجود: {'نعم' if ai_insights.get('ai_opportunities') else 'لا'}")
-    if ai_insights.get('ai_opportunities'):
-        print(f"طول AI OPPORTUNITIES: {len(ai_insights['ai_opportunities'])} حرف")
-        print(f"العينة: {ai_insights['ai_opportunities'][:150]}...")
-    
-    print("="*50)
-
-    # 🔍 التحقق من وجود Anchors في التقرير
-    print("\n🔍 فحص وجود Anchors في التقرير:")
-    print("="*30)
-    anchors = ["[[AI_SLOT_CH1]]", "[[AI_SLOT_CH2]]", "[[AI_SLOT_CH3]]"]
-    for anchor in anchors:
-        if anchor in content_text:
-            print(f"✅ {anchor} موجود في التقرير")
-        else:
-            print(f"❌ {anchor} غير موجود في التقرير")
-    print("="*30)
 
     # ✅ إدخال الذكاء الاصطناعي باستخدام Anchors (مضمون)
     content_text = inject_ai_by_anchor(
@@ -226,19 +216,7 @@ def build_report_story(user_info, dataframe=None):
         ai_insights.get("ai_opportunities", "")
     )
 
-    # 🔍 التحقق بعد الحقن
-    print("\n🔍 التحقق بعد إدخال نصوص الذكاء الاصطناعي:")
-    print("="*30)
-    ai_markers = ["📊 لقطة السوق الحية", "⚠️ تقييم المخاطر الذكي", "💎 تحليل الفرص الاستثمارية"]
-    for marker in ai_markers:
-        if marker in content_text:
-            print(f"✅ '{marker}' تم إدراجه بنجاح")
-        else:
-            print(f"❌ '{marker}' لم يتم إدراجه")
-    print("="*30)
-
     # توليد الخلاصة التنفيذية بشكل مستقل
-    # ⭐ تعديل مهم: تمرير package إجباريًا
     package_level = user_info.get("package") or user_info.get("chosen_pkg") or "مجانية"
     
     # تحويل اسم الباقة العربي إلى المفتاح الإنجليزي
@@ -262,8 +240,10 @@ def build_report_story(user_info, dataframe=None):
     # توليد الرسومات
     if df is not None:
         charts = charts_engine.generate_all_charts(df)
+        print(f"📊 تم توليد {len(charts)} فصل بالرسومات")
     else:
         charts = {}
+        print("⚠️ لا توجد بيانات لتوليد الرسومات")
 
     return {
         "meta": {
