@@ -72,6 +72,9 @@ class AIReportReasoner:
         """
         توليد الرؤى النصية حسب الباقة
         يعتمد فقط على market_data و real_data القادمة من orchestrator
+        
+        ملاحظة: real_data غير مستخدم حاليًا
+        مخصص للتوسعة المستقبلية دون كسر التوقيع
         """
         city = user_info.get("city", "المدينة")
         package = user_info.get("package") or user_info.get("chosen_pkg") or "مجانية"
@@ -85,7 +88,7 @@ class AIReportReasoner:
 
         base_values = {
             "المدينة": city,
-            "اتجاه_الأسعار": market_data.get("اتجاه_الاسعار", "مستقر"),
+            "اتجاه_الأسعار": market_data.get("اتجاه_الأسعار", "مستقر"),
         }
 
         # دمج شامل وآمن
