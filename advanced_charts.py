@@ -10,6 +10,10 @@ class AdvancedCharts:
     """
     PREMIUM EXECUTIVE CHARTS ENGINE
     مستوى عالمي – هادئ – انسيابي
+    
+    DATA CONTRACT (FINAL):
+    price | area | district | date
+    هذا الملف لا يدعم أي أسماء أعمدة أخرى
     """
 
     # =====================
@@ -40,6 +44,28 @@ class AdvancedCharts:
 
     def _numeric(self, s):
         return pd.to_numeric(s, errors="coerce")
+
+    def _normalize_market_columns(self, df):
+        """
+        توحيد أعمدة market_data_core مع محرك الرسومات
+        """
+        if df is None or df.empty:
+            return df
+
+        df = df.copy()
+
+        column_map = {
+            "السعر": "price",
+            "المساحة": "area",
+            "المنطقة": "district",
+            "تاريخ_الجلب": "date",
+        }
+
+        for ar, en in column_map.items():
+            if ar in df.columns and en not in df.columns:
+                df[en] = df[ar]
+
+        return df
 
     def _ensure_numeric_core(self, df):
         """
@@ -122,12 +148,7 @@ class AdvancedCharts:
         """
         رسم 1: متوسط سعر المتر حسب المنطقة
         """
-        district_col = (
-            "المنطقة" if "المنطقة" in df.columns
-            else "district" if "district" in df.columns
-            else "الحي" if "الحي" in df.columns
-            else None
-        )
+        district_col = "district" if "district" in df.columns else None
 
         if district_col is None or not self._has_columns(df, ["price", "area"]):
             return None
@@ -335,7 +356,7 @@ class AdvancedCharts:
     # =====================
     # CHAPTER 4 – MARKET RELATION
     # =====================
-    def ch1_price_vs_area_flow(self, df):
+    def ch4_price_vs_area_flow(self, df):
         """
         رسم 4: تحليل العلاقة بين المساحة والسعر
         """
@@ -758,6 +779,8 @@ class AdvancedCharts:
         if df is None or df.empty:
             return {}
 
+        # ✅ توحيد الأعمدة أولاً
+        df = self._normalize_market_columns(df)
         df = self._ensure_numeric_core(df)
 
         def clean(lst):
@@ -781,7 +804,7 @@ class AdvancedCharts:
 
             # ✅ فصل 4: العلاقة بين المساحة والسعر
             "chapter_4": clean([
-                self.ch1_price_vs_area_flow(df),
+                self.ch4_price_vs_area_flow(df),
             ]),
 
             # ✅ فصل 5: لوحة قراءة السوق
