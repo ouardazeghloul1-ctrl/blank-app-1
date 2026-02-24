@@ -13,7 +13,7 @@ class AdvancedCharts:
     
     DATA CONTRACT (FINAL):
     price | area | district | date
-    هذا الملف لا يدعم أي أسماء أعمدة أخرى
+    لا يدعم إلا DATA CONTRACT بعد التوحيد
     """
 
     # =====================
@@ -48,6 +48,8 @@ class AdvancedCharts:
     def _normalize_market_columns(self, df):
         """
         توحيد أعمدة market_data_core مع محرك الرسومات
+        - يحول الأعمدة العربية إلى إنجليزية
+        - يُرجع فقط الأعمدة المطلوبة: price, area, district, date
         """
         if df is None or df.empty:
             return df
@@ -62,10 +64,13 @@ class AdvancedCharts:
         }
 
         for ar, en in column_map.items():
-            if ar in df.columns and en not in df.columns:
+            if ar in df.columns:
                 df[en] = df[ar]
 
-        return df
+        # إرجاع الأعمدة الإنجليزية الموجودة فقط (آمن من KeyError)
+        required = ["price", "area", "district", "date"]
+        existing = [c for c in required if c in df.columns]
+        return df[existing]
 
     def _ensure_numeric_core(self, df):
         """
@@ -454,7 +459,7 @@ class AdvancedCharts:
     # =====================
     # CHAPTER 5 – MARKET INDICATORS
     # =====================
-    def ch4_market_indicators_bar(self, df):
+    def ch5_market_indicators_bar(self, df):
         """
         رسم 5: لوحة قراءة السوق
         """
@@ -624,7 +629,7 @@ class AdvancedCharts:
             align="center"
         )
 
-        return fig
+        return self._safe(fig, height=540)
 
     # =====================
     # CHAPTER 7 – EXECUTIVE DECISION BAR
@@ -779,7 +784,7 @@ class AdvancedCharts:
         if df is None or df.empty:
             return {}
 
-        # ✅ توحيد الأعمدة أولاً
+        # ✅ توحيد الأعمدة أولاً - يرجع إنجليزي فقط
         df = self._normalize_market_columns(df)
         df = self._ensure_numeric_core(df)
 
@@ -809,7 +814,7 @@ class AdvancedCharts:
 
             # ✅ فصل 5: لوحة قراءة السوق
             "chapter_5": clean([
-                self.ch4_market_indicators_bar(df),
+                self.ch5_market_indicators_bar(df),
             ]),
 
             # ✅ فصل 6: مؤشر القرار التنفيذي
@@ -817,7 +822,7 @@ class AdvancedCharts:
                 self.ch6_gauge(df),
             ]),
 
-            # ✅ فصل 7: قرار الاستثمار التنفيذي (بديل Donut)
+            # ✅ فصل 7: قرار الاستثمار التنفيذي
             "chapter_7": clean([
                 self.ch7_executive_decision_bar(df),
             ]),
