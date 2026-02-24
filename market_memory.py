@@ -3,6 +3,12 @@
 # Market Memory Layer – Warda Intelligence
 # تخزين السوق ومقارنته زمنيًا
 # =========================================
+# ملاحظة معمارية:
+# هذا الملف مخصص فقط لنظام التنبيهات (AlertEngine)
+# لا يُستخدم في التقارير أو الخلاصة التنفيذية
+# لا يُستدعى من orchestrator
+# الذاكرة فقط - لا تحليل ولا قرار
+# =========================================
 
 import os
 import pandas as pd
@@ -39,20 +45,52 @@ def store_snapshot(df: pd.DataFrame, city: str, property_type: str):
 def load_last_snapshots(city: str, property_type: str, limit=2):
     """
     تحميل آخر لقطتين للسوق
+    
+    Args:
+        city: اسم المدينة
+        property_type: نوع العقار
+        limit: عدد اللقطات المطلوبة (افتراضي: 2)
+    
+    Returns:
+        list: قائمة بالـ DataFrames للقطات المطلوبة
     """
     files = [
         f for f in os.listdir(MEMORY_FOLDER)
         if f.startswith(f"{city}_{property_type}")
     ]
 
-    files = sorted(files, reverse=True)[:limit]
+    # ترتيب حسب وقت التعديل (الأحدث أولاً) لضمان السلامة حتى لو تغير تنسيق الاسم
+    files = sorted(
+        files,
+        key=lambda f: os.path.getmtime(os.path.join(MEMORY_FOLDER, f)),
+        reverse=True
+    )[:limit]
 
     snapshots = []
     for f in files:
         try:
             df = pd.read_csv(os.path.join(MEMORY_FOLDER, f))
             snapshots.append(df)
-        except Exception:
+        except Exception as e:
+            print(f"⚠️ خطأ في تحميل اللقطة {f}: {e}")
             continue
 
     return snapshots
+
+
+# للاختبار المستقل (اختياري)
+if __name__ == "__main__":
+    # بيانات تجريبية للاختبار
+    test_data = pd.DataFrame({
+        "price": [500000, 750000, 1000000, 1250000, 1500000],
+        "area": [80, 100, 120, 150, 180],
+        "date": [datetime.now().strftime("%Y-%m-%d")] * 5
+    })
+    
+    # تخزين لقطة اختبار
+    path = store_snapshot(test_data, "الرياض", "شقة")
+    print(f"✅ تم تخزين اللقطة في: {path}")
+    
+    # تحميل آخر لقطتين
+    snapshots = load_last_snapshots("الرياض", "شقة", limit=2)
+    print(f"📊 تم تحميل {len(snapshots)} لقطة")
