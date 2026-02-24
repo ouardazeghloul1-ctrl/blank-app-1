@@ -452,6 +452,20 @@ def get_market_data(city, property_type):
     logging.info(f"✅ تم جمع {len(df)} عقار حقيقي من السوق")
     logging.info(f"📊 المصادر: Aqar: {len(aqar_properties)} | Bayut: {len(bayut_properties)}")
     
+    # توحيد الأعمدة – معيار المنصة
+    df = df.rename(columns={
+        "المنطقة": "الحي",
+        "السعر": "price",
+        "المساحة": "area"
+    })
+    
+    # استخدام وقت الجلب الفعلي لجميع العقارات (لتنبيهات الزمن بدقة)
+    df["date"] = pd.to_datetime(datetime.now())
+    
+    # إضافة حقول ثابتة لضمان اكتمال البيانات
+    df["المدينة"] = city
+    df["نوع_العقار"] = property_type
+    
     return df.reset_index(drop=True)
 
 
@@ -467,8 +481,8 @@ if __name__ == "__main__":
         # اختبار بسيط - الرياض + شقة
         test_data = get_market_data("الرياض", "شقة")
         print(f"✅ نجح الاختبار - تم جمع {len(test_data)} عقار")
-        print("\n📊 نموذج من البيانات:")
-        print(test_data[['المدينة', 'المنطقة', 'السعر', 'المساحة', 'المصدر']].head(5))
+        print("\n📊 نموذج من البيانات (بالتنسيق النهائي للمنصة):")
+        print(test_data[['المدينة', 'الحي', 'price', 'area', 'date', 'نوع_العقار']].head(5))
         
     except Exception as e:
         print(f"❌ فشل الاختبار: {e}")
