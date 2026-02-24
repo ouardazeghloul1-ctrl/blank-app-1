@@ -3,7 +3,7 @@ from report_content_builder import build_complete_report
 from advanced_charts import AdvancedCharts
 from ai_report_reasoner import AIReportReasoner
 from ai_executive_summary import generate_executive_summary
-from live_real_data_provider import get_live_real_data
+from market_data_core import get_market_data
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -19,6 +19,10 @@ def unify_columns_for_charts(df):
     """
     توحيد أعمدة البيانات لتتوافق مع Data Contract الخاص بـ AdvancedCharts
     AdvancedCharts يتوقع: price | area | district | date
+    
+    ⚠️ ملاحظة معمارية:
+    هذا التوحيد طبقة حماية قبل orchestration
+    التوحيد النهائي الصارم يتم داخل AdvancedCharts
     """
     if df is None or df.empty:
         return df
@@ -152,11 +156,14 @@ def build_report_story(user_info, provided_dataframe=None):
         df = provided_dataframe
         print("📊 استخدام DataFrame مُمرر خارجياً")
     else:
-        df = get_live_real_data(
-            city=user_info.get("city"),
-            property_type=user_info.get("property_type"),
-        )
-        print("📊 جلب بيانات حية من get_live_real_data")
+        try:
+            df = get_market_data(
+                city=user_info.get("city"),
+                property_type=user_info.get("property_type"),
+            )
+            print("📊 جلب بيانات حقيقية من market_data_core")
+        except Exception as e:
+            raise RuntimeError(f"فشل توليد التقرير بسبب البيانات: {e}")
     
     df = normalize_dataframe(df)
     
@@ -172,6 +179,7 @@ def build_report_story(user_info, provided_dataframe=None):
     if df is not None:
         # حساب معدل النمو بأمان باستخدام median بدل mean (أكثر دقة)
         if "price" in df.columns:
+            # ⚠️ النمو هنا مؤشري تقريبي (snapshot-based) وليس سلسلة زمنية حقيقية
             growth_value = df["price"].pct_change().median()
             growth_value = growth_value if pd.notna(growth_value) else 0.01
             growth_rate = round(float(growth_value * 100), 2)
