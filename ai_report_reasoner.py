@@ -3,9 +3,10 @@
 # عقل التقرير الاستشاري – Warda Intelligence
 # =========================================
 
-from live_data_system import LiveDataSystem
-from market_intelligence import MarketIntelligence
-from smart_opportunities import SmartOpportunityFinder
+# ملاحظة معمارية:
+# هذا العقل لا يجلب بيانات بنفسه
+# يعتمد فقط على market_data و real_data القادمة من orchestrator
+
 import pandas as pd
 
 from ai_text_templates import (
@@ -61,11 +62,17 @@ def fill_ai_template(template: str, values: dict) -> str:
 
 class AIReportReasoner:
     def __init__(self):
-        self.live_system = LiveDataSystem()
-        self.market_intel = MarketIntelligence()
-        self.opportunity_finder = SmartOpportunityFinder()
+        """
+        عقل استشاري نصي بحت - لا يعتمد على أي أنظمة خارجية
+        كل البيانات تأتي من orchestrator عبر market_data و real_data
+        """
+        pass
 
     def generate_all_insights(self, user_info, market_data, real_data):
+        """
+        توليد الرؤى النصية حسب الباقة
+        يعتمد فقط على market_data و real_data القادمة من orchestrator
+        """
         city = user_info.get("city", "المدينة")
         package = user_info.get("package") or user_info.get("chosen_pkg") or "مجانية"
         policy = AI_PACKAGE_POLICY.get(package, AI_PACKAGE_POLICY["مجانية"])
