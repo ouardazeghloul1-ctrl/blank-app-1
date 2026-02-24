@@ -20,6 +20,7 @@ import pandas as pd
 # استيرادات ذاكرة السوق للمقارنة الزمنية
 # ==============================
 from market_memory import load_last_snapshots
+from snapshot_runner import collect_and_store
 
 # ==============================
 # 1️⃣ القواعد والثوابت (Alert Rules)
@@ -729,6 +730,25 @@ def check_and_emit_alert(city, property_type):
         print(f"📢 تنبيه جديد الآن في {city}: {len(alerts)} تنبيه")
         for alert in alerts:
             print(f"  → {build_human_message(alert)}")
+    
+    return alerts
+
+# ==============================
+# دالة التحديث والتنبيه الرسمية (للزر في الواجهة)
+# ==============================
+
+def update_market_and_check_alerts(city, property_type):
+    """
+    زر التحديث الرسمي:
+    - يجلب بيانات حقيقية
+    - يخزن لقطة سوق
+    - يشغل التنبيهات فورًا
+    """
+    print(f"🔄 تحديث السوق: {city} - {property_type}")
+    
+    collect_and_store(city, property_type)
+    
+    alerts = check_and_emit_alert(city, property_type)
     
     return alerts
 
