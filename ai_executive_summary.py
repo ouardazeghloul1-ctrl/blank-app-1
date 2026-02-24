@@ -7,7 +7,8 @@
 # يختلف عمق المؤشرات والتنبؤات حسب مستوى الباقة، دون تغيير هيكل القرار.
 # =========================================
 
-from smart_opportunities import SmartOpportunityFinder
+# TODO: سيتم استخدام SmartOpportunityFinder لاحقاً في تحليل الفرص المتقدم
+# from smart_opportunities import SmartOpportunityFinder
 from gold_decision_engine import generate_gold_decision_metrics
 from decision_terminology import TERMS
 import numpy as np
@@ -120,6 +121,10 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
     """
     حساب تنبؤ زمني مبني فقط على البيانات الحية
     مع إمكانية تحديد عدد السنوات حسب الباقة
+    
+    ملاحظة مهمة:
+    - البيانات في النظام غالباً شهرية
+    - يتم تحويل النمو الشهري إلى سنوي قبل التوقع
     """
     if real_data is None or real_data.empty or "price" not in real_data.columns:
         return {
@@ -128,16 +133,24 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
             "long_term": 0.0,
             "cumulative_min": 0.0,
             "cumulative_max": 0.0,
-            "volatility": 0.0
+            "volatility": 5.0  # حد أدنى آمن بدلاً من 0
         }
 
     if "date" in real_data.columns:
         real_data = real_data.sort_values("date")
     
     prices = real_data["price"].dropna()
-    annual_growth = prices.pct_change().median()
-    annual_growth = annual_growth if pd.notna(annual_growth) else 0.01
+    
+    # حساب النمو الشهري (الافتراضي)
+    monthly_growth = prices.pct_change().median()
+    monthly_growth = monthly_growth if pd.notna(monthly_growth) else 0.001  # 0.1% حد أدنى
+    
+    # تحويل النمو الشهري إلى سنوي
+    annual_growth = (1 + monthly_growth) ** 12 - 1
+    
+    # حساب التذبذب مع حد أدنى آمن
     volatility = safe_pct(prices.pct_change().std())
+    volatility = volatility if volatility > 5.0 else 5.0  # حد أدنى 5% لمنع أمان زائف
 
     # تقسيم حسب عدد السنوات المطلوبة
     if years <= 2:
@@ -238,7 +251,8 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     lines.append("")
     lines.append(f"رقم المرجعية: WI-{city[:3]}-{property_type[:3]}-{pd.Timestamp.now().strftime('%Y%m')}")
     lines.append(f"نطاق التطبيق: {property_type} – {city}")
-    lines.append(f"مصدر البيانات: بيانات سوقية آنية تم جمعها ومعالجتها لحظة إصدار المرجعية.")
+    # ✅ نص دقيق قانونياً واستثمارياً
+    lines.append("مصدر البيانات: بيانات سوقية متاحة وقت التحليل، تمت معالجتها وفق نموذج Warda Intelligence.")
     lines.append("")
     lines.append("تم اشتقاق هذا القرار من نموذج Warda Intelligence Core Model")
     lines.append("---")
