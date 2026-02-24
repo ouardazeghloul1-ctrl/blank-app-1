@@ -1,6 +1,7 @@
 # ai_predictor.py
 # ================================
-# محرك التنبؤ والتحليل الذكي
+# نموذج استقرائي داخلي (In-sample Price Estimation)
+# لا يمثل تنبؤًا سوقيًا زمنيًا
 # مستقل عن الواجهة (Streamlit / PDF)
 # ================================
 
@@ -9,7 +10,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 
 
-REQUIRED_COLUMNS = ["price", "area"]
+REQUIRED_COLUMNS = ["price", "area", "date"]
 
 
 def _normalize_dataframe(df):
@@ -39,7 +40,9 @@ def _normalize_dataframe(df):
 
 def analyze_results(df):
     """
-    تحليل تنبؤي بسيط قائم على المساحة والسعر
+    تحليل استقرائي داخلي يوضح العلاقة بين المساحة والسعر داخل العينة الحالية
+    لا يمثل تنبؤًا زمنيًا ولا توصية استثمارية
+    
     يعيد:
     - predictions_df (DataFrame)
     - meta (dict معلومات تشخيصية)
@@ -68,6 +71,15 @@ def analyze_results(df):
             "message": "البيانات غير كافية بعد التنظيف"
         }
 
+    # تحويل التاريخ
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"])
+    if df.empty:
+        return None, {
+            "status": "invalid_date_data",
+            "message": "التواريخ غير صالحة للتحليل"
+        }
+
     # تحويل المساحة إلى أرقام
     df["area"] = (
         df["area"]
@@ -83,6 +95,13 @@ def analyze_results(df):
             "message": "المساحة أو السعر غير صالحين للتحليل"
         }
 
+    # التأكد من وجود عدد كافٍ من البيانات
+    if len(df) < 20:
+        return None, {
+            "status": "insufficient_data",
+            "message": "عدد البيانات غير كافٍ لبناء نموذج استقرائي موثوق (يجب أن يكون 20 على الأقل)"
+        }
+
     # حساب سعر المتر
     df["price_per_sqm"] = df["price"] / df["area"]
 
@@ -93,7 +112,7 @@ def analyze_results(df):
     model = LinearRegression()
     model.fit(X, y)
 
-    # نطاق التنبؤ
+    # نطاق الاستقراء
     future_areas = np.linspace(
         df["area"].min(),
         df["area"].max(),
@@ -104,7 +123,7 @@ def analyze_results(df):
 
     predictions_df = pd.DataFrame({
         "area": future_areas.flatten(),
-        "predicted_price": future_prices.round(0).astype(int)
+        "estimated_price": future_prices.round(0).astype(int)
     })
 
     meta = {
@@ -112,8 +131,32 @@ def analyze_results(df):
         "rows_used": len(df),
         "min_area": float(df["area"].min()),
         "max_area": float(df["area"].max()),
-        "model": "LinearRegression",
-        "confidence_note": "تنبؤ استرشادي وليس توصية استثمارية مباشرة"
+        "model": "LinearRegression (in-sample)",
+        "scope": "price_vs_area",
+        "confidence_note": (
+            "هذا النموذج استقرائي داخلي مبني على بيانات العينة الحالية فقط، "
+            "ولا يمثل توقعًا زمنيًا أو توصية استثمارية."
+        )
     }
 
     return predictions_df, meta
+
+
+# للاختبار المستقل
+if __name__ == "__main__":
+    # بيانات تجريبية للاختبار
+    test_data = pd.DataFrame({
+        "price": [500000, 750000, 1000000, 1250000, 1500000] * 5,
+        "area": [80, 100, 120, 150, 180] * 5,
+        "date": pd.date_range(start="2023-01-01", periods=25, freq="M")
+    })
+    
+    pred, meta = analyze_results(test_data)
+    if pred is not None:
+        print("✅ تم تحليل البيانات بنجاح")
+        print(f"📊 عدد النقاط المستخدمة: {meta['rows_used']}")
+        print(f"📈 نطاق المساحات: {meta['min_area']} - {meta['max_area']}")
+        print("\n🔮 الاستقراء السعري:")
+        print(pred.head())
+    else:
+        print(f"❌ فشل التحليل: {meta['message']}")
