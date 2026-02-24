@@ -8,6 +8,7 @@ Gold Decision Engine
 • يعتمد فقط على البيانات الحية بعد الفلترة
 • لا يحتوي أي افتراضات سوقية مسبقة
 • يُستخدم حصريًا في الخلاصة التنفيذية
+• مصدر البيانات الوحيد: orchestrator (لا يتم جلب بيانات من الداخل)
 """
 
 # =========================================
@@ -17,8 +18,6 @@ Gold Decision Engine
 import pandas as pd
 import numpy as np
 from datetime import datetime
-
-from real_data_repository import load_real_data
 
 
 # -----------------------------------------
@@ -196,13 +195,31 @@ def generate_gold_decision_metrics(
     Gold Decision Metrics Engine
     ----------------------------
     يحسب مؤشرات القرار الذهبي اعتمادًا على البيانات الحية.
-    يقبل real_data و market_data إن توفرت، وإلا يعمل بوضع افتراضي آمن.
+    
+    ملاحظة معمارية مهمة:
+    - مصدر البيانات الوحيد هو orchestrator
+    - لا يتم جلب بيانات من الداخل (real_data_repository)
+    - إذا كانت البيانات غير صالحة، نعيد قيماً صفرية آمنة
+    
+    المدخلات:
+        city: المدينة (للتوثيق فقط - لا يستخدم في الجلب)
+        property_type: نوع العقار (للتوثيق فقط - لا يستخدم في الجلب)
+        real_data: DataFrame بالبيانات الحقيقية (من orchestrator)
+        market_data: dict بمؤشرات السوق (اختياري)
+    
+    المخرجات:
+        dict: المؤشرات الأربعة (DCI, VGS, RAOS, SCM)
     """
 
-    # 🔒 حماية من البيانات غير الصالحة
+    # 🔒 حماية من البيانات غير الصالحة - بدون جلب من الداخل
     if real_data is None or not isinstance(real_data, pd.DataFrame) or real_data.empty:
-        # إذا كانت البيانات غير متوفرة، نحمّلها من المستودع
-        real_data = load_real_data(city=city, property_type=property_type)
+        # إرجاع قيم صفرية آمنة - orchestrator مسؤول عن تمرير البيانات
+        return {
+            "DCI": 0,
+            "VGS": 0.0,
+            "RAOS": 0,
+            "SCM": {"matched": 0, "total": 20, "percentage": 0}
+        }
     
     if market_data is None or not isinstance(market_data, dict):
         market_data = {}
@@ -219,3 +236,25 @@ def generate_gold_decision_metrics(
         "RAOS": raos,
         "SCM": scm
     }
+
+
+# للاختبار المستقل (اختياري)
+if __name__ == "__main__":
+    # بيانات تجريبية للاختبار
+    test_data = pd.DataFrame({
+        "price": [500000, 750000, 1000000, 1250000, 1500000] * 20,
+        "area": [80, 100, 120, 150, 180] * 20,
+        "date": pd.date_range(start="2023-01-01", periods=100, freq="W")
+    })
+    
+    metrics = generate_gold_decision_metrics(
+        city="الرياض",
+        property_type="شقة",
+        real_data=test_data
+    )
+    
+    print("📊 Gold Decision Metrics:")
+    print(f"DCI: {metrics['DCI']}/100")
+    print(f"VGS: {metrics['VGS']}%")
+    print(f"RAOS: {metrics['RAOS']}/100")
+    print(f"SCM: {metrics['SCM']['percentage']}%")
