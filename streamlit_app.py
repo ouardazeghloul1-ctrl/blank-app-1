@@ -38,7 +38,7 @@ try:
         format_alert_for_display,
         refresh_alerts,
         get_alerts_stats,
-        update_market_and_check_alerts  # 🔥 زر التحديث الرسمي
+        update_market_and_check_alerts
     )
     ALERTS_AVAILABLE = True
     print("✅ نظام التنبيهات الموحد متصل بنجاح")
@@ -120,6 +120,40 @@ try:
 except ImportError:
     class MarketIntelligence:
         pass
+
+# ===============================
+# SNAPSHOT ENGINE (الحل النهائي)
+# ===============================
+
+SNAPSHOT_DIR = "snapshots"
+os.makedirs(SNAPSHOT_DIR, exist_ok=True)
+
+def load_latest_snapshot(city, property_type):
+    """تحميل آخر لقطة محفوظة من السوق"""
+    files = [
+        f for f in os.listdir(SNAPSHOT_DIR)
+        if f.startswith(f"{city}_{property_type}") and f.endswith(".csv")
+    ]
+    if not files:
+        return None
+
+    files.sort(reverse=True)
+    path = os.path.join(SNAPSHOT_DIR, files[0])
+    return pd.read_csv(path)
+
+def create_snapshot(city, property_type):
+    """إنشاء لقطة جديدة من السوق وحفظها"""
+    df = get_market_data(city, property_type)
+
+    if df is None or df.empty:
+        raise Exception("❌ لا توجد بيانات حقيقية من السوق")
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
+    filename = f"{city}_{property_type}_{timestamp}.csv"
+    path = os.path.join(SNAPSHOT_DIR, filename)
+
+    df.to_csv(path, index=False, encoding="utf-8-sig")
+    return df, path
 
 # ========== إعداد الصفحة (يجب أن يكون أول استدعاء لـ st) ==========
 st.set_page_config(
@@ -586,9 +620,9 @@ class AIIntelligence:
         risk_factors = []
         
         # سيولة السوق
-        if market_data.get('مؤشر_السيولة', 0) > 80:
+        if market_data.get('حجم_السيولة', 0) > 80:
             risk_factors.append("منخفض")
-        elif market_data.get('مؤشر_السيولة', 0) > 50:
+        elif market_data.get('حجم_السيولة', 0) > 50:
             risk_factors.append("متوسط")
         else:
             risk_factors.append("مرتفع")
@@ -629,9 +663,9 @@ class AIIntelligence:
         
         risk_factors = []
         
-        if market_data.get('مؤشر_السيولة', 0) > 80:
+        if market_data.get('حجم_السيولة', 0) > 80:
             risk_factors.append("منخفض")
-        elif market_data.get('مؤشر_السيولة', 0) > 50:
+        elif market_data.get('حجم_السيولة', 0) > 50:
             risk_factors.append("متوسط")
         else:
             risk_factors.append("مرتفع")
@@ -672,25 +706,25 @@ def generate_advanced_market_data(city, property_type, status, real_data):
 
     df = real_data.copy()
 
-    # تنظيف
-    df = df.dropna(subset=["price", "area"])
-    df["price"] = pd.to_numeric(df["price"], errors="coerce")
-    df["area"] = pd.to_numeric(df["area"], errors="coerce")
+    # تنظيف - استخدام الأسماء العربية
+    df = df.dropna(subset=["السعر", "المساحة"])
+    df["السعر"] = pd.to_numeric(df["السعر"], errors="coerce")
+    df["المساحة"] = pd.to_numeric(df["المساحة"], errors="coerce")
     df = df.dropna()
 
     if df.empty:
         raise Exception("❌ البيانات غير صالحة للتحليل")
 
     # مؤشرات حقيقية
-    df['سعر_المتر'] = df["price"] / df["area"]
+    df['سعر_المتر'] = df["السعر"] / df["المساحة"]
     avg_price_per_m2 = df['سعر_المتر'].mean()
     min_price_per_m2 = df['سعر_المتر'].min()
     max_price_per_m2 = df['سعر_المتر'].max()
 
     property_count = len(df)
 
-    # سيولة = عدد الإعلانات الحالية
-    liquidity_index = property_count
+    # حجم السيولة = عدد الإعلانات الحالية
+    liquidity_volume = property_count
 
     # عائد تأجيري (إن وجد)
     if "العائد_المتوقع" in df.columns:
@@ -707,7 +741,7 @@ def generate_advanced_market_data(city, property_type, status, real_data):
         "أعلى_سعر_متر": round(max_price_per_m2, 2),
         "أقل_سعر_متر": round(min_price_per_m2, 2),
         "عدد_العقارات_الحقيقية": property_count,
-        "مؤشر_السيولة": liquidity_index,
+        "حجم_السيولة": liquidity_volume,
         "العائد_التأجيري": round(rental_yield, 2) if rental_yield else "غير متوفر",
         "عرض_العقارات": supply,
         "طالب_الشراء": demand,
@@ -719,9 +753,9 @@ st.markdown("""
     <div class='header-section'>
         <h1>🏙️ منصة التحليل العقاري الذهبي</h1>
         <h2>Warda Intelligence - الذكاء الاستثماري المتقدم</h2>
-        <p>تحليل استثماري شامل • توقعات ذكية • قرارات مدروسة</p>
+        <p>تحليل استثماري شامل • مؤشرات ذكية • قرارات مدروسة</p>
         <div class='real-data-badge'>
-            🎯 بيانات حقيقية مباشرة من أسواق العقار • تحديث فوري • مصداقية 100%
+            🎯 بيانات حقيقية من السوق • تحديث عند الطلب • مصداقية 100%
         </div>
         <div class='ai-badge'>
             🤖 مدعوم بالذكاء الاصطناعي المتقدم • تحليل تنبؤي • توقعات ذكية
@@ -761,33 +795,21 @@ if page == "📊 التحليل الكامل":
             key="property_type_select_alerts"
         )
     
-    # زر التحديث الرسمي (القلب)
+    # زر التحديث الرسمي (القلب) - الحقيقي
     col_btn, col_info = st.columns([1, 3])
     with col_btn:
-        if st.button("🔄 تحديث بيانات السوق", key="market_update_btn", use_container_width=True):
-            with st.spinner("جاري جلب البيانات الحقيقية وتحليل السوق..."):
+        if st.button("🔄 تحديث بيانات السوق (حقيقي)", key="market_update_btn", use_container_width=True):
+            with st.spinner("جاري جلب بيانات حقيقية وتحليل السوق..."):
                 try:
                     alerts = update_market_and_check_alerts(city_select, property_type_select)
-                    
-                    if not alerts:
-                        st.info("ℹ️ تم تحديث السوق، لا توجد تنبيهات جديدة حالياً.")
-                        st.session_state.daily_alerts = get_today_alerts()
-                    else:
-                        st.success(f"✅ تم توليد {len(alerts)} تنبيه جديد")
-                        st.session_state.daily_alerts = get_today_alerts()
-                        
-                        # عرض التنبيهات فوراً
-                        for alert in alerts[:3]:  # عرض أول 3 فقط
-                            st.markdown(f"**{alert.get('title', 'تنبيه')}**")
-                            st.write(alert.get('description', ''))
-                            st.caption(
-                                f"{alert.get('generated_at', '')} | قوة: {alert.get('confidence', '')} | أولوية: {alert.get('priority', '')}"
-                            )
-                    
+
+                    st.session_state.daily_alerts = alerts
                     st.session_state.last_alert_refresh = datetime.now()
-                    
+
+                    st.success("✅ تم تحديث السوق وتحليل التنبيهات بنجاح")
+
                 except Exception as e:
-                    st.error(f"❌ فشل تحديث السوق: {str(e)}")
+                    st.error(str(e))
 
     with col_info:
         last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
@@ -834,11 +856,11 @@ if page == "📊 التحليل الكامل":
             with st.spinner("جاري تحديث السوق..."):
                 try:
                     alerts = update_market_and_check_alerts(city_select, property_type_select)
-                    st.session_state.daily_alerts = get_today_alerts()
+                    st.session_state.daily_alerts = alerts
                     st.session_state.last_alert_refresh = datetime.now()
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ فشل تحديث السوق: {str(e)}")
+                    st.info("ℹ️ لا توجد بيانات أحدث من آخر لقطة محفوظة. التحليل يعتمد على آخر بيانات موثوقة.")
 
     with col_info:
         last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
@@ -901,7 +923,7 @@ if page == "📊 التحليل الكامل":
                 
                 st.markdown(html_content, unsafe_allow_html=True)
     else:
-        st.info("🔍 لا توجد تنبيهات جديدة الآن. استخدم زر 'تحديث بيانات السوق' لجلب أحدث البيانات.")
+        st.info("🔍 لا توجد تنبيهات جديدة الآن. استخدم زر 'تحديث بيانات السوق (حقيقي)' لجلب أحدث البيانات.")
 
     # ========== بيانات المستخدم ==========
     st.markdown("---")
@@ -1012,12 +1034,13 @@ if page == "📊 التحليل الكامل":
     if robo_needs_update or "robo_knowledge" not in st.session_state:
         with st.spinner("🧠 تحديث المستشار الذكي..."):
             try:
-                # 1️⃣ جلب بيانات حقيقية من المصدر الوحيد - مع التخزين المؤقت
-                if "real_data" not in st.session_state or st.session_state.real_data.empty:
-                    real_data = get_market_data(city, property_type)
-                    st.session_state["real_data"] = real_data
-                else:
-                    real_data = st.session_state.real_data
+                # 1️⃣ تحميل آخر بيانات حقيقية محفوظة فقط
+                real_data = load_latest_snapshot(city, property_type)
+
+                if real_data is None or real_data.empty:
+                    raise Exception("❌ لا توجد بيانات محفوظة. اضغطي أولاً على (تحديث بيانات السوق).")
+
+                st.session_state["real_data"] = real_data
 
                 # 2️⃣ توليد بيانات السوق
                 market_data = generate_advanced_market_data(
@@ -1133,7 +1156,7 @@ if page == "📊 التحليل الكامل":
     else:
         st.warning("⚠️ لا توجد بيانات سوق كافية، يرجى تحديث البيانات أولاً")
         market_data = {
-            'مؤشر_السيولة': 0,
+            'حجم_السيولة': 0,
             'أعلى_سعر_متر': 0,
             'أقل_سعر_متر': 0,
             'متوسط_سعر_المتر': 0,
@@ -1141,7 +1164,7 @@ if page == "📊 التحليل الكامل":
         }
 
     # ===== مؤشرات سوق حقيقية =====
-    market_liquidity = market_data["مؤشر_السيولة"] if market_data["مؤشر_السيولة"] > 0 else 1
+    liquidity_volume = market_data["حجم_السيولة"] if market_data["حجم_السيولة"] > 0 else 1
     
     price_dispersion = 0
     if market_data["متوسط_سعر_المتر"] > 0:
@@ -1152,7 +1175,10 @@ if page == "📊 التحليل الكامل":
     growth_factor = 0  # إلى أن نربطه بلقطتين زمنيتين
     
     # 🔥 تعديل منطق المخاطرة ليكون أكثر واقعية
-    decision_uncertainty = min(1 / market_liquidity, 0.15) if market_liquidity > 0 else 0.15
+    if liquidity_volume > 0:
+        decision_uncertainty = min(1 / math.sqrt(liquidity_volume), 0.15)
+    else:
+        decision_uncertainty = 0.15
 
     # ===== سيناريو بدون تقرير =====
     loss_wrong_pricing = investment_value * price_dispersion * 0.6 if price_dispersion > 0 else 0
@@ -1209,14 +1235,14 @@ if page == "📊 التحليل الكامل":
         
         • التحليل مبني على **{market_data['عدد_العقارات_الحقيقية']} عقار حقيقي** تم تحليله في السوق
         • فجوة سعرية فعلية في السوق: **{round(price_dispersion*100,1) if price_dispersion > 0 else 0}%** (الفرق بين أعلى وأقل سعر)
-        • سيولة السوق الحالية: **{market_liquidity}** (عدد العقارات المتاحة)
-        • معدل نمو شهري: **{growth_factor}%** (يحتاج لقطتين زمنيتين)
+        • حجم السيولة الحالي: **{liquidity_volume}** (عدد العقارات المتاحة)
+        • معدل النمو: **غير متاح (يتطلب مقارنة زمنية)**
 
         **كيف حسبنا الأرقام؟**
         
         • خسارة التسعير الخاطئ = قيمة الاستثمار × الفجوة السعرية × 0.6
         • خسارة التوقيت السيئ = قيمة الاستثمار × معدل النمو × 0.4 (مؤقتاً 0) 
-        • خسارة تجاهل المخاطر = قيمة الاستثمار × (الحد الأدنى 15% أو 1/السيولة) × 0.5
+        • خسارة تجاهل المخاطر = قيمة الاستثمار × (الحد الأدنى 15% أو 1/جذر حجم السيولة) × 0.5
         
         **لماذا هذه الطريقة؟**
         
@@ -1238,18 +1264,15 @@ if page == "📊 التحليل الكامل":
     if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
         with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
             try:
-                # ✅ استخدام المصدر الوحيد للبيانات الحقيقية مع التخزين المؤقت
-                if "real_data" not in st.session_state or st.session_state.real_data.empty:
-                    real_data = get_market_data(city, property_type)
-                    st.session_state["real_data"] = real_data
-                else:
-                    real_data = st.session_state.real_data
+                # ✅ تحميل آخر بيانات حقيقية محفوظة
+                real_data = load_latest_snapshot(city, property_type)
 
-                st.success(f"✅ تم جلب {len(real_data)} عقار حقيقي من السوق")
-
-                if real_data.empty:
-                    st.error("❌ لا توجد بيانات! لا يمكن إنشاء التقرير")
+                if real_data is None or real_data.empty:
+                    st.error("❌ لا توجد بيانات محفوظة. اضغطي أولاً على (تحديث بيانات السوق).")
                     st.stop()
+
+                st.session_state.real_data = real_data
+                st.success(f"✅ تم تحميل {len(real_data)} عقار حقيقي من آخر لقطة")
 
                 market_data = generate_advanced_market_data(
                     city, property_type, status, real_data
