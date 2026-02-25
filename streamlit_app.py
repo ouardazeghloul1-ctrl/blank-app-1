@@ -25,22 +25,9 @@ import os
 import streamlit.components.v1 as components
 
 # ✅ المصدر الوحيد للبيانات الحقيقية
-from market_data_core import get_market_data
+from government_data_provider import load_government_data
 import pandas as pd
 import os
-
-def get_seed_market_data(city, property_type):
-    df = pd.read_csv("seed_market_data.csv")
-    df = df[
-        (df["city"] == city) &
-        (df["property_type"] == property_type)
-    ].copy()
-
-    if df.empty:
-        raise Exception("❌ لا توجد بيانات حقيقية محفوظة لهذه المدينة ونوع العقار")
-
-    df["date"] = pd.to_datetime("now")
-    return df
 
 # ===== Robo Chat System (النسخة الموحدة) =====
 from robo_advisor import handle_robo_question, RoboGuard, RoboKnowledge
@@ -158,7 +145,11 @@ def load_latest_snapshot(city, property_type):
 
 def create_snapshot(city, property_type):
     """إنشاء لقطة جديدة من السوق وحفظها"""
-    df = get_market_data(city, property_type)
+    df = load_government_data()
+    
+    # فلترة حسب المدينة ونوع العقار
+    df = df[df["city"] == city]
+    df = df[df["property_type"] == property_type]
 
     if df is None or df.empty:
         raise Exception("❌ لا توجد بيانات حقيقية من السوق")
@@ -643,8 +634,8 @@ class AIIntelligence:
             risk_factors.append("مرتفع")
         
         # تنوع الأحياء
-        if 'الحي' in real_data.columns:
-            unique_districts = real_data['الحي'].nunique()
+        if 'district' in real_data.columns:
+            unique_districts = real_data['district'].nunique()
             if unique_districts > 10:
                 risk_factors.append("منخفض")
             elif unique_districts > 5:
@@ -721,29 +712,29 @@ def generate_advanced_market_data(city, property_type, status, real_data):
 
     df = real_data.copy()
 
-    # تنظيف - استخدام الأسماء العربية
-    df = df.dropna(subset=["السعر", "المساحة"])
-    df["السعر"] = pd.to_numeric(df["السعر"], errors="coerce")
-    df["المساحة"] = pd.to_numeric(df["المساحة"], errors="coerce")
+    # تنظيف - استخدام الأعمدة الإنجليزية
+    df = df.dropna(subset=["price", "area"])
+    df["price"] = pd.to_numeric(df["price"], errors="coerce")
+    df["area"] = pd.to_numeric(df["area"], errors="coerce")
     df = df.dropna()
 
     if df.empty:
         raise Exception("❌ البيانات غير صالحة للتحليل")
 
     # مؤشرات حقيقية
-    df['سعر_المتر'] = df["السعر"] / df["المساحة"]
+    df['سعر_المتر'] = df["price"] / df["area"]
     avg_price_per_m2 = df['سعر_المتر'].mean()
     min_price_per_m2 = df['سعر_المتر'].min()
     max_price_per_m2 = df['سعر_المتر'].max()
 
     property_count = len(df)
 
-    # حجم السيولة = عدد الإعلانات الحالية
+    # حجم السيولة = عدد العقارات الحالية
     liquidity_volume = property_count
 
     # عائد تأجيري (إن وجد)
-    if "العائد_المتوقع" in df.columns:
-        rental_yield = df["العائد_المتوقع"].mean()
+    if "rental_yield" in df.columns:
+        rental_yield = df["rental_yield"].mean()
     else:
         rental_yield = None
 
@@ -760,7 +751,7 @@ def generate_advanced_market_data(city, property_type, status, real_data):
         "العائد_التأجيري": round(rental_yield, 2) if rental_yield else "غير متوفر",
         "عرض_العقارات": supply,
         "طالب_الشراء": demand,
-        "المصدر": "market_data_core"
+        "المصدر": "government_data_provider"
     }
 
 # ========== الواجهة الرئيسية ==========
@@ -816,19 +807,29 @@ if page == "📊 التحليل الكامل":
         if st.button("🔄 تحديث بيانات السوق (حقيقي)", key="market_update_btn", use_container_width=True):
             with st.spinner("جاري جلب بيانات حقيقية وتحليل السوق..."):
                 try:
-                    # استخدام بيانات seed الحقيقية
-                    real_df = get_seed_market_data(city_select, property_type_select)
+                    # استخدام بيانات الحكومة الحقيقية
+                    real_df = load_government_data()
+                    
+                    # فلترة حسب المدينة ونوع العقار
+                    real_df = real_df[
+                        (real_df["city"] == city_select) & 
+                        (real_df["property_type"] == property_type_select)
+                    ]
+                    
+                    if real_df.empty:
+                        raise Exception(f"❌ لا توجد بيانات للمدينة {city_select} ونوع العقار {property_type_select}")
 
-                    alerts = update_market_and_check_alerts(
-                    city_select,
-                    property_type_select,
-                    real_df
-                 )
+                    # إنشاء لقطة جديدة وحفظها
+                    df_snapshot, snapshot_path = create_snapshot(city_select, property_type_select)
+                    
+                    # تشغيل التنبيهات على أساس اللقطة الجديدة
+                    alerts = update_market_and_check_alerts(city_select, property_type_select)
 
                     st.session_state.daily_alerts = alerts
                     st.session_state.last_alert_refresh = datetime.now()
+                    st.session_state.last_snapshot_path = snapshot_path
 
-                    st.success("✅ تم تحديث السوق وتحليل التنبيهات بنجاح")
+                    st.success(f"✅ تم تحديث السوق وحفظ {len(df_snapshot)} عقار في اللقطة")
 
                 except Exception as e:
                     st.error(str(e))
@@ -1584,6 +1585,8 @@ if 'confirm_clear' not in st.session_state:
     st.session_state.confirm_clear = False
 if 'daily_alerts' not in st.session_state:
     st.session_state.daily_alerts = []
+if 'last_snapshot_path' not in st.session_state:
+    st.session_state.last_snapshot_path = None
 
 st.markdown("---")
 st.markdown("""
