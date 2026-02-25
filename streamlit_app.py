@@ -26,6 +26,21 @@ import streamlit.components.v1 as components
 
 # ✅ المصدر الوحيد للبيانات الحقيقية
 from market_data_core import get_market_data
+import pandas as pd
+import os
+
+def get_seed_market_data(city, property_type):
+    df = pd.read_csv("seed_market_data.csv")
+    df = df[
+        (df["city"] == city) &
+        (df["property_type"] == property_type)
+    ].copy()
+
+    if df.empty:
+        raise Exception("❌ لا توجد بيانات حقيقية محفوظة لهذه المدينة ونوع العقار")
+
+    df["date"] = pd.to_datetime("now")
+    return df
 
 # ===== Robo Chat System (النسخة الموحدة) =====
 from robo_advisor import handle_robo_question, RoboGuard, RoboKnowledge
