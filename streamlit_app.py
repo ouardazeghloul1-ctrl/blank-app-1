@@ -816,7 +816,14 @@ if page == "📊 التحليل الكامل":
         if st.button("🔄 تحديث بيانات السوق (حقيقي)", key="market_update_btn", use_container_width=True):
             with st.spinner("جاري جلب بيانات حقيقية وتحليل السوق..."):
                 try:
-                    alerts = update_market_and_check_alerts(city_select, property_type_select)
+                    # استخدام بيانات seed الحقيقية
+real_df = get_seed_market_data(city_select, property_type_select)
+
+alerts = update_market_and_check_alerts(
+    city_select,
+    property_type_select,
+    real_df
+)
 
                     st.session_state.daily_alerts = alerts
                     st.session_state.last_alert_refresh = datetime.now()
