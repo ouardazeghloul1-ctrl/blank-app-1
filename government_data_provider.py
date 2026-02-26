@@ -11,12 +11,12 @@ def load_government_data():
             FILE_PATH,
             sep=",",
             encoding="utf-8-sig",
-            engine="python",
-            low_memory=False
+            engine="python"
         )
     except Exception as e:
         raise Exception(f"خطأ أثناء قراءة الملف: {e}")
 
+    print("عدد الصفوف:", len(df))
     print("الأعمدة الموجودة:", df.columns.tolist())
 
     return df
