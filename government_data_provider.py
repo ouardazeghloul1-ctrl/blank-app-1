@@ -3,7 +3,7 @@ import pandas as pd
 FILE_PATH = "market_transactions.csv"
 
 def load_government_data():
-    df = pd.read_csv(FILE_PATH)
+    df = pd.read_csv(FILE_PATH, sep=",", encoding="utf-8-sig")
 
     df = df.rename(columns={
         "المدينة": "city",
