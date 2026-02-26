@@ -35,6 +35,15 @@ def safe_div(a, b, default=0.0):
         return default
 
 
+def ensure_time_order(df):
+    """ضمان الترتيب الزمني للبيانات قبل حساب التغييرات"""
+    if df is None or df.empty:
+        return df
+    if "date" in df.columns:
+        return df.sort_values("date")
+    return df
+
+
 # -----------------------------------------
 # (1) Decision Confidence Index – DCI
 # -----------------------------------------
@@ -74,7 +83,16 @@ def calculate_dci(real_data: pd.DataFrame) -> int:
 
     # استقرار الأسعار (20%)
     if "price" in real_data.columns and len(real_data) > 5:
-        volatility = real_data["price"].pct_change().std()
+        # ضمان الترتيب الزمني قبل حساب التغييرات
+        tmp = ensure_time_order(real_data.copy())
+        
+        # تحسين: استخدام price_per_m2 بدلاً من price المطلق
+        if "area" in tmp.columns:
+            tmp["price_per_m2"] = tmp["price"] / tmp["area"]
+            volatility = tmp["price_per_m2"].pct_change().std()
+        else:
+            volatility = tmp["price"].pct_change().std()
+        
         stability = clamp(1 - safe_div(volatility, 0.10), 0, 1)
         score += stability * 20
 
@@ -116,7 +134,7 @@ def calculate_raos(real_data: pd.DataFrame, vgs: float) -> int:
     مؤشر الفرصة بعد خصم المخاطر (0 – 100)
 
     يعتمد على:
-    • فجوة القيمة
+    • فجوة القيمة (نعطي نقاط فقط للانحراف السلبي)
     • التذبذب
     • السيولة التقريبية
     """
@@ -126,12 +144,23 @@ def calculate_raos(real_data: pd.DataFrame, vgs: float) -> int:
 
     score = 50  # نقطة تعادل
 
-    # تأثير فجوة القيمة (+20)
-    score += clamp(abs(vgs), 0, 20)
+    # ✅ تأثير فجوة القيمة - نعطي نقاط فقط إذا كان هناك خصم سعري (vgs سلبي)
+    if vgs < 0:
+        score += clamp(abs(vgs), 0, 20)
+    # إذا كانت الفجوة إيجابية (سوق مبالغ فيه)، لا نضيف نقاط
 
     # التذبذب (خصم حتى 25)
     if "price" in real_data.columns and len(real_data) > 5:
-        volatility = real_data["price"].pct_change().std()
+        # ضمان الترتيب الزمني قبل حساب التغييرات
+        tmp = ensure_time_order(real_data.copy())
+        
+        # تحسين: استخدام price_per_m2 للتذبذب
+        if "area" in tmp.columns:
+            tmp["price_per_m2"] = tmp["price"] / tmp["area"]
+            volatility = tmp["price_per_m2"].pct_change().std()
+        else:
+            volatility = tmp["price"].pct_change().std()
+        
         penalty = clamp(volatility * 200, 0, 25)
         score -= penalty
 
@@ -152,6 +181,8 @@ def calculate_scm(real_data: pd.DataFrame) -> dict:
 
     نحاكي 20 سيناريو سعري مبسط
     ونقيس كم منها يؤدي لنفس القرار
+    
+    ملاحظة: تم تثبيت seed لضمان استقرار النتائج
     """
 
     TOTAL_SCENARIOS = 20
@@ -159,17 +190,28 @@ def calculate_scm(real_data: pd.DataFrame) -> dict:
     if real_data is None or real_data.empty or "price" not in real_data.columns:
         return {"matched": 0, "total": TOTAL_SCENARIOS, "percentage": 0}
 
-    prices = real_data["price"].dropna()
-    mean_price = prices.mean()
-    std_price = prices.std()
+    # ✅ تحسين: استخدام price_per_m2 بدلاً من price المطلق لمحاكاة أكثر دقة
+    if "area" in real_data.columns:
+        tmp = real_data.copy()
+        tmp["price_per_m2"] = tmp["price"] / tmp["area"]
+        values = tmp["price_per_m2"].dropna()
+    else:
+        values = real_data["price"].dropna()
+    
+    mean_val = values.mean()
+    # ✅ تحسين إضافي: حد أدنى 1% انحراف لمنع أمان مفرط في الأسواق المستقرة جداً
+    std_val = max(values.std(), mean_val * 0.01)
 
     matched = 0
 
+    # ✅ تثبيت random seed لضمان نتائج مستقرة بين التشغيلات المختلفة
+    np.random.seed(42)
+
     for _ in range(TOTAL_SCENARIOS):
-        simulated_price = np.random.normal(mean_price, std_price)
+        simulated_val = np.random.normal(mean_val, std_val)
 
         # منطق الأمان السعري (±15%)
-        if abs(simulated_price - mean_price) / mean_price <= 0.15:
+        if abs(simulated_val - mean_val) / mean_val <= 0.15:
             matched += 1
 
     percentage = int(round((matched / TOTAL_SCENARIOS) * 100))
@@ -223,6 +265,9 @@ def generate_gold_decision_metrics(
     
     if market_data is None or not isinstance(market_data, dict):
         market_data = {}
+
+    # ضمان الترتيب الزمني للبيانات بالكامل مرة واحدة
+    real_data = ensure_time_order(real_data)
 
     # احتساب المؤشرات الذهبية
     dci = calculate_dci(real_data)
