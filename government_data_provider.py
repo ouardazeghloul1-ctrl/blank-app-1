@@ -7,7 +7,7 @@ def load_government_data(selected_city=None, selected_property_type=None):
 
     rows = []
 
-    # قراءة الملف بطريقة تدعم القيم مثل "100,000"
+    # قراءة الملف بطريقة تدعم الأرقام التي تحتوي فاصلة مثل "100,000"
     with open(FILE_PATH, encoding="utf-8-sig") as f:
         reader = csv.reader(f)
         for row in reader:
@@ -15,11 +15,11 @@ def load_government_data(selected_city=None, selected_property_type=None):
 
     df = pd.DataFrame(rows)
 
-    # حذف الهيدر إن وجد
+    # حذف الهيدر إذا كان موجود
     if df.iloc[0].astype(str).str.contains("المنطقة").any():
         df = df.iloc[1:].reset_index(drop=True)
 
-    # نأخذ أول 10 أعمدة فقط
+    # أخذ أول 10 أعمدة فقط
     df = df.iloc[:, :10]
 
     df.columns = [
@@ -36,8 +36,14 @@ def load_government_data(selected_city=None, selected_property_type=None):
     ]
 
     # تنظيف النصوص
-    for col in ["region", "city", "district", "property_type"]:
-        df[col] = df[col].astype(str).str.strip()
+    text_cols = ["region", "city", "district", "property_type"]
+    for col in text_cols:
+        df[col] = (
+            df[col]
+            .astype(str)
+            .str.strip()
+            .str.replace(",", "", regex=False)
+        )
 
     # تنظيف الأرقام
     df["price"] = (
@@ -57,14 +63,18 @@ def load_government_data(selected_city=None, selected_property_type=None):
     df["price"] = pd.to_numeric(df["price"], errors="coerce")
     df["area"] = pd.to_numeric(df["area"], errors="coerce")
 
-    df["price_per_sqm"] = df["price"] / df["area"]
-
+    # حذف الصفوف الفارغة رقمياً
     df = df.dropna(subset=["price", "area"])
 
+    # حساب سعر المتر
+    df["price_per_sqm"] = df["price"] / df["area"]
+
     # =========================
-    # فلترة المدينة (بحث مرن في 3 أعمدة)
+    # فلترة المدينة (بحث مرن جداً)
     # =========================
     if selected_city:
+        selected_city = selected_city.strip()
+
         df = df[
             df["region"].str.contains(selected_city, na=False) |
             df["city"].str.contains(selected_city, na=False) |
@@ -72,11 +82,11 @@ def load_government_data(selected_city=None, selected_property_type=None):
         ]
 
     # =========================
-    # فلترة نوع العقار حسب تصنيف الوزارة
+    # فلترة نوع العقار (مؤقتاً مبسطة)
+    # وزارة العدل تستخدم فقط: سكني / تجاري / زراعي
     # =========================
     if selected_property_type:
 
-        # الوزارة تصنف شقة + فيلا = سكني
         if selected_property_type in ["شقة", "فيلا"]:
             df = df[df["property_type"].str.contains("سكني", na=False)]
 
