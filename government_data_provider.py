@@ -1,22 +1,28 @@
 import pandas as pd
+import csv
 
 FILE_PATH = "market_transactions.csv"
 
 def load_government_data(selected_city=None, selected_property_type=None):
 
-    # القراءة الصحيحة مع دعم الأرقام التي تحتوي على فاصلة
-    df = pd.read_csv(
-        FILE_PATH,
-        sep=",",
-        quotechar='"',
-        encoding="utf-8-sig",
-        engine="python"
-    )
+    rows = []
 
-    # تنظيف أسماء الأعمدة
-    df.columns = df.columns.str.strip()
+    # قراءة الملف باستخدام csv reader الحقيقي
+    with open(FILE_PATH, encoding="utf-8-sig") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            rows.append(row)
 
-    # إعادة تسمية حسب ترتيب ملف الوزارة الفعلي
+    # تحويل إلى DataFrame
+    df = pd.DataFrame(rows)
+
+    # إذا أول سطر هو header نحذفه
+    if df.iloc[0].str.contains("المنطقة").any():
+        df = df.iloc[1:].reset_index(drop=True)
+
+    # الآن نضمن أن لدينا 10 أعمدة
+    df = df.iloc[:, :10]
+
     df.columns = [
         "region",
         "city",
@@ -30,11 +36,11 @@ def load_government_data(selected_city=None, selected_property_type=None):
         "area"
     ]
 
-    # تنظيف النصوص
+    # تنظيف نصوص
     for col in ["region", "city", "district", "property_type"]:
         df[col] = df[col].astype(str).str.strip()
 
-    # تحويل الأرقام
+    # تنظيف أرقام
     df["price"] = (
         df["price"]
         .astype(str)
