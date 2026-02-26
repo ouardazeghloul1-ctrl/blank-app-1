@@ -1,4 +1,3 @@
-# ai_report_reasoner.py
 # =========================================
 # عقل التقرير الاستشاري – Warda Intelligence
 # =========================================
@@ -80,22 +79,59 @@ class AIReportReasoner:
         package = user_info.get("package") or user_info.get("chosen_pkg") or "مجانية"
         policy = AI_PACKAGE_POLICY.get(package, AI_PACKAGE_POLICY["مجانية"])
 
+        # =========================================
+        # اشتقاق إشارات السوق من market_data
+        # =========================================
+        growth = market_data.get("معدل_النمو_الشهري", 0)
+        liquidity = market_data.get("مؤشر_السيولة", 50)
+
+        # تحديد اتجاه الأسعار
+        if growth > 2:
+            price_trend = "صاعد"
+        elif growth < -2:
+            price_trend = "هابط"
+        else:
+            price_trend = "مستقر"
+
+        # تحديد مستوى الطلب من السيولة
+        if liquidity >= 75:
+            demand_level = "مرتفع"
+        elif liquidity <= 40:
+            demand_level = "ضعيف"
+        else:
+            demand_level = "انتقائي"
+
+        # تحديد مستوى المخاطر
+        if growth < -3:
+            risk_level = "مرتفع"
+        elif abs(growth) <= 1:
+            risk_level = "منخفض"
+        else:
+            risk_level = "متوسط"
+
         # إشارات السوق (إن وُجدت)
         market_signals = {
             "سرعة_البيع": market_data.get("سرعة_البيع", "متوسطة"),
             "التغير_اليومي": market_data.get("التغير_اليومي", "0%"),
         }
 
-        base_values = {
-            "المدينة": city,
-            "اتجاه_الأسعار": market_data.get("اتجاه_الأسعار", "مستقر"),
+        # إشارات مشتقة من البيانات الحقيقية
+        derived_signals = {
+            "اتجاه_الأسعار": price_trend,
+            "مستوى_الطلب": demand_level,
+            "مستوى_المخاطر_العام": risk_level,
         }
 
-        # دمج شامل وآمن
+        base_values = {
+            "المدينة": city,
+        }
+
+        # دمج شامل وآمن - مع إضافة الإشارات المشتقة
         all_values = {
             **DEFAULT_AI_VALUES,
             **base_values,
             **market_signals,
+            **derived_signals,
         }
 
         def apply_policy(key, text):
