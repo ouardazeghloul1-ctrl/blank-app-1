@@ -2,87 +2,50 @@ import pandas as pd
 
 FILE_PATH = "market_transactions.csv"
 
-def load_government_data():
-    # قراءة الملف مهما كان الفاصل
-    df = pd.read_csv(
+def load_government_data(selected_city=None, selected_property_type=None):
+
+    # نقرأ الملف كسطر واحد
+    df_raw = pd.read_csv(
         FILE_PATH,
-        sep=None,
-        engine="python",
+        header=None,
         encoding="utf-8-sig"
     )
 
-    # تنظيف أسماء الأعمدة من المسافات
-    df.columns = df.columns.str.strip()
+    # نفصل العمود الواحد إلى أعمدة متعددة
+    df = df_raw[0].str.split(",", expand=True)
 
-    # ==============================
-    # 🔹 إعادة تسمية الأعمدة
-    # عدلي الأسماء هنا إذا اختلفت عندك
-    # ==============================
-    column_map = {
-        "المنطقة": "region",
-        "المدينة": "city",
-        "الحي": "district",
-        "قيمة الصفقة": "price",
-        "المساحة": "area",
-        "تاريخ الصفقة": "date",
-        "نوع العقار": "property_type",
-        "تصنيف العقار": "property_type"
-    }
+    # تسمية الأعمدة حسب ترتيبها في ملف الوزارة
+    df.columns = [
+        "region",            # المنطقة
+        "city",              # المدينة
+        "district",          # الحي
+        "hijri_date",
+        "gregorian_date",
+        "reference_number",
+        "property_type",
+        "transaction_count",
+        "price",
+        "area"
+    ]
 
-    df = df.rename(columns=column_map)
+    # تنظيف النصوص
+    for col in ["region", "city", "district", "property_type"]:
+        df[col] = df[col].astype(str).str.strip()
 
-    # ==============================
-    # 🔹 تأمين الأعمدة الأساسية
-    # ==============================
-    required_columns = ["city", "district", "price", "area", "date"]
-
-    for col in required_columns:
-        if col not in df.columns:
-            df[col] = None
-
-    # إذا لم يوجد نوع عقار ننشئه
-    if "property_type" not in df.columns:
-        df["property_type"] = "غير محدد"
-
-    # ==============================
-    # 🔹 تنظيف القيم النصية
-    # ==============================
-    df["city"] = df["city"].astype(str).str.strip()
-    df["property_type"] = df["property_type"].astype(str).str.strip()
-
-    # ==============================
-    # 🔹 توحيد أسماء المدن
-    # ==============================
-    df["city"] = df["city"].replace({
-        "منطقة الرياض": "الرياض",
-        "منطقة مكة المكرمة": "مكة المكرمة",
-        "منطقة المدينة المنورة": "المدينة المنورة",
-        "منطقة الشرقية": "الدمام"
-    })
-
-    # ==============================
-    # 🔹 توحيد أنواع العقارات
-    # ==============================
-    df["property_type"] = df["property_type"].replace({
-        "شقق": "شقة",
-        "شقة سكنية": "شقة",
-        "وحدة سكنية": "شقة",
-        "فلل": "فيلا",
-        "فيلا سكنية": "فيلا",
-        "أراضي": "أرض",
-        "قطعة أرض": "أرض"
-    })
-
-    # ==============================
-    # 🔹 تحويل أرقام
-    # ==============================
-    df["price"] = pd.to_numeric(df["price"], errors="coerce")
-    df["area"] = pd.to_numeric(df["area"], errors="coerce")
+    # تحويل الأرقام
+    df["price"] = pd.to_numeric(df["price"].str.replace('"', ''), errors="coerce")
+    df["area"] = pd.to_numeric(df["area"].str.replace('"', ''), errors="coerce")
 
     # حساب سعر المتر
     df["price_per_sqm"] = df["price"] / df["area"]
 
-    # إزالة الصفوف غير الصالحة
     df = df.dropna(subset=["price", "area"])
+
+    # فلترة مرنة
+    if selected_city:
+        df = df[df["city"].str.contains(selected_city, na=False)]
+
+    if selected_property_type:
+        df = df[df["property_type"].str.contains(selected_property_type, na=False)]
 
     return df
