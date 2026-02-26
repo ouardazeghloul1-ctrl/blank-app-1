@@ -5,9 +5,8 @@ FILE_PATH = "market_transactions.csv"
 def load_government_data():
     df = pd.read_csv(
         FILE_PATH,
-        sep=",",                # مهم جداً
+        sep=";",                 # ✅ غالباً هذا هو الصحيح
         encoding="utf-8-sig",
-        low_memory=False       # مع المحرك الافتراضي فقط
+        engine="python"          # مهم لتفادي أخطاء parsing
     )
-
     return df
