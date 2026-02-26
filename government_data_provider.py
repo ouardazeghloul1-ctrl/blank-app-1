@@ -4,21 +4,23 @@ FILE_PATH = "market_transactions.csv"
 
 def load_government_data(selected_city=None, selected_property_type=None):
 
-    # نقرأ الملف كسطر واحد
-    df_raw = pd.read_csv(
+    # القراءة الصحيحة مع دعم الأرقام التي تحتوي على فاصلة
+    df = pd.read_csv(
         FILE_PATH,
-        header=None,
-        encoding="utf-8-sig"
+        sep=",",
+        quotechar='"',
+        encoding="utf-8-sig",
+        engine="python"
     )
 
-    # نفصل العمود الواحد إلى أعمدة متعددة
-    df = df_raw[0].str.split(",", expand=True)
+    # تنظيف أسماء الأعمدة
+    df.columns = df.columns.str.strip()
 
-    # تسمية الأعمدة حسب ترتيبها في ملف الوزارة
+    # إعادة تسمية حسب ترتيب ملف الوزارة الفعلي
     df.columns = [
-        "region",            # المنطقة
-        "city",              # المدينة
-        "district",          # الحي
+        "region",
+        "city",
+        "district",
         "hijri_date",
         "gregorian_date",
         "reference_number",
@@ -33,10 +35,23 @@ def load_government_data(selected_city=None, selected_property_type=None):
         df[col] = df[col].astype(str).str.strip()
 
     # تحويل الأرقام
-    df["price"] = pd.to_numeric(df["price"].str.replace('"', ''), errors="coerce")
-    df["area"] = pd.to_numeric(df["area"].str.replace('"', ''), errors="coerce")
+    df["price"] = (
+        df["price"]
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .str.replace('"', "", regex=False)
+    )
 
-    # حساب سعر المتر
+    df["area"] = (
+        df["area"]
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .str.replace('"', "", regex=False)
+    )
+
+    df["price"] = pd.to_numeric(df["price"], errors="coerce")
+    df["area"] = pd.to_numeric(df["area"], errors="coerce")
+
     df["price_per_sqm"] = df["price"] / df["area"]
 
     df = df.dropna(subset=["price", "area"])
