@@ -69,7 +69,11 @@ def load_last_snapshots(city: str, property_type: str, limit=2):
     snapshots = []
     for f in files:
         try:
-            df = pd.read_csv(os.path.join(MEMORY_FOLDER, f))
+            # توحيد الترميز مع عملية الحفظ (utf-8-sig)
+            df = pd.read_csv(
+                os.path.join(MEMORY_FOLDER, f), 
+                encoding="utf-8-sig"
+            )
             snapshots.append(df)
         except Exception as e:
             print(f"⚠️ خطأ في تحميل اللقطة {f}: {e}")
@@ -94,3 +98,8 @@ if __name__ == "__main__":
     # تحميل آخر لقطتين
     snapshots = load_last_snapshots("الرياض", "شقة", limit=2)
     print(f"📊 تم تحميل {len(snapshots)} لقطة")
+    
+    # عرض محتوى اللقطات إذا وجدت
+    for i, snapshot in enumerate(snapshots):
+        print(f"\n🔍 محتوى اللقطة {i+1}:")
+        print(snapshot.head())
