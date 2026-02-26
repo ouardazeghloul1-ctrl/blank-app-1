@@ -43,6 +43,16 @@ def load_government_data(selected_city=None, selected_property_type=None):
         print("📝 نموذج من البيانات:", df.head(2).to_dict('records'))
 
         # ==============================
+        # ربط تاريخ الصفقة بالعمود القياسي date
+        # مع تنظيف المسافات المخفية
+        # ==============================
+        if "تاريخ الصفقة" in df.columns:
+            df["date"] = df["تاريخ الصفقة"].astype(str).str.strip()
+            print("✅ تم ربط تاريخ الصفقة بالعمود القياسي 'date'")
+        else:
+            print("⚠️ عمود 'تاريخ الصفقة' غير موجود")
+
+        # ==============================
         # تحويل الأعمدة الرقمية باستخدام pd.to_numeric (أكثر أماناً من astype)
         # ==============================
         if "السعر" in df.columns:
@@ -56,9 +66,31 @@ def load_government_data(selected_city=None, selected_property_type=None):
             print("⚠️ عمود 'المساحة' غير موجود")
 
         # ==============================
+        # إسقاط الصفوف ذات القيم المفقودة في الأعمدة الأساسية مباشرة
+        # قبل حساب سعر المتر لضمان الدقة
+        # ==============================
+        df = df.dropna(subset=["السعر", "المساحة"])
+        print(f"✅ بعد إسقاط القيم المفقودة: {len(df)} صفقة")
+
+        # ==============================
+        # حساب سعر المتر (بصيغة Vectorized - أسرع بكثير)
+        # ==============================
+        if "السعر" in df.columns and "المساحة" in df.columns and len(df) > 0:
+            # حذف الصفوف التي فيها مساحة <= 0 (لتجنب القسمة على صفر)
+            df = df[df["المساحة"] > 0].copy()
+            
+            # حساب سعر المتر بطريقة Vectorized (أسرع من apply)
+            df["سعر_المتر"] = df["السعر"] / df["المساحة"]
+            
+            # تنظيف القيم اللانهائية
+            df["سعر_المتر"] = df["سعر_المتر"].replace([float('inf'), -float('inf')], 0)
+        else:
+            df["سعر_المتر"] = 0
+
+        # ==============================
         # فلترة المدينة فقط - باستخدام اسم العمود الصحيح
         # ==============================
-        if selected_city:
+        if selected_city and len(df) > 0:
             # البحث في عمود "الحي / المدينة" كما هو موجود في الملف
             if "الحي / المدينة" in df.columns:
                 df = df[df["الحي / المدينة"].astype(str).str.contains(selected_city, na=False)]
@@ -72,21 +104,6 @@ def load_government_data(selected_city=None, selected_property_type=None):
         if df.empty and selected_city:
             print(f"⚠️ لا توجد بيانات لمدينة {selected_city}")
             return df
-
-        # ==============================
-        # حساب سعر المتر (بصيغة Vectorized - أسرع بكثير)
-        # ==============================
-        if "السعر" in df.columns and "المساحة" in df.columns:
-            # حذف الصفوف التي فيها مساحة <= 0 (لتجنب القسمة على صفر)
-            df = df[df["المساحة"] > 0].copy()
-            
-            # حساب سعر المتر بطريقة Vectorized (أسرع من apply)
-            df["سعر_المتر"] = df["السعر"] / df["المساحة"]
-            
-            # تنظيف القيم اللانهائية
-            df["سعر_المتر"] = df["سعر_المتر"].replace([float('inf'), -float('inf')], 0)
-        else:
-            df["سعر_المتر"] = 0
 
         # ==============================
         # توحيد اسم الحي إذا وجد
@@ -103,9 +120,6 @@ def load_government_data(selected_city=None, selected_property_type=None):
         # لأن الوزارة لا تفصل بين شقة/فيلا
         # ==============================
         df["نوع_العقار"] = "سكني"
-
-        # إسقاط الصفوف التي فيها قيم مفقودة في الأعمدة الأساسية
-        df = df.dropna(subset=["السعر", "المساحة"], how="any")
 
         print(f"✅ تم تحميل {len(df)} صفقة من {selected_city if selected_city else 'جميع المدن'}")
 
@@ -125,5 +139,7 @@ if __name__ == "__main__":
     if not df.empty:
         print("✅ أول 3 صفوف:")
         print(df.head(3))
+        print("✅ أسماء الأعمدة:")
+        print(df.columns.tolist())
         print("✅ معلومات البيانات:")
         print(df.info())
