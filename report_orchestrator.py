@@ -29,12 +29,12 @@ def unify_columns_for_charts(df):
     
     df = df.copy()
     
-    # خريطة تحويل الأعمدة العربية إلى الإنجليزية (إذا وجدت)
+    # خريطة تحويل الأعمدة العربية إلى الإنجليزية - محدثة حسب التعديلات النهائية
     column_map = {
         "السعر": "price",
         "المساحة": "area", 
-        "المنطقة": "district",
-        "تاريخ_الجلب": "date"
+        "الحي": "district",
+        "الحي / المدينة": "district"
     }
     
     # تحويل الأعمدة العربية إلى الإنجليزية
@@ -50,7 +50,8 @@ def unify_columns_for_charts(df):
             if col == "district":
                 df[col] = "غير محدد"
             elif col == "date":
-                df[col] = datetime.now().strftime("%Y-%m-%d")
+                # ✅ استخدام pd.Timestamp.now() وليس string
+                df[col] = pd.Timestamp.now()
     
     return df
 
@@ -175,16 +176,21 @@ def build_report_story(user_info, provided_dataframe=None):
     # توليد رؤى الذكاء الاصطناعي
     ai_reasoner = AIReportReasoner()
     
-    # ✅ بناء market_data من البيانات الحية
-    if df is not None:
-        # حساب معدل النمو بأمان باستخدام median بدل mean (أكثر دقة)
-        if "price" in df.columns:
-            # ⚠️ النمو هنا مؤشري تقريبي (snapshot-based) وليس سلسلة زمنية حقيقية
-            growth_value = df["price"].pct_change().median()
-            growth_value = growth_value if pd.notna(growth_value) else 0.01
-            growth_rate = round(float(growth_value * 100), 2)
+    # ✅ بناء market_data من البيانات الحية - مع تصحيح حساب النمو حسب التعديلات
+    if df is not None and not df.empty:
+        # حساب معدل النمو حسب التعديلات النهائية
+        if "date" in df.columns and "price" in df.columns:
+            try:
+                df["month"] = df["date"].astype(str).str[:7]
+                monthly_avg = df.groupby("month")["price"].mean()
+                growth_value = monthly_avg.pct_change().median()
+                growth_value = growth_value if pd.notna(growth_value) else 0.01
+            except:
+                growth_value = 0.01
         else:
-            growth_rate = 1.0
+            growth_value = 0.01
+        
+        growth_rate = round(float(growth_value * 100), 2)
         
         market_data = {
             "مؤشر_السيولة": int(min(100, max(30, len(df) * 2))),
@@ -246,7 +252,7 @@ def build_report_story(user_info, provided_dataframe=None):
     )
 
     # توليد الرسومات
-    if df is not None:
+    if df is not None and not df.empty:
         charts = charts_engine.generate_all_charts(df)
         print(f"📊 تم توليد {len(charts)} فصل بالرسومات")
     else:
