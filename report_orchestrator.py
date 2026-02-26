@@ -50,8 +50,8 @@ def unify_columns_for_charts(df):
             if col == "district":
                 df[col] = "غير محدد"
             elif col == "date":
-                # ✅ استخدام pd.Timestamp.now() وليس string
-                df[col] = pd.Timestamp.now()
+                # ✅ استخدام pd.NA بدلاً من None (يتجاهل بشكل نظيف في العمليات)
+                df[col] = pd.NA
     
     return df
 
@@ -176,16 +176,36 @@ def build_report_story(user_info, provided_dataframe=None):
     # توليد رؤى الذكاء الاصطناعي
     ai_reasoner = AIReportReasoner()
     
-    # ✅ بناء market_data من البيانات الحية - مع تصحيح حساب النمو حسب التعديلات
+    # ✅ بناء market_data من البيانات الحية - مع حساب النمو المحسّن والمستقر
     if df is not None and not df.empty:
-        # حساب معدل النمو حسب التعديلات النهائية
+        # ============================
+        # حساب معدل النمو الشهري - نسخة مستقرة احترافياً
+        # ============================
         if "date" in df.columns and "price" in df.columns:
             try:
-                df["month"] = df["date"].astype(str).str[:7]
-                monthly_avg = df.groupby("month")["price"].mean()
-                growth_value = monthly_avg.pct_change().median()
-                growth_value = growth_value if pd.notna(growth_value) else 0.01
-            except:
+                tmp = df.copy()
+                # ✅ إزالة القيم الفارغة قبل حساب الشهر (تحسين احترافي)
+                tmp = tmp.dropna(subset=["date", "price"])
+                
+                tmp["month"] = tmp["date"].astype(str).str[:7]
+                monthly_avg = (
+                    tmp.groupby("month")["price"]
+                    .mean()
+                    .sort_index()
+                )
+                
+                if len(monthly_avg) >= 2:
+                    growth_series = monthly_avg.pct_change().dropna()
+                    # إزالة القيم الشاذة (±200%)
+                    growth_series = growth_series[
+                        (growth_series > -2) & (growth_series < 2)
+                    ]
+                    growth_value = (
+                        growth_series.median() if not growth_series.empty else 0.01
+                    )
+                else:
+                    growth_value = 0.01
+            except Exception:
                 growth_value = 0.01
         else:
             growth_value = 0.01
