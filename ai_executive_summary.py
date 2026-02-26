@@ -123,14 +123,18 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
     مع إمكانية تحديد عدد السنوات حسب الباقة
     
     ملاحظة مهمة:
-    - البيانات في النظام غالباً شهرية
-    - يتم تحويل النمو الشهري إلى سنوي قبل التوقع
+    - يتم حساب الفترة الزمنية الفعلية بين الصفقات
+    - تحويل النمو الشهري إلى سنوي بناءً على الفترة الفعلية وليس افتراض 12 شهر
     """
+    # تهيئة قيم افتراضية آمنة
+    forecast = None
+    forecast_error = None
+    
     if real_data is None or real_data.empty or "price" not in real_data.columns:
         raise ValueError("لا يمكن حساب التنبؤ بدون بيانات سعر حقيقية.")
 
     if "date" in real_data.columns:
-        real_data = real_data.sort_values("date")
+        real_data = real_data.dropna(subset=["date"]).sort_values("date")
     
     prices = real_data["price"].dropna()
     
@@ -141,8 +145,23 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
     monthly_growth = prices.pct_change().median()
     monthly_growth = monthly_growth if pd.notna(monthly_growth) else 0.001  # 0.1% حد أدنى
     
-    # تحويل النمو الشهري إلى سنوي
-    annual_growth = (1 + monthly_growth) ** 12 - 1
+    # ✅ تحسين احترافي: حساب الفترة الزمنية الفعلية بين الصفقات
+    if "date" in real_data.columns and len(real_data["date"].dropna()) >= 2:
+        try:
+            # محاولة تحويل التاريخ إذا كان نصياً (مثل التاريخ الهجري)
+            dates = pd.to_datetime(real_data["date"], errors="coerce").dropna()
+            if len(dates) >= 2:
+                days_between = (dates.max() - dates.min()).days
+                months_between = max(days_between / 30, 1)  # تحويل الأيام إلى أشهر، حد أدنى 1
+            else:
+                months_between = 12  # افتراضي إذا فشل تحويل التاريخ
+        except:
+            months_between = 12  # افتراضي في حالة الخطأ
+    else:
+        months_between = 12  # افتراضي إذا لا يوجد عمود تاريخ
+    
+    # تحويل النمو الشهري إلى سنوي بناءً على الفترة الفعلية
+    annual_growth = (1 + monthly_growth) ** (12 / months_between) - 1
     
     # حساب التذبذب مع حد أدنى آمن
     volatility = safe_pct(prices.pct_change().std())
@@ -245,12 +264,14 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     decision_state = get_decision_state(dci, vgs, raos, scm)
 
     # =========================
-    # Forecast
+    # Forecast (مع قيم افتراضية آمنة)
     # =========================
+    forecast = None
+    forecast_error = None
+    
     try:
         forecast = compute_forecast(real_data, config["forecast_years"])
     except ValueError as e:
-        forecast = None
         forecast_error = str(e)
 
     # =========================
@@ -599,7 +620,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
         lines.append("")
         lines.append("---")
         lines.append("")
-    elif config["forecast_years"] > 0 and forecast is None:
+    elif config["forecast_years"] > 0 and forecast is None and forecast_error is not None:
         lines.append("التنبؤ الزمني")
         lines.append("")
         lines.append(f"⚠️ {forecast_error}")
