@@ -7,7 +7,7 @@ def load_government_data(selected_city=None, selected_property_type=None):
 
     rows = []
 
-    # قراءة الملف باستخدام csv reader الحقيقي
+    # قراءة الملف بطريقة آمنة تدعم "100,000"
     with open(FILE_PATH, encoding="utf-8-sig") as f:
         reader = csv.reader(f)
         for row in reader:
@@ -16,11 +16,11 @@ def load_government_data(selected_city=None, selected_property_type=None):
     # تحويل إلى DataFrame
     df = pd.DataFrame(rows)
 
-    # إذا أول سطر هو header نحذفه
-    if df.iloc[0].str.contains("المنطقة").any():
+    # حذف الهيدر إذا كان موجودًا
+    if df.iloc[0].astype(str).str.contains("المنطقة").any():
         df = df.iloc[1:].reset_index(drop=True)
 
-    # الآن نضمن أن لدينا 10 أعمدة
+    # التأكد أن لدينا 10 أعمدة فقط
     df = df.iloc[:, :10]
 
     df.columns = [
@@ -36,11 +36,11 @@ def load_government_data(selected_city=None, selected_property_type=None):
         "area"
     ]
 
-    # تنظيف نصوص
+    # تنظيف النصوص
     for col in ["region", "city", "district", "property_type"]:
         df[col] = df[col].astype(str).str.strip()
 
-    # تنظيف أرقام
+    # تنظيف وتحويل الأرقام
     df["price"] = (
         df["price"]
         .astype(str)
@@ -62,11 +62,20 @@ def load_government_data(selected_city=None, selected_property_type=None):
 
     df = df.dropna(subset=["price", "area"])
 
-    # فلترة مرنة
+    # =========================
+    # الفلترة الذكية حسب اختيار المستخدم
+    # =========================
+
     if selected_city:
         df = df[df["city"].str.contains(selected_city, na=False)]
 
     if selected_property_type:
-        df = df[df["property_type"].str.contains(selected_property_type, na=False)]
+
+        # وزارة العدل تصنف شقة + فيلا = سكني
+        if selected_property_type in ["شقة", "فيلا"]:
+            df = df[df["property_type"].str.contains("سكني", na=False)]
+
+        elif selected_property_type == "أرض":
+            df = df[df["property_type"].str.contains("زراعي|أرض", na=False)]
 
     return df
