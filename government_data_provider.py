@@ -1,96 +1,92 @@
-import pandas as pd
-import csv
+# =========================================
+# Government Data Provider
+# تحميل بيانات وزارة العدل وتحضيرها للنظام
+# =========================================
 
-FILE_PATH = "market_transactions.csv"
+import pandas as pd
+from pathlib import Path
+
+# ضع هنا اسم ملف الوزارة بالضبط
+DATA_PATH = Path("data/market_transactions.csv")
 
 def load_government_data(selected_city=None, selected_property_type=None):
+    """
+    تحميل بيانات وزارة العدل
+    - فلترة حسب المدينة فقط
+    - تجاهل نوع العقار (لأن الوزارة تكتب 'سكني')
+    - تجهيز الأعمدة للنظام
+    """
 
-    rows = []
+    try:
+        if not DATA_PATH.exists():
+            print("❌ ملف البيانات غير موجود في المسار:", DATA_PATH)
+            return pd.DataFrame()
 
-    # قراءة الملف بطريقة تدعم الأرقام التي تحتوي فاصلة مثل "100,000"
-    with open(FILE_PATH, encoding="utf-8-sig") as f:
-        reader = csv.reader(f)
-        for row in reader:
-            rows.append(row)
+        # قراءة الملف
+        df = pd.read_csv(DATA_PATH)
 
-    df = pd.DataFrame(rows)
+        if df.empty:
+            print("⚠️ ملف البيانات فارغ")
+            return df
 
-    # حذف الهيدر إذا كان موجود
-    if df.iloc[0].astype(str).str.contains("المنطقة").any():
-        df = df.iloc[1:].reset_index(drop=True)
+        # تنظيف أسماء الأعمدة
+        df.columns = df.columns.str.strip()
 
-    # أخذ أول 10 أعمدة فقط
-    df = df.iloc[:, :10]
+        # ==============================
+        # فلترة المدينة فقط
+        # ==============================
+        if selected_city and "المدينة" in df.columns:
+            df = df[df["المدينة"].astype(str).str.contains(selected_city, na=False)]
 
-    df.columns = [
-        "region",
-        "city",
-        "district",
-        "hijri_date",
-        "gregorian_date",
-        "reference_number",
-        "property_type",
-        "transaction_count",
-        "price",
-        "area"
-    ]
+        if df.empty:
+            print(f"⚠️ لا توجد بيانات لمدينة {selected_city}")
+            return df
 
-    # تنظيف النصوص
-    text_cols = ["region", "city", "district", "property_type"]
-    for col in text_cols:
-        df[col] = (
-            df[col]
-            .astype(str)
-            .str.strip()
-            .str.replace(",", "", regex=False)
-        )
+        # ==============================
+        # تنظيف وتحويل السعر
+        # ==============================
+        if "السعر" in df.columns:
+            df["السعر"] = (
+                df["السعر"]
+                .astype(str)
+                .str.replace(",", "", regex=False)
+                .str.replace('"', "", regex=False)
+                .astype(float)
+            )
 
-    # تنظيف الأرقام
-    df["price"] = (
-        df["price"]
-        .astype(str)
-        .str.replace(",", "", regex=False)
-        .str.replace('"', "", regex=False)
-    )
+        # ==============================
+        # تنظيف وتحويل المساحة
+        # ==============================
+        if "المساحة" in df.columns:
+            df["المساحة"] = (
+                df["المساحة"]
+                .astype(str)
+                .str.replace(",", "", regex=False)
+                .astype(float)
+            )
 
-    df["area"] = (
-        df["area"]
-        .astype(str)
-        .str.replace(",", "", regex=False)
-        .str.replace('"', "", regex=False)
-    )
+        # ==============================
+        # حساب سعر المتر
+        # ==============================
+        if "السعر" in df.columns and "المساحة" in df.columns:
+            df["سعر_المتر"] = df["السعر"] / df["المساحة"]
 
-    df["price"] = pd.to_numeric(df["price"], errors="coerce")
-    df["area"] = pd.to_numeric(df["area"], errors="coerce")
+        # ==============================
+        # توحيد اسم الحي إذا وجد
+        # ==============================
+        if "الحي / المدينة" in df.columns:
+            df["الحي"] = df["الحي / المدينة"]
 
-    # حذف الصفوف الفارغة رقمياً
-    df = df.dropna(subset=["price", "area"])
+        # ==============================
+        # إضافة عمود نوع العقار (افتراضي)
+        # لأن الوزارة لا تفصل بين شقة/فيلا
+        # ==============================
+        df["نوع_العقار"] = "سكني"
 
-    # حساب سعر المتر
-    df["price_per_sqm"] = df["price"] / df["area"]
+        print(f"✅ تم تحميل {len(df)} صفقة من {selected_city}")
 
-    # =========================
-    # فلترة المدينة (بحث مرن جداً)
-    # =========================
-    if selected_city:
-        selected_city = selected_city.strip()
+        return df
 
-        df = df[
-            df["region"].str.contains(selected_city, na=False) |
-            df["city"].str.contains(selected_city, na=False) |
-            df["district"].str.contains(selected_city, na=False)
-        ]
-
-    # =========================
-    # فلترة نوع العقار (مؤقتاً مبسطة)
-    # وزارة العدل تستخدم فقط: سكني / تجاري / زراعي
-    # =========================
-    if selected_property_type:
-
-        if selected_property_type in ["شقة", "فيلا"]:
-            df = df[df["property_type"].str.contains("سكني", na=False)]
-
-        elif selected_property_type == "أرض":
-            df = df[df["property_type"].str.contains("زراعي|أرض", na=False)]
-
-    return df
+    except Exception as e:
+        print(f"❌ خطأ في تحميل البيانات الحكومية: {e}")
+        return pd.DataFrame()
