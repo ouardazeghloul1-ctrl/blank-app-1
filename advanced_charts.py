@@ -50,17 +50,20 @@ class AdvancedCharts:
         توحيد أعمدة market_data_core مع محرك الرسومات
         - يحول الأعمدة العربية إلى إنجليزية
         - يُرجع فقط الأعمدة المطلوبة: price, area, district, date
+        - متوافق مع بيانات وزارة العدل
         """
         if df is None or df.empty:
             return df
 
         df = df.copy()
 
+        # ✅ تحديث column_map ليتوافق مع بيانات وزارة العدل
         column_map = {
             "السعر": "price",
-            "المساحة": "area",
-            "المنطقة": "district",
-            "تاريخ_الجلب": "date",
+            "المساحة": "area", 
+            "الحي": "district",
+            "الحي / المدينة": "district",
+            "تاريخ الصفقة": "date"
         }
 
         for ar, en in column_map.items():
@@ -87,8 +90,9 @@ class AdvancedCharts:
         if "area" in df.columns:
             df["area"] = pd.to_numeric(df["area"], errors="coerce")
 
+        # ✅ التاريخ هجري - نحتفظ به كنص للترتيب (لا نحاول تحويله)
         if "date" in df.columns:
-            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df["date"] = df["date"].astype(str)
 
         if self._has_columns(df, ["price", "area"]):
             df = df.dropna(subset=["price", "area"])
@@ -228,10 +232,11 @@ class AdvancedCharts:
             return None
 
         tmp = df.copy()
-        tmp["date"] = pd.to_datetime(tmp["date"], errors="coerce")
+        # ✅ التاريخ هجري نصي - نحتفظ به كنص للترتيب
+        tmp["date"] = tmp["date"].astype(str)
         tmp["price"] = self._numeric(tmp["price"])
         tmp = tmp.dropna(subset=["date", "price"])
-        tmp = tmp.sort_values("date")
+        tmp = tmp.sort_values("date")  # الترتيب صحيح لأن التاريخ الهجري نصي
 
         if len(tmp) < 5:
             return None
@@ -780,11 +785,12 @@ class AdvancedCharts:
     def generate_all_charts(self, df):
         """
         ✅ المحرك النهائي - رسم واحد واضح لكل فصل
+        متوافق مع بيانات وزارة العدل
         """
         if df is None or df.empty:
             return {}
 
-        # ✅ توحيد الأعمدة أولاً - يرجع إنجليزي فقط
+        # ✅ توحيد الأعمدة أولاً - يرجع إنجليزي فقط (متوافق مع وزارة العدل)
         df = self._normalize_market_columns(df)
         df = self._ensure_numeric_core(df)
 
@@ -797,7 +803,7 @@ class AdvancedCharts:
                 self.ch1_price_per_sqm_by_district(df),
             ]),
 
-            # ✅ فصل 2: تدفق الأسعار عبر الزمن
+            # ✅ فصل 2: تدفق الأسعار عبر الزمن (يعمل مع التاريخ الهجري النصي)
             "chapter_2": clean([
                 self.ch2_price_stream(df),
             ]),
