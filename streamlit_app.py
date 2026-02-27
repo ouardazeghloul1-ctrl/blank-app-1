@@ -822,10 +822,12 @@ if "full_government_data" not in st.session_state:
         st.session_state.full_government_data = normalize_government_dataframe(raw_data)
         st.success(f"✅ تم تحميل {len(st.session_state.full_government_data)} صفقة عقارية مسجلة رسميًا")
 
-# ✅ عرض تاريخ آخر صفقة لتعزيز المصداقية المؤسسية
+# ✅ عرض تاريخ آخر صفقة (مع معالجة NaT)
 if not st.session_state.full_government_data.empty and "date" in st.session_state.full_government_data.columns:
-    last_date = st.session_state.full_government_data["date"].max()
-    st.caption(f"📅 أحدث صفقة في قاعدة البيانات بتاريخ: {last_date}")
+    valid_dates = st.session_state.full_government_data["date"].dropna()
+    if not valid_dates.empty:
+        last_date = valid_dates.max().strftime("%Y-%m-%d")
+        st.caption(f"📅 أحدث صفقة في قاعدة البيانات بتاريخ: {last_date}")
 
 # ===============================
 # استخراج المدن وأنواع العقار ديناميكيًا
@@ -912,7 +914,7 @@ if page == "📊 التحليل الكامل":
                     # استخدام البيانات المحملة مسبقًا بدلاً من إعادة التحميل
                     full_df = st.session_state.full_government_data.copy()
                     
-                    # فلترة حسب المدينة ونوع العقار (باستخدام contains للمرونة)
+                    # فلترة حسب المدينة ونوع العقار
                     real_df = full_df[
                         (full_df["city"] == city_select) & 
                         (full_df["property_type"].str.contains(property_type_select, na=False))
@@ -921,7 +923,7 @@ if page == "📊 التحليل الكامل":
                     if real_df.empty:
                         raise Exception(f"❌ لا توجد صفقات مسجلة للمدينة {city_select} ونوع العقار {property_type_select}")
 
-                    # تشغيل التنبيهات على أساس البيانات الحقيقية - تمرير البيانات نفسها
+                    # تشغيل التنبيهات على أساس البيانات الحقيقية - تمرير البيانات المفلترة فقط
                     alerts = update_market_and_check_alerts(city_select, property_type_select, real_df)
 
                     st.session_state.daily_alerts = alerts
@@ -929,8 +931,12 @@ if page == "📊 التحليل الكامل":
 
                     # تحديد آخر تاريخ في البيانات إن وجد
                     if "date" in real_df.columns and not real_df["date"].empty:
-                        last_update = real_df["date"].max()
-                        update_msg = f"حتى تاريخ: {last_update}"
+                        valid_dates = real_df["date"].dropna()
+                        if not valid_dates.empty:
+                            last_update = valid_dates.max().strftime("%Y-%m-%d")
+                            update_msg = f"حتى تاريخ: {last_update}"
+                        else:
+                            update_msg = "آخر إصدار متاح"
                     else:
                         update_msg = "آخر إصدار متاح"
                     
@@ -981,7 +987,14 @@ if page == "📊 التحليل الكامل":
                 try:
                     # استخدام البيانات المحملة مسبقًا
                     full_df = st.session_state.full_government_data.copy()
-                    alerts = update_market_and_check_alerts(city_select, property_type_select, full_df)
+                    
+                    # فلترة حسب المدينة ونوع العقار
+                    real_df = full_df[
+                        (full_df["city"] == city_select) & 
+                        (full_df["property_type"].str.contains(property_type_select, na=False))
+                    ]
+                    
+                    alerts = update_market_and_check_alerts(city_select, property_type_select, real_df)
                     st.session_state.daily_alerts = alerts
                     st.session_state.last_alert_refresh = datetime.now()
                     st.rerun()
@@ -1467,8 +1480,12 @@ if page == "📊 التحليل الكامل":
                 try:
                     from report_orchestrator import build_report_story
 
-                    # بناء التقرير الذكي
-                    story = build_report_story(user_info)
+                    # بناء التقرير الذكي (تمرير البيانات لضمان الاستقلالية المعمارية)
+                    story = build_report_story(
+                        user_info=user_info,
+                        market_data=market_data,
+                        real_data=real_data
+                    )
                     
                     final_content_text = story.get("content_text", "")
                     executive_decision = story.get("executive_decision", "")
