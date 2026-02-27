@@ -68,6 +68,15 @@ def normalize_government_dataframe(df):
     if "price" in df.columns:
         df["price"] = pd.to_numeric(df["price"], errors="coerce")
     
+    # ✅ محاولة توحيد عمود التاريخ
+    possible_date_columns = ["تاريخ الصفقة", "تاريخ الإفراغ", "date"]
+    for col in possible_date_columns:
+        if col in df.columns:
+            df["date"] = pd.to_datetime(df[col], errors="coerce")
+            break
+    if "date" not in df.columns:
+        df["date"] = pd.NaT
+    
     # استخراج اسم المدينة فقط من "المدينة / الحي"
     if "city_raw" in df.columns:
         df["city"] = df["city_raw"].astype(str).apply(
@@ -813,6 +822,11 @@ if "full_government_data" not in st.session_state:
         st.session_state.full_government_data = normalize_government_dataframe(raw_data)
         st.success(f"✅ تم تحميل {len(st.session_state.full_government_data)} صفقة عقارية مسجلة رسميًا")
 
+# ✅ عرض تاريخ آخر صفقة لتعزيز المصداقية المؤسسية
+if not st.session_state.full_government_data.empty and "date" in st.session_state.full_government_data.columns:
+    last_date = st.session_state.full_government_data["date"].max()
+    st.caption(f"📅 أحدث صفقة في قاعدة البيانات بتاريخ: {last_date}")
+
 # ===============================
 # استخراج المدن وأنواع العقار ديناميكيًا
 # ===============================
@@ -898,11 +912,10 @@ if page == "📊 التحليل الكامل":
                     # استخدام البيانات المحملة مسبقًا بدلاً من إعادة التحميل
                     full_df = st.session_state.full_government_data.copy()
                     
-                    # فلترة حسب المدينة ونوع العقار
-                    mapped_type = PROPERTY_TYPE_MAP.get(property_type_select, property_type_select)
+                    # فلترة حسب المدينة ونوع العقار (باستخدام contains للمرونة)
                     real_df = full_df[
                         (full_df["city"] == city_select) & 
-                        (full_df["property_type"] == mapped_type)
+                        (full_df["property_type"].str.contains(property_type_select, na=False))
                     ]
                     
                     if real_df.empty:
@@ -1154,10 +1167,9 @@ if page == "📊 التحليل الكامل":
                 # 1️⃣ استخدام البيانات المحملة مسبقًا
                 full_df = st.session_state.full_government_data.copy()
                 
-                mapped_type = PROPERTY_TYPE_MAP.get(property_type, property_type)
                 real_data = full_df[
                     (full_df["city"] == city) & 
-                    (full_df["property_type"] == mapped_type)
+                    (full_df["property_type"].str.contains(property_type, na=False))
                 ]
 
                 if real_data is None or real_data.empty:
@@ -1394,10 +1406,9 @@ if page == "📊 التحليل الكامل":
                 # استخدام البيانات المحملة مسبقًا (تحسين أداء)
                 full_df = st.session_state.full_government_data.copy()
                 
-                mapped_type = PROPERTY_TYPE_MAP.get(report_property_type, report_property_type)
                 real_data = full_df[
                     (full_df["city"] == report_city) & 
-                    (full_df["property_type"] == mapped_type)
+                    (full_df["property_type"].str.contains(report_property_type, na=False))
                 ]
                 
                 if real_data.empty:
