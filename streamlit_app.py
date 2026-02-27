@@ -47,11 +47,16 @@ def normalize_government_dataframe(df):
     
     df = df.copy()
     
-    # خريطة تحويل الأعمدة
+    # تنظيف أسماء الأعمدة من المسافات المخفية
+    df.columns = df.columns.str.strip()
+    
+    # خريطة تحويل الأعمدة (نسخة موسعة لجميع الاحتمالات)
     column_mapping = {
         "السعر": "price",
         "تصنيف العقار": "property_type",
         "المدينة / الحي": "city_raw",
+        "المدينة/الحي": "city_raw",
+        "المدينة": "city_raw",
         "المنطقة": "region"
     }
     
@@ -914,10 +919,10 @@ if page == "📊 التحليل الكامل":
                     # استخدام البيانات المحملة مسبقًا بدلاً من إعادة التحميل
                     full_df = st.session_state.full_government_data.copy()
                     
-                    # فلترة حسب المدينة ونوع العقار
+                    # فلترة حسب المدينة ونوع العقار (مع تحويل لـ str للحماية)
                     real_df = full_df[
                         (full_df["city"] == city_select) & 
-                        (full_df["property_type"].str.contains(property_type_select, na=False))
+                        (full_df["property_type"].astype(str).str.contains(property_type_select, na=False))
                     ]
                     
                     if real_df.empty:
@@ -988,10 +993,10 @@ if page == "📊 التحليل الكامل":
                     # استخدام البيانات المحملة مسبقًا
                     full_df = st.session_state.full_government_data.copy()
                     
-                    # فلترة حسب المدينة ونوع العقار
+                    # فلترة حسب المدينة ونوع العقار (مع تحويل لـ str للحماية)
                     real_df = full_df[
                         (full_df["city"] == city_select) & 
-                        (full_df["property_type"].str.contains(property_type_select, na=False))
+                        (full_df["property_type"].astype(str).str.contains(property_type_select, na=False))
                     ]
                     
                     alerts = update_market_and_check_alerts(city_select, property_type_select, real_df)
@@ -1182,7 +1187,7 @@ if page == "📊 التحليل الكامل":
                 
                 real_data = full_df[
                     (full_df["city"] == city) & 
-                    (full_df["property_type"].str.contains(property_type, na=False))
+                    (full_df["property_type"].astype(str).str.contains(property_type, na=False))
                 ]
 
                 if real_data is None or real_data.empty:
@@ -1421,8 +1426,11 @@ if page == "📊 التحليل الكامل":
                 
                 real_data = full_df[
                     (full_df["city"] == report_city) & 
-                    (full_df["property_type"].str.contains(report_property_type, na=False))
+                    (full_df["property_type"].astype(str).str.contains(report_property_type, na=False))
                 ]
+                
+                # ✅ إزالة الصفوف التي لا تحتوي على price أو area (حماية لـ Gold Engine)
+                real_data = real_data.dropna(subset=["price", "area"])
                 
                 if real_data.empty:
                     st.error(f"❌ لا توجد صفقات مسجلة للمدينة {report_city} ونوع العقار {report_property_type}")
@@ -1714,8 +1722,6 @@ if 'confirm_clear' not in st.session_state:
     st.session_state.confirm_clear = False
 if 'daily_alerts' not in st.session_state:
     st.session_state.daily_alerts = []
-if 'last_snapshot_path' not in st.session_state:
-    st.session_state.last_snapshot_path = None
 if 'full_government_data' not in st.session_state:
     st.session_state.full_government_data = pd.DataFrame()
 if 'available_cities' not in st.session_state:
