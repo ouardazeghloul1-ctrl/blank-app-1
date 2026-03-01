@@ -26,75 +26,8 @@ import streamlit.components.v1 as components
 
 # ✅ المصدر الوحيد للبيانات الحقيقية
 from government_data_provider import load_government_data
-
-# ===============================
-# 🔄 توحيد أعمدة ملف الوزارة (نسخة محصنة ضد الأخطاء)
-# ===============================
-PROPERTY_TYPE_MAP = {
-    "شقة": "سكني",
-    "فيلا": "سكني", 
-    "أرض": "سكني",
-    "محل تجاري": "تجاري"
-}
-
-def normalize_government_dataframe(df):
-    """
-    يحول أعمدة ملف الوزارة إلى أسماء قياسية داخل النظام
-    نسخة محصنة 100% ضد KeyError
-    """
-    if df is None or df.empty:
-        return df
-    
-    df = df.copy()
-    
-    # تنظيف أسماء الأعمدة من المسافات المخفية
-    df.columns = df.columns.str.strip()
-    
-    # خريطة تحويل الأعمدة (نسخة موسعة لجميع الاحتمالات)
-    column_mapping = {
-        "السعر": "price",
-        "تصنيف العقار": "property_type",
-        "المدينة / الحي": "city_raw",
-        "المدينة/الحي": "city_raw",
-        "المدينة": "city_raw",
-        "المنطقة": "region"
-    }
-    
-    df = df.rename(columns=column_mapping)
-    
-    # ✅ إضافة area من عمود المساحة إن وجد
-    if "المساحة" in df.columns:
-        df["area"] = pd.to_numeric(df["المساحة"], errors="coerce")
-    else:
-        # تأمين ضد عدم وجود عمود المساحة
-        df["area"] = np.nan
-    
-    # ضمان وجود price وتحويله لرقمي
-    if "price" in df.columns:
-        df["price"] = pd.to_numeric(df["price"], errors="coerce")
-    
-    # ✅ محاولة توحيد عمود التاريخ
-    possible_date_columns = ["تاريخ الصفقة", "تاريخ الإفراغ", "date"]
-    for col in possible_date_columns:
-        if col in df.columns:
-            df["date"] = pd.to_datetime(df[col], errors="coerce")
-            break
-    if "date" not in df.columns:
-        df["date"] = pd.NaT
-    
-    # استخراج اسم المدينة فقط من "المدينة / الحي"
-    if "city_raw" in df.columns:
-        df["city"] = df["city_raw"].astype(str).apply(
-            lambda x: x.split("/")[0].strip()
-        )
-    else:
-        df["city"] = None
-    
-    # ✅ تم التعديل: تعيين "سكني" افتراضيًا إذا كان العمود غير موجود
-    if "property_type" not in df.columns:
-        df["property_type"] = "سكني"
-    
-    return df
+import pandas as pd
+import os
 
 # ===== Robo Chat System (النسخة الموحدة) =====
 from robo_advisor import handle_robo_question, RoboGuard, RoboKnowledge
@@ -135,7 +68,7 @@ except ImportError as e:
             "by_confidence": {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
         }
     
-    def update_market_and_check_alerts(city, property_type, real_data=None):
+    def update_market_and_check_alerts(city, property_type):
         st.error("⚠️ نظام التنبيهات غير متوفر")
         return []
 
@@ -191,19 +124,38 @@ except ImportError:
         pass
 
 # ===============================
-# SNAPSHOT ENGINE (تم تعطيله – لم نعد نستخدمه)
+# SNAPSHOT ENGINE (الحل النهائي)
 # ===============================
 
 SNAPSHOT_DIR = "snapshots"
 os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
 def load_latest_snapshot(city, property_type):
-    """⚠️ مهمل – لم نعد نستخدم اللقطات، نعتمد على القراءة المباشرة"""
-    return None
+    """تحميل آخر لقطة محفوظة من السوق"""
+    files = [
+        f for f in os.listdir(SNAPSHOT_DIR)
+        if f.startswith(f"{city}_{property_type}") and f.endswith(".csv")
+    ]
+    if not files:
+        return None
+
+    files.sort(reverse=True)
+    path = os.path.join(SNAPSHOT_DIR, files[0])
+    return pd.read_csv(path)
 
 def create_snapshot(city, property_type):
-    """⚠️ مهمل – لم نعد نستخدم اللقطات"""
-    raise NotImplementedError("تم إلغاء نظام اللقطات – استخدم load_government_data مباشرة")
+    """إنشاء لقطة جديدة من السوق وحفظها"""
+    df = load_government_data(selected_city=city, selected_property_type=property_type)
+
+    if df is None or df.empty:
+        raise Exception("❌ لا توجد بيانات حقيقية من السوق")
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
+    filename = f"{city}_{property_type}_{timestamp}.csv"
+    path = os.path.join(SNAPSHOT_DIR, filename)
+
+    df.to_csv(path, index=False, encoding="utf-8-sig")
+    return df, path
 
 # ========== إعداد الصفحة (يجب أن يكون أول استدعاء لـ st) ==========
 st.set_page_config(
@@ -212,50 +164,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
-# ========== ✅ تهيئة حالة الجلسة (في البداية مباشرة) ==========
-if 'report_generated' not in st.session_state:
-    st.session_state.report_generated = False
-if 'pdf_data' not in st.session_state:
-    st.session_state.pdf_data = None
-if 'real_data' not in st.session_state:
-    st.session_state.real_data = pd.DataFrame()
-if 'market_data' not in st.session_state:
-    st.session_state.market_data = {}
-if 'ai_recommendations' not in st.session_state:
-    st.session_state.ai_recommendations = None
-if 'user_info' not in st.session_state:
-    st.session_state.user_info = {}
-if 'smart_report_content' not in st.session_state:
-    st.session_state.smart_report_content = None
-if 'charts_by_chapter' not in st.session_state:
-    st.session_state.charts_by_chapter = {}
-if 'paid' not in st.session_state:
-    st.session_state.paid = False
-if 'robo_knowledge' not in st.session_state:
-    st.session_state.robo_knowledge = None
-if 'chosen_pkg' not in st.session_state:
-    st.session_state.chosen_pkg = "مجانية"
-if 'last_city' not in st.session_state:
-    st.session_state.last_city = None
-if 'last_property_type' not in st.session_state:
-    st.session_state.last_property_type = None
-if 'last_status' not in st.session_state:
-    st.session_state.last_status = None
-if 'last_chosen_pkg' not in st.session_state:
-    st.session_state.last_chosen_pkg = None
-if 'last_alert_refresh' not in st.session_state:
-    st.session_state.last_alert_refresh = datetime.now()
-if 'confirm_clear' not in st.session_state:
-    st.session_state.confirm_clear = False
-if 'daily_alerts' not in st.session_state:
-    st.session_state.daily_alerts = []
-if 'full_government_data' not in st.session_state:
-    st.session_state.full_government_data = pd.DataFrame()
-if 'available_cities' not in st.session_state:
-    st.session_state.available_cities = []
-if 'available_property_types' not in st.session_state:
-    st.session_state.available_property_types = []
 
 # ===============================
 # 📱 PWA – ربط manifest (تطبيق الهاتف) بعد set_page_config مباشرة
@@ -701,7 +609,7 @@ class AIIntelligence:
             return {
                 'ملف_المخاطر': "غير متوفر – يحتاج بيانات كافية",
                 'استراتيجية_الاستثمار': "غير متوفر – يحتاج بيانات كافية",
-                'التوقيت_المثالي': "يتطلب إصدارين زمنيين من البيانات الرسمية للمقارنة",
+                'التوقيت_المثالي': "غير متوفر – يحتاج بيانات كافية",
                 'مؤشرات_الثقة': {
                     'جودة_البيانات': "غير متوفرة",
                     'استقرار_السوق': "غير متوفر",
@@ -742,7 +650,7 @@ class AIIntelligence:
         return {
             'ملف_المخاطر': risk_profile,
             'استراتيجية_الاستثمار': "استراتيجية متوسطة - تحتاج دراسة إضافية",
-            'التوقيت_المثالي': "يتطلب إصدارين زمنيين من البيانات الرسمية للمقارنة",
+            'التوقيت_المثالي': "يحتاج مقارنة زمنية (تحتاج لقطتين)",
             'مؤشرات_الثقة': {
                 'جودة_البيانات': f"{len(real_data)} عقار حقيقي",
                 'استقرار_السوق': "يحتاج مقارنة زمنية",
@@ -847,74 +755,15 @@ st.markdown("""
     <div class='header-section'>
         <h1>🏙️ منصة التحليل العقاري الذهبي</h1>
         <h2>Warda Intelligence - الذكاء الاستثماري المتقدم</h2>
-        <p>تحليل صفقات بيع فعلية مسجلة رسميًا • مؤشرات مبنية على معاملات مكتملة • قرارات قائمة على أحدث إصدار حكومي متاح</p>
+        <p>تحليل استثماري شامل • مؤشرات ذكية • قرارات مدروسة</p>
         <div class='real-data-badge'>
-            📊 صفقات بيع مكتملة ومسجلة رسميًا • البيانات وفق آخر نشر رسمي متاح • التحليل يعتمد على معاملات منتهية وليست أسعار عرض
+            🎯 بيانات حقيقية من السوق • تحديث عند الطلب • مصداقية 100%
         </div>
         <div class='ai-badge'>
-            🤖 مدعوم بالذكاء الاصطناعي المتقدم • تحليل احتمالي مبني على معاملات فعلية
+            🤖 مدعوم بالذكاء الاصطناعي المتقدم • تحليل تنبؤي • توقعات ذكية
         </div>
     </div>
 """, unsafe_allow_html=True)
-
-# ========== ختم مصداقية قوي ==========
-st.markdown("""
-<div style='text-align:center; color:#00FFD1; font-weight:bold; margin-top:10px; margin-bottom:20px;'>
-    🛡️ التحليل يعتمد على معاملات بيع مكتملة ومسجلة رسميًا وفق آخر إصدار حكومي – وليس على أسعار معروضة أو تقديرات
-</div>
-""", unsafe_allow_html=True)
-
-# ========== ✅ تحميل البيانات مرة واحدة فقط في الجلسة (تم تعديل الشرط) ==========
-if st.session_state.full_government_data.empty:
-    with st.spinner("📊 جاري تحميل قاعدة بيانات الصفقات الرسمية..."):
-        raw_data = load_government_data()
-        st.session_state.full_government_data = normalize_government_dataframe(raw_data)
-        st.success(f"✅ تم تحميل {len(st.session_state.full_government_data)} صفقة عقارية مسجلة رسميًا")
-
-# ✅ عرض تاريخ آخر صفقة (مع معالجة NaT)
-if not st.session_state.full_government_data.empty and "date" in st.session_state.full_government_data.columns:
-    valid_dates = st.session_state.full_government_data["date"].dropna()
-    if not valid_dates.empty:
-        last_date = valid_dates.max().strftime("%Y-%m-%d")
-        st.caption(f"📅 أحدث صفقة في قاعدة البيانات بتاريخ: {last_date}")
-
-# ===============================
-# استخراج المدن وأنواع العقار ديناميكيًا (تم تعديل الشرط)
-# ===============================
-if not st.session_state.available_cities or not st.session_state.available_property_types:
-    df_meta = st.session_state.full_government_data.copy()
-    # المدن
-    if "city" in df_meta.columns:
-        cities_list = (
-            df_meta["city"]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .unique()
-            .tolist()
-        )
-        cities_list = [c for c in cities_list if c and c != "None"]
-        cities_list = sorted(cities_list)
-    else:
-        cities_list = []
-    
-    # أنواع العقار - نضمن وجود قيمة افتراضية
-    if "property_type" in df_meta.columns:
-        property_types_list = (
-            df_meta["property_type"]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .unique()
-            .tolist()
-        )
-        property_types_list = [p for p in property_types_list if p and p != "None"]
-        property_types_list = sorted(property_types_list)
-    else:
-        property_types_list = []
-    
-    st.session_state.available_cities = cities_list
-    st.session_state.available_property_types = property_types_list
 
 # ========== رسالة توجيه ذكية للمستشار ==========
 st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — انتقل إلى المستشار الذكي")
@@ -929,93 +778,85 @@ page = st.radio(
 
 # ========== صفحة التحليل الكامل ==========
 if page == "📊 التحليل الكامل":
-    # ✅ تم التعديل: لا نستخدم st.stop() أبدًا، نستخدم قيم افتراضية
-    if not st.session_state.get("available_cities"):
-        st.warning("⚠️ لا توجد مدن متاحة في البيانات، استخدام مدينة افتراضية")
-        available_cities = ["الرياض"]
-    else:
-        available_cities = st.session_state.available_cities
-    
-    # ✅ تم التعديل: استخدام قيمة افتراضية ["سكني"] إذا كانت القائمة فارغة
-    if not st.session_state.get("available_property_types"):
-        st.info("ℹ️ لم يتم العثور على أنواع عقار في البيانات، استخدام النوع الافتراضي 'سكني'")
-        available_property_types = ["سكني"]
-    else:
-        available_property_types = st.session_state.available_property_types
-    
-    # ========== التنبيهات الاستثمارية ==========
+    # ========== التنبيهات الحية (باستخدام النظام الموحد) ==========
     st.markdown("---")
-    st.markdown("## 🔔 التنبيهات الاستثمارية المبنية على أحدث إصدار رسمي للصفقات")
+    st.markdown("## 🔔 التنبيهات الاستثمارية الحية (اليوم)")
 
     # عناصر الاختيار للمدينة ونوع العقار (لزر التحديث)
     col_city, col_type = st.columns(2)
     with col_city:
         city_select = st.selectbox(
             "اختر المدينة",
-            available_cities,
+            ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"],
             key="city_select_alerts"
         )
     with col_type:
         property_type_select = st.selectbox(
             "اختر نوع العقار",
-            available_property_types,
+            ["شقة", "فيلا", "أرض"],
             key="property_type_select_alerts"
         )
     
-    # زر التحديث الرسمي – الآن يعيد تحميل البيانات ويشغل التنبيهات مباشرة (بدون snapshot)
+    # زر التحديث الرسمي (القلب) - الحقيقي (تم إصلاحه)
     col_btn, col_info = st.columns([1, 3])
     with col_btn:
-        if st.button("🔄 تحميل آخر إصدار رسمي للصفقات", key="market_update_btn", use_container_width=True):
-            with st.spinner("جاري تحميل أحدث بيانات الصفقات الرسمية..."):
-                try:
-                    # استخدام البيانات المحملة مسبقًا بدلاً من إعادة التحميل
-                    full_df = st.session_state.full_government_data.copy()
-                    
-                    # فلترة حسب المدينة
-                    real_df = full_df[full_df["city"] == city_select]
-                    
-                    if real_df.empty:
-                        raise Exception(f"❌ لا توجد صفقات مسجلة للمدينة {city_select}")
+        if st.button("🔄 تحديث بيانات السوق (حقيقي)", key="market_update_btn", use_container_width=True):
+            if not city_select:
+                st.error("❌ الرجاء اختيار المدينة أولاً")
+            else:
+                with st.spinner("جاري جلب بيانات حقيقية وتحليل السوق..."):
+                    try:
+                        # 🔥 جلب البيانات مع الفلترة من المصدر نفسه
+                        real_df = load_government_data(
+                            selected_city=city_select,
+                            selected_property_type=property_type_select
+                        )
 
-                    # تشغيل التنبيهات على أساس البيانات الحقيقية - تمرير البيانات المفلترة فقط
-                    alerts = update_market_and_check_alerts(city_select, property_type_select, real_df)
-
-                    st.session_state.daily_alerts = alerts
-                    st.session_state.last_alert_refresh = datetime.now()
-
-                    # تحديد آخر تاريخ في البيانات إن وجد
-                    if "date" in real_df.columns and not real_df["date"].empty:
-                        valid_dates = real_df["date"].dropna()
-                        if not valid_dates.empty:
-                            last_update = valid_dates.max().strftime("%Y-%m-%d")
-                            update_msg = f"حتى تاريخ: {last_update}"
+                        if real_df.empty:
+                            st.error(f"❌ لا توجد بيانات للمدينة {city_select}")
                         else:
-                            update_msg = "آخر إصدار متاح"
-                    else:
-                        update_msg = "آخر إصدار متاح"
-                    
-                    st.success(
-                        f"✅ تم تحميل {len(real_df)} صفقة بيع مسجلة رسميًا "
-                        f"وفق آخر إصدار حكومي متاح ({update_msg})"
-                    )
+                            # إنشاء لقطة جديدة
+                            df_snapshot, snapshot_path = create_snapshot(
+                                city_select,
+                                property_type_select
+                            )
 
-                except Exception as e:
-                    st.error(str(e))
+                            # تشغيل التنبيهات
+                            alerts = update_market_and_check_alerts(
+                                city_select,
+                                property_type_select
+                            )
+
+                            st.session_state.daily_alerts = alerts
+                            st.session_state.last_alert_refresh = datetime.now()
+                            st.session_state.last_snapshot_path = snapshot_path
+
+                            st.success(f"✅ تم تحديث السوق وحفظ {len(df_snapshot)} صفقة")
+
+                    except Exception as e:
+                        st.error(f"❌ حدث خطأ: {str(e)}")
 
     with col_info:
         last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
         refresh_time = last_refresh.strftime('%H:%M:%S') if isinstance(last_refresh, datetime) else str(last_refresh)
         st.caption(f"🕒 آخر تحديث: {refresh_time}")
 
-    # جلب التنبيهات مرة واحدة فقط في الجلسة (فارغة افتراضيًا)
+    # جلب التنبيهات مرة واحدة فقط في الجلسة
     if "daily_alerts" not in st.session_state:
-        st.session_state.daily_alerts = []
-        st.session_state.last_alert_refresh = datetime.now()
+        with st.spinner("🔄 جاري تحليل السوق ورصد الفرص..."):
+            if ALERTS_AVAILABLE:
+                st.session_state.daily_alerts = get_today_alerts()
+                st.session_state.last_alert_refresh = datetime.now()
+            else:
+                st.session_state.daily_alerts = []
+                st.session_state.last_alert_refresh = datetime.now()
+                st.info("⚠️ نظام التنبيهات قيد التفعيل قريبًا")
 
-    # فلترة التنبيهات (بدون تقييد المدن)
+    # فلترة التنبيهات حسب المدن المستهدفة
+    TARGET_CITIES = ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"]
     filtered_alerts = [
         alert for alert in st.session_state.daily_alerts
-        if isinstance(alert, dict)
+        if alert.get("city") in TARGET_CITIES
     ]
 
     # الحصول على إحصائيات التنبيهات
@@ -1039,18 +880,12 @@ if page == "📊 التحليل الكامل":
         if st.button("🔄 تحديث", key="refresh_alerts"):
             with st.spinner("جاري تحديث السوق..."):
                 try:
-                    # استخدام البيانات المحملة مسبقًا
-                    full_df = st.session_state.full_government_data.copy()
-                    
-                    # فلترة حسب المدينة
-                    real_df = full_df[full_df["city"] == city_select]
-                    
-                    alerts = update_market_and_check_alerts(city_select, property_type_select, real_df)
+                    alerts = update_market_and_check_alerts(city_select, property_type_select)
                     st.session_state.daily_alerts = alerts
                     st.session_state.last_alert_refresh = datetime.now()
                     st.rerun()
                 except Exception as e:
-                    st.info("ℹ️ تم التحديث – يعتمد على آخر بيانات حقيقية.")
+                    st.info("ℹ️ لا توجد بيانات أحدث من آخر لقطة محفوظة. التحليل يعتمد على آخر بيانات موثوقة.")
 
     with col_info:
         last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
@@ -1113,7 +948,7 @@ if page == "📊 التحليل الكامل":
                 
                 st.markdown(html_content, unsafe_allow_html=True)
     else:
-        st.info("🔍 لا توجد فرص بارزة ضمن آخر الصفقات المسجلة حاليًا.")
+        st.info("🔍 لا توجد تنبيهات جديدة الآن. استخدم زر 'تحديث بيانات السوق (حقيقي)' لجلب أحدث البيانات.")
 
     # ========== بيانات المستخدم ==========
     st.markdown("---")
@@ -1123,14 +958,10 @@ if page == "📊 التحليل الكامل":
         st.markdown("### 👤 بيانات المستخدم والعقار")
         user_type = st.selectbox("اختر فئتك:", 
                                ["مستثمر", "وسيط عقاري", "شركة تطوير", "فرد", "باحث عن فرصة", "مالك عقار"])
-        city = st.selectbox(
-            "المدينة:", 
-            available_cities
-        )
-        property_type = st.selectbox(
-            "نوع العقار:", 
-            available_property_types
-        )
+        city = st.selectbox("المدينة:", 
+                           ["الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة"])
+        property_type = st.selectbox("نوع العقار:", 
+                                    ["شقة", "فيلا", "أرض", "محل تجاري"])
         status = st.selectbox("الحالة:", ["للبيع", "للشراء", "للإيجار"])
         
         # 🔄 استبدال السلايدر بـ Selectbox (حل نهائي لمشكلة السهم)
@@ -1198,7 +1029,7 @@ if page == "📊 التحليل الكامل":
         """, unsafe_allow_html=True)
         
         # نص قصير يشرح التسعير (غير مخيف)
-        st.caption("التسعير يعتمد على حجم تحليل الصفقات الفعلية المسجلة رسميًا، وليس على عدد الصفحات.")
+        st.caption("التسعير ديناميكي ويعتمد على حجم التحليل، وليس عدد الصفحات.")
         
         st.markdown("**المميزات الحصرية:**")
         for i, feature in enumerate(PACKAGES[chosen_pkg]["features"][:8]):
@@ -1228,14 +1059,11 @@ if page == "📊 التحليل الكامل":
     if robo_needs_update or "robo_knowledge" not in st.session_state:
         with st.spinner("🧠 تحديث المستشار الذكي..."):
             try:
-                # 1️⃣ استخدام البيانات المحملة مسبقًا
-                full_df = st.session_state.full_government_data.copy()
-                
-                # فلترة حسب المدينة
-                real_data = full_df[full_df["city"] == city]
+                # 1️⃣ تحميل آخر بيانات حقيقية محفوظة فقط
+                real_data = load_latest_snapshot(city, property_type)
 
                 if real_data is None or real_data.empty:
-                    raise Exception(f"❌ لا توجد صفقات مسجلة للمدينة {city}")
+                    raise Exception("❌ لا توجد بيانات محفوظة. اضغطي أولاً على (تحديث بيانات السوق).")
 
                 st.session_state["real_data"] = real_data
 
@@ -1347,7 +1175,7 @@ if page == "📊 التحليل الكامل":
     st.markdown("---")
     st.markdown("### 🧠 محاكاة القرار: بدون تقرير مقابل تقرير Warda")
 
-    # التحقق من وجود بيانات السوق - استخدام آخر بيانات محدثة إن وجدت
+    # التحقق من وجود بيانات السوق
     if 'market_data' in st.session_state and st.session_state.market_data:
         market_data = st.session_state.market_data
     else:
@@ -1433,7 +1261,7 @@ if page == "📊 التحليل الكامل":
         • التحليل مبني على **{market_data['عدد_العقارات_الحقيقية']} عقار حقيقي** تم تحليله في السوق
         • فجوة سعرية فعلية في السوق: **{round(price_dispersion*100,1) if price_dispersion > 0 else 0}%** (الفرق بين أعلى وأقل سعر)
         • حجم السيولة الحالي: **{liquidity_volume}** (عدد العقارات المتاحة)
-        • معدل النمو الزمني: غير محسوب (التحليل مبني على إصدار واحد من البيانات الرسمية)
+        • معدل النمو: **غير متاح (يتطلب مقارنة زمنية)**
 
         **كيف حسبنا الأرقام؟**
         
@@ -1445,7 +1273,7 @@ if page == "📊 التحليل الكامل":
         
         هذه الآلة لا تحسب الربح المتوقع،
         بل **تحسب تكلفة اتخاذ قرار أعمى مقابل قرار مدروس**.
-        الأرقام مبنية على صفقات عقارية مسجلة رسميًا في السجلات الحكومية، وليست على إعلانات أو أسعار معروضة.
+        الأرقام تستند إلى أنماط حقيقية في السوق العقاري السعودي.
         """, unsafe_allow_html=True)
 
     # ========== نظام الدفع ==========
@@ -1461,35 +1289,25 @@ if page == "📊 التحليل الكامل":
     if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
         with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
             try:
-                # ✅ استخدام المدينة المحددة في بيانات المستخدم فقط (فصل تام عن التنبيهات)
-                report_city = city
-                report_property_type = property_type
-                
-                # استخدام البيانات المحملة مسبقًا (تحسين أداء)
-                full_df = st.session_state.full_government_data.copy()
-                
-                # فلترة حسب المدينة
-                real_data = full_df[full_df["city"] == report_city]
-                
-                # ✅ إزالة الصفوف التي لا تحتوي على price أو area (حماية لـ Gold Engine)
-                real_data = real_data.dropna(subset=["price", "area"])
-                
-                if real_data.empty:
-                    st.error(f"❌ لا توجد صفقات مسجلة للمدينة {report_city}")
+                # ✅ تحميل آخر بيانات حقيقية محفوظة
+                real_data = load_latest_snapshot(city, property_type)
+
+                if real_data is None or real_data.empty:
+                    st.error("❌ لا توجد بيانات محفوظة. اضغطي أولاً على (تحديث بيانات السوق).")
                     st.stop()
 
                 st.session_state.real_data = real_data
-                st.success(f"✅ تم تحميل {len(real_data)} صفقة عقارية مسجلة رسميًا")
+                st.success(f"✅ تم تحميل {len(real_data)} عقار حقيقي من آخر لقطة")
 
                 market_data = generate_advanced_market_data(
-                    report_city, report_property_type, status, real_data
+                    city, property_type, status, real_data
                 )
 
-                # ✅ معلومات المستخدم مع التأكد من استخدام نفس المدينة
+                # ✅ التصحيح الحاسم: إضافة الباقة بشكل صحيح
                 user_info = {
                     "user_type": user_type,
-                    "city": report_city,
-                    "property_type": report_property_type,
+                    "city": city,
+                    "property_type": property_type,
                     "area": area,
                     "package": chosen_pkg,
                     "chosen_pkg": chosen_pkg,
@@ -1498,7 +1316,7 @@ if page == "📊 التحليل الكامل":
                     "status": status
                 }
                 
-                # حفظ في الجلسة
+                # حفظ user_info في session_state
                 st.session_state["user_info"] = user_info
                 st.session_state["market_data"] = market_data
                 st.session_state["real_data"] = real_data
@@ -1506,12 +1324,12 @@ if page == "📊 التحليل الكامل":
                 # 🔧 إنشاء التقرير الذكي (للعرض فقط)
                 user_category = USER_CATEGORIES.get(user_type, "investor")
                 user_data = {
-                    "city": report_city,
+                    "city": city,
                     "plan": chosen_pkg,
                     "category": user_category,
                     "user_type": user_type,
                     "user_category_ar": user_type,
-                    "property_type": report_property_type,
+                    "property_type": property_type,
                     "area": area
                 }
                 
@@ -1526,16 +1344,17 @@ if page == "📊 التحليل الكامل":
                         user_info, market_data, real_data
                     )
 
-                # ✅ نظام PDF الموحد والمضمون (تم تعديل الاستدعاء هنا)
+                # ✅ نظام PDF الموحد والمضمون - الإصدار المحسن
                 try:
+                    # =====================================
+                    # 🧠 استخدام نظام البناء الذكي الجديد
+                    # =====================================
                     from report_orchestrator import build_report_story
 
-                    # ✅ تم التعديل: نمرر provided_dataframe=real_data فقط كما يتوقع orchestrator
-                    story = build_report_story(
-                        user_info=user_info,
-                        provided_dataframe=real_data
-                    )
+                    # بناء التقرير الذكي
+                    story = build_report_story(user_info)
                     
+                    # 🔍 التحقق الإلزامي من محتوى التقرير
                     final_content_text = story.get("content_text", "")
                     executive_decision = story.get("executive_decision", "")
 
@@ -1551,8 +1370,13 @@ if page == "📊 التحليل الكامل":
                     st.success(f"✅ القرار التنفيذي جاهز ({len(executive_decision)} حرف)")
                     
                     charts_by_chapter = story.get("charts", {})
+                    
+                    # ✅ هذا السطر هو الأهم - حفظ الرسومات
                     st.session_state["charts_by_chapter"] = charts_by_chapter
                     
+                    # =====================================
+                    # 💎 إنشاء PDF بالمحتوى الكامل
+                    # =====================================
                     pdf_buffer = create_pdf_from_content(
                         user_info=user_info,
                         market_data=market_data,
@@ -1608,7 +1432,7 @@ if page == "📊 التحليل الكامل":
             st.download_button(
                 label="📥 تحميل التقرير PDF",
                 data=st.session_state.pdf_data,
-                file_name=f"تقرير_Warda_Intelligence_{st.session_state.user_info.get('city')}_{st.session_state.user_info.get('property_type')}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                file_name=f"تقرير_Warda_Intelligence_{city}_{property_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                 mime="application/pdf",
                 use_container_width=True,
                 key="download_report"
@@ -1666,11 +1490,11 @@ if page == "🧠 المستشار الذكي":
             city = user_info.get("city", "مدينتك")
             
             if current_pkg == "مجانية":
-                welcome_msg = f"👋 **مرحبًا بك في المستشار الذكي**\n\nهل تحب أن أشرح لك وضع السوق العام في {city} بناءً على آخر الصفقات المسجلة؟"
+                welcome_msg = f"👋 **مرحبًا بك في المستشار الذكي**\n\nهل تحب أن أشرح لك وضع السوق العام في {city}؟"
             elif current_pkg in ["فضية", "ذهبية"]:
-                welcome_msg = f"👋 **أهلاً بك**\n\nهل تريد تحليل فرص استثمارية محددة في {city} بناءً على معاملات حقيقية؟"
+                welcome_msg = f"👋 **أهلاً بك**\n\nهل تريد تحليل فرص استثمارية محددة في {city} الآن؟"
             else:  # ماسية أو ماسية متميزة
-                welcome_msg = f"👋 **تشرفنا بخدمتك**\n\nأستطيع تحليل الفرص النادرة والتوقيت المثالي للاستثمار في {city} بناءً على صفقات حقيقية مسجلة. ماذا تريد أن تعرف؟"
+                welcome_msg = f"👋 **تشرفنا بخدمتك**\n\nأستطيع تحليل الفرص النادرة والتوقيت المثالي للاستثمار في {city}. ماذا تريد أن تعرف؟"
             
             st.markdown(welcome_msg)
 
@@ -1726,10 +1550,50 @@ if page == "🧠 المستشار الذكي":
         with st.chat_message("assistant"):
             st.markdown(robo_response)
 
+# ========== تهيئة حالة الجلسة ==========
+if 'report_generated' not in st.session_state:
+    st.session_state.report_generated = False
+if 'pdf_data' not in st.session_state:
+    st.session_state.pdf_data = None
+if 'real_data' not in st.session_state:
+    st.session_state.real_data = pd.DataFrame()
+if 'market_data' not in st.session_state:
+    st.session_state.market_data = {}
+if 'ai_recommendations' not in st.session_state:
+    st.session_state.ai_recommendations = None
+if 'user_info' not in st.session_state:
+    st.session_state.user_info = {}
+if 'smart_report_content' not in st.session_state:
+    st.session_state.smart_report_content = None
+if 'charts_by_chapter' not in st.session_state:
+    st.session_state.charts_by_chapter = {}
+if 'paid' not in st.session_state:
+    st.session_state.paid = False
+if 'robo_knowledge' not in st.session_state:
+    st.session_state.robo_knowledge = None
+if 'chosen_pkg' not in st.session_state:
+    st.session_state.chosen_pkg = "مجانية"
+if 'last_city' not in st.session_state:
+    st.session_state.last_city = None
+if 'last_property_type' not in st.session_state:
+    st.session_state.last_property_type = None
+if 'last_status' not in st.session_state:
+    st.session_state.last_status = None
+if 'last_chosen_pkg' not in st.session_state:
+    st.session_state.last_chosen_pkg = None
+if 'last_alert_refresh' not in st.session_state:
+    st.session_state.last_alert_refresh = datetime.now()
+if 'confirm_clear' not in st.session_state:
+    st.session_state.confirm_clear = False
+if 'daily_alerts' not in st.session_state:
+    st.session_state.daily_alerts = []
+if 'last_snapshot_path' not in st.session_state:
+    st.session_state.last_snapshot_path = None
+
 st.markdown("---")
-st.markdown(f"""
+st.markdown("""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    <p>© {datetime.now().year} Warda Intelligence - جميع الحقوق محفوظة</p>
-    <p>تحليل معاملات بيع مكتملة مسجلة رسميًا | شريكك في اتخاذ القرار المبني على البيانات</p>
+    <p>© 2024 Warda Intelligence - جميع الحقوق محفوظة</p>
+    <p>الذكاء الاستثماري المتقدم | شريكك الموثوق في التحليل العقاري</p>
 </div>
 """, unsafe_allow_html=True)
