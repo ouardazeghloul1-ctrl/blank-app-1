@@ -90,9 +90,9 @@ def normalize_government_dataframe(df):
     else:
         df["city"] = None
     
-    # ضمان وجود property_type
+    # ✅ تم التعديل: تعيين "سكني" افتراضيًا إذا كان العمود غير موجود
     if "property_type" not in df.columns:
-        df["property_type"] = None
+        df["property_type"] = "سكني"
     
     return df
 
@@ -897,7 +897,8 @@ if not st.session_state.available_cities or not st.session_state.available_prope
         cities_list = sorted(cities_list)
     else:
         cities_list = []
-    # أنواع العقار
+    
+    # أنواع العقار - نضمن وجود قيمة افتراضية
     if "property_type" in df_meta.columns:
         property_types_list = (
             df_meta["property_type"]
@@ -911,6 +912,7 @@ if not st.session_state.available_cities or not st.session_state.available_prope
         property_types_list = sorted(property_types_list)
     else:
         property_types_list = []
+    
     st.session_state.available_cities = cities_list
     st.session_state.available_property_types = property_types_list
 
@@ -927,13 +929,19 @@ page = st.radio(
 
 # ========== صفحة التحليل الكامل ==========
 if page == "📊 التحليل الكامل":
-    # تأمين fallback آمن
+    # ✅ تم التعديل: لا نستخدم st.stop() أبدًا، نستخدم قيم افتراضية
     if not st.session_state.get("available_cities"):
-        st.warning("⚠️ لا توجد مدن متاحة في البيانات.")
-        st.stop()
+        st.warning("⚠️ لا توجد مدن متاحة في البيانات، استخدام مدينة افتراضية")
+        available_cities = ["الرياض"]
+    else:
+        available_cities = st.session_state.available_cities
+    
+    # ✅ تم التعديل: استخدام قيمة افتراضية ["سكني"] إذا كانت القائمة فارغة
     if not st.session_state.get("available_property_types"):
-        st.warning("⚠️ لا توجد أنواع عقار متاحة في البيانات.")
-        st.stop()
+        st.info("ℹ️ لم يتم العثور على أنواع عقار في البيانات، استخدام النوع الافتراضي 'سكني'")
+        available_property_types = ["سكني"]
+    else:
+        available_property_types = st.session_state.available_property_types
     
     # ========== التنبيهات الاستثمارية ==========
     st.markdown("---")
@@ -944,13 +952,13 @@ if page == "📊 التحليل الكامل":
     with col_city:
         city_select = st.selectbox(
             "اختر المدينة",
-            st.session_state.get("available_cities", []),
+            available_cities,
             key="city_select_alerts"
         )
     with col_type:
         property_type_select = st.selectbox(
             "اختر نوع العقار",
-            st.session_state.get("available_property_types", []),
+            available_property_types,
             key="property_type_select_alerts"
         )
     
@@ -963,7 +971,7 @@ if page == "📊 التحليل الكامل":
                     # استخدام البيانات المحملة مسبقًا بدلاً من إعادة التحميل
                     full_df = st.session_state.full_government_data.copy()
                     
-                    # ✅ تم التعديل: استخدام المدينة فقط مؤقتًا لتجنب mismatch
+                    # فلترة حسب المدينة
                     real_df = full_df[full_df["city"] == city_select]
                     
                     if real_df.empty:
@@ -1034,7 +1042,7 @@ if page == "📊 التحليل الكامل":
                     # استخدام البيانات المحملة مسبقًا
                     full_df = st.session_state.full_government_data.copy()
                     
-                    # ✅ تم التعديل: استخدام المدينة فقط مؤقتًا لتجنب mismatch
+                    # فلترة حسب المدينة
                     real_df = full_df[full_df["city"] == city_select]
                     
                     alerts = update_market_and_check_alerts(city_select, property_type_select, real_df)
@@ -1117,11 +1125,11 @@ if page == "📊 التحليل الكامل":
                                ["مستثمر", "وسيط عقاري", "شركة تطوير", "فرد", "باحث عن فرصة", "مالك عقار"])
         city = st.selectbox(
             "المدينة:", 
-            st.session_state.get("available_cities", [])
+            available_cities
         )
         property_type = st.selectbox(
             "نوع العقار:", 
-            st.session_state.get("available_property_types", [])
+            available_property_types
         )
         status = st.selectbox("الحالة:", ["للبيع", "للشراء", "للإيجار"])
         
@@ -1223,7 +1231,7 @@ if page == "📊 التحليل الكامل":
                 # 1️⃣ استخدام البيانات المحملة مسبقًا
                 full_df = st.session_state.full_government_data.copy()
                 
-                # ✅ تم التعديل: استخدام المدينة فقط مؤقتًا لتجنب mismatch
+                # فلترة حسب المدينة
                 real_data = full_df[full_df["city"] == city]
 
                 if real_data is None or real_data.empty:
@@ -1460,7 +1468,7 @@ if page == "📊 التحليل الكامل":
                 # استخدام البيانات المحملة مسبقًا (تحسين أداء)
                 full_df = st.session_state.full_government_data.copy()
                 
-                # ✅ تم التعديل: استخدام المدينة فقط مؤقتًا لتجنب mismatch
+                # فلترة حسب المدينة
                 real_data = full_df[full_df["city"] == report_city]
                 
                 # ✅ إزالة الصفوف التي لا تحتوي على price أو area (حماية لـ Gold Engine)
