@@ -213,6 +213,50 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# ========== ✅ تهيئة حالة الجلسة (في البداية مباشرة) ==========
+if 'report_generated' not in st.session_state:
+    st.session_state.report_generated = False
+if 'pdf_data' not in st.session_state:
+    st.session_state.pdf_data = None
+if 'real_data' not in st.session_state:
+    st.session_state.real_data = pd.DataFrame()
+if 'market_data' not in st.session_state:
+    st.session_state.market_data = {}
+if 'ai_recommendations' not in st.session_state:
+    st.session_state.ai_recommendations = None
+if 'user_info' not in st.session_state:
+    st.session_state.user_info = {}
+if 'smart_report_content' not in st.session_state:
+    st.session_state.smart_report_content = None
+if 'charts_by_chapter' not in st.session_state:
+    st.session_state.charts_by_chapter = {}
+if 'paid' not in st.session_state:
+    st.session_state.paid = False
+if 'robo_knowledge' not in st.session_state:
+    st.session_state.robo_knowledge = None
+if 'chosen_pkg' not in st.session_state:
+    st.session_state.chosen_pkg = "مجانية"
+if 'last_city' not in st.session_state:
+    st.session_state.last_city = None
+if 'last_property_type' not in st.session_state:
+    st.session_state.last_property_type = None
+if 'last_status' not in st.session_state:
+    st.session_state.last_status = None
+if 'last_chosen_pkg' not in st.session_state:
+    st.session_state.last_chosen_pkg = None
+if 'last_alert_refresh' not in st.session_state:
+    st.session_state.last_alert_refresh = datetime.now()
+if 'confirm_clear' not in st.session_state:
+    st.session_state.confirm_clear = False
+if 'daily_alerts' not in st.session_state:
+    st.session_state.daily_alerts = []
+if 'full_government_data' not in st.session_state:
+    st.session_state.full_government_data = pd.DataFrame()
+if 'available_cities' not in st.session_state:
+    st.session_state.available_cities = []
+if 'available_property_types' not in st.session_state:
+    st.session_state.available_property_types = []
+
 # ===============================
 # 📱 PWA – ربط manifest (تطبيق الهاتف) بعد set_page_config مباشرة
 # ===============================
@@ -820,8 +864,8 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ========== تحميل البيانات مرة واحدة فقط في الجلسة (تحسين أداء) ==========
-if "full_government_data" not in st.session_state:
+# ========== ✅ تحميل البيانات مرة واحدة فقط في الجلسة (تم تعديل الشرط) ==========
+if st.session_state.full_government_data.empty:
     with st.spinner("📊 جاري تحميل قاعدة بيانات الصفقات الرسمية..."):
         raw_data = load_government_data()
         st.session_state.full_government_data = normalize_government_dataframe(raw_data)
@@ -835,9 +879,9 @@ if not st.session_state.full_government_data.empty and "date" in st.session_stat
         st.caption(f"📅 أحدث صفقة في قاعدة البيانات بتاريخ: {last_date}")
 
 # ===============================
-# استخراج المدن وأنواع العقار ديناميكيًا
+# استخراج المدن وأنواع العقار ديناميكيًا (تم تعديل الشرط)
 # ===============================
-if "available_cities" not in st.session_state or "available_property_types" not in st.session_state:
+if not st.session_state.available_cities or not st.session_state.available_property_types:
     df_meta = st.session_state.full_government_data.copy()
     # المدن
     if "city" in df_meta.columns:
@@ -919,14 +963,11 @@ if page == "📊 التحليل الكامل":
                     # استخدام البيانات المحملة مسبقًا بدلاً من إعادة التحميل
                     full_df = st.session_state.full_government_data.copy()
                     
-                    # فلترة حسب المدينة ونوع العقار (مع تحويل لـ str للحماية)
-                    real_df = full_df[
-                        (full_df["city"] == city_select) & 
-                        (full_df["property_type"].astype(str).str.contains(property_type_select, na=False))
-                    ]
+                    # ✅ تم التعديل: استخدام المدينة فقط مؤقتًا لتجنب mismatch
+                    real_df = full_df[full_df["city"] == city_select]
                     
                     if real_df.empty:
-                        raise Exception(f"❌ لا توجد صفقات مسجلة للمدينة {city_select} ونوع العقار {property_type_select}")
+                        raise Exception(f"❌ لا توجد صفقات مسجلة للمدينة {city_select}")
 
                     # تشغيل التنبيهات على أساس البيانات الحقيقية - تمرير البيانات المفلترة فقط
                     alerts = update_market_and_check_alerts(city_select, property_type_select, real_df)
@@ -993,11 +1034,8 @@ if page == "📊 التحليل الكامل":
                     # استخدام البيانات المحملة مسبقًا
                     full_df = st.session_state.full_government_data.copy()
                     
-                    # فلترة حسب المدينة ونوع العقار (مع تحويل لـ str للحماية)
-                    real_df = full_df[
-                        (full_df["city"] == city_select) & 
-                        (full_df["property_type"].astype(str).str.contains(property_type_select, na=False))
-                    ]
+                    # ✅ تم التعديل: استخدام المدينة فقط مؤقتًا لتجنب mismatch
+                    real_df = full_df[full_df["city"] == city_select]
                     
                     alerts = update_market_and_check_alerts(city_select, property_type_select, real_df)
                     st.session_state.daily_alerts = alerts
@@ -1185,13 +1223,11 @@ if page == "📊 التحليل الكامل":
                 # 1️⃣ استخدام البيانات المحملة مسبقًا
                 full_df = st.session_state.full_government_data.copy()
                 
-                real_data = full_df[
-                    (full_df["city"] == city) & 
-                    (full_df["property_type"].astype(str).str.contains(property_type, na=False))
-                ]
+                # ✅ تم التعديل: استخدام المدينة فقط مؤقتًا لتجنب mismatch
+                real_data = full_df[full_df["city"] == city]
 
                 if real_data is None or real_data.empty:
-                    raise Exception(f"❌ لا توجد صفقات مسجلة للمدينة {city} ونوع العقار {property_type}")
+                    raise Exception(f"❌ لا توجد صفقات مسجلة للمدينة {city}")
 
                 st.session_state["real_data"] = real_data
 
@@ -1424,16 +1460,14 @@ if page == "📊 التحليل الكامل":
                 # استخدام البيانات المحملة مسبقًا (تحسين أداء)
                 full_df = st.session_state.full_government_data.copy()
                 
-                real_data = full_df[
-                    (full_df["city"] == report_city) & 
-                    (full_df["property_type"].astype(str).str.contains(report_property_type, na=False))
-                ]
+                # ✅ تم التعديل: استخدام المدينة فقط مؤقتًا لتجنب mismatch
+                real_data = full_df[full_df["city"] == report_city]
                 
                 # ✅ إزالة الصفوف التي لا تحتوي على price أو area (حماية لـ Gold Engine)
                 real_data = real_data.dropna(subset=["price", "area"])
                 
                 if real_data.empty:
-                    st.error(f"❌ لا توجد صفقات مسجلة للمدينة {report_city} ونوع العقار {report_property_type}")
+                    st.error(f"❌ لا توجد صفقات مسجلة للمدينة {report_city}")
                     st.stop()
 
                 st.session_state.real_data = real_data
@@ -1484,15 +1518,14 @@ if page == "📊 التحليل الكامل":
                         user_info, market_data, real_data
                     )
 
-                # ✅ نظام PDF الموحد والمضمون
+                # ✅ نظام PDF الموحد والمضمون (تم تعديل الاستدعاء هنا)
                 try:
                     from report_orchestrator import build_report_story
 
-                    # بناء التقرير الذكي (تمرير البيانات لضمان الاستقلالية المعمارية)
+                    # ✅ تم التعديل: نمرر provided_dataframe=real_data فقط كما يتوقع orchestrator
                     story = build_report_story(
                         user_info=user_info,
-                        market_data=market_data,
-                        real_data=real_data
+                        provided_dataframe=real_data
                     )
                     
                     final_content_text = story.get("content_text", "")
@@ -1684,50 +1717,6 @@ if page == "🧠 المستشار الذكي":
 
         with st.chat_message("assistant"):
             st.markdown(robo_response)
-
-# ========== تهيئة حالة الجلسة ==========
-if 'report_generated' not in st.session_state:
-    st.session_state.report_generated = False
-if 'pdf_data' not in st.session_state:
-    st.session_state.pdf_data = None
-if 'real_data' not in st.session_state:
-    st.session_state.real_data = pd.DataFrame()
-if 'market_data' not in st.session_state:
-    st.session_state.market_data = {}
-if 'ai_recommendations' not in st.session_state:
-    st.session_state.ai_recommendations = None
-if 'user_info' not in st.session_state:
-    st.session_state.user_info = {}
-if 'smart_report_content' not in st.session_state:
-    st.session_state.smart_report_content = None
-if 'charts_by_chapter' not in st.session_state:
-    st.session_state.charts_by_chapter = {}
-if 'paid' not in st.session_state:
-    st.session_state.paid = False
-if 'robo_knowledge' not in st.session_state:
-    st.session_state.robo_knowledge = None
-if 'chosen_pkg' not in st.session_state:
-    st.session_state.chosen_pkg = "مجانية"
-if 'last_city' not in st.session_state:
-    st.session_state.last_city = None
-if 'last_property_type' not in st.session_state:
-    st.session_state.last_property_type = None
-if 'last_status' not in st.session_state:
-    st.session_state.last_status = None
-if 'last_chosen_pkg' not in st.session_state:
-    st.session_state.last_chosen_pkg = None
-if 'last_alert_refresh' not in st.session_state:
-    st.session_state.last_alert_refresh = datetime.now()
-if 'confirm_clear' not in st.session_state:
-    st.session_state.confirm_clear = False
-if 'daily_alerts' not in st.session_state:
-    st.session_state.daily_alerts = []
-if 'full_government_data' not in st.session_state:
-    st.session_state.full_government_data = pd.DataFrame()
-if 'available_cities' not in st.session_state:
-    st.session_state.available_cities = []
-if 'available_property_types' not in st.session_state:
-    st.session_state.available_property_types = []
 
 st.markdown("---")
 st.markdown(f"""
