@@ -6,7 +6,15 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+df_raw = load_government_data(selected_city=None, selected_property_type=None)
 
+st.write("📊 عدد كل الصفقات بدون أي فلترة:", len(df_raw))
+
+st.write("📋 أول 5 صفوف من الملف:")
+st.write(df_raw.head())
+
+st.write("📌 أسماء الأعمدة النهائية:")
+st.write(df_raw.columns.tolist())
 st.write("🔍 اختبار مباشر لمزود البيانات")
 
 test_df = load_government_data(selected_city="الرياض", selected_property_type="شقة")
