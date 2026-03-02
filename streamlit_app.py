@@ -142,13 +142,6 @@ except ImportError:
     class MarketIntelligence:
         pass
 
-# ========== إعداد الصفحة (يجب أن يكون أول استدعاء لـ st) ==========
-st.set_page_config(
-    page_title="التحليل العقاري الذهبي | Warda Intelligence",
-    page_icon="🏙️",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
 
 # ===============================
 # 📱 PWA – ربط manifest (تطبيق الهاتف) بعد set_page_config مباشرة
