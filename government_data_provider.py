@@ -16,7 +16,9 @@ def load_government_data(selected_city=None, selected_property_type=None):
         if not DATA_PATH.exists():
             print("❌ ملف البيانات غير موجود:", DATA_PATH.absolute())
             return pd.DataFrame()
-
+print("🔎 المسار الكامل:", DATA_PATH.resolve())
+print("🔎 هل الملف موجود فعليًا؟", DATA_PATH.exists())
+print("🔎 حجم الملف (بايت):", DATA_PATH.stat().st_size if DATA_PATH.exists() else "غير موجود")
         df = pd.read_csv(
             DATA_PATH,
             encoding="cp1256",
