@@ -123,40 +123,6 @@ except ImportError:
     class MarketIntelligence:
         pass
 
-# ===============================
-# SNAPSHOT ENGINE (الحل النهائي)
-# ===============================
-
-SNAPSHOT_DIR = "snapshots"
-os.makedirs(SNAPSHOT_DIR, exist_ok=True)
-
-def load_latest_snapshot(city, property_type):
-    """تحميل آخر لقطة محفوظة من السوق"""
-    files = [
-        f for f in os.listdir(SNAPSHOT_DIR)
-        if f.startswith(f"{city}_{property_type}") and f.endswith(".csv")
-    ]
-    if not files:
-        return None
-
-    files.sort(reverse=True)
-    path = os.path.join(SNAPSHOT_DIR, files[0])
-    return pd.read_csv(path)
-
-def create_snapshot(city, property_type):
-    """إنشاء لقطة جديدة من السوق وحفظها"""
-    df = load_government_data(selected_city=city, selected_property_type=property_type)
-
-    if df is None or df.empty:
-        raise Exception("❌ لا توجد بيانات حقيقية من السوق")
-
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
-    filename = f"{city}_{property_type}_{timestamp}.csv"
-    path = os.path.join(SNAPSHOT_DIR, filename)
-
-    df.to_csv(path, index=False, encoding="utf-8-sig")
-    return df, path
-
 # ========== إعداد الصفحة (يجب أن يكون أول استدعاء لـ st) ==========
 st.set_page_config(
     page_title="التحليل العقاري الذهبي | Warda Intelligence",
@@ -815,12 +781,6 @@ if page == "📊 التحليل الكامل":
                         if real_df.empty:
                             st.error(f"❌ لا توجد بيانات للمدينة {city_select}")
                         else:
-                            # إنشاء لقطة جديدة
-                            df_snapshot, snapshot_path = create_snapshot(
-                                city_select,
-                                property_type_select
-                            )
-
                             # تشغيل التنبيهات
                             alerts = update_market_and_check_alerts(
                                 city_select,
@@ -829,9 +789,8 @@ if page == "📊 التحليل الكامل":
 
                             st.session_state.daily_alerts = alerts
                             st.session_state.last_alert_refresh = datetime.now()
-                            st.session_state.last_snapshot_path = snapshot_path
 
-                            st.success(f"✅ تم تحديث السوق وحفظ {len(df_snapshot)} صفقة")
+                            st.success(f"✅ تم تحديث السوق بـ {len(real_df)} صفقة")
 
                     except Exception as e:
                         st.error(f"❌ حدث خطأ: {str(e)}")
@@ -1059,11 +1018,14 @@ if page == "📊 التحليل الكامل":
     if robo_needs_update or "robo_knowledge" not in st.session_state:
         with st.spinner("🧠 تحديث المستشار الذكي..."):
             try:
-                # 1️⃣ تحميل آخر بيانات حقيقية محفوظة فقط
-                real_data = load_latest_snapshot(city, property_type)
+                # 1️⃣ تحميل بيانات حقيقية مباشرة من المصدر
+                real_data = load_government_data(
+                    selected_city=city,
+                    selected_property_type=property_type
+                )
 
                 if real_data is None or real_data.empty:
-                    raise Exception("❌ لا توجد بيانات محفوظة. اضغطي أولاً على (تحديث بيانات السوق).")
+                    raise Exception("❌ لا توجد بيانات حقيقية من السوق لهذه المدينة.")
 
                 st.session_state["real_data"] = real_data
 
@@ -1289,15 +1251,18 @@ if page == "📊 التحليل الكامل":
     if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
         with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
             try:
-                # ✅ تحميل آخر بيانات حقيقية محفوظة
-                real_data = load_latest_snapshot(city, property_type)
+                # ✅ تحميل بيانات حقيقية مباشرة من المصدر (تم إزالة snapshot)
+                real_data = load_government_data(
+                    selected_city=city,
+                    selected_property_type=property_type
+                )
 
                 if real_data is None or real_data.empty:
-                    st.error("❌ لا توجد بيانات محفوظة. اضغطي أولاً على (تحديث بيانات السوق).")
+                    st.error("❌ لا توجد بيانات حقيقية من السوق لهذه المدينة.")
                     st.stop()
 
                 st.session_state.real_data = real_data
-                st.success(f"✅ تم تحميل {len(real_data)} عقار حقيقي من آخر لقطة")
+                st.success(f"✅ تم تحميل {len(real_data)} عقار حقيقي من المصدر مباشرة")
 
                 market_data = generate_advanced_market_data(
                     city, property_type, status, real_data
@@ -1347,12 +1312,15 @@ if page == "📊 التحليل الكامل":
                 # ✅ نظام PDF الموحد والمضمون - الإصدار المحسن
                 try:
                     # =====================================
-                    # 🧠 استخدام نظام البناء الذكي الجديد
+                    # 🧠 استخدام نظام البناء الذكي الجديد مع تمرير البيانات مباشرة
                     # =====================================
                     from report_orchestrator import build_report_story
 
-                    # بناء التقرير الذكي
-                    story = build_report_story(user_info)
+                    # بناء التقرير الذكي مع تمرير البيانات مباشرة
+                    story = build_report_story(
+                        user_info,
+                        provided_dataframe=real_data  # ✅ تمرير البيانات لمنع جلب بيانات مختلفة
+                    )
                     
                     # 🔍 التحقق الإلزامي من محتوى التقرير
                     final_content_text = story.get("content_text", "")
@@ -1587,8 +1555,6 @@ if 'confirm_clear' not in st.session_state:
     st.session_state.confirm_clear = False
 if 'daily_alerts' not in st.session_state:
     st.session_state.daily_alerts = []
-if 'last_snapshot_path' not in st.session_state:
-    st.session_state.last_snapshot_path = None
 
 st.markdown("---")
 st.markdown("""
