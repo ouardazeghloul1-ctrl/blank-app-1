@@ -68,8 +68,18 @@ def load_government_data(selected_city=None, selected_property_type=None):
             print("❌ لا يوجد عمود سعر")
             return pd.DataFrame()
 
+        # تنظيف السعر من الفواصل والرموز
+        df["price"] = (
+            df["price"]
+            .astype(str)
+            .str.replace(",", "", regex=False)
+            .str.replace(" ", "", regex=False)
+        )
+
         df["price"] = pd.to_numeric(df["price"], errors="coerce")
-        df = df.dropna(subset=["price"])
+
+        # لا نحذف كل الصفوف مباشرة
+        df = df[df["price"] > 0]
 
         # المساحة
         if "area" in df.columns:
