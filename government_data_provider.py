@@ -5,7 +5,7 @@
 import pandas as pd
 from pathlib import Path
 
-DATA_PATH = Path("market_transactions.csv")
+DATA_PATH = Path(__file__).parent / "market_transactions.csv"
 
 def load_government_data(selected_city=None, selected_property_type=None):
     """
