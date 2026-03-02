@@ -1,5 +1,11 @@
 import streamlit as st
 from government_data_provider import load_government_data
+st.set_page_config(
+    page_title="التحليل العقاري الذهبي | Warda Intelligence",
+    page_icon="🏙️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 st.write("🔍 اختبار مباشر لمزود البيانات")
 
