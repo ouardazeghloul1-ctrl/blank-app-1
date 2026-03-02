@@ -99,12 +99,29 @@ def load_government_data(selected_city=None, selected_property_type=None):
             df = df[df["city"].str.contains(selected_city, na=False)]
 
         # ======================
-        # 5️⃣ فلترة نوع العقار
+        # 5️⃣ فلترة نوع العقار - نسخة ذكية
         # ======================
 
         if selected_property_type and selected_property_type != "الكل":
             if "property_type" in df.columns:
-                df = df[df["property_type"].str.contains(selected_property_type, na=False)]
+
+                # تحويل اختيار المستخدم إلى التصنيف الحكومي
+                property_map = {
+                    "شقة": "سكني",
+                    "فيلا": "سكني",
+                    "أرض": "سكني",
+                    "محل تجاري": "تجاري",
+                    "سكني": "سكني",
+                    "تجاري": "تجاري"
+                }
+
+                mapped_value = property_map.get(selected_property_type)
+
+                if mapped_value:
+                    df = df[df["property_type"].str.contains(mapped_value, na=False)]
+                else:
+                    # إذا لم يكن هناك تطابق في الخريطة، استخدم النص الأصلي
+                    df = df[df["property_type"].str.contains(selected_property_type, na=False)]
 
         # ======================
         # 6️⃣ حماية أعمدة أساسية
