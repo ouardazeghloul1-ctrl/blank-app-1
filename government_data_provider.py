@@ -1,5 +1,5 @@
 # =========================================
-# Government Data Provider - الإصدار النهائي والمضمون
+# Government Data Provider - الإصدار النهائي بعد تعديل المدينة الذكي
 # =========================================
 
 import pandas as pd
@@ -108,28 +108,30 @@ def load_government_data(selected_city=None, selected_property_type=None):
             print(f"الحي: {unique_districts[:5]}")
 
         # ======================
-        # فلترة المدينة الذكية (مع index مطابق)
+        # فلترة المدينة الذكية جدًا (مع إزالة "ال")
         # ======================
 
         if selected_city:
             city_mask = pd.Series(False, index=df.index)
 
-            # البحث في عمود city (إن وجد)
+            # إزالة "ال" من بداية الاسم للمقارنة المرنة
+            clean_selected = selected_city.replace("ال", "").strip()
+            print(f"🔍 البحث عن: '{selected_city}' (بعد التنظيف: '{clean_selected}')")
+
             if "city" in df.columns:
-                city_mask = city_mask | df["city"].str.contains(selected_city, na=False, regex=False)
+                # تنظيف عمود المدينة من "ال" أيضًا
+                df_city_clean = df["city"].astype(str).str.replace("ال", "", regex=False).str.strip()
+                city_mask = city_mask | df_city_clean.str.contains(clean_selected, na=False, regex=False)
 
-            # البحث في عمود district (إن وجد)
             if "district" in df.columns:
-                city_mask = city_mask | df["district"].str.contains(selected_city, na=False, regex=False)
-
-            # إذا لم نجد أي تطابق، نحاول البحث في النص الكامل للصف (حل أخير)
-            if not city_mask.any():
-                # دمج جميع الأعمدة النصية والبحث فيها
-                text_columns = df.select_dtypes(include=['object']).columns
-                for col in text_columns:
-                    city_mask = city_mask | df[col].str.contains(selected_city, na=False, regex=False)
+                # تنظيف عمود الحي من "ال" أيضًا
+                df_district_clean = df["district"].astype(str).str.replace("ال", "", regex=False).str.strip()
+                city_mask = city_mask | df_district_clean.str.contains(clean_selected, na=False, regex=False)
 
             df = df[city_mask]
+            
+            # إحصائيات بعد الفلترة
+            print(f"🏙️ بعد فلترة المدينة '{selected_city}': {len(df)} صفقة")
 
         # ======================
         # فلترة نوع العقار الذكية (الحل الصحيح)
@@ -177,6 +179,10 @@ def load_government_data(selected_city=None, selected_property_type=None):
                 if type_mask.any():
                     df = df[type_mask]
 
+            # إحصائيات بعد فلترة النوع
+            if selected_property_type:
+                print(f"🏠 بعد فلترة النوع '{selected_property_type}': {len(df)} صفقة")
+
         # ======================
         # أعمدة افتراضية لحماية النظام
         # ======================
@@ -191,14 +197,10 @@ def load_government_data(selected_city=None, selected_property_type=None):
             df["property_type"] = "سكني"  # قيمة افتراضية
 
         # ======================
-        # إحصائيات للتصحيح
+        # إحصائيات نهائية
         # ======================
 
-        print(f"\n✅ تم تحميل {len(df)} صفقة")
-        if selected_city:
-            print(f"🏙️ بعد فلترة المدينة '{selected_city}': {len(df)} صفقة")
-        if selected_property_type:
-            print(f"🏠 بعد فلترة النوع '{selected_property_type}': {len(df)} صفقة")
+        print(f"\n✅ تم تحميل {len(df)} صفقة في النتيجة النهائية")
 
         return df.reset_index(drop=True)
 
@@ -214,7 +216,7 @@ def load_government_data(selected_city=None, selected_property_type=None):
 # ======================
 if __name__ == "__main__":
     print("=" * 60)
-    print("🔍 اختبار تحميل البيانات - الإصدار النهائي")
+    print("🔍 اختبار تحميل البيانات - الإصدار النهائي بعد تعديل المدينة الذكي")
     print("=" * 60)
     
     # اختبار 1: كل البيانات
@@ -257,6 +259,12 @@ if __name__ == "__main__":
     print("📊 7. شقق جدة:")
     df_jeddah_apart = load_government_data(selected_city="جدة", selected_property_type="شقة")
     print(f"→ شقق جدة: {len(df_jeddah_apart)} صفقة")
+    
+    # اختبار 8: الرياض بدون "ال" (للتأكد من المرونة)
+    print("\n" + "=" * 60)
+    print("📊 8. الرياض (بدون ال):")
+    df_riyadh_no_al = load_government_data(selected_city="رياض")
+    print(f"→ الرياض: {len(df_riyadh_no_al)} صفقة")
     
     # عرض عينة من البيانات إذا وجدت
     if not df_riyadh_apart.empty:
