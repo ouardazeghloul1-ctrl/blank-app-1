@@ -77,7 +77,7 @@ def calculate_dci(real_data: pd.DataFrame) -> int:
     if "date" in real_data.columns:
         latest_date = real_data["date"].max()
         if pd.notnull(latest_date):
-            days_diff = (datetime.now() - latest_date).days
+            days_diff = (datetime.now() - pd.to_datetime(latest_date, errors='coerce')).days if latest_date else 0
             freshness = clamp(1 - (days_diff / 180), 0, 1)  # 6 أشهر
             score += freshness * 25
 
