@@ -1,3 +1,13 @@
+st.write("🔍 اختبار مباشر لمزود البيانات")
+
+test_df = load_government_data(selected_city="الرياض", selected_property_type="شقة")
+st.write("عدد شقق الرياض:", len(test_df))
+
+test_df2 = load_government_data(selected_city="جدة", selected_property_type="شقة")
+st.write("عدد شقق جدة:", len(test_df2))
+
+test_df3 = load_government_data(selected_city="الرياض", selected_property_type="محل تجاري")
+st.write("عدد المحلات التجارية في الرياض:", len(test_df3))
 import streamlit as st
 import pandas as pd
 import numpy as np
