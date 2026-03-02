@@ -1,3 +1,6 @@
+import streamlit as st
+from government_data_provider import load_government_data
+
 st.write("🔍 اختبار مباشر لمزود البيانات")
 
 test_df = load_government_data(selected_city="الرياض", selected_property_type="شقة")
