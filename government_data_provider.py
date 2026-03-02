@@ -1,13 +1,15 @@
 # =========================================
-# Government Data Provider - الإصدار النهائي مع تحميل من Google Drive
+# Government Data Provider - الإصدار النهائي مع gdown
 # =========================================
 
 import pandas as pd
+import gdown
+import os
 from pathlib import Path
 
 # ✅ رابط Google Drive المباشر
 FILE_ID = "1IX2mPrIAZviHxLEuS4APSC-HqfPVs06d"
-DATA_URL = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
+local_file = "market_transactions_downloaded.csv"
 
 def load_government_data(selected_city=None, selected_property_type=None):
     """
@@ -15,9 +17,16 @@ def load_government_data(selected_city=None, selected_property_type=None):
     المصدر الوحيد للحقيقة في النظام
     """
     try:
-        # ✅ تحميل الملف مباشرة من Google Drive
-        print("📥 جاري تحميل البيانات من Google Drive...")
-        df = pd.read_csv(DATA_URL, encoding="utf-8-sig", low_memory=False)
+        # ✅ تحميل الملف من Google Drive إذا لم يكن موجودًا محليًا
+        if not os.path.exists(local_file):
+            print("📥 جاري تحميل الملف من Google Drive...")
+            gdown.download(f"https://drive.google.com/uc?id={FILE_ID}", local_file, quiet=False)
+            print("✅ تم تحميل الملف بنجاح")
+        else:
+            print("📁 الملف موجود محليًا، يتم قراءته مباشرة")
+
+        # ✅ قراءة الملف بعد تحميله
+        df = pd.read_csv(local_file, encoding="utf-8-sig", low_memory=False)
 
         print("📊 تم تحميل الملف بنجاح")
         print("عدد الصفوف الخام:", len(df))
@@ -214,7 +223,7 @@ def load_government_data(selected_city=None, selected_property_type=None):
 # ======================
 if __name__ == "__main__":
     print("=" * 60)
-    print("🔍 اختبار تحميل البيانات - الإصدار النهائي مع Google Drive")
+    print("🔍 اختبار تحميل البيانات - الإصدار النهائي مع gdown")
     print("=" * 60)
     
     # اختبار 1: كل البيانات
