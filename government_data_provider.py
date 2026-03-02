@@ -1,11 +1,11 @@
 # =========================================
-# Government Data Provider - الإصدار النهائي بعد تعديل المدينة الذكي
+# Government Data Provider - الإصدار النهائي بعد تعديل القراءة الآمنة
 # =========================================
 
 import pandas as pd
 from pathlib import Path
 
-DATA_PATH = Path(__file__).parent / "market_transactions.csv"
+DATA_PATH = Path("market_transactions.csv")
 
 def load_government_data(selected_city=None, selected_property_type=None):
     """
@@ -16,15 +16,15 @@ def load_government_data(selected_city=None, selected_property_type=None):
         if not DATA_PATH.exists():
             print("❌ ملف البيانات غير موجود:", DATA_PATH.absolute())
             return pd.DataFrame()
-            print("🔎 المسار الكامل:", DATA_PATH.resolve())
-            print("🔎 هل الملف موجود فعليًا؟", DATA_PATH.exists())
-            print("🔎 حجم الملف (بايت):", DATA_PATH.stat().st_size if DATA_PATH.exists() else "غير موجود")
-        df = pd.read_csv(
-            DATA_PATH,
-            encoding="cp1256",
-            engine="python",
-            on_bad_lines="skip"
-        )
+
+        # ✅ قراءة الملف بطريقة آمنة تدعم العربية
+        try:
+            df = pd.read_csv(DATA_PATH, encoding="utf-8-sig", low_memory=False)
+        except Exception:
+            df = pd.read_csv(DATA_PATH, encoding="cp1256", low_memory=False)
+
+        print("📊 تم تحميل الملف بنجاح")
+        print("عدد الصفوف الخام:", len(df))
 
         if df.empty:
             print("⚠️ ملف البيانات فارغ")
@@ -218,7 +218,7 @@ def load_government_data(selected_city=None, selected_property_type=None):
 # ======================
 if __name__ == "__main__":
     print("=" * 60)
-    print("🔍 اختبار تحميل البيانات - الإصدار النهائي بعد تعديل المدينة الذكي")
+    print("🔍 اختبار تحميل البيانات - الإصدار النهائي بعد تعديل القراءة الآمنة")
     print("=" * 60)
     
     # اختبار 1: كل البيانات
