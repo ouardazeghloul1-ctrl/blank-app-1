@@ -7,7 +7,7 @@ from pathlib import Path
 
 # ✅ رابط Google Drive المباشر
 FILE_ID = "1IX2mPrIAZviHxLEuS4APSC-HqfPVs06d"
-DATA_URL = f"https://drive.google.com/uc?id={FILE_ID}"
+DATA_URL = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
 
 def load_government_data(selected_city=None, selected_property_type=None):
     """
