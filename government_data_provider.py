@@ -1,11 +1,13 @@
 # =========================================
-# Government Data Provider - الإصدار النهائي بعد تعديل القراءة الآمنة
+# Government Data Provider - الإصدار النهائي مع تحميل من Google Drive
 # =========================================
 
 import pandas as pd
 from pathlib import Path
 
-DATA_PATH = Path("market_transactions.csv")
+# ✅ رابط Google Drive المباشر
+FILE_ID = "1IX2mPrIAZviHxLEuS4APSC-HqfPVs06d"
+DATA_URL = f"https://drive.google.com/uc?id={FILE_ID}"
 
 def load_government_data(selected_city=None, selected_property_type=None):
     """
@@ -13,15 +15,9 @@ def load_government_data(selected_city=None, selected_property_type=None):
     المصدر الوحيد للحقيقة في النظام
     """
     try:
-        if not DATA_PATH.exists():
-            print("❌ ملف البيانات غير موجود:", DATA_PATH.absolute())
-            return pd.DataFrame()
-
-        # ✅ قراءة الملف بطريقة آمنة تدعم العربية
-        try:
-            df = pd.read_csv(DATA_PATH, encoding="utf-8-sig", low_memory=False)
-        except Exception:
-            df = pd.read_csv(DATA_PATH, encoding="cp1256", low_memory=False)
+        # ✅ تحميل الملف مباشرة من Google Drive
+        print("📥 جاري تحميل البيانات من Google Drive...")
+        df = pd.read_csv(DATA_URL, encoding="utf-8-sig", low_memory=False)
 
         print("📊 تم تحميل الملف بنجاح")
         print("عدد الصفوف الخام:", len(df))
@@ -218,7 +214,7 @@ def load_government_data(selected_city=None, selected_property_type=None):
 # ======================
 if __name__ == "__main__":
     print("=" * 60)
-    print("🔍 اختبار تحميل البيانات - الإصدار النهائي بعد تعديل القراءة الآمنة")
+    print("🔍 اختبار تحميل البيانات - الإصدار النهائي مع Google Drive")
     print("=" * 60)
     
     # اختبار 1: كل البيانات
