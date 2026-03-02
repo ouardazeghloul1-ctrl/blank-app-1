@@ -27,6 +27,11 @@ test_df3 = load_government_data(selected_city="الرياض", selected_property_
 st.write("عدد المحلات التجارية في الرياض:", len(test_df3))
 import streamlit as st
 import pandas as pd
+
+st.write("اختبار مباشر للرابط:")
+test_df = pd.read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vQDUIKyiHICZbjXTiAHI-cs7Y3oDDMcuzcU328Vcb2nryoTcckiallsZZyHpHVdAweoo3P7A-5dSdzu/pub?output=csv")
+st.write("عدد الصفوف:", len(test_df))
+st.dataframe(test_df.head())
 import numpy as np
 from datetime import datetime, timedelta
 import math
