@@ -33,23 +33,27 @@ def load_government_data(selected_city=None, selected_property_type=None):
         print("📊 الأعمدة المتوفرة:", df.columns.tolist())
 
         # ======================
-        # توحيد الأعمدة الأساسية (موسع)
+        # ✅ توحيد الأعمدة الأساسية - المعدل حسب ملف منصتك
         # ======================
 
         column_map = {
             "السعر": "price",
             "قيمة الصفقة": "price",
             "سعر البيع": "price",
+
             "تاريخ الصفقة": "date",
-            "التاريخ": "date",
-            "الحي": "district",
-            "الحي / المدينة": "district",
+            "تاريخ الصفقة ميلادي": "date",
+
             "المنطقة": "city",
             "المدينة": "city",
+
+            "المدينة / الحي": "district",
+
             "المساحة": "area",
-            "نوع العقار": "property_type",
-            "نوع_العقار": "property_type",
-            "وصف العقار": "description"
+
+            "تصنيف العقار": "property_type",   # 🔥 هذا أهم سطر
+
+            "عدد العقارات": "units"
         }
 
         for ar_col, en_col in column_map.items():
