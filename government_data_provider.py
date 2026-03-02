@@ -1,5 +1,5 @@
 # =========================================
-# Government Data Provider - Stable Version
+# Government Data Provider - الإصدار النهائي والمضمون
 # =========================================
 
 import pandas as pd
@@ -44,16 +44,25 @@ def load_government_data(selected_city=None, selected_property_type=None):
             "التاريخ": "date",
             "الحي": "district",
             "الحي / المدينة": "district",
-            "المنطقة": "city",           # ✅ الأهم: المنطقة = city
+            "المنطقة": "city",
             "المدينة": "city",
             "المساحة": "area",
             "نوع العقار": "property_type",
-            "نوع_العقار": "property_type"
+            "نوع_العقار": "property_type",
+            "وصف العقار": "description"
         }
 
         for ar_col, en_col in column_map.items():
             if ar_col in df.columns:
                 df[en_col] = df[ar_col]
+
+        # ======================
+        # تنظيف النصوص من المسافات والرموز المخفية (الأهم)
+        # ======================
+
+        text_columns = df.select_dtypes(include=['object']).columns
+        for col in text_columns:
+            df[col] = df[col].astype(str).str.strip()
 
         # ======================
         # تنظيف السعر (إلزامي)
@@ -80,44 +89,89 @@ def load_government_data(selected_city=None, selected_property_type=None):
             df["area"] = 100
 
         # ======================
-        # فلترة المدينة الذكية (الأهم)
+        # 🔍 طباعة القيم الفريدة للتصحيح
+        # ======================
+
+        print("\n🔎 القيم الفريدة قبل الفلترة:")
+        if "property_type" in df.columns:
+            unique_types = df["property_type"].unique()
+            print(f"نوع العقار: {unique_types[:10]}")
+        if "city" in df.columns:
+            unique_cities = df["city"].unique()
+            print(f"المدينة: {unique_cities[:10]}")
+        if "district" in df.columns:
+            unique_districts = df["district"].unique()
+            print(f"الحي: {unique_districts[:5]}")
+
+        # ======================
+        # فلترة المدينة الذكية (مع index مطابق)
         # ======================
 
         if selected_city:
-            city_mask = pd.Series([False] * len(df))
+            city_mask = pd.Series(False, index=df.index)
 
             # البحث في عمود city (إن وجد)
             if "city" in df.columns:
-                city_mask = city_mask | df["city"].astype(str).str.contains(selected_city, na=False)
+                city_mask = city_mask | df["city"].str.contains(selected_city, na=False, regex=False)
 
             # البحث في عمود district (إن وجد)
             if "district" in df.columns:
-                city_mask = city_mask | df["district"].astype(str).str.contains(selected_city, na=False)
+                city_mask = city_mask | df["district"].str.contains(selected_city, na=False, regex=False)
 
             # إذا لم نجد أي تطابق، نحاول البحث في النص الكامل للصف (حل أخير)
             if not city_mask.any():
                 # دمج جميع الأعمدة النصية والبحث فيها
                 text_columns = df.select_dtypes(include=['object']).columns
                 for col in text_columns:
-                    city_mask = city_mask | df[col].astype(str).str.contains(selected_city, na=False)
+                    city_mask = city_mask | df[col].str.contains(selected_city, na=False, regex=False)
 
             df = df[city_mask]
 
         # ======================
-        # فلترة نوع العقار
+        # فلترة نوع العقار الذكية (الحل الصحيح)
         # ======================
 
         if selected_property_type and selected_property_type != "الكل":
-            property_mask = pd.Series([False] * len(df))
             
-            possible_cols = ["property_type", "نوع العقار", "نوع_العقار"]
-            for col in possible_cols:
-                if col in df.columns:
-                    property_mask = property_mask | df[col].astype(str).str.contains(selected_property_type, na=False)
+            # خريطة التحويل بين اختيار المستخدم والبيانات الحكومية
+            property_mapping = {
+                "شقة": "سكني",
+                "فيلا": "سكني",
+                "أرض": "سكني",
+                "محل تجاري": "تجاري",
+                "سكني": "سكني",      # للحالات المباشرة
+                "تجاري": "تجاري"      # للحالات المباشرة
+            }
+
+            mapped_type = property_mapping.get(selected_property_type)
             
-            # إذا وجدنا تطابق، نطبق الفلترة
-            if property_mask.any():
-                df = df[property_mask]
+            if mapped_type and "property_type" in df.columns:
+                # فلترة حسب النوع المحول
+                df = df[df["property_type"].str.contains(mapped_type, na=False, regex=False)]
+                print(f"🏠 تم تحويل '{selected_property_type}' → '{mapped_type}'")
+            
+            # إذا لم نجد property_type، نحاول البحث في الوصف
+            elif "description" in df.columns and mapped_type:
+                df = df[df["description"].str.contains(mapped_type, na=False, regex=False)]
+            
+            # إذا ما زلنا لم نجد، نستخدم البحث النصي العام (محسن)
+            else:
+                print("⚠️ لم نجد property_type، نبحث في النص العام...")
+                # البحث في كل الأعمدة النصية
+                text_columns = df.select_dtypes(include=['object']).columns
+                type_mask = pd.Series(False, index=df.index)
+                
+                # استخدام الكلمة الكاملة للبحث (وليس [:3])
+                search_terms = [selected_property_type]
+                if selected_property_type == "محل تجاري":
+                    search_terms = ["تجاري", "محل"]
+                
+                for col in text_columns:
+                    for term in search_terms:
+                        type_mask = type_mask | df[col].str.contains(term, na=False, regex=False)
+                
+                if type_mask.any():
+                    df = df[type_mask]
 
         # ======================
         # أعمدة افتراضية لحماية النظام
@@ -130,13 +184,13 @@ def load_government_data(selected_city=None, selected_property_type=None):
             df["date"] = pd.NA
 
         if "property_type" not in df.columns:
-            df["property_type"] = selected_property_type or "غير محدد"
+            df["property_type"] = "سكني"  # قيمة افتراضية
 
         # ======================
         # إحصائيات للتصحيح
         # ======================
 
-        print(f"✅ تم تحميل {len(df)} صفقة")
+        print(f"\n✅ تم تحميل {len(df)} صفقة")
         if selected_city:
             print(f"🏙️ بعد فلترة المدينة '{selected_city}': {len(df)} صفقة")
         if selected_property_type:
@@ -152,24 +206,73 @@ def load_government_data(selected_city=None, selected_property_type=None):
 
 
 # ======================
-# دالة اختبار سريعة (تشغيل يدوي)
+# دالة اختبار شاملة (تشغيل يدوي)
 # ======================
 if __name__ == "__main__":
-    print("🔍 اختبار تحميل البيانات:")
+    print("=" * 60)
+    print("🔍 اختبار تحميل البيانات - الإصدار النهائي")
+    print("=" * 60)
     
-    # اختبار بدون فلترة
+    # اختبار 1: كل البيانات
+    print("\n📊 1. كل البيانات:")
     df_all = load_government_data()
-    print(f"كل البيانات: {len(df_all)} صفقة")
+    print(f"→ الإجمالي: {len(df_all)} صفقة")
     
-    # اختبار مع فلترة الرياض
+    # اختبار 2: الرياض فقط
+    print("\n" + "=" * 60)
+    print("📊 2. الرياض:")
     df_riyadh = load_government_data(selected_city="الرياض")
-    print(f"الرياض: {len(df_riyadh)} صفقة")
+    print(f"→ الرياض: {len(df_riyadh)} صفقة")
     
-    # اختبار مع فلترة شقق في الرياض
+    # اختبار 3: شقق الرياض (الأهم)
+    print("\n" + "=" * 60)
+    print("📊 3. شقق الرياض:")
     df_riyadh_apart = load_government_data(selected_city="الرياض", selected_property_type="شقة")
-    print(f"شقق الرياض: {len(df_riyadh_apart)} صفقة")
+    print(f"→ شقق الرياض: {len(df_riyadh_apart)} صفقة")
     
-    # عرض أول 5 صفوف للتحقق
-    if not df_riyadh.empty:
-        print("\n📋 عينة من بيانات الرياض:")
-        print(df_riyadh[["price", "area", "district", "city"] if "city" in df_riyadh.columns else ["price", "area"]].head())
+    # اختبار 4: فلل الرياض
+    print("\n" + "=" * 60)
+    print("📊 4. فلل الرياض:")
+    df_riyadh_villa = load_government_data(selected_city="الرياض", selected_property_type="فيلا")
+    print(f"→ فلل الرياض: {len(df_riyadh_villa)} صفقة")
+    
+    # اختبار 5: محال تجارية الرياض
+    print("\n" + "=" * 60)
+    print("📊 5. محال تجارية الرياض:")
+    df_riyadh_commercial = load_government_data(selected_city="الرياض", selected_property_type="محل تجاري")
+    print(f"→ محال تجارية الرياض: {len(df_riyadh_commercial)} صفقة")
+    
+    # اختبار 6: جدة
+    print("\n" + "=" * 60)
+    print("📊 6. جدة:")
+    df_jeddah = load_government_data(selected_city="جدة")
+    print(f"→ جدة: {len(df_jeddah)} صفقة")
+    
+    # اختبار 7: شقق جدة
+    print("\n" + "=" * 60)
+    print("📊 7. شقق جدة:")
+    df_jeddah_apart = load_government_data(selected_city="جدة", selected_property_type="شقة")
+    print(f"→ شقق جدة: {len(df_jeddah_apart)} صفقة")
+    
+    # عرض عينة من البيانات إذا وجدت
+    if not df_riyadh_apart.empty:
+        print("\n" + "=" * 60)
+        print("📋 عينة من شقق الرياض (أول 5 صفقات):")
+        display_cols = []
+        if "price" in df_riyadh_apart.columns:
+            display_cols.append("price")
+        if "area" in df_riyadh_apart.columns:
+            display_cols.append("area")
+        if "district" in df_riyadh_apart.columns:
+            display_cols.append("district")
+        if "property_type" in df_riyadh_apart.columns:
+            display_cols.append("property_type")
+        
+        if display_cols:
+            print(df_riyadh_apart[display_cols].head())
+        else:
+            print("✅ توجد بيانات ولكن لا توجد أعمدة للعرض")
+    
+    print("\n" + "=" * 60)
+    print("✅ انتهى الاختبار")
+    print("=" * 60)
