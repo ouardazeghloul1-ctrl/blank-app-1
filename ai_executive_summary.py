@@ -124,6 +124,7 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
     
     تم التحديث: استخدام معدل النمو المركب السنوي الحقيقي (CAGR)
     بدلاً من تحويل النمو الشهري إلى سنوي بطريقة أسية
+    تم التحديث: سقف مؤسسي محافظ 18% كحد أقصى و -10% كحد أدنى
     """
     # تهيئة قيم افتراضية آمنة
     forecast = None
@@ -162,8 +163,8 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
     else:
         annual_growth = 0.02  # 2% افتراضي
     
-    # حماية من الأرقام غير المنطقية
-    annual_growth = max(min(annual_growth, 0.25), -0.25)  # بين -25% و +25%
+    # سقف مؤسسي محافظ
+    annual_growth = max(min(annual_growth, 0.18), -0.10)  # بين -10% و +18%
     
     # ============================================
     # ✅ حساب التذبذب بشكل آمن
@@ -209,8 +210,8 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
             "short_term": short_term,
             "medium_term": medium_term,
             "long_term": long_term,
-            "cumulative_min": safe_pct((1 + annual_growth * 0.5) ** years - 1),
-            "cumulative_max": safe_pct((1 + annual_growth * 1.0) ** years - 1),
+            "cumulative_min": safe_pct((1 + annual_growth * 0.6) ** years - 1),
+            "cumulative_max": safe_pct((1 + annual_growth * 0.9) ** years - 1),
             "volatility": volatility
         }
 
