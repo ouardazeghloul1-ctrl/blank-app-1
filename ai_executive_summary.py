@@ -117,10 +117,11 @@ def format_forecast_period(years):
     else:
         return f"{years} سنوات"
 
-def compute_forecast(real_data: pd.DataFrame, years=10):
+def compute_forecast(real_data: pd.DataFrame, years=10, scm=100):
     """
     حساب تنبؤ زمني مبني فقط على البيانات الحية
     مع إمكانية تحديد عدد السنوات حسب الباقة
+    مع تأثير SCM على النمو المتوقع
     
     تم التحديث: استخدام معدل النمو المركب السنوي الحقيقي (CAGR)
     بدلاً من تحويل النمو الشهري إلى سنوي بطريقة أسية
@@ -144,9 +145,10 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
     # ============================================
     # ✅ حساب النمو السنوي الحقيقي (CAGR)
     # ============================================
-    prices = prices.sort_values()
-    first_price = prices.iloc[0]
-    last_price = prices.iloc[-1]
+    # البيانات مرتبة زمنياً بالفعل من الخطوة السابقة
+    prices_sorted = prices  # prices مأخوذة من real_data المرتبة
+    first_price = prices_sorted.iloc[0]
+    last_price = prices_sorted.iloc[-1]
     
     # حساب عدد السنوات الفعلية بين أول وآخر صفقة
     years_diff = 1.0  # قيمة افتراضية
@@ -163,10 +165,17 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
     else:
         annual_growth = 0.02  # 2% افتراضي
     
-    # سقف مؤسسي محافظ
+    # سقف مؤسسي محافظ (18% كحد أقصى، -10% كحد أدنى)
     annual_growth = max(min(annual_growth, 0.18), -0.10)
     
-    # ضبط النمو إذا كان الاتجاه ضعيفاً
+    # تقليل النمو إذا كان SCM ضعيف (فقط إذا كان النمو إيجابياً)
+    if annual_growth > 0:
+        if scm < 50:
+            annual_growth *= 0.7
+        elif scm < 60:
+            annual_growth *= 0.85
+    
+    # ضبط النمو إذا كان الاتجاه ضعيفاً للسنوات الطويلة
     if years >= 5 and annual_growth > 0.10:
         annual_growth = min(annual_growth, 0.12)
     
@@ -280,15 +289,16 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     decision_state = get_decision_state(dci, vgs, raos, scm)
 
     # =========================
-    # Forecast (مع قيم افتراضية آمنة)
+    # Forecast (نحسب فقط إذا كانت الباقة تدعم التنبؤ)
     # =========================
     forecast = None
     forecast_error = None
     
-    try:
-        forecast = compute_forecast(real_data, config["forecast_years"])
-    except ValueError as e:
-        forecast_error = str(e)
+    if config["forecast_years"] > 0:
+        try:
+            forecast = compute_forecast(real_data, config["forecast_years"], scm)
+        except ValueError as e:
+            forecast_error = str(e)
 
     # =========================
     # BUILD EXECUTIVE SUMMARY
@@ -304,7 +314,13 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     lines.append("")
     lines.append(f"الإصدار التنفيذي - الباقة {config['name']}")
     lines.append("")
-    lines.append(f"رقم المرجعية: WI-{city[:3]}-{property_type[:3]}-{pd.Timestamp.now().strftime('%Y%m')}")
+    
+    # إصلاح المرجعية مع حماية النصوص القصيرة
+    city_code = city[:3] if len(city) >= 3 else city
+    prop_code = property_type[:3] if len(property_type) >= 3 else property_type
+    ref_id = f"WI-{city_code}-{prop_code}-{pd.Timestamp.now().strftime('%Y%m%d%H%M')}"
+    lines.append(f"رقم المرجعية: {ref_id}")
+    
     lines.append(f"نطاق التطبيق: {property_type} – {city}")
     # ✅ نص دقيق قانونياً واستثمارياً
     lines.append("مصدر البيانات: صفقات عقارية فعلية منفذة في السوق وقت التحليل،")
@@ -391,7 +407,15 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     if config["show_vgs"]:
         lines.append(f"ثانياً: {TERMS['VGS']['label']} (VGS)")
         lines.append("")
-        vgs_display = f"{vgs}%" if vgs < 0 else f"+{vgs}%"
+        
+        # إصلاح عرض VGS لمعالجة حالة الصفر
+        if vgs > 0:
+            vgs_display = f"+{vgs}%"
+        elif vgs < 0:
+            vgs_display = f"{vgs}%"
+        else:
+            vgs_display = "0%"
+        
         lines.append(f"{vgs_display}")
         lines.append("")
         
@@ -507,6 +531,8 @@ def generate_executive_summary(user_info, market_data, real_data, package):
         lines.append(f"رابعاً: {config['scm_title']} (SCM)")
         lines.append("")
         lines.append(f"{scm}% {TERMS['SCM']['display']}")
+        lines.append("توافق بين 20 سيناريو")
+        lines.append("")
         
         if config["executive_depth"] == "intermediate":
             if scm >= 60:
@@ -522,8 +548,6 @@ def generate_executive_summary(user_info, market_data, real_data, package):
             else:
                 lines.append("الحذر من التقلبات.")
         else:
-            lines.append(" توافق بين 20 سيناريو")
-            lines.append("")
             if scm >= 70:
                 lines.append("تصنيف الاتجاه: تماسك اتجاهي طويل المدى منخفض احتمالية الانعكاس الهيكلي.")
             elif scm >= 55:
@@ -734,8 +758,23 @@ def generate_executive_summary(user_info, market_data, real_data, package):
         lines.append(f"{TERMS['DCI']['label']} أعلى من 55")
         lines.append(f"{TERMS['VGS']['label']} بين –8% و +5%")
         
-        if config["executive_depth"] == "comprehensive":
+        # تنبيه إذا كان VGS خارج النطاق
+        if vgs < -8 or vgs > 5:
+            lines.append("")
+            lines.append("تنبيه:")
+            lines.append("فجوة القيمة خارج النطاق المعتمد لشروط الصلاحية.")
+        
+        # إظهار شرط SCM وتنبيهه لكل الباقات التي تظهر SCM
+        if config["show_scm"]:
             lines.append(f"{TERMS['SCM']['display']} أعلى من 60%")
+            
+            # تنبيه إذا كان SCM أقل من 60%
+            if scm < 60:
+                lines.append("")
+                lines.append("تنبيه:")
+                lines.append("نسبة توافق السيناريوهات أقل من الحد الأدنى المعتمد.")
+        
+        if config["executive_depth"] == "comprehensive":
             lines.append("")
             lines.append("عند كسر أي شرط، يتم تفعيل إعادة المعايرة الرقمية فوراً.")
         
