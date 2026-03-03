@@ -122,9 +122,8 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
     حساب تنبؤ زمني مبني فقط على البيانات الحية
     مع إمكانية تحديد عدد السنوات حسب الباقة
     
-    ملاحظة مهمة:
-    - يتم حساب الفترة الزمنية الفعلية بين الصفقات
-    - تحويل النمو الشهري إلى سنوي بناءً على الفترة الفعلية وليس افتراض 12 شهر
+    تم التحديث: استخدام معدل النمو المركب السنوي الحقيقي (CAGR)
+    بدلاً من تحويل النمو الشهري إلى سنوي بطريقة أسية
     """
     # تهيئة قيم افتراضية آمنة
     forecast = None
@@ -141,65 +140,77 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
     if len(prices) < 3:
         raise ValueError("البيانات غير كافية لحساب التنبؤ (أقل من 3 نقاط سعرية).")
     
-    # حساب النمو الشهري (الافتراضي)
-    monthly_growth = prices.pct_change().median()
-    monthly_growth = monthly_growth if pd.notna(monthly_growth) else 0.001  # 0.1% حد أدنى
+    # ============================================
+    # ✅ حساب النمو السنوي الحقيقي (CAGR)
+    # ============================================
+    prices = prices.sort_values()
+    first_price = prices.iloc[0]
+    last_price = prices.iloc[-1]
     
-    # ✅ تحسين احترافي: حساب الفترة الزمنية الفعلية بين الصفقات
-    if "date" in real_data.columns and len(real_data["date"].dropna()) >= 2:
-        try:
-            # محاولة تحويل التاريخ إذا كان نصياً (مثل التاريخ الهجري)
-            dates = pd.to_datetime(real_data["date"], errors="coerce").dropna()
-            if len(dates) >= 2:
-                days_between = (dates.max() - dates.min()).days
-                months_between = max(days_between / 30, 1)  # تحويل الأيام إلى أشهر، حد أدنى 1
-            else:
-                months_between = 12  # افتراضي إذا فشل تحويل التاريخ
-        except:
-            months_between = 12  # افتراضي في حالة الخطأ
+    # حساب عدد السنوات الفعلية بين أول وآخر صفقة
+    years_diff = 1.0  # قيمة افتراضية
+    
+    if "date" in real_data.columns:
+        dates = pd.to_datetime(real_data["date"], errors="coerce").dropna()
+        if len(dates) >= 2:
+            days_diff = (dates.max() - dates.min()).days
+            years_diff = max(days_diff / 365, 0.25)  # حد أدنى 3 أشهر
+    
+    # معدل النمو المركب السنوي (CAGR)
+    if first_price > 0 and last_price > 0:
+        annual_growth = (last_price / first_price) ** (1 / years_diff) - 1
     else:
-        months_between = 12  # افتراضي إذا لا يوجد عمود تاريخ
+        annual_growth = 0.02  # 2% افتراضي
     
-    # تحويل النمو الشهري إلى سنوي بناءً على الفترة الفعلية
-    annual_growth = (1 + monthly_growth) ** (12 / months_between) - 1
+    # حماية من الأرقام غير المنطقية
+    annual_growth = max(min(annual_growth, 0.25), -0.25)  # بين -25% و +25%
     
-    # حساب التذبذب مع حد أدنى آمن
-    volatility = safe_pct(prices.pct_change().std())
-    volatility = volatility if volatility > 5.0 else 5.0  # حد أدنى 5% لمنع أمان زائف
+    # ============================================
+    # ✅ حساب التذبذب بشكل آمن
+    # ============================================
+    volatility_raw = prices.pct_change().dropna().std()
+    if pd.notna(volatility_raw):
+        volatility_raw = min(volatility_raw, 0.30)  # سقف 30%
+    else:
+        volatility_raw = 0.05  # 5% افتراضي
+    
+    volatility = round(volatility_raw * 100, 2)
+    volatility = max(volatility, 3.0)  # حد أدنى 3%
 
+    # ============================================
     # تقسيم حسب عدد السنوات المطلوبة
+    # ============================================
     if years <= 2:
-        short_term = safe_pct(annual_growth * 0.8)
+        short_term = safe_pct(annual_growth * 0.9)
         return {
             "short_term": short_term,
             "medium_term": 0.0,
             "long_term": 0.0,
             "cumulative_min": safe_pct((1 + annual_growth * 0.7) ** years - 1),
-            "cumulative_max": safe_pct((1 + annual_growth * 1.2) ** years - 1),
+            "cumulative_max": safe_pct((1 + annual_growth * 1.1) ** years - 1),
             "volatility": volatility
         }
     elif years <= 5:
-        short_term = safe_pct(annual_growth * 0.7)
-        medium_term = safe_pct(annual_growth * 1.1)
+        short_term = safe_pct(annual_growth * 0.8)
+        medium_term = safe_pct(annual_growth * 1.0)
         return {
             "short_term": short_term,
             "medium_term": medium_term,
             "long_term": 0.0,
             "cumulative_min": safe_pct((1 + annual_growth * 0.6) ** years - 1),
-            "cumulative_max": safe_pct((1 + annual_growth * 1.2) ** years - 1),
+            "cumulative_max": safe_pct((1 + annual_growth * 1.1) ** years - 1),
             "volatility": volatility
         }
     else:
         short_term = safe_pct(annual_growth * 0.7)
-        medium_term = safe_pct(annual_growth * 1.2)
-        # تعديل جوهري: إزالة المضاعف 1.7 - النمو الطويل المدى لا يتضخم افتراضياً
+        medium_term = safe_pct(annual_growth * 0.9)
         long_term = safe_pct(annual_growth * 1.0)  # نفس المعدل السنوي دون تضخيم
         return {
             "short_term": short_term,
             "medium_term": medium_term,
             "long_term": long_term,
-            "cumulative_min": safe_pct((1 + annual_growth * 0.6) ** years - 1),
-            "cumulative_max": safe_pct((1 + annual_growth * 1.1) ** years - 1),
+            "cumulative_min": safe_pct((1 + annual_growth * 0.5) ** years - 1),
+            "cumulative_max": safe_pct((1 + annual_growth * 1.0) ** years - 1),
             "volatility": volatility
         }
 
