@@ -106,6 +106,14 @@ def safe_pct(x, default=0.0):
     except Exception:
         return default
 
+def format_percentage(value):
+    try:
+        value = float(value)
+        sign = "-" if value < 0 else ""
+        return f"{sign}{abs(value):.2f}%"
+    except:
+        return "0.00%"
+
 def format_forecast_period(years):
     """تنسيق فترة التنبؤ بشكل readable للمستخدم"""
     if years == 0:
@@ -318,7 +326,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     # إصلاح المرجعية مع حماية النصوص القصيرة
     city_code = city[:3] if len(city) >= 3 else city
     prop_code = property_type[:3] if len(property_type) >= 3 else property_type
-    ref_id = f"WI-{city_code}-{prop_code}-{pd.Timestamp.now().strftime('%Y%m%d%H%M')}"
+    ref_id = f"WI-{city_code}-{prop_code}{pd.Timestamp.now().strftime('%Y%m%d%H%M')}"
     lines.append(f"رقم المرجعية: {ref_id}")
     
     lines.append(f"نطاق التطبيق: {property_type} – {city}")
@@ -326,8 +334,8 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     lines.append("مصدر البيانات: صفقات عقارية فعلية منفذة في السوق وقت التحليل،")
     lines.append("تمت معالجتها كمياً وفق نموذج Warda Intelligence.")
     lines.append("")
-    lines.append("تم اشتقاق هذا القرار من نموذج Warda Intelligence Core Model")
-    lines.append("---")
+    lines.append("تم اشتقاق هذا القرار من نموذج Warda Intelligence Core Model.")
+    lines.append("────────────────────────")
     lines.append("")
 
     # =========================
@@ -398,7 +406,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("منع أي تحرك عشوائي خارج إطار الانتقاء.")
         
         lines.append("")
-        lines.append("---")
+        lines.append("────────────────────────")
         lines.append("")
 
     # =========================
@@ -408,15 +416,9 @@ def generate_executive_summary(user_info, market_data, real_data, package):
         lines.append(f"ثانياً: {TERMS['VGS']['label']} (VGS)")
         lines.append("")
         
-        # إصلاح عرض VGS لمعالجة حالة الصفر
-        if vgs > 0:
-            vgs_display = f"+{vgs}%"
-        elif vgs < 0:
-            vgs_display = f"{vgs}%"
-        else:
-            vgs_display = "0%"
-        
-        lines.append(f"{vgs_display}")
+        # استخدام الدالة الموحدة لتنسيق النسبة
+        vgs_display = format_percentage(vgs)
+        lines.append(vgs_display)
         lines.append("")
         
         if config["executive_depth"] == "basic":
@@ -462,7 +464,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("الاتجاه العام وحده غير كافٍ للتفعيل.")
         
         lines.append("")
-        lines.append("---")
+        lines.append("────────────────────────")
         lines.append("")
 
     # =========================
@@ -521,16 +523,16 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("التحرك فقط عند وجود ميزة تفاضلية مؤكدة.")
         
         lines.append("")
-        lines.append("---")
+        lines.append("────────────────────────")
         lines.append("")
 
     # =========================
     # SCM (للباقات الفضية فأعلى) - مع عنوان ديناميكي
     # =========================
     if config["show_scm"]:
-        lines.append(f"رابعاً: {config['scm_title']} (SCM)")
+        lines.append(f"رابعاً: {TERMS['SCM']['label']} (SCM)")
         lines.append("")
-        lines.append(f"{scm}% {TERMS['SCM']['display']}")
+        lines.append(f"{format_percentage(scm)} {TERMS['SCM']['display']}")
         lines.append("توافق بين 20 سيناريو")
         lines.append("")
         
@@ -586,7 +588,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("المرحلة السوقية الحالية: إعادة توازن انتقائي.")
         
         lines.append("")
-        lines.append("---")
+        lines.append("────────────────────────")
         lines.append("")
 
     # =========================
@@ -598,8 +600,8 @@ def generate_executive_summary(user_info, market_data, real_data, package):
         if config["forecast_years"] <= 2:
             lines.append(f"التنبؤ الزمني ({forecast_period})")
             lines.append("")
-            lines.append(f"معدل النمو المتوقع: {forecast['short_term']}%")
-            lines.append(f"مؤشر التذبذب: {forecast['volatility']}%")
+            lines.append(f"معدل النمو المتوقع: {format_percentage(forecast['short_term'])}")
+            lines.append(f"مؤشر التذبذب: {format_percentage(forecast['volatility'])}")
             lines.append("")
             lines.append("التوجه:")
             if forecast['short_term'] > 0:
@@ -611,10 +613,10 @@ def generate_executive_summary(user_info, market_data, real_data, package):
             lines.append(f"التنبؤ الزمني ({forecast_period})")
             lines.append("")
             lines.append("السنوات 1 – 2")
-            lines.append(f"نمو: {forecast['short_term']}%")
+            lines.append(f"نمو: {format_percentage(forecast['short_term'])}")
             lines.append("")
             lines.append("السنوات 3 – 5")
-            lines.append(f"نمو: {forecast['medium_term']}%")
+            lines.append(f"نمو: {format_percentage(forecast['medium_term'])}")
             lines.append("")
             lines.append("القرار:")
             if forecast['medium_term'] > forecast['short_term']:
@@ -626,17 +628,17 @@ def generate_executive_summary(user_info, market_data, real_data, package):
             lines.append(f"التنبؤ الزمني ({forecast_period})")
             lines.append("")
             lines.append("المرحلة الأولى (1-3): تثبيت")
-            lines.append(f"نمو: {forecast['short_term']}%")
+            lines.append(f"نمو: {format_percentage(forecast['short_term'])}")
             lines.append("")
             lines.append("المرحلة الثانية (4-7): تسارع")
-            lines.append(f"نمو: {forecast['medium_term']}%")
+            lines.append(f"نمو: {format_percentage(forecast['medium_term'])}")
             
         elif config["show_10year_forecast"]:
             lines.append("التنبؤ الزمني المعتمد (10 سنوات)")
             lines.append("")
             lines.append("السنوات 1 – 3")
-            lines.append(f"نمو سنوي: {forecast['short_term']}%")
-            lines.append(f"تذبذب: {forecast['volatility']}%")
+            lines.append(f"نمو سنوي: {format_percentage(forecast['short_term'])}")
+            lines.append(f"تذبذب: {format_percentage(forecast['volatility'])}")
             lines.append("")
             lines.append("تصنيف: تثبيت.")
             lines.append("")
@@ -645,8 +647,8 @@ def generate_executive_summary(user_info, market_data, real_data, package):
             lines.append("التركيز على الاستقرار الهيكلي فقط.")
             lines.append("")
             lines.append("السنوات 4 – 6")
-            lines.append(f"نمو سنوي: {forecast['medium_term']}%")
-            lines.append(f"تحسن سيولة: {min(95, max(30, raos + 20))}%")
+            lines.append(f"نمو سنوي: {format_percentage(forecast['medium_term'])}")
+            lines.append(f"تحسن سيولة: {format_percentage(min(95, max(30, raos + 20)))}")
             lines.append("")
             lines.append("تصنيف: تمايز.")
             lines.append("")
@@ -655,8 +657,8 @@ def generate_executive_summary(user_info, market_data, real_data, package):
             lines.append("معالجة أو استبعاد أي حالة تتراجع أمام المتوسط.")
             lines.append("")
             lines.append("السنوات 7 – 10")
-            lines.append(f"نمو سنوي: {forecast['long_term']}%")
-            lines.append(f"احتمال إعادة تسعير هيكلي: {min(85, max(40, scm + 5))}%")
+            lines.append(f"نمو سنوي: {format_percentage(forecast['long_term'])}")
+            lines.append(f"احتمال إعادة تسعير هيكلي: {format_percentage(min(85, max(40, scm + 5)))}")
             lines.append("")
             lines.append("تصنيف: حصاد العائد الحقيقي.")
             lines.append("")
@@ -664,20 +666,20 @@ def generate_executive_summary(user_info, market_data, real_data, package):
             lines.append("الحفاظ على الانضباط طويل المدى.")
             lines.append("عدم تعديل الاستراتيجية بسبب ملل زمني أو مقارنة خارجية.")
             lines.append("")
-            lines.append("---")
+            lines.append("────────────────────────")
             lines.append("")
             lines.append("الإسقاط الزمني يعكس الاتجاه الإحصائي الحالي ضمن نطاقات احتمالية منضبطة،")
             lines.append("ولا يفترض حدوث صدمات هيكلية غير مرئية في البيانات.")
         
         lines.append("")
-        lines.append("---")
+        lines.append("────────────────────────")
         lines.append("")
     elif config["forecast_years"] > 0 and forecast is None and forecast_error is not None:
         lines.append("التنبؤ الزمني")
         lines.append("")
         lines.append(f"⚠️ {forecast_error}")
         lines.append("")
-        lines.append("---")
+        lines.append("────────────────────────")
         lines.append("")
 
     # =========================
@@ -686,7 +688,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     if config["show_cumulative_return"] and forecast is not None:
         lines.append("العائد التراكمي المتوقع")
         lines.append("")
-        lines.append(f"{forecast['cumulative_min']}% – {forecast['cumulative_max']}%")
+        lines.append(f"{format_percentage(forecast['cumulative_min'])} – {format_percentage(forecast['cumulative_max'])}")
         
         if config["executive_depth"] in ["advanced", "strategic", "comprehensive"]:
             lines.append("السيناريو المرجح: منتصف النطاق.")
@@ -703,7 +705,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
             lines.append("الحفاظ على هامش أمان حسابي دائم.")
         
         lines.append("")
-        lines.append("---")
+        lines.append("────────────────────────")
         lines.append("")
 
     # =========================
@@ -744,7 +746,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("3. إعادة التقييم عند تحسن الظروف.")
         
         lines.append("")
-        lines.append("---")
+        lines.append("────────────────────────")
         lines.append("")
 
     # =========================
@@ -779,7 +781,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
             lines.append("عند كسر أي شرط، يتم تفعيل إعادة المعايرة الرقمية فوراً.")
         
         lines.append("")
-        lines.append("---")
+        lines.append("────────────────────────")
         lines.append("")
 
     # =========================
@@ -817,7 +819,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("الخطر الحقيقي: التحرك غير الانتقائي أو خارج البروتوكول")
         
         lines.append("")
-        lines.append("---")
+        lines.append("────────────────────────")
         lines.append("")
 
     # =========================
@@ -839,7 +841,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("بروتوكول تنفيذي واضح")
         
         lines.append("")
-        lines.append("---")
+        lines.append("────────────────────────")
         lines.append("")
 
     # =========================
