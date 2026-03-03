@@ -164,7 +164,11 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
         annual_growth = 0.02  # 2% افتراضي
     
     # سقف مؤسسي محافظ
-    annual_growth = max(min(annual_growth, 0.18), -0.10)  # بين -10% و +18%
+    annual_growth = max(min(annual_growth, 0.25), -0.25)  # بين -25% و +25%
+    
+    # ضبط النمو إذا كان الاتجاه ضعيفاً
+    if years >= 5 and annual_growth > 0.10:
+        annual_growth = min(annual_growth, 0.12)
     
     # ============================================
     # ✅ حساب التذبذب بشكل آمن
@@ -303,7 +307,8 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     lines.append(f"رقم المرجعية: WI-{city[:3]}-{property_type[:3]}-{pd.Timestamp.now().strftime('%Y%m')}")
     lines.append(f"نطاق التطبيق: {property_type} – {city}")
     # ✅ نص دقيق قانونياً واستثمارياً
-    lines.append("مصدر البيانات: بيانات سوقية متاحة وقت التحليل، تمت معالجتها وفق نموذج Warda Intelligence.")
+    lines.append("مصدر البيانات: صفقات عقارية فعلية منفذة في السوق وقت التحليل،")
+    lines.append("تمت معالجتها كمياً وفق نموذج Warda Intelligence.")
     lines.append("")
     lines.append("تم اشتقاق هذا القرار من نموذج Warda Intelligence Core Model")
     lines.append("---")
@@ -352,15 +357,26 @@ def generate_executive_summary(user_info, market_data, real_data, package):
             
             lines.append("")
             lines.append("القرار:")
+
             if decision_state == "positive":
                 lines.append("تفعيل الاستراتيجية طويلة المدى الآن.")
                 lines.append("عدم تأجيل القرار بدافع الغموض.")
+
             elif decision_state == "neutral":
                 lines.append("تفعيل الاستراتيجية بشرط الانتقاء الصارم.")
                 lines.append("عدم التوسع الأفقي.")
+
             else:
                 lines.append("تعليق التحرك المباشر.")
                 lines.append("الاقتصار على الدراسة فقط.")
+
+                # ✅ تفسير السبب عند وجود DCI مرتفع لكن SCM منخفض
+                if dci >= 65 and scm < 50:
+                    lines.append("")
+                    lines.append("ملاحظة تفسيرية:")
+                    lines.append("رغم قوة موثوقية البيانات،")
+                    lines.append("فإن ضعف تقاطع السيناريوهات يقلل وضوح الاتجاه العام،")
+                    lines.append("مما يبرر تعليق التنفيذ حتى تحسن مؤشر الاتجاه.")
             
             if config["executive_depth"] in ["strategic", "comprehensive"] and decision_state == "positive":
                 lines.append("منع أي تحرك عشوائي خارج إطار الانتقاء.")
