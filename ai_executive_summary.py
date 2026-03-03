@@ -164,7 +164,7 @@ def compute_forecast(real_data: pd.DataFrame, years=10):
         annual_growth = 0.02  # 2% افتراضي
     
     # سقف مؤسسي محافظ
-    annual_growth = max(min(annual_growth, 0.25), -0.25)  # بين -25% و +25%
+    annual_growth = max(min(annual_growth, 0.18), -0.10)
     
     # ضبط النمو إذا كان الاتجاه ضعيفاً
     if years >= 5 and annual_growth > 0.10:
