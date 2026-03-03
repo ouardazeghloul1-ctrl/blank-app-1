@@ -183,6 +183,7 @@ def calculate_scm(real_data: pd.DataFrame) -> dict:
     ونقيس كم منها يؤدي لنفس القرار
     
     ملاحظة: تم تثبيت seed لضمان استقرار النتائج
+    تم التحديث: زيادة حد الأدنى للانحراف إلى 3% لمنع 0% غير منطقية
     """
 
     TOTAL_SCENARIOS = 20
@@ -199,8 +200,8 @@ def calculate_scm(real_data: pd.DataFrame) -> dict:
         values = real_data["price"].dropna()
     
     mean_val = values.mean()
-    # ✅ تحسين إضافي: حد أدنى 1% انحراف لمنع أمان مفرط في الأسواق المستقرة جداً
-    std_val = max(values.std(), mean_val * 0.01)
+    # ✅ تحسين إضافي: حد أدنى 3% انحراف لمنع 0% غير منطقية
+    std_val = max(values.std(), mean_val * 0.03)
 
     matched = 0
 
