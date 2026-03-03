@@ -44,6 +44,43 @@ def ensure_time_order(df):
     return df
 
 
+def clean_real_estate_data(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    تنظيف البيانات قبل الحسابات التحليلية
+    """
+
+    if df is None or df.empty:
+        return df
+
+    df = df.copy()
+
+    # حذف القيم الفارغة
+    df = df.dropna(subset=["price", "area"])
+
+    # استبعاد القيم غير المنطقية
+    df = df[df["price"] > 10000]
+    df = df[df["area"] > 20]
+    df = df[df["area"] < 1000]
+
+    # حساب سعر المتر
+    df["price_per_m2"] = df["price"] / df["area"]
+
+    # إزالة القيم الشاذة (Outliers)
+    Q1 = df["price_per_m2"].quantile(0.25)
+    Q3 = df["price_per_m2"].quantile(0.75)
+    IQR = Q3 - Q1
+
+    lower = Q1 - 1.5 * IQR
+    upper = Q3 + 1.5 * IQR
+
+    df = df[
+        (df["price_per_m2"] >= lower) &
+        (df["price_per_m2"] <= upper)
+    ]
+
+    return df
+
+
 # -----------------------------------------
 # (1) Decision Confidence Index – DCI
 # -----------------------------------------
@@ -269,6 +306,9 @@ def generate_gold_decision_metrics(
 
     # ضمان الترتيب الزمني للبيانات بالكامل مرة واحدة
     real_data = ensure_time_order(real_data)
+    
+    # تنظيف البيانات قبل الحساب
+    real_data = clean_real_estate_data(real_data)
 
     # احتساب المؤشرات الذهبية
     dci = calculate_dci(real_data)
