@@ -1366,7 +1366,11 @@ if page == "📊 التحليل الكامل":
                     # 💎 إنشاء PDF بالمحتوى الكامل
                     # =====================================
                     pdf_buffer = create_pdf_from_content(
-                        content_text=final_content_text
+                        user_info=user_info,
+                        content_text=final_content_text,
+                        executive_decision=executive_decision,
+                        charts_by_chapter=charts_by_chapter,
+                        package_level=chosen_pkg
                     )
                     
                 except Exception as e:
