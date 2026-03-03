@@ -591,7 +591,7 @@ class AIIntelligence:
         return "تم تدريب النموذج بنجاح"
     
     def generate_ai_recommendations(self, user_info, market_data, real_data):
-        if not market_data or not real_data or real_data.empty:
+        if market_data is None or real_data is None or real_data.empty:
             return {
                 'ملف_المخاطر': "غير متوفر – يحتاج بيانات كافية",
                 'استراتيجية_الاستثمار': "غير متوفر – يحتاج بيانات كافية",
