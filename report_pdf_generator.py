@@ -336,11 +336,6 @@ def create_pdf_from_content(
             charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
             cursor = chart_cursor.get(chapter_index, 0)
 
-            if not charts:
-                story.append(Paragraph(ar("⚠️ لا توجد رسومات لهذا الفصل"), body))
-            else:
-                story.append(Paragraph(ar("✅ تم العثور على رسومات لهذا الفصل"), body))
-
             if cursor < len(charts):
                 img = plotly_to_image(charts[cursor], 16.8, 8.8)
                 if img:
@@ -353,11 +348,6 @@ def create_pdf_from_content(
         if clean == "[[RHYTHM_CHART]]":
             charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
             cursor = chart_cursor.get(chapter_index, 0)
-
-            if not charts:
-                story.append(Paragraph(ar("⚠️ لا توجد رسومات لهذا الفصل"), body))
-            else:
-                story.append(Paragraph(ar("✅ تم العثور على رسومات لهذا الفصل"), body))
 
             if cursor < len(charts):
                 fig = charts[cursor]
