@@ -26,13 +26,19 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper
+# Arabic helper - معدلة لإصلاح النسب المعكوسة
 # =========================
 def ar(text):
     if not text:
         return ""
+
     try:
-        reshaped = arabic_reshaper.reshape(str(text))
+        text = str(text)
+
+        # إصلاح عرض النسب السالبة داخل RTL
+        text = re.sub(r"(-?\d+\.\d+)%", lambda m: f"\u200E{m.group(0)}", text)
+
+        reshaped = arabic_reshaper.reshape(text)
         return get_display(reshaped)
     except Exception:
         return str(text)
@@ -58,22 +64,28 @@ def clean_text(text: str) -> str:
 
 
 # =========================
-# Plotly → Image
+# Plotly → Image - معدلة مع دعم kaleido
 # =========================
 def plotly_to_image(fig, width_cm, height_cm):
     if fig is None:
         return None
+
     try:
         img_bytes = fig.to_image(
             format="png",
-            width=int(width_cm * 38),
-            height=int(height_cm * 38)
+            width=1200,
+            height=700,
+            engine="kaleido"
         )
+
         tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         tmp.write(img_bytes)
         tmp.close()
+
         return Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
-    except Exception:
+
+    except Exception as e:
+        print("Chart export error:", e)
         return None
 
 
@@ -142,7 +154,7 @@ def create_pdf_from_content(
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=14.5,
-        leading=28,
+        leading=22,  # تم التعديل من 28 إلى 22
         alignment=TA_RIGHT,
         spaceAfter=22,
         allowWidows=0,
