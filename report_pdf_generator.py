@@ -156,7 +156,6 @@ def create_pdf_from_content(
         fontSize=14.5,
         leading=22,
         alignment=TA_RIGHT,
-        wordWrap='RTL',
         spaceAfter=22,
         allowWidows=0,
         allowOrphans=0,
@@ -302,13 +301,13 @@ def create_pdf_from_content(
     chart_cursor = {}
     first_chapter_processed = False
 
-    lines_iter = iter(content_text.split("\n"))
+    # تقسيم النص إلى فقرات (بناءً على سطر فارغ)
+    paragraphs = content_text.split("\n\n")
 
-    for raw in lines_iter:
+    for raw in paragraphs:
         raw_stripped = raw.strip()
 
         if not raw_stripped:
-            story.append(Spacer(1, 0.8 * cm))
             continue
 
         clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
