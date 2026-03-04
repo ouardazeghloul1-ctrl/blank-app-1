@@ -47,33 +47,43 @@ class AdvancedCharts:
 
     def _normalize_market_columns(self, df):
         """
-        توحيد أعمدة market_data_core مع محرك الرسومات
-        - يحول الأعمدة العربية إلى إنجليزية
-        - يُرجع فقط الأعمدة المطلوبة: price, area, district, date
-        - متوافق مع بيانات وزارة العدل
+        توحيد أعمدة market_data_core مع محرك الرسومات - نسخة محسنة
+        تدعم جميع الأسماء المحتملة من وزارة العدل
         """
         if df is None or df.empty:
             return df
 
         df = df.copy()
 
-        # ✅ تحديث column_map ليتوافق مع بيانات وزارة العدل
+        # تحويل كل أسماء الأعمدة إلى نص عادي بدون مسافات زائدة
+        df.columns = df.columns.str.strip()
+
         column_map = {
+            # السعر
             "السعر": "price",
-            "المساحة": "area", 
+            "سعر الصفقة": "price",
+            "قيمة الصفقة": "price",
+
+            # المساحة
+            "المساحة": "area",
+            "المساحة م2": "area",
+
+            # الحي
             "الحي": "district",
+            "اسم الحي": "district",
             "الحي / المدينة": "district",
-            "تاريخ الصفقة": "date"
+
+            # التاريخ
+            "تاريخ الصفقة": "date",
+            "تاريخ البيع": "date",
+            "تاريخ التسجيل": "date",
         }
 
-        for ar, en in column_map.items():
-            if ar in df.columns:
-                df[en] = df[ar]
+        for col in df.columns:
+            if col in column_map:
+                df[column_map[col]] = df[col]
 
-        # إرجاع الأعمدة الإنجليزية الموجودة فقط (آمن من KeyError)
-        required = ["price", "area", "district", "date"]
-        existing = [c for c in required if c in df.columns]
-        return df[existing]
+        return df
 
     def _ensure_numeric_core(self, df):
         """
@@ -793,6 +803,9 @@ class AdvancedCharts:
         # ✅ توحيد الأعمدة أولاً - يرجع إنجليزي فقط (متوافق مع وزارة العدل)
         df = self._normalize_market_columns(df)
         df = self._ensure_numeric_core(df)
+        
+        # ✅ اختبار الأعمدة بعد التوحيد
+        print("COLUMNS AFTER NORMALIZATION:", df.columns.tolist())
 
         def clean(lst):
             return [x for x in lst if x is not None]
