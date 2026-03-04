@@ -45,22 +45,22 @@ def ar(text):
 
 
 # =========================
-# Clean bullets & junk
+# Clean bullets & junk - معلقة مؤقتاً للاختبار
 # =========================
-def clean_text(text: str) -> str:
-    if not text:
-        return ""
-
-    cleaned = []
-    for ch in text:
-        cat = unicodedata.category(ch)
-        if cat.startswith(("L", "N", "P", "Z")):
-            cleaned.append(ch)
-
-    text = "".join(cleaned)
-    text = re.sub(r"^[\-\*\d\.\)]\s*", "", text)
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
+# def clean_text(text: str) -> str:
+#     if not text:
+#         return ""
+#
+#     cleaned = []
+#     for ch in text:
+#         cat = unicodedata.category(ch)
+#         if cat.startswith(("L", "N", "P", "Z")):
+#             cleaned.append(ch)
+#
+#     text = "".join(cleaned)
+#     text = re.sub(r"^[\-\*\d\.\)]\s*", "", text)
+#     text = re.sub(r"\s+", " ", text)
+#     return text.strip()
 
 
 # =========================
@@ -154,10 +154,9 @@ def create_pdf_from_content(
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=14.5,
-        leading=22,
+        leading=28,
         alignment=TA_RIGHT,
-        wordWrap='RTL',
-        spaceAfter=22,
+        spaceAfter=18,
         allowWidows=0,
         allowOrphans=0,
     )
@@ -302,16 +301,18 @@ def create_pdf_from_content(
     chart_cursor = {}
     first_chapter_processed = False
 
-    lines_iter = iter(content_text.split("\n"))
+    # تقسيم النص إلى فقرات كاملة
+    paragraphs = content_text.split("\n\n")
 
-    for raw in lines_iter:
+    for raw in paragraphs:
         raw_stripped = raw.strip()
 
         if not raw_stripped:
             story.append(Spacer(1, 0.8 * cm))
             continue
 
-        clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
+        # استخدام النص الخام مباشرة (بدون clean_text)
+        clean = raw_stripped
 
         if clean.startswith(("📊", "💎", "⚠️")):
             story.append(Spacer(1, 0.8 * cm))
