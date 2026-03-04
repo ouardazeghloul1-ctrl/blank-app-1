@@ -335,7 +335,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     lines.append("تمت معالجتها كمياً وفق نموذج Warda Intelligence.")
     lines.append("")
     lines.append("تم اشتقاق هذا القرار من نموذج Warda Intelligence Core Model.")
-    lines.append("────────────────────────")
+    lines.append("----------------------------------------")
     lines.append("")
 
     # =========================
@@ -406,7 +406,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("منع أي تحرك عشوائي خارج إطار الانتقاء.")
         
         lines.append("")
-        lines.append("────────────────────────")
+        lines.append("----------------------------------------")
         lines.append("")
 
     # =========================
@@ -464,7 +464,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("الاتجاه العام وحده غير كافٍ للتفعيل.")
         
         lines.append("")
-        lines.append("────────────────────────")
+        lines.append("----------------------------------------")
         lines.append("")
 
     # =========================
@@ -523,7 +523,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("التحرك فقط عند وجود ميزة تفاضلية مؤكدة.")
         
         lines.append("")
-        lines.append("────────────────────────")
+        lines.append("----------------------------------------")
         lines.append("")
 
     # =========================
@@ -588,7 +588,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("المرحلة السوقية الحالية: إعادة توازن انتقائي.")
         
         lines.append("")
-        lines.append("────────────────────────")
+        lines.append("----------------------------------------")
         lines.append("")
 
     # =========================
@@ -666,20 +666,20 @@ def generate_executive_summary(user_info, market_data, real_data, package):
             lines.append("الحفاظ على الانضباط طويل المدى.")
             lines.append("عدم تعديل الاستراتيجية بسبب ملل زمني أو مقارنة خارجية.")
             lines.append("")
-            lines.append("────────────────────────")
+            lines.append("----------------------------------------")
             lines.append("")
             lines.append("الإسقاط الزمني يعكس الاتجاه الإحصائي الحالي ضمن نطاقات احتمالية منضبطة،")
             lines.append("ولا يفترض حدوث صدمات هيكلية غير مرئية في البيانات.")
         
         lines.append("")
-        lines.append("────────────────────────")
+        lines.append("----------------------------------------")
         lines.append("")
     elif config["forecast_years"] > 0 and forecast is None and forecast_error is not None:
         lines.append("التنبؤ الزمني")
         lines.append("")
         lines.append(f"⚠️ {forecast_error}")
         lines.append("")
-        lines.append("────────────────────────")
+        lines.append("----------------------------------------")
         lines.append("")
 
     # =========================
@@ -705,7 +705,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
             lines.append("الحفاظ على هامش أمان حسابي دائم.")
         
         lines.append("")
-        lines.append("────────────────────────")
+        lines.append("----------------------------------------")
         lines.append("")
 
     # =========================
@@ -746,7 +746,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("3. إعادة التقييم عند تحسن الظروف.")
         
         lines.append("")
-        lines.append("────────────────────────")
+        lines.append("----------------------------------------")
         lines.append("")
 
     # =========================
@@ -781,7 +781,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
             lines.append("عند كسر أي شرط، يتم تفعيل إعادة المعايرة الرقمية فوراً.")
         
         lines.append("")
-        lines.append("────────────────────────")
+        lines.append("----------------------------------------")
         lines.append("")
 
     # =========================
@@ -819,7 +819,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("الخطر الحقيقي: التحرك غير الانتقائي أو خارج البروتوكول")
         
         lines.append("")
-        lines.append("────────────────────────")
+        lines.append("----------------------------------------")
         lines.append("")
 
     # =========================
@@ -841,7 +841,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
                 lines.append("بروتوكول تنفيذي واضح")
         
         lines.append("")
-        lines.append("────────────────────────")
+        lines.append("----------------------------------------")
         lines.append("")
 
     # =========================
