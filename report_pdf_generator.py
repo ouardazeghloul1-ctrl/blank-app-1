@@ -26,7 +26,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - معدلة نهائياً (بدون get_display)
+# Arabic helper - معدلة لإصلاح النسب المعكوسة
 # =========================
 def ar(text):
     if not text:
@@ -38,11 +38,8 @@ def ar(text):
         # إصلاح عرض النسب السالبة داخل RTL
         text = re.sub(r"(-?\d+\.\d+)%", lambda m: f"\u200E{m.group(0)}", text)
 
-        # استخدام arabic_reshaper فقط (بدون get_display)
         reshaped = arabic_reshaper.reshape(text)
-
-        return reshaped
-
+        return get_display(reshaped)
     except Exception:
         return str(text)
 
@@ -159,6 +156,7 @@ def create_pdf_from_content(
         fontSize=14.5,
         leading=22,
         alignment=TA_RIGHT,
+        wordWrap='RTL',
         spaceAfter=22,
         allowWidows=0,
         allowOrphans=0,
@@ -304,13 +302,13 @@ def create_pdf_from_content(
     chart_cursor = {}
     first_chapter_processed = False
 
-    # تقسيم النص إلى فقرات (بناءً على سطر فارغ)
-    paragraphs = content_text.split("\n\n")
+    lines_iter = iter(content_text.split("\n"))
 
-    for raw in paragraphs:
+    for raw in lines_iter:
         raw_stripped = raw.strip()
 
         if not raw_stripped:
+            story.append(Spacer(1, 0.8 * cm))
             continue
 
         clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
