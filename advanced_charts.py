@@ -1,4 +1,4 @@
-# advanced_charts.py - الإصدار النهائي المعدّل (جاهز للبيع)
+# advanced_charts.py - الإصدار النهائي المعدّل مع تحسينات بصرية
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -44,6 +44,17 @@ class AdvancedCharts:
 
     def _numeric(self, s):
         return pd.to_numeric(s, errors="coerce")
+    
+    def _remove_outliers(self, df, column, quantile=0.99):
+        """
+        إزالة القيم المتطرفة (أعلى quantile)
+        """
+        if df is None or df.empty or column not in df.columns:
+            return df
+        
+        df = df.copy()
+        threshold = df[column].quantile(quantile)
+        return df[df[column] < threshold]
 
     def _normalize_market_columns(self, df):
         """
@@ -119,7 +130,9 @@ class AdvancedCharts:
         if "date" in df.columns:
             df["date"] = df["date"].astype(str)
 
-        # لا نحذف الصفوف حتى لو قليلة
+        # إزالة القيم المتطرفة من السعر (أعلى 1%)
+        df = self._remove_outliers(df, "price", 0.99)
+
         return df
 
     def _safe(self, fig, height=460):
@@ -361,6 +374,10 @@ class AdvancedCharts:
         fig.update_layout(title=title)
         fig.update_xaxes(tickformat="~s")
 
+        # تحديد نطاق المحور X لتحسين المظهر
+        price_threshold = p.quantile(0.99)
+        fig.update_xaxes(range=[0, price_threshold])
+
         # إضافة القراءة التنفيذية
         mean_price = p.mean()
         decision_ratio = mean_price / self.DECISION_BASE_PRICE_PER_SQM
@@ -458,6 +475,10 @@ class AdvancedCharts:
 
         fig.update_xaxes(showgrid=False, zeroline=False)
         fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.06)", zeroline=False)
+
+        # تحديد نطاق المحور Y لتحسين المظهر
+        price_threshold = tmp["price"].quantile(0.99)
+        fig.update_yaxes(range=[0, price_threshold])
 
         # إضافة القراءة التنفيذية
         avg_price_per_sqm = (tmp["price"] / tmp["area"]).mean()
@@ -776,6 +797,10 @@ class AdvancedCharts:
         
         fig.update_xaxes(tickformat="~s", showgrid=False)
         fig.update_yaxes(showticklabels=False, showgrid=False)
+
+        # تحديد نطاق المحور X لتحسين المظهر
+        price_threshold = p.quantile(0.99)
+        fig.update_xaxes(range=[0, price_threshold])
 
         # إضافة القراءة التنفيذية
         mean_price = p.mean()
