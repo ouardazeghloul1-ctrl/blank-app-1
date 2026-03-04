@@ -342,7 +342,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     # DCI (يظهر للجميع لكن بمستويات مختلفة)
     # =========================
     if config["show_dci"]:
-        lines.append(f"أولاً: {TERMS['DCI']['label']} (DCI)")
+        lines.append(f"أولاً: {TERMS['DCI']['label']} – DCI –")
         lines.append("")
         lines.append(f"{dci} / 100")
         lines.append("")
@@ -413,7 +413,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     # VGS (يظهر للجميع)
     # =========================
     if config["show_vgs"]:
-        lines.append(f"ثانياً: {TERMS['VGS']['label']} (VGS)")
+        lines.append(f"ثانياً: {TERMS['VGS']['label']} – VGS –")
         lines.append("")
         
         # استخدام الدالة الموحدة لتنسيق النسبة
@@ -471,7 +471,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     # RAOS (للباقات الفضية فأعلى)
     # =========================
     if config["show_raos"]:
-        lines.append(f"ثالثاً: {TERMS['RAOS']['label']} (RAOS)")
+        lines.append(f"ثالثاً: {TERMS['RAOS']['label']} – RAOS –")
         lines.append("")
         lines.append(f"{raos} / 100")
         lines.append("")
@@ -530,7 +530,7 @@ def generate_executive_summary(user_info, market_data, real_data, package):
     # SCM (للباقات الفضية فأعلى) - مع عنوان ديناميكي
     # =========================
     if config["show_scm"]:
-        lines.append(f"رابعاً: {TERMS['SCM']['label']} (SCM)")
+        lines.append(f"رابعاً: {TERMS['SCM']['label']} – SCM –")
         lines.append("")
         lines.append(f"{format_percentage(scm)} {TERMS['SCM']['display']}")
         lines.append("توافق بين 20 سيناريو")
