@@ -48,6 +48,7 @@ class AdvancedCharts:
     def _normalize_market_columns(self, df):
         """
         توحيد أعمدة market_data_core مع محرك الرسومات - نسخة مضمونة 100%
+        مع إزالة الأعمدة المكررة
         """
         if df is None or df.empty:
             return df
@@ -72,10 +73,13 @@ class AdvancedCharts:
             "تاريخ التسجيل": "date",
         }
 
-        # إعادة تسمية مباشرة
+        # إعادة التسمية
         df = df.rename(columns=column_map)
 
-        # نحتفظ فقط بالأعمدة الأربعة إن وجدت
+        # إزالة الأعمدة المكررة بعد إعادة التسمية
+        df = df.loc[:, ~df.columns.duplicated()]
+
+        # الاحتفاظ فقط بالعقد النهائي
         required = ["price", "area", "district", "date"]
         existing = [c for c in required if c in df.columns]
 
@@ -794,16 +798,11 @@ class AdvancedCharts:
         متوافق مع بيانات وزارة العدل
         """
         if df is None or df.empty:
-            print("WARNING: Input DataFrame is empty or None")
             return {}
 
         # ✅ توحيد الأعمدة أولاً - يرجع إنجليزي فقط (متوافق مع وزارة العدل)
         df = self._normalize_market_columns(df)
         df = self._ensure_numeric_core(df)
-        
-        # ✅ اختبار الأعمدة والشكل بعد التوحيد
-        print("FINAL DF SHAPE:", df.shape)
-        print("FINAL DF COLUMNS:", df.columns.tolist())
 
         def clean(lst):
             return [x for x in lst if x is not None]
