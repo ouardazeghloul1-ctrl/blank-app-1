@@ -47,43 +47,39 @@ class AdvancedCharts:
 
     def _normalize_market_columns(self, df):
         """
-        توحيد أعمدة market_data_core مع محرك الرسومات - نسخة محسنة
-        تدعم جميع الأسماء المحتملة من وزارة العدل
+        توحيد أعمدة market_data_core مع محرك الرسومات - نسخة مضمونة 100%
         """
         if df is None or df.empty:
             return df
 
         df = df.copy()
-
-        # تحويل كل أسماء الأعمدة إلى نص عادي بدون مسافات زائدة
         df.columns = df.columns.str.strip()
 
         column_map = {
-            # السعر
             "السعر": "price",
             "سعر الصفقة": "price",
             "قيمة الصفقة": "price",
 
-            # المساحة
             "المساحة": "area",
             "المساحة م2": "area",
 
-            # الحي
             "الحي": "district",
             "اسم الحي": "district",
             "الحي / المدينة": "district",
 
-            # التاريخ
             "تاريخ الصفقة": "date",
             "تاريخ البيع": "date",
             "تاريخ التسجيل": "date",
         }
 
-        for col in df.columns:
-            if col in column_map:
-                df[column_map[col]] = df[col]
+        # إعادة تسمية مباشرة
+        df = df.rename(columns=column_map)
 
-        return df
+        # نحتفظ فقط بالأعمدة الأربعة إن وجدت
+        required = ["price", "area", "district", "date"]
+        existing = [c for c in required if c in df.columns]
+
+        return df[existing]
 
     def _ensure_numeric_core(self, df):
         """
@@ -798,14 +794,16 @@ class AdvancedCharts:
         متوافق مع بيانات وزارة العدل
         """
         if df is None or df.empty:
+            print("WARNING: Input DataFrame is empty or None")
             return {}
 
         # ✅ توحيد الأعمدة أولاً - يرجع إنجليزي فقط (متوافق مع وزارة العدل)
         df = self._normalize_market_columns(df)
         df = self._ensure_numeric_core(df)
         
-        # ✅ اختبار الأعمدة بعد التوحيد
-        print("COLUMNS AFTER NORMALIZATION:", df.columns.tolist())
+        # ✅ اختبار الأعمدة والشكل بعد التوحيد
+        print("FINAL DF SHAPE:", df.shape)
+        print("FINAL DF COLUMNS:", df.columns.tolist())
 
         def clean(lst):
             return [x for x in lst if x is not None]
