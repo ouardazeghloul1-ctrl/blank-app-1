@@ -4,6 +4,14 @@ from advanced_charts import AdvancedCharts
 from ai_report_reasoner import AIReportReasoner
 from ai_executive_summary import generate_executive_summary
 from market_data_core import get_market_data
+
+from district_metrics_engine import (
+    prepare_district_data,
+    calculate_basic_district_metrics,
+    calculate_dpi_score
+)
+
+from district_narrative_engine import generate_district_narrative
 import pandas as pd
 import numpy as np
 from datetime import datetime
