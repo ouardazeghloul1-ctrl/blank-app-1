@@ -12,6 +12,8 @@ from district_metrics_engine import (
 )
 
 from district_narrative_engine import generate_district_narrative
+from district_ranking_engine import rank_districts, get_top_districts  # ✅ نظام ترتيب الأحياء
+
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -133,7 +135,7 @@ def build_report_story(user_info, provided_dataframe=None):
         provided_dataframe: DataFrame خارجي (اختياري) - إذا تم تمريره، يستخدم بدلاً من جلب البيانات الحية
     
     Returns:
-        dict: يحتوي على meta, content_text, executive_decision, charts
+        dict: يحتوي على meta, content_text, executive_decision, charts, district_ranking, top_districts
     """
     prepared = {
         "المدينة": user_info.get("city", ""),
@@ -180,6 +182,46 @@ def build_report_story(user_info, provided_dataframe=None):
     if df is not None:
         df = unify_columns_for_charts(df)
         print(f"📊 الأعمدة بعد التوحيد: {list(df.columns)}")
+
+    # =====================================
+    # حساب ترتيب الأحياء الاستثمارية 🏆
+    # =====================================
+    district_ranking = None
+    top_districts = None
+    try:
+        if df is not None and not df.empty and "district_clean" in df.columns:
+            print("🏆 جاري حساب ترتيب الأحياء الاستثمارية...")
+            district_ranking = rank_districts(df)
+            if district_ranking is not None and not district_ranking.empty:
+                top_districts = get_top_districts(df, top_n=5)
+                print("🏆 أفضل الأحياء استثمارياً:")
+                if top_districts is not None and not top_districts.empty:
+                    display_cols = [col for col in ["district_clean", "dpi"] if col in top_districts.columns]
+                    if display_cols:
+                        print(top_districts[display_cols].head())
+                    
+                    # إضافة فقرة متميزة عن أفضل الأحياء إلى التقرير
+                    if len(display_cols) >= 2:
+                        top_districts_text = "\n\n🏆 أفضل الأحياء للاستثمار:\n"
+                        
+                        # ✅ تحسين: استخدام عداد منفصل للترقيم الصحيح 1,2,3 بدلاً من idx
+                        for i, (_, row) in enumerate(top_districts.head(5).iterrows(), start=1):
+                            district_name = row.get("district_clean", "غير محدد")
+                            dpi_score = row.get("dpi", 0)
+                            top_districts_text += f"  {i}. {district_name} (DPI: {dpi_score:.0f})\n"
+                        
+                        # إضافة تفسير DPI
+                        top_districts_text += "\n*DPI: مؤشر قوة الحي (District Power Index) - كلما ارتفع كلما كان الحي أقوى استثمارياً*\n"
+                        
+                        # حقن الفقرة في التقرير (بعد التنويه)
+                        content_text = content_text.replace(
+                            "📌 تنويه مهم حول البيانات:",
+                            f"🏆 أفضل الأحياء للاستثمار في {user_info.get('city', 'الرياض')}\n{top_districts_text}\n\n📌 تنويه مهم حول البيانات:"
+                        )
+    except Exception as e:
+        print("⚠️ فشل حساب ترتيب الأحياء:", e)
+        import traceback
+        traceback.print_exc()
 
     # توليد رؤى الذكاء الاصطناعي
     ai_reasoner = AIReportReasoner()
@@ -294,5 +336,8 @@ def build_report_story(user_info, provided_dataframe=None):
         },
         "content_text": content_text,
         "executive_decision": executive_decision,  # ⭐ عنصر مستقل
-        "charts": charts
+        "charts": charts,
+        # ⭐ إضافات نظام ترتيب الأحياء
+        "district_ranking": district_ranking,
+        "top_districts": top_districts
     }
