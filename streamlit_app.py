@@ -1,11 +1,14 @@
 import streamlit as st
 from government_data_provider import load_government_data
+
 st.set_page_config(
     page_title="التحليل العقاري الذهبي | Warda Intelligence",
     page_icon="🏙️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# ✅ تحميل البيانات الخام مرة واحدة فقط في بداية التطبيق
 df_raw = load_government_data(selected_city=None, selected_property_type=None)
 
 st.write("📊 عدد كل الصفقات بدون أي فلترة:", len(df_raw))
@@ -25,7 +28,7 @@ st.write("عدد شقق جدة:", len(test_df2))
 
 test_df3 = load_government_data(selected_city="الرياض", selected_property_type="محل تجاري")
 st.write("عدد المحلات التجارية في الرياض:", len(test_df3))
-import streamlit as st
+
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -53,8 +56,6 @@ import streamlit.components.v1 as components
 
 # ✅ المصدر الوحيد للبيانات الحقيقية
 from government_data_provider import load_government_data
-import pandas as pd
-import os
 
 # ===== Robo Chat System (النسخة الموحدة) =====
 from robo_advisor import handle_robo_question, RoboGuard, RoboKnowledge
@@ -795,7 +796,7 @@ if page == "📊 التحليل الكامل":
                         # 🔥 جلب البيانات مع الفلترة من المصدر نفسه
                         real_df = load_government_data(
                             selected_city=city_select,
-                            selected_property_type=property_type_select
+                            selected_property_type=property_type_select  # ✅ صحيح: property_type_select هنا "شقة", "فيلا", "أرض"
                         )
 
                         if real_df.empty:
@@ -940,16 +941,67 @@ if page == "📊 التحليل الكامل":
         city = st.selectbox("المدينة:", 
                            ["الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة"])
         
-        # ===== التعديل 1: إضافة اختيار الحي =====
-        # استخراج الأحياء من البيانات الحقيقية
-        districts = sorted(
-            df_raw[df_raw["city"] == city]["district"].dropna().unique()
-        )
-        district = st.selectbox("الحي:", districts)
-        # ===== نهاية التعديل 1 =====
+        # ===== التعديل المحسن: استخراج الأحياء بشكل ذكي =====
+        # ✅ تحديد اسم عمود المدينة (عربي أو إنجليزي)
+        if "city" in df_raw.columns:
+            city_col = "city"
+        else:
+            city_col = "المدينة"
         
-        property_type = st.selectbox("نوع العقار:", 
-                                    ["شقة", "فيلا", "أرض", "محل تجاري"])
+        # ✅ تحديد اسم عمود الحي (عربي أو إنجليزي)
+        if "district" in df_raw.columns:
+            district_col = "district"
+        elif "الحي" in df_raw.columns:
+            district_col = "الحي"
+        elif "district_clean" in df_raw.columns:
+            district_col = "district_clean"
+        else:
+            district_col = None
+        
+        # استخراج الأحياء المتاحة للمدينة المختارة
+        districts = []
+        if district_col and city_col in df_raw.columns:
+            city_mask = df_raw[city_col] == city
+            districts = sorted(
+                df_raw.loc[city_mask, district_col].dropna().unique()
+            )
+        
+        # إذا لم يتم العثور على أحياء، استخدم قائمة افتراضية
+        if not districts:
+            districts = ["الربيع", "النرجس", "الملقا", "العارض", "الياسمين"]
+            st.info("ℹ️ سيتم عرض أحياء تجريبية (لم يتم العثور على أحياء في البيانات)")
+        
+        district = st.selectbox("الحي:", districts)
+        # ===== نهاية التعديل المحسن =====
+        
+        # =========================================
+        # 🎯 التعديل الرئيسي: تقسيم نوع العقار إلى مستويين
+        # =========================================
+        # المستوى الأول: نوع العقار الرئيسي
+        property_type = st.selectbox(
+            "نوع العقار الرئيسي:", 
+            ["سكني", "تجاري", "أرض"]
+        )
+        
+        # المستوى الثاني: النوع التفصيلي حسب الاختيار
+        property_subtype = None
+        if property_type == "سكني":
+            property_subtype = st.selectbox(
+                "التصنيف السكني:",
+                ["شقة", "فيلا", "قصر / عقار كبير"]
+            )
+        elif property_type == "تجاري":
+            property_subtype = st.selectbox(
+                "نوع العقار التجاري:",
+                ["محل", "مكتب", "مستودع"]
+            )
+        elif property_type == "أرض":
+            property_subtype = st.selectbox(
+                "نوع الأرض:",
+                ["سكني", "تجاري", "زراعي", "صناعي"]
+            )
+        # =========================================
+        
         status = st.selectbox("الحالة:", ["للبيع", "للشراء", "للإيجار"])
         
         # 🔄 استبدال السلايدر بـ Selectbox (حل نهائي لمشكلة السهم)
@@ -973,12 +1025,13 @@ if page == "📊 التحليل الكامل":
         property_count = property_count_options[count_index]
         st.markdown(f"**عدد العقارات المختارة:** {property_count}")
 
-        # ===== التعديل 2: إضافة الحي إلى user_info =====
+        # ===== التعديل 2: إضافة الحي والنوع التفصيلي إلى user_info =====
         # ✅ حفظ معلومات المستخدم فور اختياره للمدينة
         st.session_state["user_info"] = {
             "city": city,
             "district": district,
             "property_type": property_type,
+            "property_subtype": property_subtype,  # ✅ إضافة النوع التفصيلي
             "status": status,
             "user_type": user_type,
             "package": st.session_state.get("chosen_pkg", "مجانية")
@@ -1036,6 +1089,7 @@ if page == "📊 التحليل الكامل":
     if (
         st.session_state.get("last_city") != city
         or st.session_state.get("last_property_type") != property_type
+        or st.session_state.get("last_property_subtype") != property_subtype
         or st.session_state.get("last_status") != status
         or st.session_state.get("last_chosen_pkg") != chosen_pkg
     ):
@@ -1043,6 +1097,7 @@ if page == "📊 التحليل الكامل":
         # تحديث آخر القيم
         st.session_state["last_city"] = city
         st.session_state["last_property_type"] = property_type
+        st.session_state["last_property_subtype"] = property_subtype
         st.session_state["last_status"] = status
         st.session_state["last_chosen_pkg"] = chosen_pkg
 
@@ -1050,10 +1105,11 @@ if page == "📊 التحليل الكامل":
     if robo_needs_update or "robo_knowledge" not in st.session_state:
         with st.spinner("🧠 تحديث المستشار الذكي..."):
             try:
-                # 1️⃣ تحميل بيانات حقيقية مباشرة من المصدر
+                # ✅ 1️⃣ تحميل بيانات حقيقية مباشرة من المصدر - استخدام property_subtype
+                # ✅ التعديل الحاسم: استخدم property_subtype بدلاً من property_type
                 real_data = load_government_data(
                     selected_city=city,
-                    selected_property_type=property_type
+                    selected_property_type=property_subtype  # ✅ صحيح: property_subtype مثل "شقة", "فيلا", "محل"
                 )
 
                 if real_data is None or real_data.empty:
@@ -1283,10 +1339,11 @@ if page == "📊 التحليل الكامل":
     if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
         with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
             try:
-                # ✅ تحميل بيانات حقيقية مباشرة من المصدر (تم إزالة snapshot)
+                # ✅ تحميل بيانات حقيقية مباشرة من المصدر - استخدام property_subtype
+                # ✅ التعديل الحاسم: استخدم property_subtype بدلاً من property_type
                 real_data = load_government_data(
                     selected_city=city,
-                    selected_property_type=property_type
+                    selected_property_type=property_subtype  # ✅ صحيح: property_subtype مثل "شقة", "فيلا", "محل"
                 )
 
                 if real_data is None or real_data.empty:
@@ -1300,12 +1357,13 @@ if page == "📊 التحليل الكامل":
                     city, property_type, status, real_data
                 )
 
-                # ===== التعديل 3: إضافة الحي إلى user_info في التقرير =====
+                # ===== التعديل 3: إضافة الحي والنوع التفصيلي إلى user_info في التقرير =====
                 user_info = {
                     "user_type": user_type,
                     "city": city,
                     "district": district,
                     "property_type": property_type,
+                    "property_subtype": property_subtype,  # ✅ إضافة النوع التفصيلي
                     "area": area,
                     "package": chosen_pkg,
                     "chosen_pkg": chosen_pkg,
@@ -1420,6 +1478,8 @@ if page == "📊 التحليل الكامل":
             st.write(f"**الفئة:** {user_info.get('user_type', 'غير محدد')}")
             st.write(f"**المدينة:** {user_info.get('city', 'غير محدد')}")
             st.write(f"**الحي:** {user_info.get('district', 'غير محدد')}")
+            st.write(f"**نوع العقار الرئيسي:** {user_info.get('property_type', 'غير محدد')}")
+            st.write(f"**التصنيف التفصيلي:** {user_info.get('property_subtype', 'غير محدد')}")
             st.write(f"**الباقة:** {user_info.get('package', 'غير محدد')}")
             
             ai_recommendations = st.session_state.get('ai_recommendations', {})
@@ -1433,7 +1493,7 @@ if page == "📊 التحليل الكامل":
             st.download_button(
                 label="📥 تحميل التقرير PDF",
                 data=st.session_state.pdf_data,
-                file_name=f"تقرير_Warda_Intelligence_{city}_{property_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                file_name=f"تقرير_Warda_Intelligence_{city}_{property_type}_{property_subtype}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                 mime="application/pdf",
                 use_container_width=True,
                 key="download_report"
@@ -1490,13 +1550,14 @@ if page == "🧠 المستشار الذكي":
             user_info = st.session_state.get("user_info", {})
             city = user_info.get("city", "مدينتك")
             district = user_info.get("district", "حي")
+            property_subtype = user_info.get("property_subtype", "العقار")
             
             if current_pkg == "مجانية":
                 welcome_msg = f"👋 **مرحبًا بك في المستشار الذكي**\n\nهل تحب أن أشرح لك وضع السوق العام في {city}؟"
             elif current_pkg in ["فضية", "ذهبية"]:
-                welcome_msg = f"👋 **أهلاً بك**\n\nهل تريد تحليل فرص استثمارية محددة في {district} بـ {city} الآن؟"
+                welcome_msg = f"👋 **أهلاً بك**\n\nهل تريد تحليل فرص استثمارية محددة لـ {property_subtype} في {district} بـ {city} الآن؟"
             else:  # ماسية أو ماسية متميزة
-                welcome_msg = f"👋 **تشرفنا بخدمتك**\n\nأستطيع تحليل الفرص النادرة والتوقيت المثالي للاستثمار في {district} بـ {city}. ماذا تريد أن تعرف؟"
+                welcome_msg = f"👋 **تشرفنا بخدمتك**\n\nأستطيع تحليل الفرص النادرة والتوقيت المثالي للاستثمار في {property_subtype} في {district} بـ {city}. ماذا تريد أن تعرف؟"
             
             st.markdown(welcome_msg)
 
@@ -1536,6 +1597,7 @@ if page == "🧠 المستشار الذكي":
             user_profile={
                 "city": user_info.get("city"),
                 "district": user_info.get("district"),
+                "property_subtype": user_info.get("property_subtype"),
                 "package": current_pkg,
                 "user_type": user_info.get("user_type")
             },
@@ -1580,6 +1642,8 @@ if 'last_city' not in st.session_state:
     st.session_state.last_city = None
 if 'last_property_type' not in st.session_state:
     st.session_state.last_property_type = None
+if 'last_property_subtype' not in st.session_state:
+    st.session_state.last_property_subtype = None
 if 'last_status' not in st.session_state:
     st.session_state.last_status = None
 if 'last_chosen_pkg' not in st.session_state:
