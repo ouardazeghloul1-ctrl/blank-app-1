@@ -5,6 +5,7 @@
 🚀 طبقة البيانات الذكية - تقرأ أي ملف حكومي وتفهمه تلقائياً
 🏗️  جاهزة لأنظمة تصنيف الأحياء الاستثمارية
 💎  نسخة محسنة بالكامل - جاهزة للإنتاج
+🧠  مزودة بـ Smart Property Classification Layer
 """
 
 import pandas as pd
@@ -212,6 +213,32 @@ def clean_district_name(district_series: pd.Series) -> pd.Series:
     return district_series.apply(clean_single)
 
 
+def classify_property_by_area(area):
+    """
+    🏷️  تصنيف العقار حسب المساحة (Smart Property Classification)
+    
+    المعايير:
+    - شقة: أقل من 150 متر مربع
+    - فيلا: 150 - 400 متر مربع
+    - عقار كبير: أكثر من 400 متر مربع
+    
+    هذه الطبقة تمكننا من إنشاء تقارير مخصصة (شقق، فلل، عقارات كبيرة)
+    """
+    if pd.isna(area):
+        return "غير محدد"
+    
+    try:
+        area_float = float(area)
+        if area_float < 150:
+            return "شقة"
+        elif area_float <= 400:
+            return "فيلا"
+        else:
+            return "عقار كبير"
+    except (ValueError, TypeError):
+        return "غير محدد"
+
+
 def load_government_data(selected_city: Optional[str] = None, 
                         selected_property_type: Optional[str] = None) -> pd.DataFrame:
     """
@@ -224,7 +251,8 @@ def load_government_data(selected_city: Optional[str] = None,
     - city: المدينة
     - district: الحي الأصلي
     - district_clean: الحي بعد التنظيف (lowercase)
-    - property_type: نوع العقار الموحد
+    - property_type: نوع العقار الموحد (سكني، تجاري، أرض)
+    - property_subtype: تصنيف العقار حسب المساحة (شقة، فيلا، عقار كبير) - ✅ إضافة جديدة
     - date: التاريخ
     - units: عدد الوحدات
     """
@@ -335,13 +363,25 @@ def load_government_data(selected_city: Optional[str] = None,
             normalized_df.loc[valid_area_mask, 'area']
         )
         
-        # ✅ التحسين: تحويل سعر المتر إلى عدد صحيح (Int64) بدلاً من float
-        # هذا أفضل للتحليل والعرض
+        # تحويل سعر المتر إلى عدد صحيح (Int64) بدلاً من float
         normalized_df['price_per_sqm'] = (
             normalized_df['price_per_sqm']
             .round(0)
-            .astype("Int64")  # Int64 يتعامل مع القيم الفارغة (NaN)
+            .astype("Int64")
         )
+        
+        # =========================================
+        # 🏷️  Smart Property Classification Layer
+        # =========================================
+        # إضافة تصنيف العقار حسب المساحة (شقة، فيلا، عقار كبير)
+        # هذه الطبقة تمكننا من إنشاء تقارير مخصصة لكل نوع
+        normalized_df['property_subtype'] = normalized_df['area'].apply(classify_property_by_area)
+        
+        # إحصائيات التصنيف
+        subtype_counts = normalized_df['property_subtype'].value_counts()
+        print("\n🏷️  تصنيف العقارات حسب المساحة:")
+        for subtype, count in subtype_counts.items():
+            print(f"   {subtype}: {count:,} صفقة")
         
         print(f"🧹 تمت إزالة {initial_count - len(normalized_df)} صفقة غير صالحة للتحليل")
         
@@ -370,6 +410,7 @@ def load_government_data(selected_city: Optional[str] = None,
         print(f"  🏙️  المدن: {normalized_df['city'].nunique()}")
         print(f"  🏘️  الأحياء: {normalized_df['district_clean'].nunique()}")
         print(f"  🏠  أنواع العقارات: {normalized_df['property_type'].unique().tolist()}")
+        print(f"  🏷️  تصنيفات المساحة: {normalized_df['property_subtype'].unique().tolist()}")
         
         # إحصائيات الأسعار
         if len(normalized_df) > 0:
@@ -406,9 +447,16 @@ if __name__ == "__main__":
     df = load_government_data()
     
     if not df.empty:
-        print("\n🔍 عينة من البيانات النهائية:")
-        display_cols = ['price', 'area', 'price_per_sqm', 'district_clean', 'property_type']
+        print("\n🔍 عينة من البيانات النهائية مع التصنيف الجديد:")
+        display_cols = ['price', 'area', 'price_per_sqm', 'district_clean', 'property_type', 'property_subtype']
         print(df[display_cols].head(10).to_string())
+        
+        # ✅ التحقق من التصنيف الجديد
+        print("\n🔍 توزيع تصنيفات العقارات حسب المساحة:")
+        subtype_distribution = df['property_subtype'].value_counts()
+        for subtype, count in subtype_distribution.items():
+            percentage = (count / len(df)) * 100
+            print(f"   {subtype}: {count:,} صفقة ({percentage:.1f}%)")
         
         # ✅ التحقق من أن سعر المتر أصبح عدداً صحيحاً
         print("\n🔍 التحقق من نوع بيانات price_per_sqm:")
@@ -435,12 +483,22 @@ if __name__ == "__main__":
         if not riyadh_df.empty:
             print(f"   ✅ عدد صفقات الرياض: {len(riyadh_df):,}")
             print(f"   📊 متوسط سعر المتر في الرياض: {riyadh_df['price_per_sqm'].mean():,.0f} ريال")
+            
+            # عرض توزيع التصنيفات في الرياض
+            print(f"   🏷️  توزيع التصنيفات في الرياض:")
+            riyadh_subtypes = riyadh_df['property_subtype'].value_counts()
+            for subtype, count in riyadh_subtypes.head(3).items():
+                print(f"      {subtype}: {count:,}")
         
         # اختبار فلترة العقارات السكنية
         print("\n🏠 اختبار 3: فلترة العقارات السكنية")
         residential_df = load_government_data(selected_property_type='سكني')
         if not residential_df.empty:
             print(f"   ✅ عدد الصفقات السكنية: {len(residential_df):,}")
+            print(f"   🏷️  توزيع التصنيفات داخل السكني:")
+            res_subtypes = residential_df['property_subtype'].value_counts()
+            for subtype, count in res_subtypes.head(3).items():
+                print(f"      {subtype}: {count:,}")
         
         # اختبار التحقق من أسماء الأحياء
         print("\n🧪 اختبار 4: التحقق من توحيد أسماء الأحياء")
@@ -456,5 +514,6 @@ if __name__ == "__main__":
             print(f"   {original:20} ← {cleaned_name}")
         
         print("\n" + "=" * 60)
-        print("✅✅✅ النظام جاهز بالكامل - يمكن البدء في بناء District Ranking Engine")
+        print("✅✅✅ النظام جاهز بالكامل - مع خاصية تصنيف العقارات الذكية")
+        print("🎯 يمكن الآن إنشاء تقارير مخصصة: تقرير الشقق، تقرير الفلل، تقرير العقارات الكبيرة")
         print("=" * 60)
