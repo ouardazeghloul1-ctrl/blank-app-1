@@ -21,7 +21,9 @@ def prepare_district_data(df: pd.DataFrame) -> pd.DataFrame:
     df["transaction_date"] = pd.to_datetime(df["transaction_date"])
 
     return df
-  def calculate_basic_district_metrics(df: pd.DataFrame, city_name: str, district_name: str):
+
+
+def calculate_basic_district_metrics(df: pd.DataFrame, city_name: str, district_name: str):
     """
     حساب المؤشرات الأساسية لحي معين
     """
@@ -52,7 +54,9 @@ def prepare_district_data(df: pd.DataFrame) -> pd.DataFrame:
         "transactions_count": transactions_count,
         "price_deviation_percent": round(deviation, 2)
     }
-    def calculate_dpi_score(metrics: dict):
+
+
+def calculate_dpi_score(metrics: dict):
     """
     حساب مؤشر قوة الحي DPI
     """
@@ -60,10 +64,10 @@ def prepare_district_data(df: pd.DataFrame) -> pd.DataFrame:
     deviation = abs(metrics["price_deviation_percent"])
     transactions = metrics["transactions_count"]
 
-    # استقرار السعر (كلما كان الانحراف أقل كان أفضل)
+    # استقرار السعر
     stability_score = max(0, 100 - deviation * 2)
 
-    # قوة الطلب (عدد الصفقات)
+    # قوة الطلب
     demand_score = min(100, transactions * 2)
 
     # السيولة
