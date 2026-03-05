@@ -939,6 +939,15 @@ if page == "📊 التحليل الكامل":
                                ["مستثمر", "وسيط عقاري", "شركة تطوير", "فرد", "باحث عن فرصة", "مالك عقار"])
         city = st.selectbox("المدينة:", 
                            ["الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة"])
+        
+        # ===== التعديل 1: إضافة اختيار الحي =====
+        # استخراج الأحياء من البيانات الحقيقية
+        districts = sorted(
+            df_raw[df_raw["city"] == city]["district"].dropna().unique()
+        )
+        district = st.selectbox("الحي:", districts)
+        # ===== نهاية التعديل 1 =====
+        
         property_type = st.selectbox("نوع العقار:", 
                                     ["شقة", "فيلا", "أرض", "محل تجاري"])
         status = st.selectbox("الحالة:", ["للبيع", "للشراء", "للإيجار"])
@@ -964,14 +973,17 @@ if page == "📊 التحليل الكامل":
         property_count = property_count_options[count_index]
         st.markdown(f"**عدد العقارات المختارة:** {property_count}")
 
+        # ===== التعديل 2: إضافة الحي إلى user_info =====
         # ✅ حفظ معلومات المستخدم فور اختياره للمدينة
         st.session_state["user_info"] = {
             "city": city,
+            "district": district,
             "property_type": property_type,
             "status": status,
             "user_type": user_type,
             "package": st.session_state.get("chosen_pkg", "مجانية")
         }
+        # ===== نهاية التعديل 2 =====
 
     with col2:
         st.markdown("### 💎 اختيار الباقة")
@@ -1288,10 +1300,11 @@ if page == "📊 التحليل الكامل":
                     city, property_type, status, real_data
                 )
 
-                # ✅ التصحيح الحاسم: إضافة الباقة بشكل صحيح
+                # ===== التعديل 3: إضافة الحي إلى user_info في التقرير =====
                 user_info = {
                     "user_type": user_type,
                     "city": city,
+                    "district": district,
                     "property_type": property_type,
                     "area": area,
                     "package": chosen_pkg,
@@ -1300,6 +1313,7 @@ if page == "📊 التحليل الكامل":
                     "property_count": property_count,
                     "status": status
                 }
+                # ===== نهاية التعديل 3 =====
                 
                 # حفظ user_info في session_state
                 st.session_state["user_info"] = user_info
@@ -1405,6 +1419,7 @@ if page == "📊 التحليل الكامل":
             st.write("### 👤 تحليل احتياجاتك")
             st.write(f"**الفئة:** {user_info.get('user_type', 'غير محدد')}")
             st.write(f"**المدينة:** {user_info.get('city', 'غير محدد')}")
+            st.write(f"**الحي:** {user_info.get('district', 'غير محدد')}")
             st.write(f"**الباقة:** {user_info.get('package', 'غير محدد')}")
             
             ai_recommendations = st.session_state.get('ai_recommendations', {})
@@ -1474,13 +1489,14 @@ if page == "🧠 المستشار الذكي":
             current_pkg = st.session_state.get("chosen_pkg", "مجانية")
             user_info = st.session_state.get("user_info", {})
             city = user_info.get("city", "مدينتك")
+            district = user_info.get("district", "حي")
             
             if current_pkg == "مجانية":
                 welcome_msg = f"👋 **مرحبًا بك في المستشار الذكي**\n\nهل تحب أن أشرح لك وضع السوق العام في {city}؟"
             elif current_pkg in ["فضية", "ذهبية"]:
-                welcome_msg = f"👋 **أهلاً بك**\n\nهل تريد تحليل فرص استثمارية محددة في {city} الآن؟"
+                welcome_msg = f"👋 **أهلاً بك**\n\nهل تريد تحليل فرص استثمارية محددة في {district} بـ {city} الآن؟"
             else:  # ماسية أو ماسية متميزة
-                welcome_msg = f"👋 **تشرفنا بخدمتك**\n\nأستطيع تحليل الفرص النادرة والتوقيت المثالي للاستثمار في {city}. ماذا تريد أن تعرف؟"
+                welcome_msg = f"👋 **تشرفنا بخدمتك**\n\nأستطيع تحليل الفرص النادرة والتوقيت المثالي للاستثمار في {district} بـ {city}. ماذا تريد أن تعرف؟"
             
             st.markdown(welcome_msg)
 
@@ -1519,6 +1535,7 @@ if page == "🧠 المستشار الذكي":
         robo_response = handle_robo_question(
             user_profile={
                 "city": user_info.get("city"),
+                "district": user_info.get("district"),
                 "package": current_pkg,
                 "user_type": user_info.get("user_type")
             },
