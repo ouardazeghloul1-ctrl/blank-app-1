@@ -328,7 +328,7 @@ def load_government_data(selected_city: Optional[str] = None,
         normalized_df = normalized_df[area_mask]
         
         # سعر المتر المربع (قلب التحليل العقاري)
-        normalized_df['price_per_sqm'] = None
+        normalized_df['price_per_sqm'] = pd.NA
         valid_area_mask = (normalized_df['area'] > 0) & normalized_df['area'].notna()
         normalized_df.loc[valid_area_mask, 'price_per_sqm'] = (
             normalized_df.loc[valid_area_mask, 'price'] / 
