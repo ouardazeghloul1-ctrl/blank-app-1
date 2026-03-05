@@ -131,8 +131,14 @@ def build_report_story(user_info, provided_dataframe=None):
     بناء قصة التقرير الكاملة
     
     Args:
-        user_info: معلومات المستخدم (المدينة، نوع العقار، الباقة)
-        provided_dataframe: DataFrame خارجي (اختياري) - إذا تم تمريره، يستخدم بدلاً من جلب البيانات الحية
+        user_info: معلومات المستخدم (المدينة، نوع العقار، النوع التفصيلي، الباقة)
+        مثال:
+        {
+            "city": "الرياض",
+            "property_type": "سكني",
+            "property_subtype": "شقة",  # ✅ النوع التفصيلي (شقة، فيلا، قصر/عقار كبير)
+            "package": "ذهبية"
+        }
     
     Returns:
         dict: يحتوي على meta, content_text, executive_decision, charts, district_ranking, top_districts
@@ -178,10 +184,32 @@ def build_report_story(user_info, provided_dataframe=None):
     
     df = normalize_dataframe(df)
     
-    # ✅ توحيد الأعمدة لمحرك الرسومات قبل الاستخدام
-    if df is not None:
+    # ✅ التحقق من أن DataFrame ليس فارغاً قبل المعالجة
+    if df is not None and not df.empty:
+        # =========================================
+        # 🎯 Smart Property Subtype Filter
+        # =========================================
+        # ✅ تحسين: الفلتر قبل توحيد الأعمدة للحفاظ على property_subtype
+        property_subtype = user_info.get("property_subtype")
+        if property_subtype and "property_subtype" in df.columns:
+            print(f"🎯 تصفية حسب النوع التفصيلي: {property_subtype}")
+            before_filter = len(df)
+            df = df[df["property_subtype"] == property_subtype]
+            print(f"   ✅ بعد التصفية: {len(df)} صفقة (تمت إزالة {before_filter - len(df)} صفقة)")
+            
+            # تحديث عنوان التقرير ليعكس النوع التفصيلي
+            if len(df) > 0:
+                content_text = content_text.replace(
+                    f"تقرير سوق {user_info.get('city', '')}",
+                    f"تقرير سوق {property_subtype} في {user_info.get('city', '')}"
+                )
+        
+        # ✅ توحيد الأعمدة لمحرك الرسومات بعد التصفية
         df = unify_columns_for_charts(df)
         print(f"📊 الأعمدة بعد التوحيد: {list(df.columns)}")
+    else:
+        print("⚠️ DataFrame فارغ أو غير موجود - سيتم استخدام بيانات افتراضية")
+        df = pd.DataFrame()  # DataFrame فارغ للمعالجة اللاحقة
 
     # =====================================
     # حساب ترتيب الأحياء الاستثمارية 🏆
