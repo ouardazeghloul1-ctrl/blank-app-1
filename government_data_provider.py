@@ -280,11 +280,26 @@ def load_government_data(selected_city: Optional[str] = None,
         # ======================
         column_mapping = smart_column_mapper(df)
         
-        # التأكد من وجود عمود السعر (إلزامي)
+        # 🔧 Smart Fallback System (حل ذكي يمنع توقف النظام)
         if 'price' not in column_mapping:
-            print("❌ لا يمكن الاستمرار: لم يتم العثور على عمود السعر")
-            print("📌 الأعمدة الموجودة:", list(df.columns))
-            return pd.DataFrame()
+            print("⚠️ لم يتم اكتشاف عمود السعر تلقائياً – محاولة إصلاح ذكي...")
+            for col in df.columns:
+                col_lower = str(col).lower()
+                if any(x in col_lower for x in ["قيمة", "سعر", "price", "value"]):
+                    column_mapping["price"] = col
+                    print(f"✅ تم تحديد عمود السعر تلقائياً: {col}")
+                    break
+            
+            # إذا لم يتم العثور حتى بعد المحاولة
+            if 'price' not in column_mapping:
+                print("⚠️ لم يتم العثور على عمود السعر – استخدام أول عمود رقمي كحل أخير")
+                numeric_cols = df.select_dtypes(include="number").columns
+                if len(numeric_cols) > 0:
+                    column_mapping["price"] = numeric_cols[0]
+                    print(f"✅ تم استخدام العمود الرقمي: {numeric_cols[0]}")
+                else:
+                    print("❌ لا يوجد عمود رقمي يمكن استخدامه كسعر")
+                    return pd.DataFrame()
         
         # ======================
         # 3️⃣ بناء DataFrame الموحد
