@@ -890,3 +890,105 @@ class AdvancedCharts:
             "chapter_9": [],
             "chapter_10": [],
         }
+# =====================
+    # DISTRICT PRICE TREND
+    # =====================
+    def generate_district_price_trend(self, df, district):
+        """
+        تطور سعر المتر في حي معين عبر الزمن
+        """
+
+        if df is None or df.empty:
+            return None
+
+        if not self._has_columns(df, ["price", "area", "district", "date"]):
+            return None
+
+        df = df.copy()
+
+        # فلترة الحي
+        df = df[df["district"] == district]
+
+        if df.empty:
+            return None
+
+        # حساب سعر المتر
+        df["price_per_sqm"] = df["price"] / df["area"]
+
+        # تحويل التاريخ
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+        df = df.dropna(subset=["date"])
+
+        # تجميع شهري
+        df["month"] = df["date"].dt.to_period("M").astype(str)
+
+        monthly = (
+            df.groupby("month")["price_per_sqm"]
+            .mean()
+            .reset_index()
+        )
+
+        fig = px.line(
+            monthly,
+            x="month",
+            y="price_per_sqm",
+            title=f"تطور سعر المتر في حي {district}",
+            markers=True,
+            color_discrete_sequence=[self.COLORS["emerald"]],
+        )
+
+        fig.update_layout(
+            template="plotly_white",
+            xaxis_title="التاريخ",
+            yaxis_title="سعر المتر",
+        )
+
+        return fig
+
+
+    # =====================
+    # DISTRICT COMPARISON
+    # =====================
+    def generate_district_comparison(self, df, districts):
+        """
+        مقارنة أسعار الأحياء
+        """
+
+        if df is None or df.empty:
+            return None
+
+        if not self._has_columns(df, ["price", "area", "district"]):
+            return None
+
+        df = df.copy()
+
+        df["price_per_sqm"] = df["price"] / df["area"]
+
+        df = df[df["district"].isin(districts)]
+
+        if df.empty:
+            return None
+
+        comparison = (
+            df.groupby("district")["price_per_sqm"]
+            .mean()
+            .reset_index()
+        )
+
+        fig = px.bar(
+            comparison,
+            x="district",
+            y="price_per_sqm",
+            title="مقارنة متوسط سعر المتر بين الأحياء",
+            color="district",
+        )
+
+        fig.update_layout(
+            template="plotly_white",
+            xaxis_title="الحي",
+            yaxis_title="متوسط سعر المتر",
+            showlegend=False,
+        )
+
+        return fig
