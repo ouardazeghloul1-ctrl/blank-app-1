@@ -108,16 +108,12 @@ def smart_column_mapper(df: pd.DataFrame) -> Dict[str, str]:
 
 
 def clean_price(price_series: pd.Series) -> pd.Series:
-    """💰 تنظيف وتحويل عمود السعر بذكاء فائق"""
-    
-    # تحويل إلى string والتعامل مع القيم الفارغة
-    cleaned = price_series.astype(str).fillna('0')
-    
-    # إزالة كل الرموز غير الرقمية مع الحفاظ على النقاط العشرية
-    cleaned = cleaned.apply(lambda x: re.sub(r'[^\d.]', '', str(x)))
-    
-    # تحويل إلى رقم
-    numeric_prices = pd.to_numeric(cleaned, errors='coerce')
+    """
+    💰 تنظيف وتحويل عمود السعر بذكاء فائق
+    ✅ تعديل: استخدام pandas مباشرة للتعامل مع الصيغة العلمية (3.2E+07)
+    """
+    # تحويل مباشر باستخدام pandas (يتعامل مع الصيغة العلمية تلقائياً)
+    numeric_prices = pd.to_numeric(price_series, errors='coerce')
     
     # تطبيق فلتر منطقي للأسعار (إزالة الأخطاء الواضحة)
     # الأسعار الأقل من 1000 أو الأكثر من مليار تعتبر أخطاء إدخال
