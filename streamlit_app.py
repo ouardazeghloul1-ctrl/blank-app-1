@@ -1,12 +1,18 @@
 import streamlit as st
 from government_data_provider import load_government_data
+
 st.set_page_config(
     page_title="التحليل العقاري الذهبي | Warda Intelligence",
     page_icon="🏙️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
 df_raw = load_government_data(selected_city=None, selected_property_type=None)
+
+# ===== التعديل 2: DEBUG لعرض حالة البيانات =====
+st.write("DEBUG ROWS:", len(df_raw))
+st.write("DEBUG COLUMNS:", df_raw.columns.tolist())
 
 st.write("📊 عدد كل الصفقات بدون أي فلترة:", len(df_raw))
 
@@ -15,6 +21,7 @@ st.write(df_raw.head())
 
 st.write("📌 أسماء الأعمدة النهائية:")
 st.write(df_raw.columns.tolist())
+
 st.write("🔍 اختبار مباشر لمزود البيانات")
 
 test_df = load_government_data(selected_city="الرياض", selected_property_type="شقة")
@@ -25,6 +32,7 @@ st.write("عدد شقق جدة:", len(test_df2))
 
 test_df3 = load_government_data(selected_city="الرياض", selected_property_type="محل تجاري")
 st.write("عدد المحلات التجارية في الرياض:", len(test_df3))
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -940,13 +948,25 @@ if page == "📊 التحليل الكامل":
         city = st.selectbox("المدينة:", 
                            ["الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة"])
         
-        # ===== التعديل 1: إضافة اختيار الحي =====
-        # استخراج الأحياء من البيانات الحقيقية
-        districts = sorted(
-            df_raw[df_raw["city"] == city]["district"].dropna().unique()
-        )
-        district = st.selectbox("الحي:", districts)
+        # ===== التعديل 1: إضافة التحقق من الأعمدة =====
+        # التأكد أن البيانات موجودة
+        if df_raw.empty:
+            st.error("❌ لم يتم تحميل بيانات السوق")
+            st.write("الأعمدة الموجودة:", df_raw.columns.tolist())
+            st.stop()
+        
+        # التأكد أن الأعمدة موجودة
+        if "city" in df_raw.columns and "district" in df_raw.columns:
+            districts = sorted(
+                df_raw[df_raw["city"] == city]["district"].dropna().unique()
+            )
+        else:
+            st.error("❌ الأعمدة city أو district غير موجودة")
+            st.write("الأعمدة الموجودة:", df_raw.columns.tolist())
+            districts = []
         # ===== نهاية التعديل 1 =====
+        
+        district = st.selectbox("الحي:", districts)
         
         property_type = st.selectbox("نوع العقار:", 
                                     ["شقة", "فيلا", "أرض", "محل تجاري"])
@@ -973,7 +993,6 @@ if page == "📊 التحليل الكامل":
         property_count = property_count_options[count_index]
         st.markdown(f"**عدد العقارات المختارة:** {property_count}")
 
-        # ===== التعديل 2: إضافة الحي إلى user_info =====
         # ✅ حفظ معلومات المستخدم فور اختياره للمدينة
         st.session_state["user_info"] = {
             "city": city,
@@ -983,7 +1002,6 @@ if page == "📊 التحليل الكامل":
             "user_type": user_type,
             "package": st.session_state.get("chosen_pkg", "مجانية")
         }
-        # ===== نهاية التعديل 2 =====
 
     with col2:
         st.markdown("### 💎 اختيار الباقة")
@@ -1300,7 +1318,6 @@ if page == "📊 التحليل الكامل":
                     city, property_type, status, real_data
                 )
 
-                # ===== التعديل 3: إضافة الحي إلى user_info في التقرير =====
                 user_info = {
                     "user_type": user_type,
                     "city": city,
@@ -1313,7 +1330,6 @@ if page == "📊 التحليل الكامل":
                     "property_count": property_count,
                     "status": status
                 }
-                # ===== نهاية التعديل 3 =====
                 
                 # حفظ user_info في session_state
                 st.session_state["user_info"] = user_info
