@@ -323,8 +323,9 @@ def load_government_data(selected_city: Optional[str] = None,
         # السعر (مع الفلترة الذكية)
         normalized_df['price'] = clean_price(df[column_mapping['price']])
         
-        # ✅ DEBUG: معرفة كم سعر صالح بعد التنظيف
-        print("DEBUG price count after clean_price:", normalized_df['price'].notna().sum())
+        # ✅ سطرين التشخيص الحاسمين
+        print("DEBUG prices not null:", normalized_df['price'].notna().sum())
+        print("DEBUG total rows:", len(normalized_df))
         
         # المساحة
         if 'area' in column_mapping:
@@ -399,10 +400,8 @@ def load_government_data(selected_city: Optional[str] = None,
         # 4️⃣ تنظيف البيانات
         # ======================
         
-        # ✅ سطر التشخيص الحاسم: معرفة عدد الأسعار قبل الحذف
-        print("عدد الأسعار قبل الحذف:", normalized_df['price'].notna().sum())
-        
         # إزالة الصفوف ذات الأسعار غير الصالحة
+        initial_count = len(normalized_df)
         normalized_df = normalized_df[normalized_df['price'].notna()]
         
         # تعبئة القيم الناقصة
