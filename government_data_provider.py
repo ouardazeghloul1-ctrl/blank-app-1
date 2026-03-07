@@ -110,27 +110,20 @@ def smart_column_mapper(df: pd.DataFrame) -> Dict[str, str]:
 def clean_price(price_series: pd.Series) -> pd.Series:
     """
     💰 تنظيف وتحويل عمود السعر بذكاء فائق
-    ✅ تعديل: تنظيف الفواصل والمسافات وكلمة "ريال" للتعامل مع الأرقام مثل 1,200,000
     """
-    # تنظيف شامل للنص
-    cleaned = (
-        price_series.astype(str)
-        .str.replace(",", "", regex=False)        # إزالة الفواصل
-        .str.replace(" ", "", regex=False)        # إزالة المسافات
-        .str.replace("ريال", "", regex=False)     # إزالة كلمة ريال
-        .str.replace("$", "", regex=False)        # إزالة علامة الدولار
-        .str.replace("%", "", regex=False)        # إزالة علامة النسبة
-        .replace("####", None)                     # إزالة القيم ####
-        .replace("nan", None)                      # إزالة النص "nan"
-        .replace("None", None)                     # إزالة النص "None"
-        .replace("", None)                          # إزالة النص الفارغ
-    )
+    # تحويل إلى string والتعامل مع القيم الفارغة
+    cleaned = price_series.astype(str).fillna('0')
     
-    # تحويل مباشر باستخدام pandas
+    # إزالة كل الرموز غير الرقمية مع الحفاظ على النقاط العشرية
+    cleaned = cleaned.apply(lambda x: re.sub(r'[^\d.]', '', str(x)))
+    
+    # تحويل إلى رقم
     numeric_prices = pd.to_numeric(cleaned, errors='coerce')
     
-    # ✅ تم إزالة الفلتر 1000-1B للسماح بمرونة أكبر
-    # نترك pandas يقرأ كل الأرقام الصحيحة
+    # تطبيق فلتر منطقي للأسعار (إزالة الأخطاء الواضحة)
+    # الأسعار الأقل من 1000 أو الأكثر من مليار تعتبر أخطاء إدخال
+    valid_price_mask = (numeric_prices > 1000) & (numeric_prices < 1_000_000_000)
+    numeric_prices[~valid_price_mask] = None
     
     return numeric_prices
 
@@ -149,10 +142,10 @@ def normalize_property_type(type_series: pd.Series) -> pd.Series:
         'بيت': 'سكني',
         'دور': 'سكني',
         'شاليه': 'سكني',
-        'سكني': 'سكني',          # ✅ تم التصحيح: كانت سكنi
+        'سكني': 'سكني',
         'سكن': 'سكني',
         'منزل': 'سكني',
-        'دوبلكس': 'سكني',
+        'دوبلك스': 'سكني',
         'تاون هاوس': 'سكني',
         
         # تجاري
@@ -275,13 +268,7 @@ def load_government_data(selected_city: Optional[str] = None,
             return pd.DataFrame()
         
         print(f"📂 جاري قراءة الملف: {DATA_PATH}")
-        
-        # ✅ العودة للقراءة العادية (بدون dtype=str)
-        df = pd.read_csv(
-            DATA_PATH, 
-            encoding="utf-8-sig", 
-            low_memory=False
-        )
+        df = pd.read_csv(DATA_PATH, encoding='utf-8-sig', low_memory=False)
         
         if df.empty:
             print("⚠️ الملف فارغ - لا توجد بيانات للتحليل")
@@ -294,26 +281,11 @@ def load_government_data(selected_city: Optional[str] = None,
         # ======================
         column_mapping = smart_column_mapper(df)
         
-        # 🔧 Smart Fallback System (حل ذكي يمنع توقف النظام)
+        # التأكد من وجود عمود السعر (إلزامي)
         if 'price' not in column_mapping:
-            print("⚠️ لم يتم اكتشاف عمود السعر تلقائياً – محاولة إصلاح ذكي...")
-            for col in df.columns:
-                col_lower = str(col).lower()
-                if any(x in col_lower for x in ["قيمة", "سعر", "price", "value"]):
-                    column_mapping["price"] = col
-                    print(f"✅ تم تحديد عمود السعر تلقائياً: {col}")
-                    break
-            
-            # إذا لم يتم العثور حتى بعد المحاولة
-            if 'price' not in column_mapping:
-                print("⚠️ لم يتم العثور على عمود السعر – استخدام أول عمود رقمي كحل أخير")
-                numeric_cols = df.select_dtypes(include="number").columns
-                if len(numeric_cols) > 0:
-                    column_mapping["price"] = numeric_cols[0]
-                    print(f"✅ تم استخدام العمود الرقمي: {numeric_cols[0]}")
-                else:
-                    print("❌ لا يوجد عمود رقمي يمكن استخدامه كسعر")
-                    return pd.DataFrame()
+            print("❌ لا يمكن الاستمرار: لم يتم العثور على عمود السعر")
+            print("📌 الأعمدة الموجودة:", list(df.columns))
+            return pd.DataFrame()
         
         # ======================
         # 3️⃣ بناء DataFrame الموحد
@@ -323,48 +295,17 @@ def load_government_data(selected_city: Optional[str] = None,
         # السعر (مع الفلترة الذكية)
         normalized_df['price'] = clean_price(df[column_mapping['price']])
         
-        # ✅ سطرين التشخيص الحاسمين
-        print("DEBUG prices not null:", normalized_df['price'].notna().sum())
-        print("DEBUG total rows:", len(normalized_df))
-        
         # المساحة
         if 'area' in column_mapping:
             normalized_df['area'] = pd.to_numeric(df[column_mapping['area']], errors='coerce')
         else:
             normalized_df['area'] = None
         
-        # ======================
-        # استخراج المدينة بذكاء
-        # ======================
-        city_series = None
-        
-        # 1️⃣ إذا وجد عمود المدينة
+        # المدينة
         if 'city' in column_mapping:
-            city_series = df[column_mapping['city']].astype(str)
-        
-        # 2️⃣ إذا لم يوجد، نحاول استخراجها من "المدينة / الحي"
-        elif 'district' in column_mapping:
-            city_series = (
-                df[column_mapping['district']]
-                .astype(str)
-                .str.split('/')
-                .str[0]
-            )
-        
-        # 3️⃣ إذا لم يوجد، نحاول من المنطقة
-        elif 'region' in column_mapping:
-            city_series = df[column_mapping['region']].astype(str)
-        
-        # تنظيف الاسم
-        if city_series is not None:
-            normalized_df['city'] = (
-                city_series
-                .str.replace("مدينة", "", regex=False)
-                .str.replace("منطقة", "", regex=False)
-                .str.strip()
-            )
+            normalized_df['city'] = df[column_mapping['city']].astype(str).str.strip()
         else:
-            normalized_df['city'] = "غير محدد"
+            normalized_df['city'] = 'غير محدد'
         
         # الحي (الأصلي والمنظف)
         if 'district' in column_mapping:
@@ -462,26 +403,15 @@ def load_government_data(selected_city: Optional[str] = None,
         
         # فلترة المدينة
         if selected_city and selected_city != 'الكل':
-            # ✅ DEBUG: معرفة المدن الموجودة قبل الفلترة
-            print("\n🔍 DEBUG المدن الموجودة في الملف:")
-            print(normalized_df['city'].unique()[:20])
-            print(f"🔍 المدينة المحددة من المستخدم: '{selected_city}'")
-            
             city_mask = normalized_df['city'].str.contains(selected_city, case=False, na=False)
             normalized_df = normalized_df[city_mask]
             print(f"🏙️  بعد فلترة المدينة '{selected_city}': {len(normalized_df)} صفقة")
         
-        # ✅ التعديل: فلترة نوع العقار بشكل آمن
+        # فلترة نوع العقار
         if selected_property_type and selected_property_type != 'الكل':
             if selected_property_type in ['سكني', 'تجاري', 'أرض']:
-                # إذا كان النوع موجود في البيانات نطبّق الفلتر
-                if selected_property_type in normalized_df['property_type'].unique():
-                    normalized_df = normalized_df[
-                        normalized_df['property_type'] == selected_property_type
-                    ]
-                    print(f"🏠 بعد فلترة النوع '{selected_property_type}': {len(normalized_df)} صفقة")
-                else:
-                    print(f"⚠️ النوع '{selected_property_type}' غير موجود في البيانات – تم تجاهل الفلتر")
+                normalized_df = normalized_df[normalized_df['property_type'] == selected_property_type]
+                print(f"🏠 بعد فلترة النوع '{selected_property_type}': {len(normalized_df)} صفقة")
         
         # ======================
         # 6️⃣ تقرير إحصائي شامل
