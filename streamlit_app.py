@@ -796,688 +796,730 @@ page = st.radio(
 
 # ========== صفحة التحليل الكامل ==========
 if page == "📊 التحليل الكامل":
-    # ========== التنبيهات الحية (باستخدام النظام الموحد) ==========
-    st.markdown("---")
-    st.markdown("## 🔔 التنبيهات الاستثمارية الحية (اليوم)")
-
-    # عناصر الاختيار للمدينة ونوع العقار (لزر التحديث)
-    col_city, col_type = st.columns(2)
-    with col_city:
-        city_select = st.selectbox(
-            "اختر المدينة",
-            ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"],
-            key="city_select_alerts"
-        )
-    with col_type:
-        property_type_select = st.selectbox(
-            "اختر نوع العقار",
-            ["شقة", "فيلا", "أرض"],
-            key="property_type_select_alerts"
-        )
     
-    # زر التحديث الرسمي (القلب) - الحقيقي (تم إصلاحه)
-    col_btn, col_info = st.columns([1, 3])
-    with col_btn:
-        if st.button("🔄 تحديث بيانات السوق (حقيقي)", key="market_update_btn", use_container_width=True):
-            if not city_select:
-                st.error("❌ الرجاء اختيار المدينة أولاً")
-            else:
-                with st.spinner("جاري جلب بيانات حقيقية وتحليل السوق..."):
-                    try:
-                        # 🔥 جلب البيانات مع الفلترة من المصدر نفسه
-                        real_df = load_government_data(
-                            selected_city=city_select,
-                            selected_property_type=property_type_select
-                        )
+    # ===== إضافة نظام تنقل داخلي للتحليل الكامل =====
+    analysis_mode = st.radio(
+        "نوع التحليل",
+        ["🏙️ تقارير المدن", "📍 تقارير الأحياء"],
+        horizontal=True
+    )
+    
+    # ===== قسم تقارير المدن =====
+    if analysis_mode == "🏙️ تقارير المدن":
+        # ========== التنبيهات الحية (باستخدام النظام الموحد) ==========
+        st.markdown("---")
+        st.markdown("## 🔔 التنبيهات الاستثمارية الحية (اليوم)")
 
-                        if real_df.empty:
-                            st.error(f"❌ لا توجد بيانات للمدينة {city_select}")
-                        else:
-                            # تشغيل التنبيهات
-                            alerts = update_market_and_check_alerts(
-                                city_select,
-                                property_type_select
+        # عناصر الاختيار للمدينة ونوع العقار (لزر التحديث)
+        col_city, col_type = st.columns(2)
+        with col_city:
+            city_select = st.selectbox(
+                "اختر المدينة",
+                ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"],
+                key="city_select_alerts"
+            )
+        with col_type:
+            property_type_select = st.selectbox(
+                "اختر نوع العقار",
+                ["شقة", "فيلا", "أرض"],
+                key="property_type_select_alerts"
+            )
+        
+        # زر التحديث الرسمي (القلب) - الحقيقي (تم إصلاحه)
+        col_btn, col_info = st.columns([1, 3])
+        with col_btn:
+            if st.button("🔄 تحديث بيانات السوق (حقيقي)", key="market_update_btn", use_container_width=True):
+                if not city_select:
+                    st.error("❌ الرجاء اختيار المدينة أولاً")
+                else:
+                    with st.spinner("جاري جلب بيانات حقيقية وتحليل السوق..."):
+                        try:
+                            # 🔥 جلب البيانات مع الفلترة من المصدر نفسه
+                            real_df = load_government_data(
+                                selected_city=city_select,
+                                selected_property_type=property_type_select
                             )
 
-                            st.session_state.daily_alerts = alerts
-                            st.session_state.last_alert_refresh = datetime.now()
+                            if real_df.empty:
+                                st.error(f"❌ لا توجد بيانات للمدينة {city_select}")
+                            else:
+                                # تشغيل التنبيهات
+                                alerts = update_market_and_check_alerts(
+                                    city_select,
+                                    property_type_select
+                                )
 
-                            st.success(f"✅ تم تحديث السوق بـ {len(real_df)} صفقة")
+                                st.session_state.daily_alerts = alerts
+                                st.session_state.last_alert_refresh = datetime.now()
 
-                    except Exception as e:
-                        st.error(f"❌ حدث خطأ: {str(e)}")
+                                st.success(f"✅ تم تحديث السوق بـ {len(real_df)} صفقة")
 
-    with col_info:
-        last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
-        refresh_time = last_refresh.strftime('%H:%M:%S') if isinstance(last_refresh, datetime) else str(last_refresh)
-        st.caption(f"🕒 آخر تحديث: {refresh_time}")
+                        except Exception as e:
+                            st.error(f"❌ حدث خطأ: {str(e)}")
 
-    # جلب التنبيهات مرة واحدة فقط في الجلسة
-    if "daily_alerts" not in st.session_state:
-        with st.spinner("🔄 جاري تحليل السوق ورصد الفرص..."):
-            if ALERTS_AVAILABLE:
-                st.session_state.daily_alerts = get_today_alerts()
-                st.session_state.last_alert_refresh = datetime.now()
-            else:
-                st.session_state.daily_alerts = []
-                st.session_state.last_alert_refresh = datetime.now()
-                st.info("⚠️ نظام التنبيهات قيد التفعيل قريبًا")
+        with col_info:
+            last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
+            refresh_time = last_refresh.strftime('%H:%M:%S') if isinstance(last_refresh, datetime) else str(last_refresh)
+            st.caption(f"🕒 آخر تحديث: {refresh_time}")
 
-    # فلترة التنبيهات حسب المدن المستهدفة
-    TARGET_CITIES = ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"]
-    filtered_alerts = [
-        alert for alert in st.session_state.daily_alerts
-        if alert.get("city") in TARGET_CITIES
-    ]
-
-    # الحصول على إحصائيات التنبيهات
-    alert_stats = get_alerts_stats() if ALERTS_AVAILABLE else {"total": 0, "by_confidence": {"HIGH": 0, "MEDIUM": 0, "LOW": 0}}
-
-    # عرض إحصائيات سريعة
-    if filtered_alerts:
-        col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
-        with col_stat1:
-            st.metric("📊 إجمالي", len(filtered_alerts))
-        with col_stat2:
-            st.metric("🔴 قوية", alert_stats["by_confidence"].get("HIGH", 0))
-        with col_stat3:
-            st.metric("🟡 متوسطة", alert_stats["by_confidence"].get("MEDIUM", 0))
-        with col_stat4:
-            st.metric("🟢 خفيفة", alert_stats["by_confidence"].get("LOW", 0))
-
-    # عرض عدد التنبيهات وآخر تحديث
-    col_refresh, col_info = st.columns([1, 3])
-    with col_refresh:
-        if st.button("🔄 تحديث", key="refresh_alerts"):
-            with st.spinner("جاري تحديث السوق..."):
-                try:
-                    alerts = update_market_and_check_alerts(city_select, property_type_select)
-                    st.session_state.daily_alerts = alerts
+        # جلب التنبيهات مرة واحدة فقط في الجلسة
+        if "daily_alerts" not in st.session_state:
+            with st.spinner("🔄 جاري تحليل السوق ورصد الفرص..."):
+                if ALERTS_AVAILABLE:
+                    st.session_state.daily_alerts = get_today_alerts()
                     st.session_state.last_alert_refresh = datetime.now()
-                    st.rerun()
+                else:
+                    st.session_state.daily_alerts = []
+                    st.session_state.last_alert_refresh = datetime.now()
+                    st.info("⚠️ نظام التنبيهات قيد التفعيل قريبًا")
+
+        # فلترة التنبيهات حسب المدن المستهدفة
+        TARGET_CITIES = ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"]
+        filtered_alerts = [
+            alert for alert in st.session_state.daily_alerts
+            if alert.get("city") in TARGET_CITIES
+        ]
+
+        # الحصول على إحصائيات التنبيهات
+        alert_stats = get_alerts_stats() if ALERTS_AVAILABLE else {"total": 0, "by_confidence": {"HIGH": 0, "MEDIUM": 0, "LOW": 0}}
+
+        # عرض إحصائيات سريعة
+        if filtered_alerts:
+            col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+            with col_stat1:
+                st.metric("📊 إجمالي", len(filtered_alerts))
+            with col_stat2:
+                st.metric("🔴 قوية", alert_stats["by_confidence"].get("HIGH", 0))
+            with col_stat3:
+                st.metric("🟡 متوسطة", alert_stats["by_confidence"].get("MEDIUM", 0))
+            with col_stat4:
+                st.metric("🟢 خفيفة", alert_stats["by_confidence"].get("LOW", 0))
+
+        # عرض عدد التنبيهات وآخر تحديث
+        col_refresh, col_info = st.columns([1, 3])
+        with col_refresh:
+            if st.button("🔄 تحديث", key="refresh_alerts"):
+                with st.spinner("جاري تحديث السوق..."):
+                    try:
+                        alerts = update_market_and_check_alerts(city_select, property_type_select)
+                        st.session_state.daily_alerts = alerts
+                        st.session_state.last_alert_refresh = datetime.now()
+                        st.rerun()
+                    except Exception as e:
+                        st.info("ℹ️ لا توجد بيانات أحدث من آخر لقطة محفوظة. التحليل يعتمد على آخر بيانات موثوقة.")
+
+        with col_info:
+            last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
+            refresh_time = last_refresh.strftime('%H:%M:%S') if isinstance(last_refresh, datetime) else str(last_refresh)
+            st.caption(f"🔒 عدد التنبيهات اليوم: {len(st.session_state.daily_alerts)} | 🕒 آخر تحديث: {refresh_time}")
+
+        # عرض التنبيهات باستخدام دالة التنسيق من النظام الموحد
+        if filtered_alerts:
+            # تحديد عدد الأعمدة بناءً على عدد التنبيهات
+            cols = st.columns(2) if len(filtered_alerts) > 1 else [st.container()]
+            
+            for i, alert in enumerate(filtered_alerts):
+                with cols[i % 2] if len(filtered_alerts) > 1 else cols[0]:
+                    # استخدام دالة التنسيق من النظام الموحد
+                    formatted = format_alert_for_display(alert)
+                    
+                    # تحديد اللون حسب نوع التنبيه
+                    alert_class = "alert-golden"
+                    if alert.get("type") == "MARKET_SHIFT":
+                        alert_class = "alert-shift"
+                    elif alert.get("type") == "RISK_WARNING":
+                        alert_class = "alert-warning"
+                    elif alert.get("type") == "TIMING_SIGNAL":
+                        alert_class = "alert-timing"
+                    
+                    confidence_class = "alert-confidence-high" if alert.get("confidence") == "HIGH" else ""
+                    
+                    # اقتطاع الوصف الطويل إذا لزم الأمر
+                    description = formatted['description']
+                    if len(description) > 300:
+                        description = description[:300] + "..."
+                    
+                    # أيقونة مستوى الثقة
+                    confidence_icon = formatted.get('confidence_icon', '💰')
+                    
+                    # بناء HTML التنبيه
+                    html_content = f"""
+                    <div class='{alert_class}'>
+                        <div class='alert-header'>
+                            {confidence_icon} {alert['city']} – {formatted['title']}
+                        </div>
+                        <div>
+                            <p style='color: #EAEAEA;'>{description}</p>
+                            <p><strong>النوع:</strong> {alert.get('type', 'GOLDEN_OPPORTUNITY')}</p>
+                    """
+                    
+                    # إضافة الخصم إذا كان موجودًا (حتى لو كان 0)
+                    discount = alert.get("signal", {}).get("discount_percent")
+                    if discount is not None:
+                        html_content += f"<p><strong>الخصم:</strong> {discount}%</p>"
+                    
+                    html_content += f"""
+                            <p><strong>الثقة:</strong> <span class='{confidence_class}'>{formatted['confidence']}</span></p>
+                        </div>
+                        <div class='alert-meta'>
+                            🕒 {formatted['time']}
+                        </div>
+                    </div>
+                    """
+                    
+                    st.markdown(html_content, unsafe_allow_html=True)
+        else:
+            st.info("🔍 لا توجد تنبيهات جديدة الآن. استخدم زر 'تحديث بيانات السوق (حقيقي)' لجلب أحدث البيانات.")
+
+        # ========== بيانات المستخدم ==========
+        st.markdown("---")
+        col1, col2 = st.columns([1, 1])
+
+        with col1:
+            st.markdown("### 👤 بيانات المستخدم والعقار")
+            user_type = st.selectbox("اختر فئتك:", 
+                                   ["مستثمر", "وسيط عقاري", "شركة تطوير", "فرد", "باحث عن فرصة", "مالك عقار"])
+            city = st.selectbox("المدينة:", 
+                               ["الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة"])
+            
+            # ===== استخراج الأحياء من البيانات الحقيقية =====
+            # تعديل: استخدام str.contains بدلاً من المساواة التامة
+            city_data = df_raw[df_raw["city"].str.contains(city, na=False)]
+            districts = sorted(city_data["district"].dropna().unique().tolist())
+            
+            if not districts:
+                st.warning(f"⚠️ لا توجد أحياء مسجلة للمدينة {city}")
+                districts = ["لا توجد أحياء"]
+            
+            district = st.selectbox("الحي:", districts)
+            # ===== نهاية استخراج الأحياء =====
+            
+            property_type = st.selectbox("نوع العقار:", 
+                                        ["شقة", "فيلا", "أرض", "محل تجاري"])
+            status = st.selectbox("الحالة:", ["للبيع", "للشراء", "للإيجار"])
+            
+            # 🔄 استبدال السلايدر بـ Selectbox (حل نهائي لمشكلة السهم)
+            area_options = [80, 100, 120, 150, 180, 200, 250, 300, 400, 500, 600, 800, 1000]
+            area_index = st.selectbox(
+                "📐 المساحة المستهدفة (م²)",
+                range(len(area_options)),
+                format_func=lambda i: f"{area_options[i]} م²",
+                key="area_select"
+            )
+            area = area_options[area_index]
+            st.markdown(f"**المساحة المختارة:** {area} م²")
+            
+            property_count_options = [50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000]
+            count_index = st.selectbox(
+                "🔢 عدد العقارات للتحليل",
+                range(len(property_count_options)),
+                format_func=lambda i: f"{property_count_options[i]} عقار",
+                key="count_select"
+            )
+            property_count = property_count_options[count_index]
+            st.markdown(f"**عدد العقارات المختارة:** {property_count}")
+
+            # ✅ حفظ معلومات المستخدم فور اختياره للمدينة
+            st.session_state["user_info"] = {
+                "city": city,
+                "district": district,
+                "property_type": property_type,
+                "status": status,
+                "user_type": user_type,
+                "package": st.session_state.get("chosen_pkg", "مجانية")
+            }
+
+        with col2:
+            st.markdown("### 💎 اختيار الباقة")
+            chosen_pkg = st.radio("اختر باقتك:", list(PACKAGES.keys()))
+            base_price = PACKAGES[chosen_pkg]["price"]
+            
+            # حفظ الباقة في session_state
+            st.session_state["chosen_pkg"] = chosen_pkg
+            
+            # تحديث user_info بالباقة الجديدة
+            if "user_info" in st.session_state:
+                st.session_state["user_info"]["package"] = chosen_pkg
+            
+            # ========== معادلة التسعير الديناميكي الذكية ==========
+            extra_price = 0
+            
+            # إضافة تكلفة للعقارات الإضافية فوق الـ 50
+            if property_count > 50:
+                extra_price += (property_count - 50) * 2.5
+            
+            # إضافة تكلفة للمساحات الكبيرة فوق الـ 150 متر
+            if area > 150:
+                extra_price += ((area - 150) / 10) * 0.5
+            
+            total_price = base_price + round(extra_price, 2)
+            
+            st.markdown(f"""
+            <div class='package-card'>
+            <h3>باقة {chosen_pkg}</h3>
+            <h2>{total_price} $</h2>
+            <p>📊 تقرير تحليلي ديناميكي حسب البيانات</p>
+            <p>🏠 تحليل {PACKAGES[chosen_pkg]['data_scope']} عقار حقيقي</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # نص قصير يشرح التسعير (غير مخيف)
+            st.caption("التسعير ديناميكي ويعتمد على حجم التحليل، وليس عدد الصفحات.")
+            
+            st.markdown("**المميزات الحصرية:**")
+            for i, feature in enumerate(PACKAGES[chosen_pkg]["features"][:8]):
+                st.write(f"🎯 {feature}")
+
+        # ===============================
+        # 🧠 تغذية ذكية مبكرة للروبو (مُحسّنة) مع تحسين الأداء
+        # ===============================
+
+        # التحقق مما إذا كان التحديث مطلوبًا
+        robo_needs_update = False
+        
+        if (
+            st.session_state.get("last_city") != city
+            or st.session_state.get("last_property_type") != property_type
+            or st.session_state.get("last_status") != status
+            or st.session_state.get("last_chosen_pkg") != chosen_pkg
+        ):
+            robo_needs_update = True
+            # تحديث آخر القيم
+            st.session_state["last_city"] = city
+            st.session_state["last_property_type"] = property_type
+            st.session_state["last_status"] = status
+            st.session_state["last_chosen_pkg"] = chosen_pkg
+
+        # تحديث معرفة الروبو فقط إذا لزم الأمر
+        if robo_needs_update or "robo_knowledge" not in st.session_state:
+            with st.spinner("🧠 تحديث المستشار الذكي..."):
+                try:
+                    # 1️⃣ تحميل بيانات حقيقية مباشرة من المصدر
+                    real_data = load_government_data(
+                        selected_city=city,
+                        selected_property_type=property_type
+                    )
+
+                    if real_data is None or real_data.empty:
+                        raise Exception("❌ لا توجد بيانات حقيقية من السوق لهذه المدينة.")
+
+                    st.session_state["real_data"] = real_data
+
+                    # 2️⃣ توليد بيانات السوق
+                    market_data = generate_advanced_market_data(
+                        city, property_type, status, real_data
+                    )
+
+                    # 3️⃣ حفظها في الجلسة
+                    st.session_state["market_data"] = market_data
+                    
+                    # 4️⃣ تجهيز الفرص الذكية
+                    opportunity_finder = SmartOpportunityFinder()
+                    opportunities = opportunity_finder.analyze_all_opportunities(
+                        user_info=st.session_state.get("user_info", {}),
+                        market_data=st.session_state.get("market_data", {}),
+                        real_data=st.session_state.get("real_data", pd.DataFrame())
+                    )
+                    
+                    # 5️⃣ تحديث معرفة الروبو
+                    st.session_state.robo_knowledge = RoboKnowledge(
+                        real_data=st.session_state.get("real_data", pd.DataFrame()),
+                        opportunities=opportunities,
+                        alerts=st.session_state.get("daily_alerts", []),
+                        market_data=st.session_state.get("market_data", {})
+                    )
+
                 except Exception as e:
-                    st.info("ℹ️ لا توجد بيانات أحدث من آخر لقطة محفوظة. التحليل يعتمد على آخر بيانات موثوقة.")
+                    st.warning(f"⚠️ لم يتم تحميل البيانات الذكية: {str(e)}")
 
-    with col_info:
-        last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
-        refresh_time = last_refresh.strftime('%H:%M:%S') if isinstance(last_refresh, datetime) else str(last_refresh)
-        st.caption(f"🔒 عدد التنبيهات اليوم: {len(st.session_state.daily_alerts)} | 🕒 آخر تحديث: {refresh_time}")
+        # ========== حاسبة الأثر المالي الذكية ==========
+        st.markdown("---")
+        st.markdown("### 📈 احسب العائد المتوقع من التقرير")
 
-    # عرض التنبيهات باستخدام دالة التنسيق من النظام الموحد
-    if filtered_alerts:
-        # تحديد عدد الأعمدة بناءً على عدد التنبيهات
-        cols = st.columns(2) if len(filtered_alerts) > 1 else [st.container()]
+        col3, col4 = st.columns([1, 1])
+
+        with col3:
+            investment_value = st.number_input(
+                "💰 قيمة الاستثمار المتوقع ($)",
+                min_value=50000,
+                max_value=5000000,
+                step=50000,
+                value=300000,
+                format="%d"
+            )
+            
+            # إظهار مؤشر المخاطر فقط للباقات المدفوعة
+            if chosen_pkg != "مجانية":
+                risk_level = st.select_slider(
+                    "مستوى المخاطر المقبول",
+                    options=["منخفض", "متوسط", "مرتفع"],
+                    value="متوسط"
+                )
+            else:
+                risk_level = "متوسط"  # قيمة افتراضية للمجانية
+                st.info("🔍 للباقات المدفوعة: تحليل متقدم لمستوى المخاطر")
+
+        with col4:
+            st.markdown("#### نسب التحسين الاستثماري")
+            
+            # ===== التمييز الذكي بين المجاني والمدفوع =====
+            if chosen_pkg == "مجانية":
+                # المجاني: نسب منخفضة جداً - مجرد لمحة (أقل من 2% إجمالي)
+                risk_avoidance = 0.01      # 1% فقط
+                pricing_optimization = 0.005 # 0.5% فقط
+                timing_advantage = 0.005     # 0.5% فقط
+                analysis_type = "تقدير مبدئي مبني على تحليل أساسي"
+                result_color = "#FFA500"  # برتقالي للمجانية
+            else:
+                # المدفوع: نسب كاملة حسب مستوى المخاطر
+                if risk_level == "منخفض":
+                    risk_avoidance = 0.08
+                    pricing_optimization = 0.05
+                    timing_advantage = 0.03
+                elif risk_level == "متوسط":
+                    risk_avoidance = 0.12
+                    pricing_optimization = 0.08
+                    timing_advantage = 0.05
+                else:  # مرتفع
+                    risk_avoidance = 0.15
+                    pricing_optimization = 0.10
+                    timing_advantage = 0.07
+                analysis_type = "الأثر الاستثماري المتوقع"
+                result_color = "#00d8a4"  # أخضر للمدفوع
+            
+            # حساب الأثر المالي
+            gain_from_risk = investment_value * risk_avoidance
+            gain_from_pricing = investment_value * pricing_optimization
+            gain_from_timing = investment_value * timing_advantage
+            
+            total_estimated_gain = gain_from_risk + gain_from_pricing + gain_from_timing
+            net_benefit = total_estimated_gain - total_price
+            
+            # عرض النتائج بشكل أنيق
+            st.markdown(f"""
+            <div style='background: linear-gradient(135deg, #1a1a1a, #2d2d2d); padding: 20px; border-radius: 15px; border: 2px solid #d4af37;'>
+                <p style='color: gold; font-size: 14px; margin: 5px 0;'>{analysis_type}</p>
+                <p style='color: gold; font-size: 16px; margin: 5px 0;'>📉 تجنب خسائر القرارات العشوائية: <strong style='color: white;'>{int(gain_from_risk):,} $</strong></p>
+                <p style='color: gold; font-size: 16px; margin: 5px 0;'>💎 تحسين سعر الشراء: <strong style='color: white;'>{int(gain_from_pricing):,} $</strong></p>
+                <p style='color: gold; font-size: 16px; margin: 5px 0;'>⏱️ استغلال توقيت السوق: <strong style='color: white;'>{int(gain_from_timing):,} $</strong></p>
+                <hr style='border: 1px solid #d4af37; margin: 15px 0;'>
+                <p style='color: gold; font-size: 18px; font-weight: bold;'>✅ {analysis_type}: <strong style='color: {result_color};'>{int(net_benefit):,} $</strong></p>
+                <p style='color: #888; font-size: 14px;'>مقابل استثمار في التقرير بقيمة <strong>{int(total_price)} $</strong></p>
+                <p style='color: #666; font-size: 12px; margin-top: 10px;'>الأرقام تقديرية مبنية على نماذج تحليلية ولا تمثل ضمانًا للعائد.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # ========== الآلة الحاسبة العالمية النهائية ==========
+        st.markdown("---")
+        st.markdown("### 🧠 محاكاة القرار: بدون تقرير مقابل تقرير Warda")
+
+        # التحقق من وجود بيانات السوق
+        if 'market_data' in st.session_state and st.session_state.market_data:
+            market_data = st.session_state.market_data
+        else:
+            st.warning("⚠️ لا توجد بيانات سوق كافية، يرجى تحديث البيانات أولاً")
+            market_data = {
+                'حجم_السيولة': 0,
+                'أعلى_سعر_متر': 0,
+                'أقل_سعر_متر': 0,
+                'متوسط_سعر_المتر': 0,
+                'عدد_العقارات_الحقيقية': 0
+            }
+
+        # ===== مؤشرات سوق حقيقية =====
+        liquidity_volume = market_data["حجم_السيولة"] if market_data["حجم_السيولة"] > 0 else 1
         
-        for i, alert in enumerate(filtered_alerts):
-            with cols[i % 2] if len(filtered_alerts) > 1 else cols[0]:
-                # استخدام دالة التنسيق من النظام الموحد
-                formatted = format_alert_for_display(alert)
-                
-                # تحديد اللون حسب نوع التنبيه
-                alert_class = "alert-golden"
-                if alert.get("type") == "MARKET_SHIFT":
-                    alert_class = "alert-shift"
-                elif alert.get("type") == "RISK_WARNING":
-                    alert_class = "alert-warning"
-                elif alert.get("type") == "TIMING_SIGNAL":
-                    alert_class = "alert-timing"
-                
-                confidence_class = "alert-confidence-high" if alert.get("confidence") == "HIGH" else ""
-                
-                # اقتطاع الوصف الطويل إذا لزم الأمر
-                description = formatted['description']
-                if len(description) > 300:
-                    description = description[:300] + "..."
-                
-                # أيقونة مستوى الثقة
-                confidence_icon = formatted.get('confidence_icon', '💰')
-                
-                # بناء HTML التنبيه
-                html_content = f"""
-                <div class='{alert_class}'>
-                    <div class='alert-header'>
-                        {confidence_icon} {alert['city']} – {formatted['title']}
-                    </div>
-                    <div>
-                        <p style='color: #EAEAEA;'>{description}</p>
-                        <p><strong>النوع:</strong> {alert.get('type', 'GOLDEN_OPPORTUNITY')}</p>
-                """
-                
-                # إضافة الخصم إذا كان موجودًا (حتى لو كان 0)
-                discount = alert.get("signal", {}).get("discount_percent")
-                if discount is not None:
-                    html_content += f"<p><strong>الخصم:</strong> {discount}%</p>"
-                
-                html_content += f"""
-                        <p><strong>الثقة:</strong> <span class='{confidence_class}'>{formatted['confidence']}</span></p>
-                    </div>
-                    <div class='alert-meta'>
-                        🕒 {formatted['time']}
-                    </div>
-                </div>
-                """
-                
-                st.markdown(html_content, unsafe_allow_html=True)
-    else:
-        st.info("🔍 لا توجد تنبيهات جديدة الآن. استخدم زر 'تحديث بيانات السوق (حقيقي)' لجلب أحدث البيانات.")
-
-    # ========== بيانات المستخدم ==========
-    st.markdown("---")
-    col1, col2 = st.columns([1, 1])
-
-    with col1:
-        st.markdown("### 👤 بيانات المستخدم والعقار")
-        user_type = st.selectbox("اختر فئتك:", 
-                               ["مستثمر", "وسيط عقاري", "شركة تطوير", "فرد", "باحث عن فرصة", "مالك عقار"])
-        city = st.selectbox("المدينة:", 
-                           ["الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة"])
+        price_dispersion = 0
+        if market_data["متوسط_سعر_المتر"] > 0:
+            price_dispersion = abs(
+                market_data["أعلى_سعر_متر"] - market_data["أقل_سعر_متر"]
+            ) / market_data["متوسط_سعر_المتر"]
         
-        # ===== استخراج الأحياء من البيانات الحقيقية =====
-        # تصفية البيانات للمدينة المختارة
-        city_data = df_raw[df_raw["city"] == city]
-        districts = sorted(city_data["district"].dropna().unique().tolist())
+        growth_factor = 0  # إلى أن نربطه بلقطتين زمنيتين
+        
+        # 🔥 تعديل منطق المخاطرة ليكون أكثر واقعية
+        if liquidity_volume > 0:
+            decision_uncertainty = min(1 / math.sqrt(liquidity_volume), 0.15)
+        else:
+            decision_uncertainty = 0.15
+
+        # ===== سيناريو بدون تقرير =====
+        loss_wrong_pricing = investment_value * price_dispersion * 0.6 if price_dispersion > 0 else 0
+        loss_bad_timing = investment_value * growth_factor * 0.4
+        loss_risk_blindness = investment_value * decision_uncertainty * 0.5
+
+        total_loss_without_report = (
+            loss_wrong_pricing +
+            loss_bad_timing +
+            loss_risk_blindness
+        )
+
+        # ===== سيناريو مع تقرير Warda =====
+        risk_reduction = total_loss_without_report * 0.65
+        pricing_gain = investment_value * price_dispersion * 0.5 if price_dispersion > 0 else 0
+        timing_gain = investment_value * growth_factor * 0.6
+
+        total_benefit_with_report = (
+            risk_reduction +
+            pricing_gain +
+            timing_gain
+        )
+
+        net_decision_advantage = total_benefit_with_report - total_price
+
+        # ===== عرض المقارنة باستخدام components.html =====
+        components.html(f"""
+        <div style='display:flex; gap:20px; margin-top:20px; font-family: Tajawal, Arial, sans-serif; direction: rtl;'>
+            <div style='flex:1; background:#1a1a1a; padding:25px; border-radius:15px; border:1px solid #444;'>
+                <h4 style='color:#ff4d4d; text-align:center; margin:0 0 15px 0;'>❌ بدون تقرير</h4>
+                <p style='margin:10px 0; color:#EAEAEA;'>• تسعير غير دقيق: <strong style='color:#00FFD1;'>{int(loss_wrong_pricing):,}$</strong></p>
+                <p style='margin:10px 0; color:#EAEAEA;'>• توقيت خاطئ: <strong style='color:#00FFD1;'>{int(loss_bad_timing):,}$</strong></p>
+                <p style='margin:10px 0; color:#EAEAEA;'>• تجاهل المخاطر: <strong style='color:#00FFD1;'>{int(loss_risk_blindness):,}$</strong></p>
+                <hr style='border:1px solid #444; margin:15px 0;'>
+                <p style='font-size:18px; margin:0; color:#EAEAEA;'><strong style='color:#ff4d4d;'>تكلفة القرار غير المدروس:</strong> {int(total_loss_without_report):,}$</p>
+            </div>
+
+            <div style='flex:1; background:#1a1a1a; padding:25px; border-radius:15px; border:2px solid #00FFD1;'>
+                <h4 style='color:#00FFD1; text-align:center; margin:0 0 15px 0;'>✅ مع تقرير Warda</h4>
+                <p style='margin:10px 0; color:#EAEAEA;'>• تقليل المخاطر: <strong style='color:#00FFD1;'>{int(risk_reduction):,}$</strong></p>
+                <p style='margin:10px 0; color:#EAEAEA;'>• تحسين سعر الدخول: <strong style='color:#00FFD1;'>{int(pricing_gain):,}$</strong></p>
+                <p style='margin:10px 0; color:#EAEAEA;'>• تحسين التوقيت: <strong style='color:#00FFD1;'>{int(timing_gain):,}$</strong></p>
+                <hr style='border:1px solid #00FFD1; margin:15px 0;'>
+                <p style='font-size:18px; margin:0; color:#EAEAEA;'><strong style='color:#00FFD1;'>ميزة القرار:</strong> {int(net_decision_advantage):,}$</p>
+                <p style='font-size:13px; color:#888; margin:5px 0 0 0;'>ناتجة عن تحليل السوق + توقيت الدخول + إدارة المخاطر</p>
+            </div>
+        </div>
+        """, height=350)
+
+        # ===== الدليل والحسابات =====
+        with st.expander("🔍 لماذا هذه الأرقام واقعية؟ (اضغط لرؤية الحسابات)"):
+            st.markdown(f"""
+            **مؤشرات السوق الحقيقية المستخدمة في المحاكاة:**
+            
+            • التحليل مبني على **{market_data['عدد_العقارات_الحقيقية']} عقار حقيقي** تم تحليله في السوق
+            • فجوة سعرية فعلية في السوق: **{round(price_dispersion*100,1) if price_dispersion > 0 else 0}%** (الفرق بين أعلى وأقل سعر)
+            • حجم السيولة الحالي: **{liquidity_volume}** (عدد العقارات المتاحة)
+            • معدل النمو: **غير متاح (يتطلب مقارنة زمنية)**
+
+            **كيف حسبنا الأرقام؟**
+            
+            • خسارة التسعير الخاطئ = قيمة الاستثمار × الفجوة السعرية × 0.6
+            • خسارة التوقيت السيئ = قيمة الاستثمار × معدل النمو × 0.4 (مؤقتاً 0) 
+            • خسارة تجاهل المخاطر = قيمة الاستثمار × (الحد الأدنى 15% أو 1/جذر حجم السيولة) × 0.5
+            
+            **لماذا هذه الطريقة؟**
+            
+            هذه الآلة لا تحسب الربح المتوقع،
+            بل **تحسب تكلفة اتخاذ قرار أعمى مقابل قرار مدروس**.
+            الأرقام تستند إلى أنماط حقيقية في السوق العقاري السعودي.
+            """, unsafe_allow_html=True)
+
+        # ========== نظام الدفع ==========
+        st.markdown("---")
+        st.markdown(f"### 💰 السعر النهائي: **{total_price} دولار**")
+
+        if st.button("💳 الدفع عبر PayPal", key="pay_button"):
+            st.info("نظام الدفع قيد التطوير")
+
+        # ========== إنشاء التقرير ==========
+        st.markdown("---")
+        st.markdown("### 🚀 إنشاء التقرير")
+        if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
+            with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
+                try:
+                    # ✅ تحميل بيانات حقيقية مباشرة من المصدر (تم إزالة snapshot)
+                    real_data = load_government_data(
+                        selected_city=city,
+                        selected_property_type=property_type
+                    )
+
+                    if real_data is None or real_data.empty:
+                        st.error("❌ لا توجد بيانات حقيقية من السوق لهذه المدينة.")
+                        st.stop()
+
+                    st.session_state.real_data = real_data
+                    st.success(f"✅ تم تحميل {len(real_data)} عقار حقيقي من المصدر مباشرة")
+
+                    market_data = generate_advanced_market_data(
+                        city, property_type, status, real_data
+                    )
+
+                    user_info = {
+                        "user_type": user_type,
+                        "city": city,
+                        "district": district,
+                        "property_type": property_type,
+                        "area": area,
+                        "package": chosen_pkg,
+                        "chosen_pkg": chosen_pkg,
+                        "باقة": chosen_pkg,
+                        "property_count": property_count,
+                        "status": status
+                    }
+                    
+                    # حفظ user_info في session_state
+                    st.session_state["user_info"] = user_info
+                    st.session_state["market_data"] = market_data
+                    st.session_state["real_data"] = real_data
+
+                    # 🔧 إنشاء التقرير الذكي (للعرض فقط)
+                    user_category = USER_CATEGORIES.get(user_type, "investor")
+                    user_data = {
+                        "city": city,
+                        "plan": chosen_pkg,
+                        "category": user_category,
+                        "user_type": user_type,
+                        "user_category_ar": user_type,
+                        "property_type": property_type,
+                        "area": area
+                    }
+                    
+                    smart_system = SmartReportSystem(user_data)
+                    st.session_state.smart_report_content = smart_system.generate_extended_report(
+                        user_info, market_data, real_data, chosen_pkg
+                    )
+
+                    if chosen_pkg in ["ذهبية", "ماسية", "ماسية متميزة"]:
+                        ai_engine = AIIntelligence()
+                        st.session_state.ai_recommendations = ai_engine.generate_ai_recommendations(
+                            user_info, market_data, real_data
+                        )
+
+                    # ✅ نظام PDF الموحد والمضمون - الإصدار المحسن
+                    try:
+                        # =====================================
+                        # 🧠 استخدام نظام البناء الذكي الجديد مع تمرير البيانات مباشرة
+                        # =====================================
+                        from report_orchestrator import build_report_story
+
+                        # بناء التقرير الذكي مع تمرير البيانات مباشرة
+                        story = build_report_story(
+                            user_info,
+                            provided_dataframe=real_data  # ✅ تمرير البيانات لمنع جلب بيانات مختلفة
+                        )
+                        
+                        # 🔍 التحقق الإلزامي من محتوى التقرير
+                        final_content_text = story.get("content_text", "")
+                        executive_decision = story.get("executive_decision", "")
+
+                        if not final_content_text or final_content_text.strip() == "":
+                            st.error("❌ خطأ حرج: محتوى التقرير النصي فارغ.")
+                            st.stop()
+
+                        if not executive_decision or not executive_decision.strip():
+                            st.error("❌ خطأ حرج: القرار التنفيذي غير موجود.")
+                            st.stop()
+
+                        st.success(f"✅ المحتوى سليم ({len(final_content_text)} حرف)")
+                        st.success(f"✅ القرار التنفيذي جاهز ({len(executive_decision)} حرف)")
+                        
+                        charts_by_chapter = story.get("charts", {})
+                        
+                        # ✅ هذا السطر هو الأهم - حفظ الرسومات
+                        st.session_state["charts_by_chapter"] = charts_by_chapter
+                        
+                        # =====================================
+                        # 💎 إنشاء PDF بالمحتوى الكامل
+                        # =====================================
+                        pdf_buffer = create_pdf_from_content(
+                            user_info=user_info,
+                            content_text=final_content_text,
+                            executive_decision=executive_decision,
+                            charts_by_chapter=charts_by_chapter,
+                            package_level=chosen_pkg
+                        )
+                        
+                    except Exception as e:
+                        st.error(f"❌ خطأ في إنشاء التقرير الكامل: {str(e)[:200]}")
+                        import traceback
+                        st.code(traceback.format_exc())
+                        # خطة طوارئ: PDF بسيط
+                        from io import BytesIO
+                        buffer = BytesIO()
+                        buffer.write(st.session_state.smart_report_content.encode('utf-8'))
+                        buffer.seek(0)
+                        pdf_buffer = buffer
+
+                    st.session_state.pdf_data = pdf_buffer.getvalue()
+                    st.session_state.report_generated = True
+
+                    st.success("✅ تم إنشاء التقرير بنجاح!")
+                    st.balloons()
+
+                except Exception as e:
+                    st.error(f"⚠️ خطأ أثناء إنشاء التقرير: {str(e)[:200]}")
+                    import traceback
+                    st.code(traceback.format_exc())
+
+        # ========== عرض النتائج ==========
+        if st.session_state.get('report_generated', False):
+            st.markdown("---")
+            st.markdown("## 📊 التقرير النهائي الجاهز للطباعة")
+            
+            with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
+                user_info = st.session_state.get('user_info', {})
+                st.write("### 👤 تحليل احتياجاتك")
+                st.write(f"**الفئة:** {user_info.get('user_type', 'غير محدد')}")
+                st.write(f"**المدينة:** {user_info.get('city', 'غير محدد')}")
+                st.write(f"**الحي:** {user_info.get('district', 'غير محدد')}")
+                st.write(f"**الباقة:** {user_info.get('package', 'غير محدد')}")
+                
+                ai_recommendations = st.session_state.get('ai_recommendations', {})
+                if ai_recommendations:
+                    st.write("### 🎯 أبرز التوصيات")
+                    st.write(f"**ملف المخاطر:** {ai_recommendations.get('ملف_المخاطر', 'غير محدد')}")
+                    st.write(f"**استراتيجية الاستثمار:** {ai_recommendations.get('استراتيجية_الاستثمار', 'غير محدد')}")
+            
+            # زر تحميل التقرير
+            if st.session_state.get('pdf_data'):
+                st.download_button(
+                    label="📥 تحميل التقرير PDF",
+                    data=st.session_state.pdf_data,
+                    file_name=f"تقرير_Warda_Intelligence_{city}_{property_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="download_report"
+                )
+                
+                st.info("""
+                **🎉 التقرير جاهز للطباعة والتقديم:**
+                - تصميم احترافي مناسب للعروض التقديمية
+                - محتوى عربي منظم وواضح  
+                - مناسب للتقديم للشركات والمستثمرين
+                - يحتوي على جميع التحليلات المطلوبة
+                """)
+    
+    # ===== قسم تقارير الأحياء =====
+    elif analysis_mode == "📍 تقارير الأحياء":
+        st.markdown("## 📍 تحليل الأحياء")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            city = st.selectbox(
+                "اختر المدينة",
+                ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"],
+                key="district_city_select"
+            )
+        
+        # استخراج الأحياء باستخدام str.contains
+        city_data = df_raw[df_raw["city"].str.contains(city, na=False)]
+        districts = sorted(city_data["district"].dropna().unique())
         
         if not districts:
             st.warning(f"⚠️ لا توجد أحياء مسجلة للمدينة {city}")
-            districts = ["لا توجد أحياء"]
+            st.stop()
         
-        district = st.selectbox("الحي:", districts)
-        # ===== نهاية استخراج الأحياء =====
+        with col2:
+            district = st.selectbox("اختر الحي", districts, key="district_select")
         
-        property_type = st.selectbox("نوع العقار:", 
-                                    ["شقة", "فيلا", "أرض", "محل تجاري"])
-        status = st.selectbox("الحالة:", ["للبيع", "للشراء", "للإيجار"])
+        st.success(f"📊 تحليل حي: {district}")
         
-        # 🔄 استبدال السلايدر بـ Selectbox (حل نهائي لمشكلة السهم)
-        area_options = [80, 100, 120, 150, 180, 200, 250, 300, 400, 500, 600, 800, 1000]
-        area_index = st.selectbox(
-            "📐 المساحة المستهدفة (م²)",
-            range(len(area_options)),
-            format_func=lambda i: f"{area_options[i]} م²",
-            key="area_select"
-        )
-        area = area_options[area_index]
-        st.markdown(f"**المساحة المختارة:** {area} م²")
+        # هنا سنضع لاحقاً رسومات الأحياء:
+        # 1. تطور سعر المتر في الحي
+        # 2. مقارنة الحي بباقي الأحياء
+        # 3. سيولة الحي
         
-        property_count_options = [50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000]
-        count_index = st.selectbox(
-            "🔢 عدد العقارات للتحليل",
-            range(len(property_count_options)),
-            format_func=lambda i: f"{property_count_options[i]} عقار",
-            key="count_select"
-        )
-        property_count = property_count_options[count_index]
-        st.markdown(f"**عدد العقارات المختارة:** {property_count}")
-
-        # ✅ حفظ معلومات المستخدم فور اختياره للمدينة
-        st.session_state["user_info"] = {
-            "city": city,
-            "district": district,
-            "property_type": property_type,
-            "status": status,
-            "user_type": user_type,
-            "package": st.session_state.get("chosen_pkg", "مجانية")
-        }
-
-    with col2:
-        st.markdown("### 💎 اختيار الباقة")
-        chosen_pkg = st.radio("اختر باقتك:", list(PACKAGES.keys()))
-        base_price = PACKAGES[chosen_pkg]["price"]
-        
-        # حفظ الباقة في session_state
-        st.session_state["chosen_pkg"] = chosen_pkg
-        
-        # تحديث user_info بالباقة الجديدة
-        if "user_info" in st.session_state:
-            st.session_state["user_info"]["package"] = chosen_pkg
-        
-        # ========== معادلة التسعير الديناميكي الذكية ==========
-        extra_price = 0
-        
-        # إضافة تكلفة للعقارات الإضافية فوق الـ 50
-        if property_count > 50:
-            extra_price += (property_count - 50) * 2.5
-        
-        # إضافة تكلفة للمساحات الكبيرة فوق الـ 150 متر
-        if area > 150:
-            extra_price += ((area - 150) / 10) * 0.5
-        
-        total_price = base_price + round(extra_price, 2)
-        
-        st.markdown(f"""
-        <div class='package-card'>
-        <h3>باقة {chosen_pkg}</h3>
-        <h2>{total_price} $</h2>
-        <p>📊 تقرير تحليلي ديناميكي حسب البيانات</p>
-        <p>🏠 تحليل {PACKAGES[chosen_pkg]['data_scope']} عقار حقيقي</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # نص قصير يشرح التسعير (غير مخيف)
-        st.caption("التسعير ديناميكي ويعتمد على حجم التحليل، وليس عدد الصفحات.")
-        
-        st.markdown("**المميزات الحصرية:**")
-        for i, feature in enumerate(PACKAGES[chosen_pkg]["features"][:8]):
-            st.write(f"🎯 {feature}")
-
-    # ===============================
-    # 🧠 تغذية ذكية مبكرة للروبو (مُحسّنة) مع تحسين الأداء
-    # ===============================
-
-    # التحقق مما إذا كان التحديث مطلوبًا
-    robo_needs_update = False
-    
-    if (
-        st.session_state.get("last_city") != city
-        or st.session_state.get("last_property_type") != property_type
-        or st.session_state.get("last_status") != status
-        or st.session_state.get("last_chosen_pkg") != chosen_pkg
-    ):
-        robo_needs_update = True
-        # تحديث آخر القيم
-        st.session_state["last_city"] = city
-        st.session_state["last_property_type"] = property_type
-        st.session_state["last_status"] = status
-        st.session_state["last_chosen_pkg"] = chosen_pkg
-
-    # تحديث معرفة الروبو فقط إذا لزم الأمر
-    if robo_needs_update or "robo_knowledge" not in st.session_state:
-        with st.spinner("🧠 تحديث المستشار الذكي..."):
-            try:
-                # 1️⃣ تحميل بيانات حقيقية مباشرة من المصدر
-                real_data = load_government_data(
-                    selected_city=city,
-                    selected_property_type=property_type
-                )
-
-                if real_data is None or real_data.empty:
-                    raise Exception("❌ لا توجد بيانات حقيقية من السوق لهذه المدينة.")
-
-                st.session_state["real_data"] = real_data
-
-                # 2️⃣ توليد بيانات السوق
-                market_data = generate_advanced_market_data(
-                    city, property_type, status, real_data
-                )
-
-                # 3️⃣ حفظها في الجلسة
-                st.session_state["market_data"] = market_data
-                
-                # 4️⃣ تجهيز الفرص الذكية
-                opportunity_finder = SmartOpportunityFinder()
-                opportunities = opportunity_finder.analyze_all_opportunities(
-                    user_info=st.session_state.get("user_info", {}),
-                    market_data=st.session_state.get("market_data", {}),
-                    real_data=st.session_state.get("real_data", pd.DataFrame())
-                )
-                
-                # 5️⃣ تحديث معرفة الروبو
-                st.session_state.robo_knowledge = RoboKnowledge(
-                    real_data=st.session_state.get("real_data", pd.DataFrame()),
-                    opportunities=opportunities,
-                    alerts=st.session_state.get("daily_alerts", []),
-                    market_data=st.session_state.get("market_data", {})
-                )
-
-            except Exception as e:
-                st.warning(f"⚠️ لم يتم تحميل البيانات الذكية: {str(e)}")
-
-    # ========== حاسبة الأثر المالي الذكية ==========
-    st.markdown("---")
-    st.markdown("### 📈 احسب العائد المتوقع من التقرير")
-
-    col3, col4 = st.columns([1, 1])
-
-    with col3:
-        investment_value = st.number_input(
-            "💰 قيمة الاستثمار المتوقع ($)",
-            min_value=50000,
-            max_value=5000000,
-            step=50000,
-            value=300000,
-            format="%d"
-        )
-        
-        # إظهار مؤشر المخاطر فقط للباقات المدفوعة
-        if chosen_pkg != "مجانية":
-            risk_level = st.select_slider(
-                "مستوى المخاطر المقبول",
-                options=["منخفض", "متوسط", "مرتفع"],
-                value="متوسط"
-            )
-        else:
-            risk_level = "متوسط"  # قيمة افتراضية للمجانية
-            st.info("🔍 للباقات المدفوعة: تحليل متقدم لمستوى المخاطر")
-
-    with col4:
-        st.markdown("#### نسب التحسين الاستثماري")
-        
-        # ===== التمييز الذكي بين المجاني والمدفوع =====
-        if chosen_pkg == "مجانية":
-            # المجاني: نسب منخفضة جداً - مجرد لمحة (أقل من 2% إجمالي)
-            risk_avoidance = 0.01      # 1% فقط
-            pricing_optimization = 0.005 # 0.5% فقط
-            timing_advantage = 0.005     # 0.5% فقط
-            analysis_type = "تقدير مبدئي مبني على تحليل أساسي"
-            result_color = "#FFA500"  # برتقالي للمجانية
-        else:
-            # المدفوع: نسب كاملة حسب مستوى المخاطر
-            if risk_level == "منخفض":
-                risk_avoidance = 0.08
-                pricing_optimization = 0.05
-                timing_advantage = 0.03
-            elif risk_level == "متوسط":
-                risk_avoidance = 0.12
-                pricing_optimization = 0.08
-                timing_advantage = 0.05
-            else:  # مرتفع
-                risk_avoidance = 0.15
-                pricing_optimization = 0.10
-                timing_advantage = 0.07
-            analysis_type = "الأثر الاستثماري المتوقع"
-            result_color = "#00d8a4"  # أخضر للمدفوع
-        
-        # حساب الأثر المالي
-        gain_from_risk = investment_value * risk_avoidance
-        gain_from_pricing = investment_value * pricing_optimization
-        gain_from_timing = investment_value * timing_advantage
-        
-        total_estimated_gain = gain_from_risk + gain_from_pricing + gain_from_timing
-        net_benefit = total_estimated_gain - total_price
-        
-        # عرض النتائج بشكل أنيق
-        st.markdown(f"""
-        <div style='background: linear-gradient(135deg, #1a1a1a, #2d2d2d); padding: 20px; border-radius: 15px; border: 2px solid #d4af37;'>
-            <p style='color: gold; font-size: 14px; margin: 5px 0;'>{analysis_type}</p>
-            <p style='color: gold; font-size: 16px; margin: 5px 0;'>📉 تجنب خسائر القرارات العشوائية: <strong style='color: white;'>{int(gain_from_risk):,} $</strong></p>
-            <p style='color: gold; font-size: 16px; margin: 5px 0;'>💎 تحسين سعر الشراء: <strong style='color: white;'>{int(gain_from_pricing):,} $</strong></p>
-            <p style='color: gold; font-size: 16px; margin: 5px 0;'>⏱️ استغلال توقيت السوق: <strong style='color: white;'>{int(gain_from_timing):,} $</strong></p>
-            <hr style='border: 1px solid #d4af37; margin: 15px 0;'>
-            <p style='color: gold; font-size: 18px; font-weight: bold;'>✅ {analysis_type}: <strong style='color: {result_color};'>{int(net_benefit):,} $</strong></p>
-            <p style='color: #888; font-size: 14px;'>مقابل استثمار في التقرير بقيمة <strong>{int(total_price)} $</strong></p>
-            <p style='color: #666; font-size: 12px; margin-top: 10px;'>الأرقام تقديرية مبنية على نماذج تحليلية ولا تمثل ضمانًا للعائد.</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # ========== الآلة الحاسبة العالمية النهائية ==========
-    st.markdown("---")
-    st.markdown("### 🧠 محاكاة القرار: بدون تقرير مقابل تقرير Warda")
-
-    # التحقق من وجود بيانات السوق
-    if 'market_data' in st.session_state and st.session_state.market_data:
-        market_data = st.session_state.market_data
-    else:
-        st.warning("⚠️ لا توجد بيانات سوق كافية، يرجى تحديث البيانات أولاً")
-        market_data = {
-            'حجم_السيولة': 0,
-            'أعلى_سعر_متر': 0,
-            'أقل_سعر_متر': 0,
-            'متوسط_سعر_المتر': 0,
-            'عدد_العقارات_الحقيقية': 0
-        }
-
-    # ===== مؤشرات سوق حقيقية =====
-    liquidity_volume = market_data["حجم_السيولة"] if market_data["حجم_السيولة"] > 0 else 1
-    
-    price_dispersion = 0
-    if market_data["متوسط_سعر_المتر"] > 0:
-        price_dispersion = abs(
-            market_data["أعلى_سعر_متر"] - market_data["أقل_سعر_متر"]
-        ) / market_data["متوسط_سعر_المتر"]
-    
-    growth_factor = 0  # إلى أن نربطه بلقطتين زمنيتين
-    
-    # 🔥 تعديل منطق المخاطرة ليكون أكثر واقعية
-    if liquidity_volume > 0:
-        decision_uncertainty = min(1 / math.sqrt(liquidity_volume), 0.15)
-    else:
-        decision_uncertainty = 0.15
-
-    # ===== سيناريو بدون تقرير =====
-    loss_wrong_pricing = investment_value * price_dispersion * 0.6 if price_dispersion > 0 else 0
-    loss_bad_timing = investment_value * growth_factor * 0.4
-    loss_risk_blindness = investment_value * decision_uncertainty * 0.5
-
-    total_loss_without_report = (
-        loss_wrong_pricing +
-        loss_bad_timing +
-        loss_risk_blindness
-    )
-
-    # ===== سيناريو مع تقرير Warda =====
-    risk_reduction = total_loss_without_report * 0.65
-    pricing_gain = investment_value * price_dispersion * 0.5 if price_dispersion > 0 else 0
-    timing_gain = investment_value * growth_factor * 0.6
-
-    total_benefit_with_report = (
-        risk_reduction +
-        pricing_gain +
-        timing_gain
-    )
-
-    net_decision_advantage = total_benefit_with_report - total_price
-
-    # ===== عرض المقارنة باستخدام components.html =====
-    components.html(f"""
-    <div style='display:flex; gap:20px; margin-top:20px; font-family: Tajawal, Arial, sans-serif; direction: rtl;'>
-        <div style='flex:1; background:#1a1a1a; padding:25px; border-radius:15px; border:1px solid #444;'>
-            <h4 style='color:#ff4d4d; text-align:center; margin:0 0 15px 0;'>❌ بدون تقرير</h4>
-            <p style='margin:10px 0; color:#EAEAEA;'>• تسعير غير دقيق: <strong style='color:#00FFD1;'>{int(loss_wrong_pricing):,}$</strong></p>
-            <p style='margin:10px 0; color:#EAEAEA;'>• توقيت خاطئ: <strong style='color:#00FFD1;'>{int(loss_bad_timing):,}$</strong></p>
-            <p style='margin:10px 0; color:#EAEAEA;'>• تجاهل المخاطر: <strong style='color:#00FFD1;'>{int(loss_risk_blindness):,}$</strong></p>
-            <hr style='border:1px solid #444; margin:15px 0;'>
-            <p style='font-size:18px; margin:0; color:#EAEAEA;'><strong style='color:#ff4d4d;'>تكلفة القرار غير المدروس:</strong> {int(total_loss_without_report):,}$</p>
-        </div>
-
-        <div style='flex:1; background:#1a1a1a; padding:25px; border-radius:15px; border:2px solid #00FFD1;'>
-            <h4 style='color:#00FFD1; text-align:center; margin:0 0 15px 0;'>✅ مع تقرير Warda</h4>
-            <p style='margin:10px 0; color:#EAEAEA;'>• تقليل المخاطر: <strong style='color:#00FFD1;'>{int(risk_reduction):,}$</strong></p>
-            <p style='margin:10px 0; color:#EAEAEA;'>• تحسين سعر الدخول: <strong style='color:#00FFD1;'>{int(pricing_gain):,}$</strong></p>
-            <p style='margin:10px 0; color:#EAEAEA;'>• تحسين التوقيت: <strong style='color:#00FFD1;'>{int(timing_gain):,}$</strong></p>
-            <hr style='border:1px solid #00FFD1; margin:15px 0;'>
-            <p style='font-size:18px; margin:0; color:#EAEAEA;'><strong style='color:#00FFD1;'>ميزة القرار:</strong> {int(net_decision_advantage):,}$</p>
-            <p style='font-size:13px; color:#888; margin:5px 0 0 0;'>ناتجة عن تحليل السوق + توقيت الدخول + إدارة المخاطر</p>
-        </div>
-    </div>
-    """, height=350)
-
-    # ===== الدليل والحسابات =====
-    with st.expander("🔍 لماذا هذه الأرقام واقعية؟ (اضغط لرؤية الحسابات)"):
-        st.markdown(f"""
-        **مؤشرات السوق الحقيقية المستخدمة في المحاكاة:**
-        
-        • التحليل مبني على **{market_data['عدد_العقارات_الحقيقية']} عقار حقيقي** تم تحليله في السوق
-        • فجوة سعرية فعلية في السوق: **{round(price_dispersion*100,1) if price_dispersion > 0 else 0}%** (الفرق بين أعلى وأقل سعر)
-        • حجم السيولة الحالي: **{liquidity_volume}** (عدد العقارات المتاحة)
-        • معدل النمو: **غير متاح (يتطلب مقارنة زمنية)**
-
-        **كيف حسبنا الأرقام؟**
-        
-        • خسارة التسعير الخاطئ = قيمة الاستثمار × الفجوة السعرية × 0.6
-        • خسارة التوقيت السيئ = قيمة الاستثمار × معدل النمو × 0.4 (مؤقتاً 0) 
-        • خسارة تجاهل المخاطر = قيمة الاستثمار × (الحد الأدنى 15% أو 1/جذر حجم السيولة) × 0.5
-        
-        **لماذا هذه الطريقة؟**
-        
-        هذه الآلة لا تحسب الربح المتوقع،
-        بل **تحسب تكلفة اتخاذ قرار أعمى مقابل قرار مدروس**.
-        الأرقام تستند إلى أنماط حقيقية في السوق العقاري السعودي.
-        """, unsafe_allow_html=True)
-
-    # ========== نظام الدفع ==========
-    st.markdown("---")
-    st.markdown(f"### 💰 السعر النهائي: **{total_price} دولار**")
-
-    if st.button("💳 الدفع عبر PayPal", key="pay_button"):
-        st.info("نظام الدفع قيد التطوير")
-
-    # ========== إنشاء التقرير ==========
-    st.markdown("---")
-    st.markdown("### 🚀 إنشاء التقرير")
-    if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
-        with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
-            try:
-                # ✅ تحميل بيانات حقيقية مباشرة من المصدر (تم إزالة snapshot)
-                real_data = load_government_data(
-                    selected_city=city,
-                    selected_property_type=property_type
-                )
-
-                if real_data is None or real_data.empty:
-                    st.error("❌ لا توجد بيانات حقيقية من السوق لهذه المدينة.")
-                    st.stop()
-
-                st.session_state.real_data = real_data
-                st.success(f"✅ تم تحميل {len(real_data)} عقار حقيقي من المصدر مباشرة")
-
-                market_data = generate_advanced_market_data(
-                    city, property_type, status, real_data
-                )
-
-                user_info = {
-                    "user_type": user_type,
-                    "city": city,
-                    "district": district,
-                    "property_type": property_type,
-                    "area": area,
-                    "package": chosen_pkg,
-                    "chosen_pkg": chosen_pkg,
-                    "باقة": chosen_pkg,
-                    "property_count": property_count,
-                    "status": status
-                }
-                
-                # حفظ user_info في session_state
-                st.session_state["user_info"] = user_info
-                st.session_state["market_data"] = market_data
-                st.session_state["real_data"] = real_data
-
-                # 🔧 إنشاء التقرير الذكي (للعرض فقط)
-                user_category = USER_CATEGORIES.get(user_type, "investor")
-                user_data = {
-                    "city": city,
-                    "plan": chosen_pkg,
-                    "category": user_category,
-                    "user_type": user_type,
-                    "user_category_ar": user_type,
-                    "property_type": property_type,
-                    "area": area
-                }
-                
-                smart_system = SmartReportSystem(user_data)
-                st.session_state.smart_report_content = smart_system.generate_extended_report(
-                    user_info, market_data, real_data, chosen_pkg
-                )
-
-                if chosen_pkg in ["ذهبية", "ماسية", "ماسية متميزة"]:
-                    ai_engine = AIIntelligence()
-                    st.session_state.ai_recommendations = ai_engine.generate_ai_recommendations(
-                        user_info, market_data, real_data
-                    )
-
-                # ✅ نظام PDF الموحد والمضمون - الإصدار المحسن
-                try:
-                    # =====================================
-                    # 🧠 استخدام نظام البناء الذكي الجديد مع تمرير البيانات مباشرة
-                    # =====================================
-                    from report_orchestrator import build_report_story
-
-                    # بناء التقرير الذكي مع تمرير البيانات مباشرة
-                    story = build_report_story(
-                        user_info,
-                        provided_dataframe=real_data  # ✅ تمرير البيانات لمنع جلب بيانات مختلفة
-                    )
-                    
-                    # 🔍 التحقق الإلزامي من محتوى التقرير
-                    final_content_text = story.get("content_text", "")
-                    executive_decision = story.get("executive_decision", "")
-
-                    if not final_content_text or final_content_text.strip() == "":
-                        st.error("❌ خطأ حرج: محتوى التقرير النصي فارغ.")
-                        st.stop()
-
-                    if not executive_decision or not executive_decision.strip():
-                        st.error("❌ خطأ حرج: القرار التنفيذي غير موجود.")
-                        st.stop()
-
-                    st.success(f"✅ المحتوى سليم ({len(final_content_text)} حرف)")
-                    st.success(f"✅ القرار التنفيذي جاهز ({len(executive_decision)} حرف)")
-                    
-                    charts_by_chapter = story.get("charts", {})
-                    
-                    # ✅ هذا السطر هو الأهم - حفظ الرسومات
-                    st.session_state["charts_by_chapter"] = charts_by_chapter
-                    
-                    # =====================================
-                    # 💎 إنشاء PDF بالمحتوى الكامل
-                    # =====================================
-                    pdf_buffer = create_pdf_from_content(
-                        user_info=user_info,
-                        content_text=final_content_text,
-                        executive_decision=executive_decision,
-                        charts_by_chapter=charts_by_chapter,
-                        package_level=chosen_pkg
-                    )
-                    
-                except Exception as e:
-                    st.error(f"❌ خطأ في إنشاء التقرير الكامل: {str(e)[:200]}")
-                    import traceback
-                    st.code(traceback.format_exc())
-                    # خطة طوارئ: PDF بسيط
-                    from io import BytesIO
-                    buffer = BytesIO()
-                    buffer.write(st.session_state.smart_report_content.encode('utf-8'))
-                    buffer.seek(0)
-                    pdf_buffer = buffer
-
-                st.session_state.pdf_data = pdf_buffer.getvalue()
-                st.session_state.report_generated = True
-
-                st.success("✅ تم إنشاء التقرير بنجاح!")
-                st.balloons()
-
-            except Exception as e:
-                st.error(f"⚠️ خطأ أثناء إنشاء التقرير: {str(e)[:200]}")
-                import traceback
-                st.code(traceback.format_exc())
-
-    # ========== عرض النتائج ==========
-    if st.session_state.get('report_generated', False):
-        st.markdown("---")
-        st.markdown("## 📊 التقرير النهائي الجاهز للطباعة")
-        
-        with st.expander("📊 معاينة سريعة للتحليل", expanded=True):
-            user_info = st.session_state.get('user_info', {})
-            st.write("### 👤 تحليل احتياجاتك")
-            st.write(f"**الفئة:** {user_info.get('user_type', 'غير محدد')}")
-            st.write(f"**المدينة:** {user_info.get('city', 'غير محدد')}")
-            st.write(f"**الحي:** {user_info.get('district', 'غير محدد')}")
-            st.write(f"**الباقة:** {user_info.get('package', 'غير محدد')}")
-            
-            ai_recommendations = st.session_state.get('ai_recommendations', {})
-            if ai_recommendations:
-                st.write("### 🎯 أبرز التوصيات")
-                st.write(f"**ملف المخاطر:** {ai_recommendations.get('ملف_المخاطر', 'غير محدد')}")
-                st.write(f"**استراتيجية الاستثمار:** {ai_recommendations.get('استراتيجية_الاستثمار', 'غير محدد')}")
-        
-        # زر تحميل التقرير
-        if st.session_state.get('pdf_data'):
-            st.download_button(
-                label="📥 تحميل التقرير PDF",
-                data=st.session_state.pdf_data,
-                file_name=f"تقرير_Warda_Intelligence_{city}_{property_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-                key="download_report"
-            )
-            
-            st.info("""
-            **🎉 التقرير جاهز للطباعة والتقديم:**
-            - تصميم احترافي مناسب للعروض التقديمية
-            - محتوى عربي منظم وواضح  
-            - مناسب للتقديم للشركات والمستثمرين
-            - يحتوي على جميع التحليلات المطلوبة
-            """)
+        st.info("🚧 قريباً: رسومات تحليل الأحياء المتقدمة")
 
 # ========== صفحة المستشار الذكي ==========
 if page == "🧠 المستشار الذكي":
