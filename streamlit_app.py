@@ -10,7 +10,31 @@ st.set_page_config(
 
 df_raw = load_government_data(selected_city=None, selected_property_type=None)
 
-# ===== التعديل 2: DEBUG لعرض حالة البيانات =====
+# ===== التحقق من أن البيانات تم تحميلها بشكل صحيح =====
+if df_raw is None or df_raw.empty:
+    st.error("❌ فشل تحميل بيانات السوق من الملف الحكومي")
+    st.write("📌 الرجاء التأكد من:")
+    st.write("1. وجود ملف market_transactions.csv في المجلد")
+    st.write("2. أن الملف يحتوي على بيانات صالحة")
+    st.write("3. أن ترميز الملف UTF-8")
+    st.stop()
+
+# ===== التحقق من الأعمدة الأساسية =====
+required_cols = ["city", "district", "price"]
+missing_cols = []
+for col in required_cols:
+    if col not in df_raw.columns:
+        missing_cols.append(col)
+
+if missing_cols:
+    st.error(f"❌ الأعمدة التالية غير موجودة في البيانات: {missing_cols}")
+    st.write("📌 الأعمدة الموجودة في الملف:")
+    st.write(list(df_raw.columns))
+    st.write("\n📌 أول 3 صفوف من الملف (للتشخيص):")
+    st.write(df_raw.head(3))
+    st.stop()
+
+# ===== DEBUG: عرض معلومات عن البيانات =====
 st.write("DEBUG ROWS:", len(df_raw))
 st.write("DEBUG COLUMNS:", df_raw.columns.tolist())
 
@@ -948,25 +972,17 @@ if page == "📊 التحليل الكامل":
         city = st.selectbox("المدينة:", 
                            ["الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة"])
         
-        # ===== التعديل 1: إضافة التحقق من الأعمدة =====
-        # التأكد أن البيانات موجودة
-        if df_raw.empty:
-            st.error("❌ لم يتم تحميل بيانات السوق")
-            st.write("الأعمدة الموجودة:", df_raw.columns.tolist())
-            st.stop()
+        # ===== استخراج الأحياء من البيانات الحقيقية =====
+        # تصفية البيانات للمدينة المختارة
+        city_data = df_raw[df_raw["city"] == city]
+        districts = sorted(city_data["district"].dropna().unique().tolist())
         
-        # التأكد أن الأعمدة موجودة
-        if "city" in df_raw.columns and "district" in df_raw.columns:
-            districts = sorted(
-                df_raw[df_raw["city"] == city]["district"].dropna().unique()
-            )
-        else:
-            st.error("❌ الأعمدة city أو district غير موجودة")
-            st.write("الأعمدة الموجودة:", df_raw.columns.tolist())
-            districts = []
-        # ===== نهاية التعديل 1 =====
+        if not districts:
+            st.warning(f"⚠️ لا توجد أحياء مسجلة للمدينة {city}")
+            districts = ["لا توجد أحياء"]
         
         district = st.selectbox("الحي:", districts)
+        # ===== نهاية استخراج الأحياء =====
         
         property_type = st.selectbox("نوع العقار:", 
                                     ["شقة", "فيلا", "أرض", "محل تجاري"])
