@@ -189,28 +189,20 @@ def build_report_story(user_info, provided_dataframe=None):
         # =========================================
         # 🎯 Smart Property Subtype Filter
         # =========================================
-        # ✅ التعديل: نمنع الفلترة إذا كانت ستجعل البيانات صفر
+        # ✅ تحسين: الفلتر قبل توحيد الأعمدة للحفاظ على property_subtype
         property_subtype = user_info.get("property_subtype")
         if property_subtype and "property_subtype" in df.columns:
-            # تجربة الفلتر أولاً
-            temp_df = df[df["property_subtype"] == property_subtype]
+            print(f"🎯 تصفية حسب النوع التفصيلي: {property_subtype}")
+            before_filter = len(df)
+            df = df[df["property_subtype"] == property_subtype]
+            print(f"   ✅ بعد التصفية: {len(df)} صفقة (تمت إزالة {before_filter - len(df)} صفقة)")
             
-            # لا نطبق الفلتر إذا سيحذف كل البيانات
-            if len(temp_df) > 0:
-                print(f"🎯 تصفية حسب النوع التفصيلي: {property_subtype}")
-                print(f"   قبل التصفية: {len(df):,} صفقة")
-                print(f"   بعد التصفية: {len(temp_df):,} صفقة")
-                df = temp_df
-                
-                # تحديث عنوان التقرير ليعكس النوع التفصيلي
-                if len(df) > 0:
-                    content_text = content_text.replace(
-                        f"تقرير سوق {user_info.get('city', '')}",
-                        f"تقرير سوق {property_subtype} في {user_info.get('city', '')}"
-                    )
-            else:
-                print(f"⚠️ لم يتم تطبيق فلتر النوع التفصيلي '{property_subtype}' لأن النتيجة ستكون 0 صفقة")
-                print(f"   قيمة property_subtype في البيانات: {df['property_subtype'].unique().tolist()}")
+            # تحديث عنوان التقرير ليعكس النوع التفصيلي
+            if len(df) > 0:
+                content_text = content_text.replace(
+                    f"تقرير سوق {user_info.get('city', '')}",
+                    f"تقرير سوق {property_subtype} في {user_info.get('city', '')}"
+                )
         
         # ✅ توحيد الأعمدة لمحرك الرسومات بعد التصفية
         df = unify_columns_for_charts(df)
