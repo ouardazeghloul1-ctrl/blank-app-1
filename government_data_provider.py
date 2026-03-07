@@ -434,6 +434,11 @@ def load_government_data(selected_city: Optional[str] = None,
         
         # فلترة المدينة
         if selected_city and selected_city != 'الكل':
+            # ✅ DEBUG: معرفة المدن الموجودة قبل الفلترة
+            print("\n🔍 DEBUG المدن الموجودة في الملف:")
+            print(normalized_df['city'].unique()[:20])
+            print(f"🔍 المدينة المحددة من المستخدم: '{selected_city}'")
+            
             city_mask = normalized_df['city'].str.contains(selected_city, case=False, na=False)
             normalized_df = normalized_df[city_mask]
             print(f"🏙️  بعد فلترة المدينة '{selected_city}': {len(normalized_df)} صفقة")
