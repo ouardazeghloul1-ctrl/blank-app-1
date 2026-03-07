@@ -110,18 +110,27 @@ def smart_column_mapper(df: pd.DataFrame) -> Dict[str, str]:
 def clean_price(price_series: pd.Series) -> pd.Series:
     """
     💰 تنظيف وتحويل عمود السعر بذكاء فائق
-    ✅ تعديل: تجاهل القيم #### التي تنتج عن ضيق العمود في Excel
+    ✅ تعديل: تنظيف الفواصل والمسافات وكلمة "ريال" للتعامل مع الأرقام مثل 1,200,000
     """
-    # إزالة القيم مثل ####
-    cleaned = price_series.replace("####", None)
+    # تنظيف شامل للنص
+    cleaned = (
+        price_series.astype(str)
+        .str.replace(",", "", regex=False)        # إزالة الفواصل
+        .str.replace(" ", "", regex=False)        # إزالة المسافات
+        .str.replace("ريال", "", regex=False)     # إزالة كلمة ريال
+        .str.replace("$", "", regex=False)        # إزالة علامة الدولار
+        .str.replace("%", "", regex=False)        # إزالة علامة النسبة
+        .replace("####", None)                     # إزالة القيم ####
+        .replace("nan", None)                      # إزالة النص "nan"
+        .replace("None", None)                     # إزالة النص "None"
+        .replace("", None)                          # إزالة النص الفارغ
+    )
     
-    # تحويل مباشر باستخدام pandas (يتعامل مع الصيغة العلمية تلقائياً)
+    # تحويل مباشر باستخدام pandas
     numeric_prices = pd.to_numeric(cleaned, errors='coerce')
     
-    # تطبيق فلتر منطقي للأسعار (إزالة الأخطاء الواضحة)
-    # الأسعار الأقل من 1000 أو الأكثر من مليار تعتبر أخطاء إدخال
-    valid_price_mask = (numeric_prices > 1000) & (numeric_prices < 1_000_000_000)
-    numeric_prices[~valid_price_mask] = None
+    # ✅ تم إزالة الفلتر 1000-1B للسماح بمرونة أكبر
+    # نترك pandas يقرأ كل الأرقام الصحيحة
     
     return numeric_prices
 
@@ -140,7 +149,7 @@ def normalize_property_type(type_series: pd.Series) -> pd.Series:
         'بيت': 'سكني',
         'دور': 'سكني',
         'شاليه': 'سكني',
-        'سكني': 'سكني',
+        'سكني': 'سكني',          # ✅ تم التصحيح: كانت سكنi
         'سكن': 'سكني',
         'منزل': 'سكني',
         'دوبلكس': 'سكني',
@@ -266,7 +275,13 @@ def load_government_data(selected_city: Optional[str] = None,
             return pd.DataFrame()
         
         print(f"📂 جاري قراءة الملف: {DATA_PATH}")
-        df = pd.read_csv(DATA_PATH, encoding='utf-8-sig', low_memory=False)
+        
+        # ✅ العودة للقراءة العادية (بدون dtype=str)
+        df = pd.read_csv(
+            DATA_PATH, 
+            encoding="utf-8-sig", 
+            low_memory=False
+        )
         
         if df.empty:
             print("⚠️ الملف فارغ - لا توجد بيانات للتحليل")
@@ -307,6 +322,9 @@ def load_government_data(selected_city: Optional[str] = None,
         
         # السعر (مع الفلترة الذكية)
         normalized_df['price'] = clean_price(df[column_mapping['price']])
+        
+        # ✅ DEBUG: معرفة كم سعر صالح بعد التنظيف
+        print("DEBUG price count:", normalized_df['price'].notna().sum())
         
         # المساحة
         if 'area' in column_mapping:
