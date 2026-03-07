@@ -337,6 +337,12 @@ def load_government_data(selected_city: Optional[str] = None,
         
         # ✅ التحسين: تحويل سعر المتر إلى عدد صحيح (Int64) بدلاً من float
         # هذا أفضل للتحليل والعرض
+        # أولاً: التأكد من أن جميع القيم رقمية
+        normalized_df['price_per_sqm'] = pd.to_numeric(
+            normalized_df['price_per_sqm'], 
+            errors="coerce"
+        )
+        # ثانياً: التقريب والتحويل إلى Int64
         normalized_df['price_per_sqm'] = (
             normalized_df['price_per_sqm']
             .round(0)
