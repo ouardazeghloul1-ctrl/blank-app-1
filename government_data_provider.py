@@ -384,6 +384,13 @@ def load_government_data(selected_city: Optional[str] = None,
             if pd.notna(min_date) and pd.notna(max_date):
                 print(f"  📅 الفترة: {min_date.year} - {max_date.year}")
         
+        # ======================
+        # 7️⃣ DEBUG: طباعة معلومات قبل الإرجاع
+        # ======================
+        print("\n🔍 DEBUG INFO:")
+        print(f"  DEBUG FINAL ROWS: {len(normalized_df)}")
+        print(f"  DEBUG COLUMNS: {list(normalized_df.columns)}")
+        
         return normalized_df.reset_index(drop=True)
     
     except Exception as e:
