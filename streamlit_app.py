@@ -1105,11 +1105,11 @@ if page == "📊 التحليل الكامل":
     if robo_needs_update or "robo_knowledge" not in st.session_state:
         with st.spinner("🧠 تحديث المستشار الذكي..."):
             try:
-                # ✅ 1️⃣ تحميل بيانات حقيقية مباشرة من المصدر - استخدام property_subtype
-                # ✅ التعديل الحاسم: استخدم property_subtype بدلاً من property_type
+                # ✅ 1️⃣ تحميل بيانات حقيقية مباشرة من المصدر - استخدام property_type (وليس property_subtype)
+                # ✅ التعديل الأول: استخدام property_type بدلاً من property_subtype
                 real_data = load_government_data(
                     selected_city=city,
-                    selected_property_type=property_subtype  # ✅ صحيح: property_subtype مثل "شقة", "فيلا", "محل"
+                    selected_property_type=property_type  # ✅ تم التعديل: property_type وليس property_subtype
                 )
 
                 if real_data is None or real_data.empty:
@@ -1339,11 +1339,11 @@ if page == "📊 التحليل الكامل":
     if st.button("🎯 إنشاء التقرير المتقدم (PDF)", key="generate_report", use_container_width=True):
         with st.spinner("🔄 جاري إنشاء التقرير الاحترافي..."):
             try:
-                # ✅ تحميل بيانات حقيقية مباشرة من المصدر - استخدام property_subtype
-                # ✅ التعديل الحاسم: استخدم property_subtype بدلاً من property_type
+                # ✅ تحميل بيانات حقيقية مباشرة من المصدر - استخدام property_type (وليس property_subtype)
+                # ✅ التعديل الثاني: استخدام property_type بدلاً من property_subtype
                 real_data = load_government_data(
                     selected_city=city,
-                    selected_property_type=property_subtype  # ✅ صحيح: property_subtype مثل "شقة", "فيلا", "محل"
+                    selected_property_type=property_type  # ✅ تم التعديل: property_type وليس property_subtype
                 )
 
                 if real_data is None or real_data.empty:
