@@ -394,10 +394,10 @@ def load_government_data(selected_city: Optional[str] = None,
         return normalized_df.reset_index(drop=True)
     
     except Exception as e:
-        print("❌ خطأ غير متوقع:", str(e))
+        print("🔥 ERROR IN GOVERNMENT DATA PROVIDER")
         import traceback
         traceback.print_exc()
-        return pd.DataFrame()
+        raise e  # 👈 هذا السطر مهم - نرفع الخطأ بدلاً من إخفائه
 
 
 # =========================================
