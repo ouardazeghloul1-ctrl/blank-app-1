@@ -332,11 +332,38 @@ def load_government_data(selected_city: Optional[str] = None,
         else:
             normalized_df['area'] = None
         
-        # المدينة
+        # ======================
+        # استخراج المدينة بذكاء
+        # ======================
+        city_series = None
+        
+        # 1️⃣ إذا وجد عمود المدينة
         if 'city' in column_mapping:
-            normalized_df['city'] = df[column_mapping['city']].astype(str).str.strip()
+            city_series = df[column_mapping['city']].astype(str)
+        
+        # 2️⃣ إذا لم يوجد، نحاول استخراجها من "المدينة / الحي"
+        elif 'district' in column_mapping:
+            city_series = (
+                df[column_mapping['district']]
+                .astype(str)
+                .str.split('/')
+                .str[0]
+            )
+        
+        # 3️⃣ إذا لم يوجد، نحاول من المنطقة
+        elif 'region' in column_mapping:
+            city_series = df[column_mapping['region']].astype(str)
+        
+        # تنظيف الاسم
+        if city_series is not None:
+            normalized_df['city'] = (
+                city_series
+                .str.replace("مدينة", "", regex=False)
+                .str.replace("منطقة", "", regex=False)
+                .str.strip()
+            )
         else:
-            normalized_df['city'] = 'غير محدد'
+            normalized_df['city'] = "غير محدد"
         
         # الحي (الأصلي والمنظف)
         if 'district' in column_mapping:
