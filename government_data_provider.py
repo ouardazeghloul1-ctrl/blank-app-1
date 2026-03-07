@@ -443,11 +443,17 @@ def load_government_data(selected_city: Optional[str] = None,
             normalized_df = normalized_df[city_mask]
             print(f"🏙️  بعد فلترة المدينة '{selected_city}': {len(normalized_df)} صفقة")
         
-        # فلترة نوع العقار
+        # ✅ التعديل: فلترة نوع العقار بشكل آمن
         if selected_property_type and selected_property_type != 'الكل':
             if selected_property_type in ['سكني', 'تجاري', 'أرض']:
-                normalized_df = normalized_df[normalized_df['property_type'] == selected_property_type]
-                print(f"🏠 بعد فلترة النوع '{selected_property_type}': {len(normalized_df)} صفقة")
+                # إذا كان النوع موجود في البيانات نطبّق الفلتر
+                if selected_property_type in normalized_df['property_type'].unique():
+                    normalized_df = normalized_df[
+                        normalized_df['property_type'] == selected_property_type
+                    ]
+                    print(f"🏠 بعد فلترة النوع '{selected_property_type}': {len(normalized_df)} صفقة")
+                else:
+                    print(f"⚠️ النوع '{selected_property_type}' غير موجود في البيانات – تم تجاهل الفلتر")
         
         # ======================
         # 6️⃣ تقرير إحصائي شامل
