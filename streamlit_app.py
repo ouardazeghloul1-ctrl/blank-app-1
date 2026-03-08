@@ -1486,40 +1486,26 @@ if page == "📊 التحليل الكامل":
                 key="district_city_select"
             )
         
-        # ===== فلترة المدينة باستخدام contains (محسّن) =====
+        # ===== فلترة المدينة باستخدام contains =====
         city_data = df_raw[
             df_raw["city"].astype(str).str.contains(city, case=False, na=False)
         ].copy()
         
-        # ===== تنظيف أسماء الأحياء بشكل قوي مع إزالة المسافات المكررة =====
-        city_data["district"] = (
-            city_data["district"]
-            .astype(str)
-            .str.lower()
-            .str.replace("الحي", "", regex=False)
-            .str.replace("حي", "", regex=False)
-            .str.replace("حى", "", regex=False)
-            .str.replace("District", "", regex=False)
-            .str.split("/")
-            .str[-1]
-            .str.replace(r"\s+", " ", regex=True)  # إزالة المسافات المكررة
-            .str.strip()
-        )
+        # ===== تبسيط تنظيف الأحياء إلى strip فقط =====
+        city_data["district"] = city_data["district"].astype(str).str.strip()
         
-        # ===== قائمة الأسماء غير الصالحة (مع تعديل None إلى none) =====
-        invalid_names = [
-            "", " ", "منطقة", "الرياض", "جدة", "مكة", "المدينة", "الدمام",
-            "منطقة الرياض", "منطقة مكة المكرمة", "منطقة المدينة المنورة",
-            "منطقة جدة", "منطقة الدمام", "السعودية", "غير محدد", "nan", "none"
+        # ===== التعديل الجديد: إزالة القيم الفارغة فقط =====
+        city_data = city_data[
+            (city_data["district"].notna()) & 
+            (city_data["district"] != "") & 
+            (city_data["district"] != "غير محدد")
         ]
-        city_data = city_data[~city_data["district"].isin(invalid_names)]
         
         # ===== تحويل السعر إلى numeric قبل الحسابات =====
         city_data["price"] = pd.to_numeric(city_data["price"], errors="coerce")
         
-        # ===== التعديل الوحيد: إزالة شرط > 5 واختيار أكثر 5 أحياء نشاطاً فقط =====
+        # ===== اختيار أكثر 5 أحياء نشاطاً فقط =====
         district_counts = city_data.groupby("district").size()
-        # اختيار أكثر 5 أحياء نشاطاً فقط
         top_districts = district_counts.sort_values(ascending=False).head(5)
         districts = top_districts.index.tolist()
         
