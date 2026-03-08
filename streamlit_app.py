@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 df_raw = load_government_data(selected_city=None, selected_property_type=None)
-
+st.write(df_raw[["city","district"]].head(20))
 # ===== التحقق من أن البيانات تم تحميلها بشكل صحيح =====
 if df_raw is None or df_raw.empty:
     st.error("❌ فشل تحميل بيانات السوق من الملف الحكومي")
