@@ -1517,9 +1517,9 @@ if page == "📊 التحليل الكامل":
         # ===== تحويل السعر إلى numeric قبل الحسابات =====
         city_data["price"] = pd.to_numeric(city_data["price"], errors="coerce")
         
-        # ===== حساب الأحياء الأكثر نشاطاً =====
+        # ===== التعديل الوحيد: إزالة شرط > 5 واختيار أكثر 5 أحياء نشاطاً فقط =====
         district_counts = city_data.groupby("district").size()
-        district_counts = district_counts[district_counts > 5]
+        # اختيار أكثر 5 أحياء نشاطاً فقط
         top_districts = district_counts.sort_values(ascending=False).head(5)
         districts = top_districts.index.tolist()
         
