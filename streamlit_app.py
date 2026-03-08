@@ -1475,99 +1475,81 @@ if page == "📊 التحليل الكامل":
                 """)
     
     # ===== قسم تقارير الأحياء =====
-    elif analysis_mode == "📍 تقارير الأحياء":
-        st.markdown("## 📍 تحليل الأحياء")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            city = st.selectbox(
-                "اختر المدينة",
-                ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"],
-                key="district_city_select"
-            )
-        
-        # ===== فلترة المدينة باستخدام contains =====
-        city_data = df_raw[
-            df_raw["city"].astype(str).str.contains(city, case=False, na=False)
-        ].copy()
-        
-        # ===== تبسيط تنظيف الأحياء إلى strip فقط =====
-        city_data["district"] = city_data["district"].astype(str).str.strip()
-        
-        # ===== التعديل الجديد: إزالة القيم الفارغة فقط =====
-        city_data = city_data[
-            (city_data["district"].notna()) & 
-            (city_data["district"] != "") & 
-            (city_data["district"] != "غير محدد")
-        ]
-        
-        # ===== تحويل السعر إلى numeric قبل الحسابات =====
-        city_data["price"] = pd.to_numeric(city_data["price"], errors="coerce")
-        
-        # ===== اختيار أكثر 5 أحياء نشاطاً فقط =====
-        district_counts = city_data.groupby("district").size()
-        top_districts = district_counts.sort_values(ascending=False).head(5)
-        districts = top_districts.index.tolist()
-        
-        if not districts:
-            st.warning(f"⚠️ لا توجد أحياء نشطة للمدينة {city}")
-            st.stop()
-        
-        with col2:
-            district = st.selectbox("اختر الحي", districts, key="district_select")
-        
-        st.success(f"📊 تحليل حي: {district}")
-        
-        # ===== تحليل الحي (مع strip للمقارنة) =====
-        district_data = city_data[
-            city_data["district"].str.strip() == district.strip()
-        ].copy()
-        
-        # ===== عرض مؤشرات سريعة =====
-        col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
-        
-        with col_metrics1:
-            st.metric("عدد الصفقات", len(district_data))
-        
-        with col_metrics2:
-            avg_price = district_data["price"].mean()
-            if pd.notna(avg_price):
-                st.metric("متوسط السعر", f"{avg_price:,.0f} ريال")
-            else:
-                st.metric("متوسط السعر", "غير متوفر")
-        
-        with col_metrics3:
-            # حساب متوسط سعر المتر باستخدام المساحات الصالحة فقط
-            valid_area = district_data[district_data["area"] > 0]
-            if not valid_area.empty:
-                avg_price_per_sqm = (valid_area["price"] / valid_area["area"]).mean()
-                st.metric("متوسط سعر المتر", f"{avg_price_per_sqm:,.0f} ريال")
-            else:
-                st.metric("متوسط سعر المتر", "غير متوفر")
-        
-        # عرض أول الصفقات - مع تحديد الأعمدة المهمة فقط
-        st.write("### أول الصفقات في الحي")
-        display_columns = ["price", "area", "city"]
-        if "price_per_sqm" in district_data.columns:
-            display_columns.append("price_per_sqm")
-        st.dataframe(district_data[display_columns].head(10))
-        
-        # زر إنشاء تقرير الحي (مؤقت)
-        if st.button("📥 إنشاء تقرير الحي", use_container_width=True):
-            district_real_data = district_data.copy()
-            if district_real_data.empty:
-                st.error("❌ لا توجد بيانات كافية لهذا الحي")
-                st.stop()
-            
-            # توليد بيانات السوق للحي
-            market_data = generate_advanced_market_data(
-                city,
-                "شقة",
-                "للبيع",
-                district_real_data
-            )
-            st.success(f"✅ تم تحليل {len(district_real_data)} صفقة في الحي")
+    # ===== قسم تقارير الأحياء =====
+elif analysis_mode == "📍 تقارير الأحياء":
 
+    st.markdown("## 📍 تحليل الأحياء")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        city = st.selectbox(
+            "اختر المدينة",
+            ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"],
+            key="district_city_select"
+        )
+
+    # -------- فلترة المدينة بشكل مرن --------
+    city_data = df_raw[
+        df_raw["city"].astype(str).str.contains(city.replace("ال", ""), case=False, na=False)
+    ].copy()
+
+    # -------- تنظيف الحي --------
+    city_data["district"] = city_data["district"].astype(str).str.strip()
+
+    city_data = city_data[
+        (city_data["district"].notna()) &
+        (city_data["district"] != "") &
+        (city_data["district"] != "غير محدد") &
+        (~city_data["district"].str.contains("منطقة", na=False)) &
+        (~city_data["district"].str.contains("Region", na=False))
+    ]
+
+    # -------- تحويل السعر --------
+    city_data["price"] = pd.to_numeric(city_data["price"], errors="coerce")
+
+    # -------- استخراج أكثر 5 أحياء نشاطاً --------
+    district_counts = city_data.groupby("district").size()
+
+    if district_counts.empty:
+        st.error(f"❌ لا توجد بيانات أحياء للمدينة {city}")
+        st.stop()
+
+    top_districts = district_counts.sort_values(ascending=False).head(5)
+    districts = top_districts.index.tolist()
+
+    with col2:
+        district = st.selectbox("اختر الحي", districts, key="district_select")
+
+    st.success(f"📊 تحليل حي: {district}")
+
+    # -------- بيانات الحي --------
+    district_data = city_data[city_data["district"] == district].copy()
+
+    col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
+
+    with col_metrics1:
+        st.metric("عدد الصفقات", len(district_data))
+
+    with col_metrics2:
+        avg_price = district_data["price"].mean()
+        st.metric("متوسط السعر", f"{avg_price:,.0f} ريال" if pd.notna(avg_price) else "غير متوفر")
+
+    with col_metrics3:
+        valid_area = district_data[district_data["area"] > 0]
+        if not valid_area.empty:
+            avg_price_per_sqm = (valid_area["price"] / valid_area["area"]).mean()
+            st.metric("متوسط سعر المتر", f"{avg_price_per_sqm:,.0f} ريال")
+        else:
+            st.metric("متوسط سعر المتر", "غير متوفر")
+
+    st.write("### أول الصفقات في الحي")
+
+    display_cols = ["price", "area", "city"]
+    if "price_per_sqm" in district_data.columns:
+        display_cols.append("price_per_sqm")
+
+    st.dataframe(district_data[display_cols].head(10))
 # ========== صفحة المستشار الذكي ==========
 if page == "🧠 المستشار الذكي":
     st.markdown("## 🧠 مستشارك الذكي")
