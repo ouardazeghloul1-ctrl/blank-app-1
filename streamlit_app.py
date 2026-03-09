@@ -1488,8 +1488,8 @@ if page == "📊 التحليل الكامل":
                 key="district_city_select"
             )
 
-        # -------- التعديل 1: فلترة المدينة بشكل دقيق (مساواة تامة) --------
-        city_data = df_raw[df_raw["city"] == city].copy()
+        # -------- التعديل: فلترة المدينة بشكل ذكي باستخدام contains --------
+        city_data = df_raw[df_raw["city"].astype(str).str.contains(city, case=False, na=False)].copy()
 
         # -------- إضافة سطر للتشخيص (سيتم حذفه لاحقاً) --------
         st.write("🔍 اختبار: أول 20 قيمة في district_clean")
