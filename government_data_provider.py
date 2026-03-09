@@ -26,18 +26,21 @@ def smart_column_mapper(df: pd.DataFrame) -> Dict[str, str]:
     column_patterns = {
         "price": [
             "السعر", "قيمة الصفقة", "اجمالي قيمة الصفقات", "الثمن", 
-            "المبلغ", "price", "total_value", "اجمالي", "القيمة"
+            "المبلغ", "price", "total_value", "اجمالي", "القيمة",
+            "قيمة", "price_value"
         ],
         "area": [
             "المساحة", "المساحه", "متر", "مساحة", "area", "property_area",
-            "المساحة بالمتر", "الوحدات", "المساحه بالمتر"
+            "المساحة بالمتر", "الوحدات", "المساحه بالمتر",
+            "مساحه", "sqm"
         ],
         "city": [
             "المدينة", "city", "اسم المدينة", "المنطقة الادارية", "المدينه"
         ],
         "district": [
             "الحي", "حي", "المدينة / الحي", "الاحياء", "المنطقة", "district",
-            "اسم الحي", "الاحياء السكنية", "الحي / المنطقة"
+            "اسم الحي", "الاحياء السكنية", "الحي / المنطقة",
+            "المدينة الحي", "neighborhood"
         ],
         "date": [
             "تاريخ الصفقة", "التاريخ", "تاريخ العقد", "date", "transaction_date",
@@ -239,7 +242,12 @@ def load_government_data(selected_city: Optional[str] = None,
             return pd.DataFrame()
         
         print(f"📂 جاري قراءة الملف: {DATA_PATH}")
-        df = pd.read_csv(DATA_PATH, encoding='utf-8-sig', low_memory=False)
+        
+        # التعديل 1 — دعم CSV و Excel
+        if DATA_PATH.suffix.lower() == ".xlsx":
+            df = pd.read_excel(DATA_PATH)
+        else:
+            df = pd.read_csv(DATA_PATH, encoding="utf-8-sig", low_memory=False)
         
         if df.empty:
             print("⚠️ الملف فارغ - لا توجد بيانات للتحليل")
@@ -274,7 +282,13 @@ def load_government_data(selected_city: Optional[str] = None,
         
         # المدينة
         if 'city' in column_mapping:
+            # التعديل 2 — تنظيف اسم المدينة
             normalized_df['city'] = df[column_mapping['city']].astype(str).str.strip()
+            # تنظيف اسم المدينة
+            normalized_df['city'] = normalized_df['city'].str.replace("منطقة", "", regex=False)
+            normalized_df['city'] = normalized_df['city'].str.replace("المنطقة", "", regex=False)
+            normalized_df['city'] = normalized_df['city'].str.replace("الادارية", "", regex=False)
+            normalized_df['city'] = normalized_df['city'].str.strip()
         else:
             normalized_df['city'] = 'غير محدد'
         
@@ -322,6 +336,10 @@ def load_government_data(selected_city: Optional[str] = None,
         # معالجة المساحات بشكل ذكي
         normalized_df['area'] = pd.to_numeric(normalized_df['area'], errors='coerce')
         
+        # التعديل 3 — منع أخطاء المساحة
+        # إزالة المساحات غير المنطقية
+        normalized_df.loc[normalized_df['area'] <= 0, 'area'] = pd.NA
+        
         # نحتفظ بالصفوف التي ليس لديها مساحة (سنحاول تقديرها لاحقاً)
         # أو مساحتها أكبر من 0
         area_mask = (normalized_df['area'] > 0) | (normalized_df['area'].isna())
@@ -362,7 +380,10 @@ def load_government_data(selected_city: Optional[str] = None,
         
         # فلترة المدينة
         if selected_city and selected_city != 'الكل':
-            city_mask = normalized_df['city'].str.contains(selected_city, case=False, na=False)
+            # التعديل 4 — تحسين فلترة المدينة
+            city_mask = normalized_df['city'].astype(str).str.strip().str.contains(
+                selected_city.strip(), case=False, na=False
+            )
             normalized_df = normalized_df[city_mask]
             print(f"🏙️  بعد فلترة المدينة '{selected_city}': {len(normalized_df)} صفقة")
         
@@ -408,7 +429,7 @@ def load_government_data(selected_city: Optional[str] = None,
         print("🔥 ERROR IN GOVERNMENT DATA PROVIDER")
         import traceback
         traceback.print_exc()
-        raise e  # 👈 هذا السطر مهم - نرفع الخطأ بدلاً من إخفائه
+        raise e  # 👈 هذا السهم مهم - نرفع الخطأ بدلاً من إخفائه
 
 
 # =========================================
