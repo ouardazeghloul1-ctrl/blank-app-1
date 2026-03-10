@@ -247,8 +247,7 @@ def load_government_data(selected_city: Optional[str] = None,
         if DATA_PATH.suffix.lower() == ".xlsx":
             df = pd.read_excel(DATA_PATH)
         else:
-            df = pd.read_csv(DATA_PATH, encoding="utf-8-sig", low_memory=False)
-        
+            df = pd.read_csv(DATA_PATH, encoding="utf-8-sig", sep=";", low_memory=False)
         if df.empty:
             print("⚠️ الملف فارغ - لا توجد بيانات للتحليل")
             return df
