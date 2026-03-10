@@ -5,8 +5,7 @@
 # =========================================
 
 from ai_report_reasoner import AIReportReasoner
-from executive_decision_engine import generate_executive_summary
-
+from ai_executive_summary import generate_executive_summary
 
 def generate_district_narrative(
         user_info,
