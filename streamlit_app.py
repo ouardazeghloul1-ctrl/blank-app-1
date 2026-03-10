@@ -44,25 +44,6 @@ df_raw["city"] = (
     .str.strip()
 )
 
-st.write("📊 عدد كل الصفقات بدون أي فلترة:", len(df_raw))
-
-st.write("📋 أول 5 صفوف من الملف:")
-st.write(df_raw.head())
-
-st.write("📌 أسماء الأعمدة النهائية:")
-st.write(df_raw.columns.tolist())
-
-st.write("🔍 اختبار مباشر لمزود البيانات")
-
-test_df = load_government_data(selected_city="الرياض", selected_property_type="شقة")
-st.write("عدد شقق الرياض:", len(test_df))
-
-test_df2 = load_government_data(selected_city="جدة", selected_property_type="شقة")
-st.write("عدد شقق جدة:", len(test_df2))
-
-test_df3 = load_government_data(selected_city="الرياض", selected_property_type="محل تجاري")
-st.write("عدد المحلات التجارية في الرياض:", len(test_df3))
-
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -1385,20 +1366,31 @@ if page == "📊 التحليل الكامل":
         # -------- المرحلة 2: اختيار المدينة --------
         city = st.selectbox("اختر المدينة", cities, key="district_city_select")
 
-        # -------- المرحلة 3: استخراج بيانات المدينة - استخدام مطابقة تامة بدلاً من contains --------
-        city_data = df_raw[df_raw["city"].astype(str).str.strip() == city].copy()
+        # -------- المرحلة 3: استخراج بيانات المدينة - استخدام contains للتعامل مع صيغ متعددة --------
+        city_data = df_raw[
+            df_raw["city"]
+            .astype(str)
+            .str.strip()
+            .str.contains(city, case=False, na=False)
+        ].copy()
 
         # -------- المرحلة 4: استخراج الأحياء النشطة فقط (5 صفقات فأكثر) --------
         district_col = "district_clean" if "district_clean" in city_data.columns else "district"
         
         # حساب عدد الصفقات لكل حي
-        district_counts = city_data.groupby(district_col).size().sort_values(ascending=False)
+        district_counts = (
+            city_data[district_col]
+            .value_counts()
+            .sort_values(ascending=False)
+        )
         
-        # فلترة الأحياء التي لديها 5 صفقات أو أكثر
+        # الأحياء النشطة = أكثر من 5 صفقات
         active_districts = district_counts[district_counts >= 5]
         districts = active_districts.index.tolist()
+        
+        # إزالة الأحياء غير الصالحة
+        districts = [d for d in districts if d not in ["غير محدد", "", None]]
 
-        # تعديل: عدم استخدام st.stop() إذا لم توجد أحياء
         if not districts:
             st.error(f"❌ لا توجد أحياء نشطة (بـ 5 صفقات أو أكثر) في مدينة {city}")
             districts = []  # قائمة فارغة لتجنب الأخطاء
@@ -1416,19 +1408,20 @@ if page == "📊 التحليل الكامل":
 
             # -------- المرحلة 7: فلترة البيانات حسب الحي ونوع العقار --------
             # تحويل نوع العقار إلى التصنيف الداخلي
-            if property_type in ["شقة", "فيلا"]:
-                property_category = "سكني"
-            elif property_type == "محل تجاري":
-                property_category = "تجاري"
-            else:
-                property_category = "أرض"
+            property_map = {
+                "شقة": "سكني",
+                "فيلا": "سكني",
+                "محل تجاري": "تجاري",
+                "أرض": "أرض"
+            }
+            property_category = property_map.get(property_type, "سكني")
                 
             district_data = city_data[
-                (city_data[district_col] == district) & 
+                (city_data[district_col].astype(str).str.strip() == district) & 
                 (city_data["property_type"] == property_category)
             ].copy()
 
-            # التحقق من وجود بيانات - استخدم else بدلاً من st.stop()
+            # التحقق من وجود بيانات
             if district_data.empty:
                 st.warning(f"⚠️ لا توجد صفقات لنوع العقار {property_type} في حي {district}")
             else:
@@ -1454,12 +1447,15 @@ if page == "📊 التحليل الكامل":
                     else:
                         st.metric("متوسط سعر المتر", "غير متوفر")
 
-                # -------- المرحلة 8: زر إنشاء تقرير الحي مع Session State --------
-                if st.button("📄 إنشاء تقرير الحي", use_container_width=True, key="generate_district_report"):
-                    st.session_state["generate_district_report"] = True
+                # -------- المرحلة 8: زر إنشاء تقرير الحي --------
+                generate_report_clicked = st.button(
+                    "📄 إنشاء تقرير الحي",
+                    use_container_width=True,
+                    key="generate_district_report"
+                )
 
                 # -------- المرحلة 9: تشغيل محرك التقرير --------
-                if st.session_state.get("generate_district_report", False):
+                if generate_report_clicked:
                     with st.spinner("🔄 جاري إنشاء تقرير الحي..."):
                         try:
                             from report_orchestrator import build_report_story
@@ -1510,7 +1506,7 @@ if page == "📊 التحليل الكامل":
         # -------- المرحلة 11: زر تحميل التقرير --------
         if st.session_state.get('district_report_generated', False) and st.session_state.get('district_pdf_data') is not None:
             district_name = district if 'district' in locals() and district else "district"
-            file_name = f"warda_district_report_{city}_{district_name}_{property_type}.pdf"
+            file_name = f"warda_report_{city}_{district_name}_{property_type}_{datetime.now().strftime('%Y%m%d')}.pdf"
             
             st.download_button(
                 label="📥 تحميل تقرير الحي PDF",
@@ -1654,8 +1650,6 @@ if 'confirm_clear' not in st.session_state:
     st.session_state.confirm_clear = False
 if 'daily_alerts' not in st.session_state:
     st.session_state.daily_alerts = []
-if 'generate_district_report' not in st.session_state:
-    st.session_state.generate_district_report = False
 
 st.markdown("---")
 st.markdown("""
