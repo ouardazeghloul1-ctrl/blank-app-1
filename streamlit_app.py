@@ -625,7 +625,7 @@ class AIIntelligence:
         
         if market_data.get('حجم_السيولة', 0) > 80:
             risk_factors.append("منخفض")
-        elif market_data.get('حجم_السيولة', 0) > 50:
+        elif market_data.get('حجم_سيولة', 0) > 50:
             risk_factors.append("متوسط")
         else:
             risk_factors.append("مرتفع")
@@ -1374,87 +1374,78 @@ if page == "📊 التحليل الكامل":
                 - يحتوي على جميع التحليلات المطلوبة
                 """)
     
-    # ===== قسم تقارير الأحياء (النسخة النهائية) =====
+    # ===== قسم تقارير الأحياء =====
     if analysis_mode == "📍 تقارير الأحياء":
 
         st.markdown("## 📍 تحليل الأحياء")
 
-        # -------- تنظيف أسماء المدن --------
-        df_raw["city"] = (
-            df_raw["city"]
-            .astype(str)
-            .str.replace("منطقة", "", regex=False)
-            .str.replace("المنطقة", "", regex=False)
-            .str.replace("الادارية", "", regex=False)
-            .str.strip()
-        )
+        # -------- المرحلة 1: تحديد المدن الخمس فقط --------
+        cities = ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"]
 
-        # -------- استخراج المدن من البيانات --------
-        cities = sorted(
-            df_raw["city"]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .unique()
-        )
+        # -------- المرحلة 2: اختيار المدينة --------
+        city = st.selectbox("اختر المدينة", cities, key="district_city_select")
 
-        col1, col2 = st.columns(2)
+        # -------- المرحلة 3: استخراج بيانات المدينة --------
+        city_data = df_raw[df_raw["city"].astype(str).str.contains(city, case=False, na=False)].copy()
 
-        with col1:
-            city = st.selectbox("اختر المدينة", cities, key="district_city_select")
-
-        # -------- فلترة بيانات المدينة (باستخدام contains للتعامل مع التنسيقات المختلفة) --------
-        city_data = df_raw[df_raw["city"].astype(str).str.contains(fr"\b{city}\b", case=False, na=False)].copy()
-
-        # -------- استخراج الأحياء --------
-        if "district_clean" in city_data.columns:
-            districts = sorted(
-                city_data["district_clean"]
-                .dropna()
-                .astype(str)
-                .str.strip()
-                .unique()
-            )
-        else:
-            districts = sorted(
-                city_data["district"]
-                .dropna()
-                .astype(str)
-                .str.strip()
-                .unique()
-            )
+        # -------- المرحلة 4: استخراج الأحياء النشطة فقط (5 صفقات فأكثر) --------
+        district_col = "district_clean" if "district_clean" in city_data.columns else "district"
         
-        # -------- فلترة القيم غير الصالحة --------
-        districts = [d for d in districts if d not in ["", "غير محدد", "nan", "None"]]
+        # حساب عدد الصفقات لكل حي
+        district_counts = city_data.groupby(district_col).size().sort_values(ascending=False)
+        
+        # فلترة الأحياء التي لديها 5 صفقات أو أكثر
+        active_districts = district_counts[district_counts >= 5]
+        districts = active_districts.index.tolist()
 
         if not districts:
-            st.error(f"❌ لا توجد أحياء صالحة للمدينة {city}")
+            st.error(f"❌ لا توجد أحياء نشطة (بـ 5 صفقات أو أكثر) في مدينة {city}")
             st.stop()
 
-        with col2:
-            district = st.selectbox("اختر الحي", districts, key="district_select")
+        # -------- المرحلة 5: اختيار الحي --------
+        district = st.selectbox("اختر الحي", districts, key="district_select")
 
-        st.success(f"📊 تحليل حي: {district}")
+        # -------- المرحلة 6: اختيار نوع العقار --------
+        property_type = st.selectbox(
+            "نوع العقار", 
+            ["شقة", "فيلا", "أرض", "محل تجاري"],
+            key="property_type_select"
+        )
 
-        # -------- بيانات الحي --------
-        if "district_clean" in city_data.columns:
-            district_data = city_data[city_data["district_clean"] == district].copy()
+        # -------- المرحلة 7: فلترة البيانات حسب الحي ونوع العقار --------
+        # تحويل نوع العقار إلى التصنيف الداخلي
+        if property_type in ["شقة", "فيلا"]:
+            property_category = "سكني"
+        elif property_type == "محل تجاري":
+            property_category = "تجاري"
         else:
-            district_data = city_data[city_data["district"] == district].copy()
+            property_category = "أرض"
+            
+        district_data = city_data[
+            (city_data[district_col] == district) & 
+            (city_data["property_type"] == property_category)
+        ].copy()
 
-        # -------- تحويل السعر --------
-        district_data["price"] = pd.to_numeric(district_data["price"], errors="coerce")
+        # التحقق من وجود بيانات
+        if district_data.empty:
+            st.warning(f"⚠️ لا توجد صفقات لنوع العقار {property_type} في حي {district}")
+            st.stop()
 
+        # عرض إحصائيات سريعة
+        st.success(f"📊 تحليل {property_type} في حي {district} - {city}")
+        
         col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
-
+        
         with col_metrics1:
             st.metric("عدد الصفقات", len(district_data))
-
+        
         with col_metrics2:
+            district_data["price"] = pd.to_numeric(district_data["price"], errors="coerce")
             avg_price = district_data["price"].mean()
             st.metric("متوسط السعر", f"{avg_price:,.0f} ريال" if pd.notna(avg_price) else "غير متوفر")
-
+        
         with col_metrics3:
+            district_data["area"] = pd.to_numeric(district_data["area"], errors="coerce")
             valid_area = district_data[district_data["area"] > 0]
             if not valid_area.empty:
                 avg_price_per_sqm = (valid_area["price"] / valid_area["area"]).mean()
@@ -1462,17 +1453,71 @@ if page == "📊 التحليل الكامل":
             else:
                 st.metric("متوسط سعر المتر", "غير متوفر")
 
-        st.write("### أول الصفقات في الحي")
+        # -------- المرحلة 8: زر إنشاء تقرير الحي --------
+        generate_district_report = st.button(
+            "📄 إنشاء تقرير الحي", 
+            use_container_width=True,
+            key="generate_district_report"
+        )
 
-        display_cols = ["price", "area", "city"]
-        if "price_per_sqm" in district_data.columns:
-            display_cols.append("price_per_sqm")
-        if "district_clean" in district_data.columns:
-            display_cols.append("district_clean")
-        else:
-            display_cols.append("district")
+        # -------- المرحلة 9: تشغيل محرك التقرير --------
+        if generate_district_report:
+            with st.spinner("🔄 جاري إنشاء تقرير الحي..."):
+                try:
+                    from report_orchestrator import build_report_story
+                    
+                    user_info = {
+                        "city": city,
+                        "district": district,
+                        "property_type": property_type,
+                        "package": "مجانية",
+                        "user_type": "مستثمر"
+                    }
+                    
+                    story = build_report_story(
+                        user_info=user_info,
+                        provided_dataframe=district_data
+                    )
+                    
+                    final_content_text = story["content_text"]
+                    executive_decision = story["executive_decision"]
+                    charts = story["charts"]
+                    
+                    # -------- المرحلة 10: إنشاء ملف PDF --------
+                    from report_pdf_generator import create_pdf_from_content
+                    
+                    pdf_buffer = create_pdf_from_content(
+                        user_info={
+                            "city": city,
+                            "district": district,
+                            "property_type": property_type
+                        },
+                        content_text=final_content_text,
+                        executive_decision=executive_decision,
+                        charts_by_chapter=charts,
+                        package_level="مجانية"
+                    )
+                    
+                    st.session_state.district_pdf_data = pdf_buffer.getvalue()
+                    st.session_state.district_report_generated = True
+                    
+                    st.success("✅ تم إنشاء تقرير الحي بنجاح!")
+                    
+                except Exception as e:
+                    st.error(f"❌ خطأ في إنشاء تقرير الحي: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
 
-        st.dataframe(district_data[display_cols].head(10))
+        # -------- المرحلة 11: زر تحميل التقرير --------
+        if st.session_state.get('district_report_generated', False):
+            st.download_button(
+                label="📥 تحميل تقرير الحي PDF",
+                data=st.session_state.district_pdf_data,
+                file_name=f"warda_district_report_{city}_{district}_{property_type}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                key="download_district_report"
+            )
 
 # ========== صفحة المستشار الذكي ==========
 if page == "🧠 المستشار الذكي":
@@ -1569,6 +1614,10 @@ if page == "🧠 المستشار الذكي":
 # ========== تهيئة حالة الجلسة ==========
 if 'report_generated' not in st.session_state:
     st.session_state.report_generated = False
+if 'district_report_generated' not in st.session_state:
+    st.session_state.district_report_generated = False
+if 'district_pdf_data' not in st.session_state:
+    st.session_state.district_pdf_data = None
 if 'pdf_data' not in st.session_state:
     st.session_state.pdf_data = None
 if 'real_data' not in st.session_state:
