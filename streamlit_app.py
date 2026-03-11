@@ -1458,7 +1458,25 @@ if page == "📊 التحليل الكامل":
                 if generate_report_clicked:
                     with st.spinner("🔄 جاري إنشاء تقرير الحي..."):
                         try:
-                            from report_orchestrator import build_report_story
+                            # استيراد الدالة الجديدة
+                            from district_narrative_engine import generate_district_narrative
+                            
+                            # حساب متوسط سعر المتر للحي والمدينة
+                            district_price_per_m2 = (district_data["price"] / district_data["area"]).mean() if not district_data.empty and district_data["area"].sum() > 0 else 0
+                            city_price_per_m2 = (city_data["price"] / city_data["area"]).mean() if not city_data.empty and city_data["area"].sum() > 0 else 0
+                            
+                            # حساب نسبة الانحراف
+                            price_deviation_percent = ((district_price_per_m2 - city_price_per_m2) / city_price_per_m2 * 100) if city_price_per_m2 > 0 else 0
+                            
+                            # مؤشرات الحي بالصيغة الصحيحة التي يتوقعها المحرك
+                            district_metrics = {
+                                "district_name": district,
+                                "city_name": city,
+                                "district_avg_price": district_price_per_m2,
+                                "city_avg_price": city_price_per_m2,
+                                "transactions_count": len(district_data),
+                                "price_deviation_percent": round(price_deviation_percent, 1)
+                            }
                             
                             user_info = {
                                 "city": city,
@@ -1468,15 +1486,15 @@ if page == "📊 التحليل الكامل":
                                 "user_type": "مستثمر"
                             }
                             
-                            story = build_report_story(
+                            # استخدام الدالة الجديدة
+                            report_text = generate_district_narrative(
                                 user_info=user_info,
-                                provided_dataframe=district_data
+                                district_metrics=district_metrics,
+                                nearby_districts=[],
+                                dpi_score=50,
+                                market_data={},
+                                real_data=district_data
                             )
-                            
-                            final_content_text = story["content_text"]
-                            executive_decision = story["executive_decision"]
-                            # استخدام .get() لتجنب KeyError
-                            charts = story.get("charts", {})
                             
                             # -------- المرحلة 10: إنشاء ملف PDF --------
                             from report_pdf_generator import create_pdf_from_content
@@ -1487,9 +1505,9 @@ if page == "📊 التحليل الكامل":
                                     "district": district,
                                     "property_type": property_type
                                 },
-                                content_text=final_content_text,
-                                executive_decision=executive_decision,
-                                charts_by_chapter=charts,
+                                content_text=report_text,
+                                executive_decision="تقرير تحليلي شامل للحي",
+                                charts_by_chapter={},
                                 package_level="مجانية"
                             )
                             
