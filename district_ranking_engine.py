@@ -175,6 +175,9 @@ def rank_districts(df: pd.DataFrame):
     )
 
     metrics["rank"] = range(1, len(metrics) + 1)
+    
+    # عدد الأحياء الكلي في المدينة
+    metrics["total_districts"] = len(metrics)
 
     return metrics
 
