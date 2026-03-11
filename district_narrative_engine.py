@@ -106,6 +106,7 @@ def generate_district_narrative(
     # =========================================
 
     report_text = f"""
+    # تحليل الحي
 Warda Intelligence
 District Intelligence Report
 
