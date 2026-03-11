@@ -1,8 +1,9 @@
 # =========================================
 # Warda Intelligence
 # District Narrative Engine
-# محرك كتابة تقرير الحي المتقدم
+# محرك التقرير الاستثماري للأحياء
 # =========================================
+
 
 def generate_district_narrative(
         user_info,
@@ -13,8 +14,13 @@ def generate_district_narrative(
         real_data
 ):
     """
-    إنشاء نص تقرير حي كامل
+    إنشاء تقرير تحليلي احترافي لحي داخل مدينة
+    يعتمد على بيانات الصفقات العقارية الفعلية
     """
+
+    # =========================================
+    # استخراج البيانات الأساسية
+    # =========================================
 
     district = district_metrics.get("district_name", "غير محدد")
     city = district_metrics.get("city_name", "غير محدد")
@@ -22,439 +28,266 @@ def generate_district_narrative(
     district_price = district_metrics.get("district_avg_price", 0)
     city_price = district_metrics.get("city_avg_price", 0)
 
-    deviation = district_metrics.get("price_deviation_percent", 0)
     transactions = district_metrics.get("transactions_count", 0)
 
-    # =========================================
-    # تحديد الموقع السعري
-    # =========================================
+    price_deviation = district_metrics.get("price_deviation_percent", 0)
 
-    if deviation > 10:
-        price_position = "أعلى من متوسط المدينة بشكل ملحوظ"
-    elif deviation > 3:
-        price_position = "أعلى قليلاً من متوسط المدينة"
-    elif deviation < -10:
-        price_position = "أقل من متوسط المدينة بشكل واضح"
-    elif deviation < -3:
-        price_position = "أقل قليلاً من متوسط المدينة"
-    else:
-        price_position = "قريب من متوسط المدينة"
-
-    # =========================================
-    # تصنيف قوة الحي
-    # =========================================
-
-    if dpi_score < 40:
-        dpi_label = "بيئة عقارية ضعيفة"
-    elif dpi_score < 60:
-        dpi_label = "استقرار حذر"
-    elif dpi_score < 75:
-        dpi_label = "بيئة مستقرة"
-    else:
-        dpi_label = "بيئة قوية"
-
-    # =========================================
-    # تقييم القيمة السعرية
-    # =========================================
-    
-    price_ratio = 0
+    # حماية من القسمة على صفر
     if city_price > 0:
         price_ratio = district_price / city_price
-        
-    if price_ratio < 0.85:
-        value_label = "أقل من القيمة السوقية"
-        value_explanation = f"أسعار حي {district} تقل بشكل ملحوظ عن متوسط مدينة {city}، مما قد يشير إلى فرصة دخول استثماري جيدة."
-    elif price_ratio < 1.05:
-        value_label = "قريبة من القيمة العادلة"
-        value_explanation = f"أسعار حي {district} تتحرك بالقرب من متوسط الأسعار في مدينة {city}."
     else:
-        value_label = "أعلى من القيمة السوقية"
-        value_explanation = f"أسعار حي {district} أعلى من متوسط مدينة {city}، ما قد يشير إلى سوق نشط لكن مع احتمالية انخفاض هامش الربح."
+        price_ratio = 1
 
     # =========================================
+    # تهيئة متغيرات التقرير
+    # =========================================
+
+    report_sections = []
+
+    # =========================================
+    # بطاقة معلومات الحي
+    # =========================================
+
+    overview_section = f"""
+تحليل حي {district} – مدينة {city}
+
+يعتمد هذا التقرير على تحليل بيانات الصفقات العقارية
+المسجلة في السوق بهدف تقييم الجاذبية الاستثمارية
+للحي وموقعه داخل السوق العقاري للمدينة.
+
+--------------------------------------------------
+
+بطاقة معلومات الحي
+
+المدينة: {city}
+
+الحي: {district}
+
+متوسط سعر المتر في الحي:
+{district_price:,.0f} ريال
+
+متوسط سعر المتر في المدينة:
+{city_price:,.0f} ريال
+
+عدد الصفقات المنفذة:
+{transactions:,} صفقة
+
+مؤشر قوة الحي (DPI):
+{dpi_score:.1f} / 100
+"""
+
+    report_sections.append(overview_section)
+# =========================================
+    # تحليل موقع الحي في السوق
+    # =========================================
+
+    if price_ratio > 1.15:
+        price_position = "أعلى من متوسط أسعار المدينة بشكل واضح"
+        price_analysis = f"""
+تشير البيانات إلى أن أسعار المتر في حي {district}
+أعلى من متوسط أسعار مدينة {city} بفارق ملحوظ.
+
+هذا قد يدل على أن الحي يقع في شريحة سعرية مرتفعة داخل السوق،
+وغالباً ما ترتبط هذه الحالة بارتفاع الطلب أو بوجود خصائص
+عمرانية أو موقعية تجعل الحي أكثر جاذبية للمشترين.
+"""
+
+    elif price_ratio > 1.05:
+        price_position = "أعلى قليلاً من متوسط السوق"
+        price_analysis = f"""
+أسعار المتر في حي {district} أعلى بشكل طفيف
+من متوسط الأسعار في مدينة {city}.
+
+هذا يشير عادة إلى سوق متوازن مع وجود طلب مستقر،
+حيث يميل المشترون إلى دفع علاوة سعرية محدودة
+مقابل موقع الحي أو جودة البيئة العمرانية فيه.
+"""
+
+    elif price_ratio < 0.85:
+        price_position = "أقل من متوسط المدينة بشكل واضح"
+        price_analysis = f"""
+متوسط سعر المتر في حي {district} أقل بشكل واضح
+من متوسط الأسعار في مدينة {city}.
+
+في بعض الحالات قد يعكس هذا وجود فرصة استثمارية،
+خصوصاً إذا كان الحي يشهد نشاطاً جيداً في عدد الصفقات
+مما قد يشير إلى مرحلة تسعير أقل من القيمة الحقيقية.
+"""
+
+    elif price_ratio < 0.95:
+        price_position = "أقل قليلاً من متوسط السوق"
+        price_analysis = f"""
+أسعار المتر في حي {district} أقل بشكل طفيف
+من متوسط أسعار مدينة {city}.
+
+هذا قد يجعل الحي خياراً مناسباً للمستثمرين
+الباحثين عن دخول السوق عند مستويات سعرية
+أقل من المتوسط العام للمدينة.
+"""
+
+    else:
+        price_position = "قريب من متوسط السوق"
+        price_analysis = f"""
+تشير البيانات إلى أن أسعار حي {district}
+تقع بالقرب من متوسط الأسعار في مدينة {city}.
+
+هذا يدل عادة على أن الحي يتحرك ضمن النطاق
+الطبيعي للسوق العقاري دون وجود انحرافات
+سعرية كبيرة مقارنة ببقية الأحياء.
+"""
+
+    market_position_section = f"""
+--------------------------------------------------
+
+موقع الحي في السوق العقاري
+
+الموقع السعري للحي:
+{price_position}
+
+{price_analysis}
+"""
+
+    report_sections.append(market_position_section)
+# =========================================
     # تحليل السيولة العقارية
     # =========================================
-    
-    if transactions >= 20:
-        liquidity_level = "قوية"
-        liquidity_note = f"عدد الصفقات المرتفع ({transactions}) يعكس سيولة نشطة وسهولة في البيع والشراء."
-    elif transactions >= 8:
-        liquidity_level = "متوسطة"
-        liquidity_note = f"عدد الصفقات ({transactions}) يشير إلى سيولة مقبولة مع إمكانية تحسن النشاط."
-    else:
-        liquidity_level = "ضعيفة"
-        liquidity_note = f"انخفاض عدد الصفقات ({transactions}) قد يعني محدودية السيولة وصعوبة نسبية في التنفيذ السريع."
 
-    # =========================================
-    # مرحلة دورة السوق
-    # =========================================
-    
-    if deviation > 10 and transactions > 20:
-        market_cycle = "مرحلة صعود قوي"
-        cycle_note = f"الطلب في حي {district} مرتفع والأسعار أعلى من متوسط المدينة."
-    elif deviation > 5:
-        market_cycle = "مرحلة نمو"
-        cycle_note = f"الحي يظهر مؤشرات نمو سعري تدريجي."
-    elif deviation < -5 and transactions > 10:
-        market_cycle = "مرحلة فرصة شراء"
-        cycle_note = f"الأسعار أقل من المتوسط مع نشاط ملحوظ في الصفقات."
-    else:
-        market_cycle = "مرحلة استقرار"
-        cycle_note = "السوق يتحرك ضمن نطاق متوازن دون تغيرات حادة."
+    if transactions >= 40:
+        liquidity_level = "سيولة عالية جداً"
+        liquidity_analysis = f"""
+يسجل حي {district} مستوى نشاط مرتفع في السوق العقاري،
+حيث بلغ عدد الصفقات المنفذة {transactions:,} صفقة.
 
-    # =========================================
-    # نوع الاستثمار الأنسب
-    # =========================================
-    
-    if dpi_score >= 80 and transactions > 15:
-        investment_style = "استثمار نمو سريع"
-    elif dpi_score >= 65 and transactions > 10:
-        investment_style = "استثمار متوسط المدى"
-    elif dpi_score >= 50:
-        investment_style = "استثمار طويل الأجل"
-    else:
-        investment_style = "استثمار عالي المخاطر"
+هذا الحجم من النشاط يشير عادة إلى سوق يتمتع بدرجة
+عالية من السيولة، مما يسهل عمليات البيع والشراء
+ويقلل من فترات انتظار بيع العقار.
+"""
 
-    # =========================================
-    # مؤشر حرارة السوق
-    # =========================================
-    
-    market_heat = min(100, int((transactions * 2) + (dpi_score * 0.5)))
-    
-    if market_heat >= 80:
-        heat_label = "سوق ساخن 🔥"
-    elif market_heat >= 60:
-        heat_label = "سوق نشط"
-    elif market_heat >= 40:
-        heat_label = "سوق متوازن"
-    else:
-        heat_label = "سوق بطيء"
-
-    # =========================================
-    # توقع الاتجاه السعري
-    # =========================================
-    
-    if price_ratio < 0.9 and transactions > 10:
-        price_outlook = "مرشح للارتفاع 📈"
-    elif price_ratio > 1.15:
-        price_outlook = "مرشح لتصحيح سعري 📉"
-    else:
-        price_outlook = "مرشح للاستقرار ➡️"
-
-    # =========================================
-    # مؤشر فرصة الاستثمار
-    # =========================================
-    
-    # بناء مؤشر مركب من عدة عوامل
-    investment_score = 50  # نقطة البداية
-    
-    # عامل السعر (30 نقطة كحد أقصى)
-    if price_ratio < 0.85:
-        investment_score += 25  # فرصة سعرية ممتازة
-    elif price_ratio < 0.95:
-        investment_score += 15  # فرصة سعرية جيدة
-    elif price_ratio > 1.15:
-        investment_score -= 20  # غالي جداً
-    elif price_ratio > 1.05:
-        investment_score -= 10  # غالي
-    
-    # عامل السيولة (30 نقطة)
-    if transactions >= 30:
-        investment_score += 25
     elif transactions >= 20:
-        investment_score += 20
+        liquidity_level = "سيولة جيدة"
+        liquidity_analysis = f"""
+بلغ عدد الصفقات العقارية في حي {district}
+حوالي {transactions:,} صفقة خلال الفترة محل التحليل.
+
+يشير هذا المستوى من النشاط إلى وجود سيولة جيدة
+في السوق العقاري للحي، حيث توجد حركة بيع وشراء
+مستمرة نسبياً مقارنة بعدد من الأحياء الأخرى.
+"""
+
     elif transactions >= 10:
-        investment_score += 10
-    elif transactions < 5:
-        investment_score -= 15
-    
-    # عامل قوة الحي (40 نقطة)
-    if dpi_score >= 80:
-        investment_score += 35
-    elif dpi_score >= 70:
-        investment_score += 25
-    elif dpi_score >= 60:
-        investment_score += 15
-    elif dpi_score >= 50:
-        investment_score += 5
-    else:
-        investment_score -= 20
-    
-    # ضمان أن النتيجة بين 0 و 100
-    investment_score = max(0, min(100, investment_score))
-    
-    # تصنيف فرصة الاستثمار
-    if investment_score >= 80:
-        opportunity_class = "فرصة استثمارية قوية جداً"
-        opportunity_note = f"جميع المؤشرات إيجابية في حي {district}، مما يجعله خياراً استثمارياً ممتازاً."
-    elif investment_score >= 65:
-        opportunity_class = "فرصة استثمارية جيدة"
-        opportunity_note = f"يتمتع حي {district} بمقومات استثمارية إيجابية مع بعض عوامل الاستقرار."
-    elif investment_score >= 45:
-        opportunity_class = "فرصة استثمارية متوسطة"
-        opportunity_note = f"حي {district} يقدم فرصة متوازنة تناسب المستثمرين الباحثين عن استقرار."
-    else:
-        opportunity_class = "فرصة استثمارية تحت المراقبة"
-        opportunity_note = f"مؤشرات حي {district} تتطلب متابعة دقيقة قبل اتخاذ قرار استثماري."
+        liquidity_level = "سيولة متوسطة"
+        liquidity_analysis = f"""
+سجل حي {district} نحو {transactions:,} صفقة عقارية
+خلال الفترة محل التحليل.
 
-    # =========================================
-    # Investment Grade
-    # =========================================
-    
-    if investment_score >= 85:
-        investment_grade = "A+"
-    elif investment_score >= 75:
-        investment_grade = "A"
-    elif investment_score >= 65:
-        investment_grade = "B+"
-    elif investment_score >= 55:
-        investment_grade = "B"
-    elif investment_score >= 45:
-        investment_grade = "C"
-    else:
-        investment_grade = "D"
-
-    # =========================================
-    # Market Positioning
-    # =========================================
-    
-    if price_ratio < 0.85:
-        market_position = "حي منخفض السعر مقارنة بالسوق"
-    elif price_ratio < 1.05:
-        market_position = "حي ضمن متوسط السوق"
-    else:
-        market_position = "حي مرتفع السعر مقارنة بالسوق"
-
-    # =========================================
-    # Opportunity Detector
-    # =========================================
-    
-    opportunity_flag = False
-    opportunity_text = ""
-    
-    if price_ratio < 0.9 and transactions > 10 and dpi_score > 60:
-        opportunity_flag = True
-        opportunity_text = f"""
-تم رصد فرصة استثمارية محتملة في حي {district}.
-الأسعار الحالية أقل من متوسط المدينة مع وجود نشاط صفقات جيد، مما قد يشير إلى مرحلة دخول استثماري مبكر.
-"""
-    elif price_ratio < 0.85:
-        opportunity_flag = True
-        opportunity_text = f"""
-الحي يظهر فجوة سعرية واضحة مقارنة بمتوسط أسعار مدينة {city}.
-هذا قد يعكس مرحلة تسعير منخفض قد تجذب المستثمرين الباحثين عن فرص.
-"""
-    else:
-        opportunity_text = "لم يتم رصد فرصة استثمارية واضحة في الحي حالياً."
-
-    # =========================================
-    # Investment Horizon
-    # =========================================
-    
-    if investment_score >= 80:
-        investment_horizon = "قصير إلى متوسط (1 – 3 سنوات)"
-    elif investment_score >= 60:
-        investment_horizon = "متوسط (3 – 5 سنوات)"
-    else:
-        investment_horizon = "طويل الأجل (5 – 10 سنوات)"
-
-    # =========================================
-    # Liquidity Speed
-    # =========================================
-    
-    if transactions >= 30:
-        liquidity_speed = "سريعة جداً"
-    elif transactions >= 15:
-        liquidity_speed = "متوسطة إلى سريعة"
-    elif transactions >= 8:
-        liquidity_speed = "متوسطة"
-    else:
-        liquidity_speed = "بطيئة نسبياً"
-
-    # =========================================
-    # Smart Benchmark
-    # =========================================
-    
-    benchmark_text = ""
-    if price_ratio < 0.9:
-        benchmark_text = f"""
-أسعار الحي أقل من متوسط مدينة {city} بفارق يقارب {round((1-price_ratio)*100)}%.
-"""
-    elif price_ratio > 1.1:
-        benchmark_text = f"""
-أسعار الحي أعلى من متوسط مدينة {city} بفارق يقارب {round((price_ratio-1)*100)}%.
-"""
-    else:
-        benchmark_text = "الحي يتحرك ضمن النطاق السعري الطبيعي للمدينة."
-
-    # =========================================
-    # Final Investment Verdict
-    # =========================================
-    
-    if investment_score >= 80:
-        verdict = "حي استثماري قوي جداً"
-    elif investment_score >= 65:
-        verdict = "حي استثماري جيد"
-    elif investment_score >= 50:
-        verdict = "حي استثماري متوسط"
-    else:
-        verdict = "حي يحتاج مراقبة قبل الاستثمار"
-
-    # =========================================
-    # تحليل المخاطر
-    # =========================================
-    
-    # مخاطر السيولة
-    if transactions < 8:
-        liquidity_risk = "مرتفع"
-        liquidity_risk_note = f"قلة الصفقات ({transactions}) تعني صعوبة محتملة في البيع لاحقاً."
-    elif transactions < 15:
-        liquidity_risk = "متوسط"
-        liquidity_risk_note = "سيولة متوسطة قد تؤثر على سرعة التنفيذ."
-    else:
-        liquidity_risk = "منخفض"
-        liquidity_risk_note = "سيولة مرتفعة تسهل عمليات البيع والشراء."
-    
-    # مخاطر السعر
-    if price_ratio > 1.2:
-        price_risk = "مرتفع"
-        price_risk_note = f"الأسعار أعلى بنسبة {round((price_ratio-1)*100)}% من متوسط المدينة، مع احتمالية تصحيح."
-    elif price_ratio > 1.1:
-        price_risk = "متوسط"
-        price_risk_note = "ارتفاع ملحوظ في الأسعار قد يحد من هامش الربح."
-    else:
-        price_risk = "منخفض"
-        price_risk_note = "الأسعار ضمن النطاق الطبيعي للسوق."
-
-    # =========================================
-    # District Investment DNA
-    # =========================================
-    
-    # Liquidity DNA
-    if transactions >= 20:
-        dna_liquidity = "High Liquidity"
-    elif transactions >= 10:
-        dna_liquidity = "Moderate Liquidity"
-    else:
-        dna_liquidity = "Low Liquidity"
-    
-    # Growth DNA
-    if price_ratio < 0.9:
-        dna_growth = "High Growth Potential"
-    elif price_ratio < 1.05:
-        dna_growth = "Stable Growth"
-    else:
-        dna_growth = "Limited Growth"
-    
-    # Risk DNA
-    if liquidity_risk == "مرتفع" or price_risk == "مرتفع":
-        dna_risk = "High Risk"
-    elif liquidity_risk == "متوسط" or price_risk == "متوسط":
-        dna_risk = "Moderate Risk"
-    else:
-        dna_risk = "Low Risk"
-    
-    district_dna = f"{dna_liquidity} – {dna_growth} – {dna_risk}"
-
-    # =========================================
-    # District Ranking داخل المدينة
-    # =========================================
-    
-    district_rank_note = ""
-    try:
-        if real_data is not None and hasattr(real_data, 'columns') and "district" in real_data.columns:
-            ranking = (real_data.groupby("district")["price"].count().sort_values(ascending=False))
-            if district in ranking.index:
-                rank_position = ranking.index.get_loc(district) + 1
-                total_districts = len(ranking)
-                district_rank_note = f"يحتل حي {district} المرتبة {rank_position} من بين {total_districts} حي من حيث النشاط العقاري."
-                if rank_position <= 10:
-                    district_rank_note += " ويصنف ضمن الأحياء الأكثر نشاطاً في المدينة."
-    except:
-        district_rank_note = "لا توجد بيانات كافية لترتيب الحي داخل المدينة حالياً."
-
-    # =========================================
-    # District Intelligence Summary
-    # =========================================
-    
-    intelligence_summary = f"""
-يظهر تحليل البيانات العقارية أن حي {district} في مدينة {city} يتميز بمستوى نشاط يبلغ {transactions} صفقة ومتوسط سعر متر يبلغ {district_price} ريال.
-تشير مؤشرات السيولة وحرارة السوق إلى أن السوق في الحي يصنف حالياً كـ {heat_label}، مع مرحلة سوق {market_cycle}.
-كما أن تحليل القيمة السعرية يظهر أن الحي يقع {value_label} مقارنة بمتوسط أسعار المدينة، مما يجعله مناسباً لأسلوب استثمار {investment_style}.
-بشكل عام يعكس حي {district} بيئة استثمارية تتراوح بين {opportunity_class} مع مستوى مخاطر مصنف كـ {price_risk}.
+هذا يشير إلى وجود نشاط عقاري متوسط،
+حيث يمكن تنفيذ عمليات البيع والشراء
+لكن قد تستغرق بعض العمليات وقتاً أطول.
 """
 
-    # =========================================
-    # AI Market Story
-    # =========================================
-    
-    if market_heat >= 80:
-        market_story = f"""
-تشير البيانات إلى أن حي {district} يمر حالياً بمرحلة نشاط مرتفع في السوق العقاري داخل مدينة {city}.
-ارتفاع عدد الصفقات مقترناً بمؤشرات الطلب قد يعكس مرحلة توسع في السوق.
-"""
-    elif market_heat >= 60:
-        market_story = f"""
-السوق في حي {district} يظهر مستوى نشاط جيد مع استقرار نسبي في الأسعار داخل مدينة {city}.
-هذا يشير إلى سوق متوازن يجذب المستثمرين الباحثين عن فرص مستقرة.
-"""
     else:
-        market_story = f"""
-النشاط العقاري في حي {district} أقل نسبياً مقارنة ببعض الأحياء الأخرى في مدينة {city}.
-قد يعكس ذلك مرحلة هدوء في السوق أو فرصة دخول استثماري مبكر.
+        liquidity_level = "سيولة منخفضة"
+        liquidity_analysis = f"""
+بلغ عدد الصفقات العقارية في حي {district}
+حوالي {transactions:,} صفقة فقط.
+
+انخفاض عدد الصفقات قد يشير إلى سوق
+بطيء نسبياً من ناحية السيولة،
+مما قد يعني أن بيع العقار قد يستغرق
+فترة أطول مقارنة بالأحياء الأكثر نشاطاً.
 """
 
-    # =========================================
-    # التوصية الاستثمارية النهائية
-    # =========================================
-    
-    if investment_score >= 75 and price_ratio < 1.05:
-        final_recommendation = "يوصى بالاستثمار في الحي حالياً، خاصة مع توفر فرص سعرية جيدة."
-    elif investment_score >= 60 and transactions > 10:
-        final_recommendation = "يوصى بدراسة الفرص المتاحة مع التركيز على العقارات ذات الأسعار المنافسة."
-    elif investment_score >= 45:
-        final_recommendation = "يفضل الانتظار ومراقبة تطورات السوق خلال الأشهر القادمة."
-    else:
-        final_recommendation = "ينصح بالحذر حالياً والبحث في أحياء بديلة ذات مؤشرات أفضل."
+    liquidity_section = f"""
+--------------------------------------------------
 
-    # =========================================
-    # تحليل السوق داخل الحي
-    # =========================================
+تحليل السيولة العقارية
 
-    if deviation > 5:
-        ai_market = f"يشير المستوى السعري في حي {district} إلى وجود طلب مرتفع مقارنة بمتوسط مدينة {city}."
-    elif deviation < -5:
-        ai_market = f"يظهر حي {district} أسعاراً أقل من متوسط مدينة {city} مما قد يشير إلى فرص دخول استثماري جيدة."
-    else:
-        ai_market = f"يتحرك حي {district} ضمن النطاق السعري الطبيعي لمدينة {city}."
+مستوى السيولة في الحي:
+{liquidity_level}
 
-    # القرار التنفيذي
-    executive_decision = f"""
-بناءً على البيانات المتاحة، يظهر حي {district} في مدينة {city}
-مستوى سعري {price_position} مع مؤشر قوة يبلغ {dpi_score} نقطة.
-
-يشير ذلك إلى بيئة عقارية {dpi_label}
-مع مستوى نشاط بلغ {transactions} صفقة.
-مؤشر حرارة السوق: {heat_label} ({market_heat}/100)
-نوع الاستثمار المناسب: {investment_style}
-
-الخلاصة الاستثمارية: {verdict}
-التقييم الاستثماري: {investment_grade}
-موقع الحي السعري: {market_position}
-
-{final_recommendation}
+{liquidity_analysis}
 """
 
-    # =========================================
-    # جدول مقارنة الأحياء
+    report_sections.append(liquidity_section)
+# =========================================
+    # تحليل الفجوة السعرية وفرصة الاستثمار
     # =========================================
 
-    comparison_table = ""
-    
+    if price_ratio < 0.85 and transactions >= 15:
+        opportunity_type = "فرصة استثمارية قوية"
+        opportunity_analysis = f"""
+تشير البيانات إلى أن متوسط سعر المتر في حي {district}
+أقل بشكل ملحوظ من متوسط الأسعار في مدينة {city}.
+
+في الوقت نفسه يظهر الحي نشاطاً جيداً في عدد الصفقات
+حيث بلغ إجمالي الصفقات {transactions:,} صفقة.
+
+هذا الجمع بين السعر المنخفض نسبياً والنشاط الجيد
+قد يشير إلى وجود فرصة استثمارية، حيث يمكن أن يكون
+الحي في مرحلة تسعير أقل من قيمته السوقية مقارنة
+ببقية أحياء المدينة.
+"""
+
+    elif price_ratio < 0.95:
+        opportunity_type = "فرصة استثمارية محتملة"
+        opportunity_analysis = f"""
+أسعار المتر في حي {district} أقل قليلاً من متوسط
+الأسعار في مدينة {city}.
+
+هذا قد يمنح المستثمرين فرصة للدخول إلى السوق
+عند مستويات سعرية أقل من المتوسط العام،
+خصوصاً إذا استمر النشاط العقاري في الحي
+خلال الفترات القادمة.
+"""
+
+    elif price_ratio > 1.15:
+        opportunity_type = "سوق مرتفع السعر"
+        opportunity_analysis = f"""
+تشير البيانات إلى أن أسعار المتر في حي {district}
+أعلى بشكل واضح من متوسط الأسعار في مدينة {city}.
+
+هذا قد يعني أن الحي وصل إلى مستويات سعرية
+مرتفعة مقارنة بالسوق العام، وهو ما قد يقلل
+من هامش الارتفاع السعري المستقبلي في المدى القريب.
+"""
+
+    else:
+        opportunity_type = "سوق متوازن"
+        opportunity_analysis = f"""
+البيانات تشير إلى أن أسعار حي {district}
+تقع ضمن النطاق الطبيعي للأسعار في مدينة {city}.
+
+في هذه الحالة يعتمد القرار الاستثماري
+بشكل أكبر على نوع العقار وموقعه داخل الحي
+بدلاً من وجود فجوة سعرية واضحة في السوق.
+"""
+
+    opportunity_section = f"""
+--------------------------------------------------
+
+تحليل القيمة الاستثمارية للحي
+
+تقييم الفرصة الاستثمارية:
+{opportunity_type}
+
+{opportunity_analysis}
+"""
+
+    report_sections.append(opportunity_section)ذ
+# =========================================
+    # مقارنة الحي مع الأحياء القريبة
+    # =========================================
+
+    comparison_lines = ""
+
     if not nearby_districts:
-        comparison_table = "لا توجد بيانات كافية لمقارنة الأحياء المجاورة حالياً."
+
+        comparison_lines = "لا توجد بيانات كافية لإجراء مقارنة مع الأحياء المجاورة."
+
     else:
+
         for d in nearby_districts:
+
             name = d.get("district_name", "")
             price = d.get("avg_price", 0)
 
@@ -463,200 +296,199 @@ def generate_district_narrative(
             else:
                 diff = 0
 
-            comparison_table += f"{name} – {price} ريال – فرق {round(diff,2)}%\n"
+            if diff > 0:
+                relation = "أعلى"
+            elif diff < 0:
+                relation = "أقل"
+            else:
+                relation = "مساوٍ"
 
+            comparison_lines += f"""
+{name}
+متوسط السعر: {price:,.0f} ريال للمتر
+الفرق عن حي {district}: {abs(diff):.1f}% ({relation})
+"""
+
+    comparison_section = f"""
+--------------------------------------------------
+
+مقارنة الأسعار مع الأحياء القريبة
+
+لفهم موقع حي {district} بشكل أفضل داخل السوق،
+تمت مقارنة متوسط سعر المتر مع عدد من الأحياء
+القريبة أو المشابهة في المستوى السعري.
+
+{comparison_lines}
+"""
+
+    report_sections.append(comparison_section)
+# =========================================
+    # تحليل المخاطر الاستثمارية
     # =========================================
-    # بناء التقرير
+
+    # مخاطر السيولة
+    if transactions < 10:
+        liquidity_risk = "مخاطر سيولة مرتفعة"
+        liquidity_risk_text = f"""
+انخفاض عدد الصفقات في حي {district} قد يشير
+إلى محدودية السيولة في السوق العقاري.
+
+في هذه الحالة قد تستغرق عملية بيع العقار
+فترة أطول مقارنة بالأحياء الأكثر نشاطاً.
+"""
+    elif transactions < 25:
+        liquidity_risk = "مخاطر سيولة متوسطة"
+        liquidity_risk_text = f"""
+مستوى النشاط العقاري في حي {district}
+يشير إلى سيولة متوسطة في السوق.
+
+هذا يعني أن البيع ممكن لكن قد يعتمد
+بشكل كبير على نوع العقار وموقعه داخل الحي.
+"""
+    else:
+        liquidity_risk = "مخاطر سيولة منخفضة"
+        liquidity_risk_text = f"""
+عدد الصفقات المرتفع في حي {district}
+يشير إلى سوق يتمتع بسيولة جيدة.
+
+هذا يقلل عادة من مخاطر صعوبة البيع
+ويجعل السوق أكثر مرونة للمستثمرين.
+"""
+
+    # مخاطر السعر
+    if price_ratio > 1.2:
+        price_risk = "مخاطر سعرية مرتفعة"
+        price_risk_text = f"""
+أسعار المتر في حي {district} أعلى بكثير
+من متوسط أسعار مدينة {city}.
+
+في بعض الحالات قد يزيد ذلك من احتمال
+حدوث تصحيح سعري إذا انخفض الطلب مستقبلاً.
+"""
+    elif price_ratio > 1.05:
+        price_risk = "مخاطر سعرية محدودة"
+        price_risk_text = f"""
+الحي يقع في شريحة سعرية أعلى قليلاً
+من متوسط السوق في مدينة {city}.
+
+هذا لا يمثل خطراً كبيراً عادة،
+لكن قد يحد من سرعة الارتفاع السعري.
+"""
+    else:
+        price_risk = "مخاطر سعرية منخفضة"
+        price_risk_text = f"""
+أسعار حي {district} تقع ضمن النطاق
+الطبيعي أو الأقل من متوسط السوق.
+
+هذا يقلل عادة من مخاطر التصحيح السعري
+ويجعل الدخول الاستثماري أكثر أماناً.
+"""
+
+    risk_section = f"""
+--------------------------------------------------
+
+تحليل المخاطر الاستثمارية
+
+مخاطر السيولة:
+{liquidity_risk}
+
+{liquidity_risk_text}
+
+مخاطر السعر:
+{price_risk}
+
+{price_risk_text}
+"""
+
+    report_sections.append(risk_section)
+# =========================================
+    # الحكم الاستثماري النهائي
     # =========================================
 
-    report_text = f"""# تحليل الحي
-Warda Intelligence
-District Intelligence Report
+    if price_ratio < 0.9 and transactions >= 20 and dpi_score >= 70:
 
-تحليل حي {district} – مدينة {city}
+        verdict = "حي يتمتع بجاذبية استثمارية قوية"
 
+        verdict_text = f"""
+تشير المؤشرات العقارية إلى أن حي {district}
+يتمتع بمقومات استثمارية قوية داخل سوق
+مدينة {city}.
+
+الأسعار في الحي أقل من متوسط السوق
+مع وجود نشاط جيد في عدد الصفقات،
+إضافة إلى مؤشر قوة حي مرتفع.
+
+هذه العوامل مجتمعة قد تجعل الحي
+مناسباً للمستثمرين الباحثين عن فرص
+نمو رأسمالي في السوق العقاري.
+"""
+
+    elif dpi_score >= 60:
+
+        verdict = "حي مستقر استثمارياً"
+
+        verdict_text = f"""
+يظهر حي {district} مستوى جيداً من
+الاستقرار في السوق العقاري.
+
+الأسعار تتحرك بالقرب من متوسط السوق
+مع وجود نشاط مقبول في الصفقات،
+مما يجعله خياراً مناسباً للمستثمرين
+الباحثين عن استثمار مستقر نسبياً.
+"""
+
+    elif dpi_score >= 45:
+
+        verdict = "حي استثماري متوسط"
+
+        verdict_text = f"""
+البيانات تشير إلى أن حي {district}
+يقع ضمن الفئة المتوسطة من حيث
+الجاذبية الاستثمارية داخل مدينة {city}.
+
+في هذه الحالة يعتمد القرار الاستثماري
+بشكل كبير على اختيار العقار المناسب
+وموقعه داخل الحي.
+"""
+
+    else:
+
+        verdict = "حي يحتاج إلى دراسة إضافية"
+
+        verdict_text = f"""
+تشير المؤشرات الحالية إلى أن
+السوق العقاري في حي {district}
+قد يحتاج إلى دراسة إضافية قبل
+اتخاذ قرار استثماري.
+
+قد يكون من المفيد مقارنة الحي
+بأحياء أخرى داخل مدينة {city}
+قبل اتخاذ القرار النهائي.
+"""
+
+    verdict_section = f"""
 --------------------------------------------------
 
-بطاقة معلومات الحي
+الخلاصة الاستثمارية
 
-المدينة: {city}
-الحي: {district}
-
-متوسط سعر المتر:
-{district_price} ريال
-
-متوسط سعر المتر في المدينة:
-{city_price} ريال
-
-الموقع السعري:
-{price_position}
-
-تقييم القيمة السعرية:
-{value_label}
-{value_explanation}
-
-عدد الصفقات المنفذة:
-{transactions} صفقة
-
---------------------------------------------------
-
-تحليل السيولة العقارية
-
-مستوى السيولة: {liquidity_level}
-{liquidity_note}
-
-سرعة السيولة في السوق: {liquidity_speed}
-
---------------------------------------------------
-
-مرحلة دورة السوق
-
-{market_cycle}
-{cycle_note}
-
---------------------------------------------------
-
-مؤشر حرارة السوق
-
-مستوى النشاط: {market_heat} / 100
-التصنيف: {heat_label}
-
---------------------------------------------------
-
-نوع الاستثمار المناسب
-
-{investment_style}
-
---------------------------------------------------
-
-الأفق الاستثماري المتوقع
-
-{investment_horizon}
-
---------------------------------------------------
-
-توقع الاتجاه السعري
-
-{price_outlook}
-
---------------------------------------------------
-
-مؤشر قوة الحي
-
-قيمة المؤشر:
-{dpi_score} / 100
-
-تصنيف البيئة العقارية:
-{dpi_label}
-
---------------------------------------------------
-
-مؤشر فرصة الاستثمار
-
-نقاط الفرصة الاستثمارية:
-{investment_score} / 100
-
-التصنيف: {opportunity_class}
-{opportunity_note}
-
---------------------------------------------------
-
-Investment Grade
-
-تقييم الحي الاستثماري: {investment_grade}
-
---------------------------------------------------
-
-Market Positioning
-
-{market_position}
-
---------------------------------------------------
-
-Opportunity Detector
-
-{opportunity_text}
-
---------------------------------------------------
-
-تحليل المخاطر
-
-مخاطر السيولة: {liquidity_risk}
-{liquidity_risk_note}
-
-مخاطر السعر: {price_risk}
-{price_risk_note}
-
---------------------------------------------------
-
-مقارنة الأحياء المجاورة
-
-لمعرفة موقع الحي بشكل أفضل في السوق، تم تحليل بعض الأحياء
-القريبة من حيث النشاط العقاري أو المستوى السعري.
-
-{comparison_table}
-
-تشير هذه المقارنة إلى موقع حي {district} ضمن نطاق الأسعار
-المحلية للأحياء المجاورة في مدينة {city}.
-
---------------------------------------------------
-
-Smart Price Benchmark
-
-{benchmark_text}
-
---------------------------------------------------
-
-District Investment DNA
-
-{district_dna}
-
---------------------------------------------------
-
-موقع الحي داخل المدينة
-
-{district_rank_note}
-
---------------------------------------------------
-
-District Intelligence Summary
-
-{intelligence_summary}
-
---------------------------------------------------
-
-AI Market Story
-
-{market_story}
-
---------------------------------------------------
-
-Final Investment Verdict
-
+التقييم العام للحي:
 {verdict}
 
---------------------------------------------------
+{verdict_text}
+"""
 
-تحليل السوق داخل الحي
+    report_sections.append(verdict_section)
+ # =========================================
+    # تجميع التقرير النهائي
+    # =========================================
 
-{ai_market}
+    final_report = "\n".join(report_sections)
 
---------------------------------------------------
-
-التوصية الاستثمارية
-
-{final_recommendation}
-
---------------------------------------------------
-
-القرار التنفيذي
-
-{executive_decision}
+    final_report += """
 
 --------------------------------------------------
-
 Warda Intelligence
 تحليل عقاري مبني على بيانات السوق الفعلية
 """
 
-    return report_text
+    return final_report       
