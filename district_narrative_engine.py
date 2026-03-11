@@ -57,31 +57,39 @@ def generate_district_narrative(
         dpi_label = "بيئة قوية"
 
     # =========================================
-    # تشغيل الذكاء الاصطناعي
+    # تحليل السوق داخل الحي
     # =========================================
 
-    ai_engine = AIReportReasoner()
+    if deviation > 5:
+        ai_market = f"يشير المستوى السعري في حي {district} إلى وجود طلب مرتفع مقارنة بمتوسط مدينة {city}."
+    elif deviation < -5:
+        ai_market = f"يظهر حي {district} أسعاراً أقل من متوسط مدينة {city} مما قد يشير إلى فرص دخول استثماري جيدة."
+    else:
+        ai_market = f"يتحرك حي {district} ضمن النطاق السعري الطبيعي لمدينة {city}."
 
-    ai_insights = ai_engine.generate_all_insights(
-        user_info=user_info,
-        market_data=market_data,
-        real_data=real_data
-    )
+    # الفرص
+    if dpi_score > 70:
+        ai_opportunities = f"يُظهر حي {district} بيئة استثمارية قوية مدعومة بمستوى سيولة جيد وعدد صفقات مرتفع."
+    else:
+        ai_opportunities = f"قد تظهر فرص استثمارية في حي {district} خصوصاً في حال تحسن النشاط العقاري."
 
-    ai_market = ai_insights.get("ai_live_market", "")
-    ai_opportunities = ai_insights.get("ai_opportunities", "")
-    ai_risk = ai_insights.get("ai_risk", "")
+    # المخاطر
+    if transactions < 5:
+        ai_risk = f"انخفاض عدد الصفقات في الحي قد يشير إلى سيولة محدودة نسبياً."
+    else:
+        ai_risk = f"لا تظهر مؤشرات مخاطر مرتفعة في نشاط السوق داخل الحي حالياً."
 
-    # =========================================
     # القرار التنفيذي
-    # =========================================
+    executive_decision = f"""
+بناءً على البيانات المتاحة، يظهر حي {district} في مدينة {city}
+مستوى سعري {price_position} مع مؤشر قوة يبلغ {dpi_score} نقطة.
 
-    executive_decision = generate_executive_summary(
-        user_info=user_info,
-        market_data=market_data,
-        real_data=real_data,
-        package=user_info.get("package", "free")
-    )
+يشير ذلك إلى بيئة عقارية {dpi_label}
+مع مستوى نشاط بلغ {transactions} صفقة.
+
+يوصى بدراسة الفرص داخل الحي مع مراقبة تطور السيولة
+والفروق السعرية مقارنة بالأحياء المجاورة.
+"""
 
     # =========================================
     # جدول مقارنة الأحياء
@@ -106,7 +114,7 @@ def generate_district_narrative(
     # =========================================
 
     report_text = f"""
-    # تحليل الحي
+    #تحليل الحي
 Warda Intelligence
 District Intelligence Report
 
@@ -163,19 +171,19 @@ District Intelligence Report
 
 --------------------------------------------------
 
-تحليل السوق بالذكاء الاصطناعي
+تحليل السوق داخل الحي
 
 {ai_market}
 
 --------------------------------------------------
 
-الفرص المحتملة
+الفرص الاستثمارية
 
 {ai_opportunities}
 
 --------------------------------------------------
 
-المخاطر المحتملة
+المخاطر
 
 {ai_risk}
 
