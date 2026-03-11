@@ -30,8 +30,6 @@ def generate_district_narrative(
 
     transactions = district_metrics.get("transactions_count", 0)
 
-    price_deviation = district_metrics.get("price_deviation_percent", 0)
-
     # حماية من القسمة على صفر
     if city_price > 0:
         price_ratio = district_price / city_price
@@ -213,6 +211,48 @@ def generate_district_narrative(
     report_sections.append(liquidity_section)
 
     # =========================================
+    # ترتيب الحي داخل المدينة حسب النشاط
+    # =========================================
+
+    ranking_section = ""
+    try:
+        if real_data is not None and hasattr(real_data, "columns") and "district" in real_data.columns:
+            district_counts = real_data["district"].value_counts()
+            total_districts = len(district_counts)
+            
+            if district in district_counts.index:
+                # طريقة أكثر أماناً للحصول على الترتيب
+                district_rank = list(district_counts.index).index(district) + 1
+                district_transactions = district_counts[district]
+                
+                if district_rank <= 5:
+                    rank_label = "ضمن الأحياء الأكثر نشاطاً في المدينة"
+                elif district_rank <= 15:
+                    rank_label = "ضمن الأحياء النشطة في السوق العقاري"
+                else:
+                    rank_label = "ضمن الأحياء الأقل نشاطاً نسبياً"
+                    
+                ranking_section = f"""
+--------------------------------------------------
+
+موقع الحي من حيث النشاط العقاري داخل المدينة
+
+بحسب تحليل بيانات الصفقات العقارية في مدينة {city}،
+يحتل حي {district} المرتبة {district_rank} من أصل {total_districts} حي
+من حيث عدد الصفقات.
+
+بلغ إجمالي الصفقات المسجلة في الحي
+{district_transactions:,} صفقة خلال الفترة المدروسة.
+
+هذا يضع الحي {rank_label} مقارنة ببقية الأحياء داخل المدينة.
+"""
+    except:
+        ranking_section = ""
+
+    if ranking_section:
+        report_sections.append(ranking_section)
+
+    # =========================================
     # تحليل الفجوة السعرية وفرصة الاستثمار
     # =========================================
 
@@ -308,7 +348,7 @@ def generate_district_narrative(
                 relation = "مساوٍ"
 
             comparison_lines += f"""
-{name}
+حي {name}
 متوسط السعر: {price:,.0f} ريال للمتر
 الفرق عن حي {district}: {abs(diff):.1f}% ({relation})
 """
@@ -406,6 +446,322 @@ def generate_district_narrative(
 """
 
     report_sections.append(risk_section)
+
+    # =========================================
+    # تحليل اتجاه السعر داخل الفترة المتاحة
+    # =========================================
+
+    trend_section = ""
+    try:
+        if real_data is not None and hasattr(real_data, "columns") and "date" in real_data.columns:
+            import pandas as pd
+            df = real_data[real_data["district"] == district].copy()
+            df["date"] = pd.to_datetime(df["date"])
+            
+            # حماية من القسمة على صفر في المساحة
+            df = df[df["area"] > 0]
+            df["price_per_sqm"] = df["price"] / df["area"]
+            df = df.sort_values("date")
+            
+            if len(df) >= 4:  # نحتاج على الأقل 4 صفقات لتحليل ذي معنى
+                midpoint = len(df) // 2
+                first_period = df.iloc[:midpoint]
+                last_period = df.iloc[midpoint:]
+                
+                if not first_period.empty and not last_period.empty:
+                    first_price = first_period["price_per_sqm"].mean()
+                    last_price = last_period["price_per_sqm"].mean()
+                    change = ((last_price - first_price) / first_price) * 100
+                    
+                    if change > 3:
+                        trend = "اتجاه صعودي"
+                    elif change < -3:
+                        trend = "اتجاه هبوطي"
+                    else:
+                        trend = "استقرار نسبي"
+                        
+                    trend_section = f"""
+--------------------------------------------------
+
+اتجاه السوق داخل الفترة المدروسة
+
+بمقارنة الصفقات الأولى مع أحدث الصفقات في حي {district}
+يظهر أن متوسط سعر المتر تغير بنسبة {change:.1f}%.
+
+هذا يشير إلى {trend} في السوق العقاري داخل الحي
+خلال الفترة المتاحة من البيانات.
+"""
+    except:
+        trend_section = ""
+
+    if trend_section:
+        report_sections.append(trend_section)
+
+    # =========================================
+    # Investment Intelligence Score
+    # =========================================
+
+    score_section = ""
+    try:
+        # ------------------------------
+        # حساب نقاط السعر
+        # ------------------------------
+        price_score = 50
+        if price_ratio < 0.85:
+            price_score = 85
+        elif price_ratio < 0.95:
+            price_score = 70
+        elif price_ratio <= 1.05:
+            price_score = 60
+        elif price_ratio <= 1.15:
+            price_score = 50
+        else:
+            price_score = 40
+
+        # ------------------------------
+        # حساب نقاط السيولة
+        # ------------------------------
+        if transactions >= 40:
+            liquidity_score = 90
+        elif transactions >= 25:
+            liquidity_score = 75
+        elif transactions >= 15:
+            liquidity_score = 60
+        elif transactions >= 8:
+            liquidity_score = 45
+        else:
+            liquidity_score = 30
+
+        # ------------------------------
+        # قوة الحي
+        # ------------------------------
+        dpi_component = dpi_score
+
+        # ------------------------------
+        # حساب النتيجة النهائية
+        # ------------------------------
+        investment_score = (
+            price_score * 0.30 +
+            liquidity_score * 0.30 +
+            dpi_component * 0.40
+        )
+        investment_score = round(investment_score, 1)
+
+        # ------------------------------
+        # تصنيف النتيجة
+        # ------------------------------
+        if investment_score >= 80:
+            score_label = "فرصة استثمارية قوية جداً"
+        elif investment_score >= 65:
+            score_label = "فرصة استثمارية جيدة"
+        elif investment_score >= 50:
+            score_label = "فرصة استثمارية متوسطة"
+        else:
+            score_label = "فرصة استثمارية ضعيفة"
+
+        score_section = f"""
+--------------------------------------------------
+
+Investment Intelligence Score
+التقييم الكلي لجاذبية الاستثمار في الحي
+
+النتيجة النهائية: {investment_score} / 100
+التصنيف: {score_label}
+
+يعتمد هذا التقييم على عدة عوامل رئيسية تشمل:
+- مستوى الأسعار مقارنة بمتوسط المدينة
+- نشاط السوق العقاري وعدد الصفقات
+- مؤشر قوة الحي الاستثماري (DPI)
+"""
+    except:
+        score_section = ""
+
+    if score_section:
+        report_sections.append(score_section)
+
+    # =========================================
+    # Market Heat Index
+    # =========================================
+
+    heat_section = ""
+    try:
+        # حساب مؤشر حرارة السوق
+        # يعتمد على عدد الصفقات ومؤشر DPI
+        heat_score = min(100, int((transactions / 50 * 40) + (dpi_score * 0.6)))
+        
+        if heat_score >= 80:
+            heat_label = "سوق شديد السخونة"
+        elif heat_score >= 60:
+            heat_label = "سوق ساخن"
+        elif heat_score >= 40:
+            heat_label = "سوق دافئ"
+        else:
+            heat_label = "سوق هادئ"
+            
+        heat_section = f"""
+--------------------------------------------------
+
+مؤشر حرارة السوق العقاري
+
+درجة حرارة السوق: {heat_score} / 100
+التصنيف: {heat_label}
+
+يشير هذا المؤشر إلى مستوى النشاط والطلب في السوق العقاري
+داخل الحي مقارنة ببقية أحياء المدينة.
+
+القيم المرتفعة تعني سوقاً نشطاً وسرعة أكبر في تنفيذ الصفقات.
+"""
+    except:
+        heat_section = ""
+
+    if heat_section:
+        report_sections.append(heat_section)
+
+    # =========================================
+    # What Smart Investors Do
+    # =========================================
+
+    smart_section = ""
+    try:
+        if price_ratio < 0.9 and transactions >= 15:
+            smart_text = f"""
+تشير البيانات إلى أن حي {district} قد يقدم فرصاً مناسبة
+للمستثمرين الباحثين عن دخول السوق عند مستويات سعرية
+أقل من متوسط المدينة.
+
+قد يركز المستثمر الذكي في هذه الحالة على:
+
+• شراء العقارات التي يقل سعرها عن متوسط سعر الحي
+  لتحقيق هامش أمان أكبر.
+
+• اختيار العقارات القريبة من الطرق الرئيسية أو الخدمات
+  لضمان سيولة أعلى عند إعادة البيع.
+
+• الاحتفاظ بالعقار لفترة تتراوح بين 3 إلى 5 سنوات
+  للاستفادة من النمو المحتمل في الأسعار.
+"""
+        elif price_ratio > 1.1:
+            smart_text = f"""
+بما أن أسعار حي {district} أعلى من متوسط مدينة {city}،
+فإن المستثمرين غالباً يركزون على العقارات المميزة داخل الحي.
+
+الاستراتيجية الشائعة في هذه الحالة تشمل:
+
+• اختيار مواقع متميزة داخل الحي ذات طلب مرتفع
+  مثل العقارات القريبة من الحدائق أو المراكز التجارية.
+
+• التركيز على العقارات ذات المواصفات العالية
+  التي تحافظ على قيمتها حتى في فترات تراجع السوق.
+
+• الاستثمار طويل الأجل بدلاً من المضاربة القصيرة،
+  حيث أن العوائد تأتي من التملك وليس من التداول السريع.
+"""
+        else:
+            smart_text = f"""
+السوق في حي {district} يظهر حالة توازن نسبي بين الأسعار
+والنشاط العقاري.
+
+في هذه الحالة قد يركز المستثمرون على:
+
+• اختيار العقارات ذات السعر المناسب مقارنة بالعقارات المشابهة
+  في نفس الحي أو الأحياء المجاورة.
+
+• متابعة تطور السوق خلال الفترات القادمة
+  قبل اتخاذ قرارات استثمارية كبيرة.
+
+• تنويع المحفظة العقارية بين عدة عقارات في الحي
+  لتوزيع المخاطر وزيادة فرص العائد.
+"""
+        smart_section = f"""
+--------------------------------------------------
+
+ماذا يفعل المستثمر الذكي في هذا الحي
+{smart_text}
+"""
+    except:
+        smart_section = ""
+
+    if smart_section:
+        report_sections.append(smart_section)
+
+    # =========================================
+    # Future Market Scenario
+    # =========================================
+
+    future_section = ""
+    try:
+        if price_ratio < 0.9 and transactions >= 15:
+            optimistic = "قد تشهد الأسعار نمواً إضافياً يتراوح بين 8% و 15% خلال السنوات القادمة."
+            balanced = "من المرجح أن يستمر السوق في مسار نمو تدريجي مع ارتفاعات معتدلة."
+            pessimistic = "في حالة تباطؤ الطلب قد يحدث تصحيح محدود لا يتجاوز 5%."
+        elif price_ratio > 1.1:
+            optimistic = "قد تستمر الأسعار في الارتفاع ولكن بوتيرة أبطأ نظراً لوصول السوق إلى مستويات مرتفعة."
+            balanced = "من المتوقع أن تتحرك الأسعار ضمن نطاق مستقر قريب من المستويات الحالية."
+            pessimistic = "قد يحدث تصحيح سعري محدود إذا تراجع الطلب في السوق."
+        else:
+            optimistic = "قد يشهد الحي نمواً تدريجياً في الأسعار مع تحسن النشاط العقاري."
+            balanced = "من المتوقع أن تبقى الأسعار ضمن نطاق مستقر خلال الفترة القادمة."
+            pessimistic = "في حالة ضعف الطلب قد يحدث انخفاض طفيف في الأسعار."
+
+        future_section = f"""
+--------------------------------------------------
+
+السيناريو المستقبلي للسوق العقاري
+
+بناءً على المؤشرات الحالية في حي {district}
+يمكن تصور ثلاثة سيناريوهات محتملة للسوق خلال السنوات القادمة.
+
+السيناريو المتفائل:
+{optimistic}
+
+السيناريو المتوازن:
+{balanced}
+
+السيناريو المتحفظ:
+{pessimistic}
+"""
+    except:
+        future_section = ""
+
+    if future_section:
+        report_sections.append(future_section)
+
+    # =========================================
+    # Investment Horizon
+    # =========================================
+
+    horizon_section = ""
+    try:
+        if price_ratio < 0.9 and transactions >= 15:
+            horizon = "استثمار متوسط الأجل (3 إلى 5 سنوات)"
+            horizon_text = "تسمح هذه الفترة للاستفادة من النمو المتوقع في الأسعار مع تجنب مخاطر التقلبات القصيرة."
+        elif price_ratio > 1.1 and transactions >= 20:
+            horizon = "استثمار طويل الأجل (5 إلى 10 سنوات)"
+            horizon_text = "السوق وصل لمستويات سعرية مرتفعة، لذلك الأفق الطويل يساعد على تجاوز أي تصحيحات سعرية محتملة."
+        elif transactions >= 30:
+            horizon = "استثمار قصير إلى متوسط الأجل (1 إلى 4 سنوات)"
+            horizon_text = "النشاط العالي في الحي يسمح بمرونة في إعادة البيع عند الحاجة."
+        else:
+            horizon = "استثمار متوسط إلى طويل الأجل (4 إلى 8 سنوات)"
+            horizon_text = "هذا الأفق يمنح السوق وقتاً كافياً للنمو وتحقيق عوائد مناسبة."
+
+        horizon_section = f"""
+--------------------------------------------------
+
+الأفق الاستثماري المقترح
+
+بناءً على تحليل البيانات الحالية فإن الأفق الاستثماري الأنسب
+في حي {district} هو:
+
+{horizon}
+
+{horizon_text}
+"""
+    except:
+        horizon_section = ""
+
+    if horizon_section:
+        report_sections.append(horizon_section)
 
     # =========================================
     # الحكم الاستثماري النهائي
