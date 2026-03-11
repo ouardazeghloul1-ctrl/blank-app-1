@@ -3,8 +3,6 @@
 # Warda Intelligence
 # =========================================
 
-import pandas as pd
-
 
 # -----------------------------------------
 # دالة السرد الرئيسية للحي
@@ -65,7 +63,7 @@ def generate_district_narrative(
     # مؤشر DPI
     narrative += f"""
     
-    مؤشر قوة الحي (DPI): {dpi_score:.1f} / 100
+    مؤشر قوة الحي الاستثماري (DPI): {dpi_score:.1f} من 100
     ----------------------------------------
     """
 
@@ -94,9 +92,9 @@ def generate_district_narrative(
     -----------------
     متوسط سعر المتر: {avg_price:,.0f} ريال
     عدد الصفقات: {transactions:,} صفقة
-    مؤشر السيولة: {liquidity:.1f} / 100
-    مؤشر الاستقرار: {stability:.1f} / 100
-    قوة السعر: {price_strength:.1f} / 100
+    مؤشر السيولة: {liquidity:.1f} من 100
+    مؤشر الاستقرار: {stability:.1f} من 100
+    قوة السعر: {price_strength:.1f} من 100
     """
     
     # حجم السوق العقاري (المؤشرات المتقدمة)
@@ -129,14 +127,14 @@ def generate_district_narrative(
         narrative += "⚠ تذبذب مرتفع – الحي يشهد تغيرات سعرية كبيرة."
 
     # الأحياء المجاورة
-    if nearby_districts is not None and not nearby_districts.empty:
+    if nearby_districts:
         narrative += """
         
     مقارنة مع الأحياء المجاورة:
     -------------------------"""
-        for _, neighbor in nearby_districts.iterrows():
-            neighbor_name = neighbor.get("district_clean", "حي مجاور")
-            neighbor_price = neighbor.get("avg_price_sqm", 0)
+        for neighbor in nearby_districts:
+            neighbor_name = neighbor.get("district_name", "حي مجاور")
+            neighbor_price = neighbor.get("avg_price", 0)
             diff = ((avg_price - neighbor_price) / neighbor_price) * 100 if neighbor_price > 0 else 0
 
             if diff > 10:
@@ -223,12 +221,28 @@ if __name__ == "__main__":
         "budget": 1000000
     }
 
+    # بيانات تجريبية للأحياء المجاورة (list)
+    test_nearby = [
+        {"district_name": "النرجس", "avg_price": 6000},
+        {"district_name": "الملقا", "avg_price": 7000},
+        {"district_name": "الياسمين", "avg_price": 5000}
+    ]
+
+    # إنشاء ranking_row تجريبي
+    import pandas as pd
+    test_ranking = pd.DataFrame({
+        "district_clean": ["الورود"],
+        "rank": [3],
+        "total_districts": [25]
+    })
+
     narrative = generate_district_narrative(
         user_info=test_user,
         district_metrics=test_metrics,
-        nearby_districts=pd.DataFrame(),
+        nearby_districts=test_nearby,
         dpi_score=84.5,
-        advanced_metrics=test_advanced
+        advanced_metrics=test_advanced,
+        ranking_row=test_ranking
     )
 
     print(narrative)
