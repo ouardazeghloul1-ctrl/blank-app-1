@@ -4,9 +4,6 @@
 # =========================================
 
 
-# -----------------------------------------
-# دالة السرد الرئيسية للحي
-# -----------------------------------------
 def generate_district_narrative(
     user_info,
     district_metrics,
@@ -17,185 +14,269 @@ def generate_district_narrative(
     ranking_row=None,
     advanced_metrics=None
 ):
-    """
-    توليد تقرير سردي متكامل عن الحي بناءً على جميع المؤشرات
-    """
 
-    # استخراج مؤشرات الحي - معدلة لتتوافق مع مخرجات district_metrics_engine
+    # -----------------------------------------
+    # استخراج البيانات الأساسية
+    # -----------------------------------------
+
     district_name = district_metrics.get("district_name", "الحي")
     avg_price = district_metrics.get("district_avg_price", 0)
     transactions = district_metrics.get("transactions_count", 0)
-    
-    # المؤشرات - حالياً تعود للصفر وسيتم تعبئتها من ranking engine لاحقاً
+
     liquidity = district_metrics.get("liquidity_score", 0)
     stability = district_metrics.get("stability_score", 0)
     price_strength = district_metrics.get("price_strength", 0)
 
-    # استخراج المؤشرات المتقدمة
+    # -----------------------------------------
+    # المؤشرات المتقدمة
+    # -----------------------------------------
+
     market_value = None
     avg_transaction_value = None
     avg_area = None
-    
-    if advanced_metrics is not None:
+    min_price_sqm = None
+    max_price_sqm = None
+    transactions_per_month = None
+
+    if advanced_metrics:
+
         market_value = advanced_metrics.get("market_value")
         avg_transaction_value = advanced_metrics.get("avg_transaction_value")
         avg_area = advanced_metrics.get("avg_area")
+        min_price_sqm = advanced_metrics.get("min_price_sqm")
+        max_price_sqm = advanced_metrics.get("max_price_sqm")
+        transactions_per_month = advanced_metrics.get("transactions_per_month")
 
-    # معلومات الترتيب
+    # -----------------------------------------
+    # ترتيب الحي
+    # -----------------------------------------
+
     rank = None
     total_districts = None
+
     if ranking_row is not None and not ranking_row.empty:
-        rank = ranking_row["rank"].iloc[0] if "rank" in ranking_row else None
-        
-        # حساب total_districts بطريقة آمنة - تجنب استخدام .get() مع DataFrame
+
+        if "rank" in ranking_row.columns:
+            rank = ranking_row["rank"].iloc[0]
+
         if real_data is not None and "district" in real_data.columns:
             total_districts = real_data["district"].nunique()
-        elif "total_districts" in ranking_row.columns:
-            total_districts = ranking_row["total_districts"].iloc[0]
+
+    # -----------------------------------------
+    # حصة الحي من السوق
+    # -----------------------------------------
+
+    market_share = None
+
+    if real_data is not None and "district" in real_data.columns:
+
+        total_transactions = len(real_data)
+
+        district_transactions = len(
+            real_data[real_data["district"] == district_name]
+        )
+
+        if total_transactions > 0:
+            market_share = (district_transactions / total_transactions) * 100
+
+    # -----------------------------------------
+    # تحليل السيولة
+    # -----------------------------------------
+
+    if transactions_per_month:
+
+        if transactions_per_month > 20:
+            liquidity_text = "سيولة مرتفعة في السوق مع نشاط قوي في عمليات البيع والشراء."
+        elif transactions_per_month > 8:
+            liquidity_text = "سيولة متوسطة تشير إلى وجود حركة تداول مستقرة في السوق."
         else:
-            total_districts = None
+            liquidity_text = "سيولة منخفضة نسبياً وقد يتطلب بيع العقار وقتاً أطول."
 
-    # =========================================
-    # بناء النص السردي
-    # =========================================
+    else:
+        liquidity_text = "لا توجد بيانات كافية لتحليل السيولة الشهرية."
 
-    # المقدمة
-    narrative = f"""
-    تقرير حي {district_name} – منصة واردا للذكاء العقاري
-    ===================================================
-    
-    يعرض هذا التقرير تحليلاً مفصلاً لأداء حي {district_name} داخل السوق العقاري للمدينة اعتماداً على بيانات الصفقات الفعلية.
+    # -----------------------------------------
+    # تحليل السعر
+    # -----------------------------------------
 
-    بناءً على تحليل {transactions:,} صفقة عقارية في الحي، إليك ملخص أدائه:
-    """
+    price_range_text = ""
 
-    # مؤشر DPI
-    narrative += f"""
-    
-    مؤشر قوة الحي الاستثماري (DPI): {dpi_score:.1f} من 100
-    ----------------------------------------
-    """
+    if min_price_sqm and max_price_sqm:
+
+        price_range_text = f"""
+يتراوح سعر المتر في الحي بين {min_price_sqm:,.0f} ريال و {max_price_sqm:,.0f} ريال
+مما يعكس تنوعاً في المنتجات العقارية داخل الحي.
+"""
+
+    # -----------------------------------------
+    # تحليل السوق
+    # -----------------------------------------
 
     if dpi_score >= 80:
-        narrative += "ممتاز – يعتبر هذا الحي من أقوى الأحياء استثمارياً."
-    elif dpi_score >= 60:
-        narrative += "جيد – مؤشرات إيجابية تجعل الحي خياراً استثمارياً مناسباً."
-    elif dpi_score >= 40:
-        narrative += "متوسط – يحتاج الحي إلى متابعة دقيقة قبل اتخاذ قرار استثماري."
-    else:
-        narrative += "ضعيف – يفضل البحث في أحياء أخرى أو إعادة تقييم الفرصة."
-
-    # الترتيب
-    if rank is not None and total_districts is not None:
-        narrative += f"""
-    
-    ترتيب الحي: {rank} من أصل {total_districts} حي
-    ----------------------------------------
-    يحتل حي {district_name} المرتبة {rank} من بين {total_districts} حي في المدينة.
-    """
-
-    # المؤشرات الرئيسية
-    narrative += f"""
-    
-    المؤشرات الرئيسية:
-    -----------------
-    متوسط سعر المتر: {avg_price:,.0f} ريال
-    عدد الصفقات: {transactions:,} صفقة
-    مؤشر السيولة: {liquidity:.1f} من 100
-    مؤشر الاستقرار: {stability:.1f} من 100
-    قوة السعر: {price_strength:.1f} من 100
-    """
-    
-    # حجم السوق العقاري (المؤشرات المتقدمة)
-    if market_value is not None and avg_transaction_value is not None and avg_area is not None:
-        narrative += f"""
-    
-    حجم السوق العقاري:
-    ------------------
-    بلغ إجمالي قيمة الصفقات العقارية في الحي نحو {market_value:,.0f} ريال.
-    كما بلغ متوسط قيمة الصفقة الواحدة حوالي {avg_transaction_value:,.0f} ريال،
-    بمتوسط مساحة يقارب {avg_area:,.0f} متر مربع للعقار.
-    """
-
-    # تحليل السيولة
-    narrative += "\n\nالسيولة:\n"
-    if liquidity >= 70:
-        narrative += "✓ سيولة عالية – عدد كبير من الصفقات يضمن سهولة البيع مستقبلاً."
-    elif liquidity >= 40:
-        narrative += "✓ سيولة متوسطة – يوجد نشاط عقاري يمكن الاعتماد عليه."
-    else:
-        narrative += "⚠ سيولة منخفضة – قلة الصفقات قد تصعّب البيع عند الحاجة."
-
-    # تحليل الاستقرار
-    narrative += "\n\nالاستقرار السعري:\n"
-    if stability >= 70:
-        narrative += "✓ استقرار ممتاز – الأسعار شبه ثابتة ومطمئنة."
-    elif stability >= 40:
-        narrative += "✓ استقرار مقبول – بعض التذبذب ولكن ضمن الحدود الطبيعية."
-    else:
-        narrative += "⚠ تذبذب مرتفع – الحي يشهد تغيرات سعرية كبيرة."
-
-    # الأحياء المجاورة
-    if nearby_districts:
-        narrative += """
-        
-    مقارنة مع الأحياء المجاورة:
-    -------------------------"""
-        for neighbor in nearby_districts:
-            neighbor_name = neighbor.get("district_name", "حي مجاور")
-            neighbor_price = neighbor.get("avg_price", 0)
-            diff = ((avg_price - neighbor_price) / neighbor_price) * 100 if neighbor_price > 0 else 0
-
-            if diff > 10:
-                trend = f"أعلى من {neighbor_name} بنسبة {diff:.0f}%"
-            elif diff < -10:
-                trend = f"أقل من {neighbor_name} بنسبة {abs(diff):.0f}%"
-            else:
-                trend = f"قريب من مستوى {neighbor_name}"
-
-            narrative += f"\n   • {trend}"
-
-    # توصية نهائية
-    narrative += """
-    
-    التوصية النهائية:
-    -----------------
-    """
-
-    if dpi_score >= 70:
-        narrative += "✓ مؤشرات قوية – نوصي بالبدء في البحث عن فرص استثمارية بالحي."
+        market_stage = "حي استثماري قوي جداً"
+    elif dpi_score >= 65:
+        market_stage = "حي استثماري جيد"
     elif dpi_score >= 50:
-        narrative += "✓ مؤشرات إيجابية – فرصة جيدة للاستثمار مع متابعة التطورات."
+        market_stage = "حي متوسط الجاذبية الاستثمارية"
     else:
-        narrative += "⚠ مؤشرات تحتاج مراجعة – الأفضل البحث في حي آخر يتناسب مع أهدافك الاستثمارية."
+        market_stage = "حي يحتاج مراقبة قبل الاستثمار"
 
-    narrative += "\n\nWarda Intelligence - تحليل عقاري مبني على بيانات السوق الفعلية"
+    # -----------------------------------------
+    # بناء التقرير
+    # -----------------------------------------
 
-    return narrative
+    report = f"""
+تحليل حي {district_name}
 
+يعتمد هذا التقرير على تحليل بيانات الصفقات العقارية الفعلية
+وذلك بهدف تقديم صورة دقيقة عن أداء السوق العقاري داخل الحي.
 
-# -----------------------------------------
-# توليد تقرير سريع بدون تفاصيل المستخدم
-# -----------------------------------------
-def generate_quick_summary(district_metrics, ranking_df=None):
+--------------------------------------------------
 
-    """
-    نسخة مختصرة من التقرير للاستخدامات العامة
-    """
+المؤشرات الأساسية
 
-    district_name = district_metrics.get("district_name", "الحي")
-    avg_price = district_metrics.get("district_avg_price", 0)
-    transactions = district_metrics.get("transactions_count", 0)
-    dpi = district_metrics.get("dpi", 0)
+عدد الصفقات العقارية: {transactions:,} صفقة
 
-    summary = f"{district_name}: {dpi:.0f} نقطة DPI | سعر المتر {avg_price:,.0f} ريال | {transactions} صفقة"
+متوسط سعر المتر: {avg_price:,.0f} ريال
 
-    # إضافة الترتيب إذا وجد
-    if ranking_df is not None and not ranking_df.empty:
-        rank_row = ranking_df[ranking_df["district_clean"] == district_name]
-        if not rank_row.empty:
-            rank = rank_row["rank"].iloc[0]
-            total = rank_row["total_districts"].iloc[0] if "total_districts" in rank_row.columns else "?"
-            summary += f" | الترتيب {rank} من {total}"
+مؤشر قوة الحي الاستثماري (DPI):
+{dpi_score:.1f} من 100
 
-    return summary
+--------------------------------------------------
+"""
+
+    # ترتيب الحي
+
+    if rank and total_districts:
+
+        report += f"""
+ترتيب الحي داخل المدينة
+
+يحتل حي {district_name} المرتبة {rank}
+من بين {total_districts} حي داخل المدينة
+من حيث قوة المؤشرات الاستثمارية.
+"""
+
+    # حجم السوق
+
+    if market_value:
+
+        report += f"""
+--------------------------------------------------
+
+حجم السوق العقاري في الحي
+
+بلغ إجمالي قيمة الصفقات العقارية في الحي
+نحو {market_value:,.0f} ريال
+خلال الفترة التي تم تحليلها.
+"""
+
+    # متوسط الصفقة
+
+    if avg_transaction_value:
+
+        report += f"""
+متوسط قيمة الصفقة العقارية
+
+يبلغ متوسط قيمة الصفقة في الحي
+حوالي {avg_transaction_value:,.0f} ريال.
+"""
+
+    # المساحة
+
+    if avg_area:
+
+        report += f"""
+متوسط مساحة العقار
+
+يبلغ متوسط مساحة العقار المتداول
+حوالي {avg_area:,.0f} متر مربع.
+"""
+
+    # نطاق الأسعار
+
+    if price_range_text:
+
+        report += f"""
+--------------------------------------------------
+
+نطاق الأسعار في الحي
+
+{price_range_text}
+"""
+
+    # سرعة السوق
+
+    if transactions_per_month:
+
+        report += f"""
+--------------------------------------------------
+
+سرعة السوق العقاري
+
+يسجل الحي متوسط {transactions_per_month:.1f} صفقة عقارية شهرياً.
+
+{liquidity_text}
+"""
+
+    # حصة السوق
+
+    if market_share:
+
+        report += f"""
+--------------------------------------------------
+
+حصة الحي من السوق العقاري
+
+يمثل حي {district_name}
+نحو {market_share:.2f}% من إجمالي الصفقات العقارية
+داخل المدينة.
+"""
+
+    # مقارنة الأحياء
+
+    if nearby_districts:
+
+        report += """
+--------------------------------------------------
+
+مقارنة مع الأحياء القريبة
+"""
+
+        for d in nearby_districts:
+
+            name = d.get("district_name", "")
+            price = d.get("avg_price", 0)
+
+            if avg_price > 0:
+                diff = ((price - avg_price) / avg_price) * 100
+            else:
+                diff = 0
+
+            report += f"{name} – {price:,.0f} ريال – فرق {diff:.1f}%\n"
+
+    # الحكم الاستثماري
+
+    report += f"""
+--------------------------------------------------
+
+الخلاصة الاستثمارية
+
+بناءً على تحليل البيانات العقارية
+يمكن تصنيف حي {district_name} على أنه:
+
+{market_stage}
+
+يعتمد القرار الاستثماري النهائي
+على استراتيجية المستثمر
+وأفق الاستثمار المستهدف.
+"""
+
+    report += """
+
+--------------------------------------------------
+Warda Intelligence
+تحليل عقاري مبني على بيانات السوق الفعلية
+"""
+
+    return report
