@@ -1478,12 +1478,13 @@ if page == "📊 التحليل الكامل":
                                 "price_deviation_percent": round(price_deviation_percent, 1)
                             }
                             
+                            # التعديل الأول: تغيير package من "مجانية" إلى "gold"
                             user_info = {
                                 "city": city,
                                 "district": district,
                                 "property_type": property_type,
-                                "package": "مجانية",
-                                "user_type": "مستثمر"
+                                "package": "gold",
+                                "user_type": "investor"
                             }
                             
                             # استخدام الدالة الجديدة
@@ -1499,16 +1500,14 @@ if page == "📊 التحليل الكامل":
                             # -------- المرحلة 10: إنشاء ملف PDF --------
                             from report_pdf_generator import create_pdf_from_content
                             
+                            # التعديل الثاني: تغيير package_level من "مجانية" إلى "gold"
+                            # التعديل الثالث: استخدام user_info نفسه بدلاً من إنشاء dict جديد
                             pdf_buffer = create_pdf_from_content(
-                                user_info={
-                                    "city": city,
-                                    "district": district,
-                                    "property_type": property_type
-                                },
+                                user_info=user_info,
                                 content_text=report_text,
                                 executive_decision="تقرير تحليلي شامل للحي",
                                 charts_by_chapter={},
-                                package_level="مجانية"
+                                package_level="gold"
                             )
                             
                             st.session_state.district_pdf_data = pdf_buffer.getvalue()
