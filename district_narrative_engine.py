@@ -21,10 +21,12 @@ def generate_district_narrative(
     توليد تقرير سردي متكامل عن الحي بناءً على جميع المؤشرات
     """
 
-    # استخراج مؤشرات الحي
-    district_name = district_metrics.get("district_clean", "الحي")
-    avg_price = district_metrics.get("avg_price_sqm", 0)
-    transactions = district_metrics.get("transactions", 0)
+    # استخراج مؤشرات الحي - معدلة لتتوافق مع مخرجات district_metrics_engine
+    district_name = district_metrics.get("district_name", "الحي")
+    avg_price = district_metrics.get("district_avg_price", 0)
+    transactions = district_metrics.get("transactions_count", 0)
+    
+    # المؤشرات - حالياً تعود للصفر وسيتم تعبئتها من ranking engine لاحقاً
     liquidity = district_metrics.get("liquidity_score", 0)
     stability = district_metrics.get("stability_score", 0)
     price_strength = district_metrics.get("price_strength", 0)
@@ -44,7 +46,14 @@ def generate_district_narrative(
     total_districts = None
     if ranking_row is not None and not ranking_row.empty:
         rank = ranking_row["rank"].iloc[0] if "rank" in ranking_row else None
-        total_districts = ranking_row["total_districts"].iloc[0] if "total_districts" in ranking_row else None
+        
+        # حساب total_districts بطريقة آمنة - تجنب استخدام .get() مع DataFrame
+        if real_data is not None and "district" in real_data.columns:
+            total_districts = real_data["district"].nunique()
+        elif "total_districts" in ranking_row.columns:
+            total_districts = ranking_row["total_districts"].iloc[0]
+        else:
+            total_districts = None
 
     # =========================================
     # بناء النص السردي
@@ -174,9 +183,9 @@ def generate_quick_summary(district_metrics, ranking_df=None):
     نسخة مختصرة من التقرير للاستخدامات العامة
     """
 
-    district_name = district_metrics.get("district_clean", "الحي")
-    avg_price = district_metrics.get("avg_price_sqm", 0)
-    transactions = district_metrics.get("transactions", 0)
+    district_name = district_metrics.get("district_name", "الحي")
+    avg_price = district_metrics.get("district_avg_price", 0)
+    transactions = district_metrics.get("transactions_count", 0)
     dpi = district_metrics.get("dpi", 0)
 
     summary = f"{district_name}: {dpi:.0f} نقطة DPI | سعر المتر {avg_price:,.0f} ريال | {transactions} صفقة"
@@ -190,59 +199,3 @@ def generate_quick_summary(district_metrics, ranking_df=None):
             summary += f" | الترتيب {rank} من {total}"
 
     return summary
-
-
-# -----------------------------------------
-# اختبار سريع
-# -----------------------------------------
-if __name__ == "__main__":
-
-    print("Testing District Narrative Engine")
-
-    # بيانات تجريبية
-    test_metrics = {
-        "district_clean": "الورود",
-        "avg_price_sqm": 5500,
-        "transactions": 1245,
-        "liquidity_score": 78.5,
-        "stability_score": 82.3,
-        "price_strength": 92.1
-    }
-    
-    test_advanced = {
-        "market_value": 245000000,
-        "avg_transaction_value": 1250000,
-        "avg_area": 220
-    }
-
-    test_user = {
-        "name": "أحمد",
-        "experience": "متوسط",
-        "budget": 1000000
-    }
-
-    # بيانات تجريبية للأحياء المجاورة (list)
-    test_nearby = [
-        {"district_name": "النرجس", "avg_price": 6000},
-        {"district_name": "الملقا", "avg_price": 7000},
-        {"district_name": "الياسمين", "avg_price": 5000}
-    ]
-
-    # إنشاء ranking_row تجريبي
-    import pandas as pd
-    test_ranking = pd.DataFrame({
-        "district_clean": ["الورود"],
-        "rank": [3],
-        "total_districts": [25]
-    })
-
-    narrative = generate_district_narrative(
-        user_info=test_user,
-        district_metrics=test_metrics,
-        nearby_districts=test_nearby,
-        dpi_score=84.5,
-        advanced_metrics=test_advanced,
-        ranking_row=test_ranking
-    )
-
-    print(narrative)
