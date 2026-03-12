@@ -45,7 +45,8 @@ def calculate_investment_score(df, district=None):
     # -----------------------------
     if "price" in data.columns and "area" in data.columns:
 
-        valid = data[data["area"] > 0]
+        # ✅ تعديل: استخدام notna() بدلاً من > 0 للحفاظ على الصفقات ذات القيم الناقصة
+        valid = data[data["area"].notna()]
 
         if not valid.empty:
             price_per_sqm = (valid["price"] / valid["area"]).mean()
