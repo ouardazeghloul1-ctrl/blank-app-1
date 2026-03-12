@@ -1458,62 +1458,80 @@ if page == "📊 التحليل الكامل":
                 if generate_report_clicked:
                     with st.spinner("🔄 جاري إنشاء تقرير الحي..."):
                         try:
-                            # استيراد الدالة الجديدة
-                            from district_narrative_engine import generate_district_narrative
+                            # استيراد محرك التقارير المتكامل
+                            from report_orchestrator import build_report_story
                             
-                            # حساب متوسط سعر المتر للحي والمدينة
-                            district_price_per_m2 = (district_data["price"] / district_data["area"]).mean() if not district_data.empty and district_data["area"].sum() > 0 else 0
-                            city_price_per_m2 = (city_data["price"] / city_data["area"]).mean() if not city_data.empty and city_data["area"].sum() > 0 else 0
-                            
-                            # حساب نسبة الانحراف
-                            price_deviation_percent = ((district_price_per_m2 - city_price_per_m2) / city_price_per_m2 * 100) if city_price_per_m2 > 0 else 0
-                            
-                            # مؤشرات الحي بالصيغة الصحيحة التي يتوقعها المحرك
-                            district_metrics = {
-                                "district_name": district,
-                                "city_name": city,
-                                "district_avg_price": district_price_per_m2,
-                                "city_avg_price": city_price_per_m2,
-                                "transactions_count": len(district_data),
-                                "price_deviation_percent": round(price_deviation_percent, 1)
-                            }
-                            
-                            # التعديل الأول: تغيير package من "مجانية" إلى "gold"
+                            # إعداد معلومات المستخدم للتقرير
                             user_info = {
                                 "city": city,
                                 "district": district,
                                 "property_type": property_type,
-                                "package": "gold",
-                                "user_type": "investor"
+                                "package": "ذهبية",  # استخدام الباقة الذهبية للتقارير المتقدمة
+                                "user_type": "مستثمر",
+                                "analysis_mode": "district"
                             }
                             
-                            # استخدام الدالة الجديدة
-                            report_text = generate_district_narrative(
+                            # استخدام محرك التقارير المتكامل
+                            story = build_report_story(
                                 user_info=user_info,
-                                district_metrics=district_metrics,
-                                nearby_districts=[],
-                                dpi_score=50,
-                                market_data={},
-                                real_data=district_data
+                                provided_dataframe=district_data
                             )
+                            
+                            # استخراج محتوى التقرير والرسومات بشكل آمن
+                            final_content_text = story.get("content_text", "")
+                            executive_decision = story.get("executive_decision", "تقرير تحليلي شامل للحي")
+                            
+                            # التأكد من وجود نص في التقرير
+                            if not final_content_text or final_content_text.strip() == "":
+                                final_content_text = f"تقرير تحليلي للسوق العقاري في حي {district} بمدينة {city} لنوع العقار {property_type}."
+                            
+                            # معالجة الرسومات بشكل آمن - تحويل أي تنسيق إلى القالب المطلوب
+                            raw_charts = story.get("charts", {})
+                            
+                            # توحيد تنسيق الرسومات
+                            charts_by_chapter = {}
+                            
+                            if isinstance(raw_charts, dict):
+                                if any(key.startswith("chapter_") for key in raw_charts.keys()):
+                                    # التنسيق بالفعل صحيح (chapter_1, chapter_2, ...)
+                                    charts_by_chapter = raw_charts
+                                else:
+                                    # تنسيق مختلف - نجمعه تحت فصل واحد
+                                    all_charts = []
+                                    for key, value in raw_charts.items():
+                                        if isinstance(value, list):
+                                            all_charts.extend(value)
+                                        elif value is not None:
+                                            all_charts.append(value)
+                                    
+                                    if all_charts:
+                                        charts_by_chapter = {"chapter_1": all_charts}
+                            elif isinstance(raw_charts, list):
+                                # إذا كانت قائمة - نضعها في فصل واحد
+                                charts_by_chapter = {"chapter_1": raw_charts} if raw_charts else {}
                             
                             # -------- المرحلة 10: إنشاء ملف PDF --------
                             from report_pdf_generator import create_pdf_from_content
                             
-                            # التعديل الثاني: تغيير package_level من "مجانية" إلى "gold"
-                            # التعديل الثالث: استخدام user_info نفسه بدلاً من إنشاء dict جديد
                             pdf_buffer = create_pdf_from_content(
                                 user_info=user_info,
-                                content_text=report_text,
-                                executive_decision="تقرير تحليلي شامل للحي",
-                                charts_by_chapter={},
-                                package_level="gold"
+                                content_text=final_content_text,
+                                executive_decision=executive_decision,
+                                charts_by_chapter=charts_by_chapter,
+                                package_level="ذهبية"
                             )
                             
                             st.session_state.district_pdf_data = pdf_buffer.getvalue()
                             st.session_state.district_report_generated = True
                             
+                            # عرض معلومات debug للمطور (تظهر فقط في terminal)
+                            print(f"🚀 DEBUG: تم إنشاء تقرير الحي بنجاح")
+                            print(f"📊 DEBUG: عدد فصول الرسومات: {len(charts_by_chapter)}")
+                            for chapter, figs in charts_by_chapter.items():
+                                print(f"   - {chapter}: {len(figs)} رسم بياني")
+                            
                             st.success("✅ تم إنشاء تقرير الحي بنجاح!")
+                            st.balloons()
                             
                         except Exception as e:
                             st.error(f"❌ خطأ في إنشاء تقرير الحي: {str(e)}")
@@ -1523,7 +1541,7 @@ if page == "📊 التحليل الكامل":
         # -------- المرحلة 11: زر تحميل التقرير --------
         if st.session_state.get('district_report_generated', False) and st.session_state.get('district_pdf_data') is not None:
             district_name = district if 'district' in locals() and district else "district"
-            file_name = f"warda_report_{city}_{district_name}_{property_type}_{datetime.now().strftime('%Y%m%d')}.pdf"
+            file_name = f"warda_district_report_{city}_{district_name}_{property_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
             
             st.download_button(
                 label="📥 تحميل تقرير الحي PDF",
