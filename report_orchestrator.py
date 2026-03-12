@@ -4,6 +4,7 @@ from advanced_charts import AdvancedCharts
 from ai_report_reasoner import AIReportReasoner
 from ai_executive_summary import generate_executive_summary
 from market_data_core import get_market_data
+from investment_scorecard import calculate_investment_score  # ✅ إضافة Scorecard الاستثماري
 
 from district_metrics_engine import (
     prepare_district_data,
@@ -142,7 +143,7 @@ def build_report_story(user_info, provided_dataframe=None):
         }
     
     Returns:
-        dict: يحتوي على meta, content_text, executive_decision, charts, district_ranking, top_districts
+        dict: يحتوي على meta, content_text, executive_decision, charts, district_ranking, top_districts, investment_scorecard
     """
     prepared = {
         "المدينة": user_info.get("city", ""),
@@ -251,6 +252,42 @@ def build_report_story(user_info, provided_dataframe=None):
         print("⚠️ فشل حساب ترتيب الأحياء:", e)
         import traceback
         traceback.print_exc()
+
+    # =====================================
+    # 💹 حساب Investment Scorecard (بعد التصحيح)
+    # =====================================
+    investment_scores = {}
+    try:
+        if df is not None and not df.empty:
+            print("💹 جاري حساب Investment Scorecard...")
+            investment_scores = calculate_investment_score(df)
+            print(f"   ✅ Investment Score: {investment_scores.get('investment_score', 'N/A')}")
+            print(f"   ✅ Liquidity Score: {investment_scores.get('liquidity_score', 'N/A')}")
+            print(f"   ✅ Price Score: {investment_scores.get('price_score', 'N/A')}")
+            print(f"   ✅ Growth Score: {investment_scores.get('growth_score', 'N/A')}")
+            print(f"   ✅ Risk Score: {investment_scores.get('risk_score', 'N/A')}")
+        else:
+            # قيم افتراضية متوافقة مع هيكل الدالة الأصلية
+            investment_scores = {
+                "investment_score": 50,
+                "liquidity_score": 50,
+                "price_score": 50,
+                "growth_score": 50,
+                "risk_score": 50
+            }
+            print("⚠️ استخدام قيم افتراضية لـ Investment Scorecard")
+    except Exception as e:
+        print("⚠️ فشل حساب Investment Scorecard:", e)
+        import traceback
+        traceback.print_exc()
+        # قيم افتراضية في حالة الفشل (متوافقة مع هيكل الدالة)
+        investment_scores = {
+            "investment_score": 50,
+            "liquidity_score": 50,
+            "price_score": 50,
+            "growth_score": 50,
+            "risk_score": 50
+        }
 
     # توليد رؤى الذكاء الاصطناعي
     ai_reasoner = AIReportReasoner()
@@ -390,5 +427,7 @@ def build_report_story(user_info, provided_dataframe=None):
         "charts": charts,
         # ⭐ إضافات نظام ترتيب الأحياء
         "district_ranking": district_ranking,
-        "top_districts": top_districts
+        "top_districts": top_districts,
+        # ⭐ إضافة Investment Scorecard (بعد التصحيح)
+        "investment_scorecard": investment_scores
     }
