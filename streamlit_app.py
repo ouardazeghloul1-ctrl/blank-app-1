@@ -68,6 +68,7 @@ import paypalrestsdk
 from dotenv import load_dotenv
 import os
 import streamlit.components.v1 as components
+import io
 
 # ===== Robo Chat System =====
 from robo_advisor import handle_robo_question, RoboGuard, RoboKnowledge
@@ -124,6 +125,9 @@ from report_pdf_generator import create_pdf_from_content
 
 # استيراد محرك الأحياء
 from district_narrative_engine import generate_district_narrative
+
+# استيراد محرك PDF للأحياء
+from district_report_pdf import DistrictReportPDF
 
 try:
     from smart_report_system import SmartReportSystem
@@ -1532,22 +1536,24 @@ if page == "📊 التحليل الكامل":
                             for k in charts_by_chapter:
                                 charts_by_chapter[k] = [c for c in charts_by_chapter[k] if c is not None]
                             
-                            # -------- المرحلة 10: إنشاء ملف PDF --------
-                            from report_pdf_generator import create_pdf_from_content
-                            
-                            pdf_buffer = create_pdf_from_content(
-                                user_info=user_info,
-                                content_text=report_text,
-                                executive_decision="تقرير تحليلي شامل للحي",
-                                charts_by_chapter=charts_by_chapter,
-                                package_level="ذهبية"
+                            # -------- المرحلة 10: إنشاء ملف PDF الحقيقي للأحياء --------
+                            from district_report_pdf import DistrictReportPDF
+                            builder = DistrictReportPDF()
+                            pdf = builder.build_report(
+                                df=district_data,
+                                district=district,
+                                city=city,
+                                narrative_text=report_text,
+                                nearby_districts=[]
                             )
                             
-                            st.session_state.district_pdf_data = pdf_buffer.getvalue()
+                            # تصدير PDF بالطريقة الصحيحة لـ FPDF
+                            pdf_bytes = pdf.output(dest="S").encode("latin-1")
+                            st.session_state.district_pdf_data = pdf_bytes
                             st.session_state.district_report_generated = True
                             
                             # عرض معلومات debug للمطور (تظهر فقط في terminal)
-                            print(f"🚀 DEBUG: تم إنشاء تقرير الحي بنجاح")
+                            print(f"🚀 DEBUG: تم إنشاء تقرير الحي بنجاح باستخدام محرك DistrictReportPDF")
                             print(f"📊 DEBUG: عدد فصول الرسومات: {len(charts_by_chapter)}")
                             for chapter, figs in charts_by_chapter.items():
                                 # التحقق من نوع figs قبل استخدام len()
