@@ -1120,3 +1120,45 @@ def generate_district_property_type_analysis(self, df, district):
     )
 
     return fig
+
+# =====================
+# DISTRICT CHARTS ENGINE
+# =====================
+def generate_all_district_charts(self, df, district, nearby_districts=None):
+    """
+    محرك توليد جميع رسومات الحي
+    يعيد قاموس يحتوي على كل الرسومات الجاهزة للاستخدام في PDF أو الواجهة
+    """
+
+    if df is None or df.empty:
+        return {}
+
+    charts = {}
+
+    # 1️⃣ تطور سعر المتر
+    price_trend = self.generate_district_price_trend(df, district)
+    if price_trend is not None:
+        charts["price_trend"] = price_trend
+
+    # 2️⃣ مقارنة الأحياء
+    if nearby_districts:
+        comparison = self.generate_district_comparison(df, nearby_districts)
+        if comparison is not None:
+            charts["district_comparison"] = comparison
+
+    # 3️⃣ عدد الصفقات عبر الزمن
+    transactions = self.generate_district_transactions_over_time(df, district)
+    if transactions is not None:
+        charts["transactions_over_time"] = transactions
+
+    # 4️⃣ توزيع الأسعار
+    distribution = self.generate_district_price_distribution(df, district)
+    if distribution is not None:
+        charts["price_distribution"] = distribution
+
+    # 5️⃣ تحليل أنواع العقارات
+    property_types = self.generate_district_property_type_analysis(df, district)
+    if property_types is not None:
+        charts["property_type_analysis"] = property_types
+
+    return charts
