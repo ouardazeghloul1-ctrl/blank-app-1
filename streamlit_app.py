@@ -122,6 +122,9 @@ from premium_content_generator import PremiumContentGenerator
 from advanced_charts import AdvancedCharts
 from report_pdf_generator import create_pdf_from_content
 
+# استيراد محرك الأحياء
+from district_narrative_engine import generate_district_narrative
+
 try:
     from smart_report_system import SmartReportSystem
     SMART_SYSTEM_LOADED = True
@@ -1458,8 +1461,36 @@ if page == "📊 التحليل الكامل":
                 if generate_report_clicked:
                     with st.spinner("🔄 جاري إنشاء تقرير الحي..."):
                         try:
-                            # استيراد محرك التقارير المتكامل
-                            from report_orchestrator import build_report_story
+                            # توحيد أسماء الأعمدة للرسومات البيانية
+                            if "district_clean" in district_data.columns:
+                                district_data = district_data.rename(columns={"district_clean": "district"})
+                            
+                            # حساب مؤشرات الحي مع التأكد من عدم وجود قيم صفرية في المساحة
+                            valid_area_data = district_data[district_data["area"] > 0]
+                            
+                            if not valid_area_data.empty:
+                                district_price_per_m2 = (valid_area_data["price"] / valid_area_data["area"]).mean()
+                            else:
+                                district_price_per_m2 = 0
+                            
+                            valid_city_area = city_data[city_data["area"] > 0]
+                            if not valid_city_area.empty:
+                                city_price_per_m2 = (valid_city_area["price"] / valid_city_area["area"]).mean()
+                            else:
+                                city_price_per_m2 = 0
+                            
+                            # حساب نسبة الانحراف
+                            price_deviation_percent = ((district_price_per_m2 - city_price_per_m2) / city_price_per_m2 * 100) if city_price_per_m2 > 0 else 0
+                            
+                            # مؤشرات الحي بالصيغة الصحيحة
+                            district_metrics = {
+                                "district_name": district,
+                                "city_name": city,
+                                "district_avg_price": district_price_per_m2,
+                                "city_avg_price": city_price_per_m2,
+                                "transactions_count": len(district_data),
+                                "price_deviation_percent": round(price_deviation_percent, 1)
+                            }
                             
                             # إعداد معلومات المستخدم للتقرير
                             user_info = {
@@ -1471,52 +1502,30 @@ if page == "📊 التحليل الكامل":
                                 "analysis_mode": "district"
                             }
                             
-                            # استخدام محرك التقارير المتكامل
-                            story = build_report_story(
+                            # استخدام محرك الأحياء لتوليد النص
+                            report_text = generate_district_narrative(
                                 user_info=user_info,
-                                provided_dataframe=district_data
+                                district_metrics=district_metrics,
+                                nearby_districts=[],
+                                dpi_score=50,
+                                market_data={},
+                                real_data=district_data
                             )
                             
-                            # استخراج محتوى التقرير والرسومات بشكل آمن
-                            final_content_text = story.get("content_text", "")
-                            executive_decision = story.get("executive_decision", "تقرير تحليلي شامل للحي")
-                            
-                            # التأكد من وجود نص في التقرير
-                            if not final_content_text or final_content_text.strip() == "":
-                                final_content_text = f"تقرير تحليلي للسوق العقاري في حي {district} بمدينة {city} لنوع العقار {property_type}."
-                            
-                            # معالجة الرسومات بشكل آمن - تحويل أي تنسيق إلى القالب المطلوب
-                            raw_charts = story.get("charts", {})
-                            
-                            # توحيد تنسيق الرسومات
-                            charts_by_chapter = {}
-                            
-                            if isinstance(raw_charts, dict):
-                                if any(key.startswith("chapter_") for key in raw_charts.keys()):
-                                    # التنسيق بالفعل صحيح (chapter_1, chapter_2, ...)
-                                    charts_by_chapter = raw_charts
-                                else:
-                                    # تنسيق مختلف - نجمعه تحت فصل واحد
-                                    all_charts = []
-                                    for key, value in raw_charts.items():
-                                        if isinstance(value, list):
-                                            all_charts.extend(value)
-                                        elif value is not None:
-                                            all_charts.append(value)
-                                    
-                                    if all_charts:
-                                        charts_by_chapter = {"chapter_1": all_charts}
-                            elif isinstance(raw_charts, list):
-                                # إذا كانت قائمة - نضعها في فصل واحد
-                                charts_by_chapter = {"chapter_1": raw_charts} if raw_charts else {}
+                            # توليد الرسومات البيانية للحي
+                            charts_engine = AdvancedCharts()
+                            charts_by_chapter = charts_engine.generate_all_district_charts(
+                                district_data,
+                                district
+                            )
                             
                             # -------- المرحلة 10: إنشاء ملف PDF --------
                             from report_pdf_generator import create_pdf_from_content
                             
                             pdf_buffer = create_pdf_from_content(
                                 user_info=user_info,
-                                content_text=final_content_text,
-                                executive_decision=executive_decision,
+                                content_text=report_text,
+                                executive_decision="تقرير تحليلي شامل للحي",
                                 charts_by_chapter=charts_by_chapter,
                                 package_level="ذهبية"
                             )
