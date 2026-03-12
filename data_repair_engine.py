@@ -10,18 +10,20 @@ def repair_market_data(df):
     # إصلاح المساحة
     if "area" in data.columns:
         median_area = data["area"].median()
-        # ✅ تعديل: إذا كانت كل القيم NaN، استخدم قيمة افتراضية 120
+
         if pd.isna(median_area):
             median_area = 120
+
         data["area"] = data["area"].fillna(median_area)
         data.loc[data["area"] <= 0, "area"] = median_area
 
     # إصلاح السعر
     if "price" in data.columns:
         median_price = data["price"].median()
-        # ✅ إضافة نفس المنطق للسعر (احتياطاً)
+
         if pd.isna(median_price):
-            median_price = 500000  # قيمة افتراضية مناسبة
+            median_price = 500000
+
         data["price"] = data["price"].fillna(median_price)
 
     # إصلاح التاريخ
