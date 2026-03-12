@@ -320,7 +320,7 @@ def create_pdf_from_content(
             story.append(Spacer(1, 0.4 * cm))
             continue
 
-        if clean.startswith("الفصل"):
+        if raw_stripped.startswith("الفصل"):
             if first_chapter_processed:
                 story.append(PageBreak())
             chapter_index += 1
