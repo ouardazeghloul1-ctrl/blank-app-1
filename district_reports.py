@@ -31,7 +31,8 @@ def show_district_reports(df_raw):
     # =========================================
     city_data["price"] = pd.to_numeric(city_data["price"], errors="coerce")
     city_data["area"] = pd.to_numeric(city_data["area"], errors="coerce")
-    city_data = city_data.dropna(subset=["price", "area"])
+    # ✅ التعديل الأول: لا تحذف الصفقات بسبب المساحة
+    city_data = city_data.dropna(subset=["price"])
     
     # -------- المرحلة 4: استخراج الأحياء النشطة فقط (5 صفقات فأكثر) --------
     district_col = "district_clean" if "district_clean" in city_data.columns else "district"
@@ -78,8 +79,9 @@ def show_district_reports(df_raw):
         # =========================================
         # تحسين فلترة نوع العقار باستخدام contains للتعامل مع الاختلافات في التسمية
         # =========================================
+        # ✅ التعديل الثالث: تحسين مطابقة اسم الحي
         district_data = city_data[
-            (city_data[district_col].astype(str).str.strip() == district) & 
+            (city_data[district_col].astype(str).str.strip().str.lower() == district.lower()) & 
             (city_data["property_type"].astype(str).str.contains(property_category, case=False, na=False))
         ].copy()
 
@@ -204,6 +206,7 @@ def show_district_reports(df_raw):
                         
                         # =========================================
                         # استخدام محرك الأحياء لتوليد النص مع البيانات الكاملة
+                        # ✅ التعديل الثاني: إرسال بيانات الحي (district_data) بدلاً من بيانات المدينة (city_data)
                         # =========================================
                         report_text = generate_district_narrative(
                             user_info=user_info,
@@ -211,7 +214,7 @@ def show_district_reports(df_raw):
                             nearby_districts=nearby_districts,
                             dpi_score=dpi_score,
                             market_data=city_data,
-                            real_data=city_data
+                            real_data=district_data  # تم التعديل: district_data بدلاً من city_data
                         )
                         
                         # توليد الرسومات البيانية للحي
