@@ -1514,10 +1514,23 @@ if page == "📊 التحليل الكامل":
                             
                             # توليد الرسومات البيانية للحي
                             charts_engine = AdvancedCharts()
-                            charts_by_chapter = charts_engine.generate_all_district_charts(
+                            raw_charts = charts_engine.generate_all_district_charts(
                                 district_data,
                                 district
                             )
+                            
+                            # توحيد شكل الرسومات ليطابق محرك PDF
+                            charts_by_chapter = {
+                                "chapter_1": [raw_charts.get("price_trend")],
+                                "chapter_2": [raw_charts.get("district_comparison")],
+                                "chapter_3": [raw_charts.get("transactions_over_time")],
+                                "chapter_4": [raw_charts.get("price_distribution")],
+                                "chapter_5": [raw_charts.get("property_type_analysis")],
+                            }
+                            
+                            # تنظيف الرسومات الفارغة (إزالة القيم None)
+                            for k in charts_by_chapter:
+                                charts_by_chapter[k] = [c for c in charts_by_chapter[k] if c is not None]
                             
                             # -------- المرحلة 10: إنشاء ملف PDF --------
                             from report_pdf_generator import create_pdf_from_content
@@ -1537,6 +1550,9 @@ if page == "📊 التحليل الكامل":
                             print(f"🚀 DEBUG: تم إنشاء تقرير الحي بنجاح")
                             print(f"📊 DEBUG: عدد فصول الرسومات: {len(charts_by_chapter)}")
                             for chapter, figs in charts_by_chapter.items():
+                                # التحقق من نوع figs قبل استخدام len()
+                                if not isinstance(figs, list):
+                                    figs = [figs]
                                 print(f"   - {chapter}: {len(figs)} رسم بياني")
                             
                             st.success("✅ تم إنشاء تقرير الحي بنجاح!")
