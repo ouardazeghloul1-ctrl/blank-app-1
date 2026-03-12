@@ -126,7 +126,7 @@ class AdvancedCharts:
             # تحويل إلى رقم
             df["area"] = pd.to_numeric(df["area"], errors="coerce")
 
-        # ✅ التاريخ هجري - نحتفظ به كنص للترتيب (لا نحاول تحويله)
+        # ✅ التاريخ ميلادي من وزارة العدل - نحتفظ به كنص ثم نحوله عند التحليل الزمني
         if "date" in df.columns:
             df["date"] = df["date"].astype(str)
 
@@ -268,11 +268,11 @@ class AdvancedCharts:
             return None
 
         tmp = df.copy()
-        # ✅ التاريخ هجري نصي - نحتفظ به كنص للترتيب
+        # ✅ التاريخ ميلادي من وزارة العدل - نحتفظ به كنص ثم نحوله عند التحليل الزمني
         tmp["date"] = tmp["date"].astype(str)
         tmp["price"] = self._numeric(tmp["price"])
         tmp = tmp.dropna(subset=["date", "price"])
-        tmp = tmp.sort_values("date")  # الترتيب صحيح لأن التاريخ الهجري نصي
+        tmp = tmp.sort_values("date")  # الترتيب صحيح لأن التاريخ نصي
 
         if len(tmp) < 5:
             return None
@@ -851,7 +851,7 @@ class AdvancedCharts:
                 self.ch1_price_per_sqm_by_district(df),
             ]),
 
-            # ✅ فصل 2: تدفق الأسعار عبر الزمن (يعمل مع التاريخ الهجري النصي)
+            # ✅ فصل 2: تدفق الأسعار عبر الزمن (يعمل مع التاريخ الميلادي)
             "chapter_2": clean([
                 self.ch2_price_stream(df),
             ]),
@@ -890,14 +890,14 @@ class AdvancedCharts:
             "chapter_9": [],
             "chapter_10": [],
         }
-# =====================
+
+    # =====================
     # DISTRICT PRICE TREND
     # =====================
     def generate_district_price_trend(self, df, district):
         """
         تطور سعر المتر في حي معين عبر الزمن
         """
-
         if df is None or df.empty:
             return None
 
@@ -912,12 +912,15 @@ class AdvancedCharts:
         if df.empty:
             return None
 
-        # حساب سعر المتر
+        # حساب سعر المتر مع التأكد من عدم وجود مساحة صفرية
+        df = df[df["area"] > 0]
+        if df.empty:
+            return None
+            
         df["price_per_sqm"] = df["price"] / df["area"]
 
-        # تحويل التاريخ
+        # تحويل التاريخ (التاريخ ميلادي)
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
-
         df = df.dropna(subset=["date"])
 
         # تجميع شهري
@@ -927,7 +930,11 @@ class AdvancedCharts:
             df.groupby("month")["price_per_sqm"]
             .mean()
             .reset_index()
+            .sort_values("month")  # ترتيب الأشهر
         )
+
+        if monthly.empty:
+            return None
 
         fig = px.line(
             monthly,
@@ -942,19 +949,18 @@ class AdvancedCharts:
             template="plotly_white",
             xaxis_title="التاريخ",
             yaxis_title="سعر المتر",
+            font=dict(family="Tajawal"),
         )
 
         return fig
 
-
     # =====================
     # DISTRICT COMPARISON
     # =====================
-    def generate_district_comparison(self, df, districts):
+    def generate_district_comparison(self, df, districts=None):
         """
         مقارنة أسعار الأحياء
         """
-
         if df is None or df.empty:
             return None
 
@@ -962,8 +968,17 @@ class AdvancedCharts:
             return None
 
         df = df.copy()
-
+        
+        # حساب سعر المتر مع التأكد من عدم وجود مساحة صفرية
+        df = df[df["area"] > 0]
+        if df.empty:
+            return None
+            
         df["price_per_sqm"] = df["price"] / df["area"]
+
+        # إذا لم يتم تحديد أحياء، نأخذ أشهر 5 أحياء
+        if districts is None:
+            districts = df["district"].value_counts().head(5).index.tolist()
 
         df = df[df["district"].isin(districts)]
 
@@ -974,6 +989,7 @@ class AdvancedCharts:
             df.groupby("district")["price_per_sqm"]
             .mean()
             .reset_index()
+            .sort_values("price_per_sqm", ascending=False)
         )
 
         fig = px.bar(
@@ -982,6 +998,7 @@ class AdvancedCharts:
             y="price_per_sqm",
             title="مقارنة متوسط سعر المتر بين الأحياء",
             color="district",
+            color_discrete_sequence=[self.COLORS["emerald"], self.COLORS["gold"], self.COLORS["plum"], self.COLORS["mint"], self.COLORS["lavender"]],
         )
 
         fig.update_layout(
@@ -989,176 +1006,198 @@ class AdvancedCharts:
             xaxis_title="الحي",
             yaxis_title="متوسط سعر المتر",
             showlegend=False,
+            font=dict(family="Tajawal"),
         )
 
         return fig
-# =====================
-# DISTRICT TRANSACTIONS OVER TIME
-# =====================
-def generate_district_transactions_over_time(self, df, district):
-    """
-    عدد الصفقات في الحي عبر الزمن
-    """
 
-    if df is None or df.empty:
-        return None
+    # =====================
+    # DISTRICT TRANSACTIONS OVER TIME
+    # =====================
+    def generate_district_transactions_over_time(self, df, district):
+        """
+        عدد الصفقات في الحي عبر الزمن
+        """
+        if df is None or df.empty:
+            return None
 
-    if not self._has_columns(df, ["district", "date"]):
-        return None
+        if not self._has_columns(df, ["district", "date"]):
+            return None
 
-    df = df.copy()
-    df = df[df["district"] == district]
+        df = df.copy()
+        df = df[df["district"] == district]
 
-    if df.empty:
-        return None
+        if df.empty:
+            return None
 
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df = df.dropna(subset=["date"])
+        # تحويل التاريخ (التاريخ ميلادي)
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df = df.dropna(subset=["date"])
 
-    df["month"] = df["date"].dt.to_period("M").astype(str)
+        df["month"] = df["date"].dt.to_period("M").astype(str)
 
-    monthly = (
-        df.groupby("month")
-        .size()
-        .reset_index(name="transactions")
-    )
+        monthly = (
+            df.groupby("month")
+            .size()
+            .reset_index(name="transactions")
+            .sort_values("month")  # ترتيب الأشهر
+        )
 
-    fig = px.bar(
-        monthly,
-        x="month",
-        y="transactions",
-        title=f"عدد الصفقات عبر الزمن في حي {district}",
-        color_discrete_sequence=[self.COLORS["emerald"]],
-    )
+        if monthly.empty:
+            return None
 
-    fig.update_layout(
-        template="plotly_white",
-        xaxis_title="الشهر",
-        yaxis_title="عدد الصفقات",
-    )
+        fig = px.bar(
+            monthly,
+            x="month",
+            y="transactions",
+            title=f"عدد الصفقات عبر الزمن في حي {district}",
+            color_discrete_sequence=[self.COLORS["emerald"]],
+        )
 
-    return fig
-# =====================
-# DISTRICT PRICE DISTRIBUTION
-# =====================
-def generate_district_price_distribution(self, df, district):
-    """
-    توزيع الأسعار داخل الحي
-    """
+        fig.update_layout(
+            template="plotly_white",
+            xaxis_title="الشهر",
+            yaxis_title="عدد الصفقات",
+            font=dict(family="Tajawal"),
+        )
 
-    if df is None or df.empty:
-        return None
+        return fig
 
-    if "price" not in df.columns or "district" not in df.columns:
-        return None
+    # =====================
+    # DISTRICT PRICE DISTRIBUTION
+    # =====================
+    def generate_district_price_distribution(self, df, district):
+        """
+        توزيع الأسعار داخل الحي
+        """
+        if df is None or df.empty:
+            return None
 
-    df = df.copy()
-    df = df[df["district"] == district]
+        if "price" not in df.columns or "district" not in df.columns:
+            return None
 
-    if df.empty:
-        return None
+        df = df.copy()
+        df = df[df["district"] == district]
 
-    prices = pd.to_numeric(df["price"], errors="coerce").dropna()
+        if df.empty:
+            return None
 
-    if len(prices) < 5:
-        return None
+        prices = pd.to_numeric(df["price"], errors="coerce").dropna()
 
-    fig = px.histogram(
-        prices,
-        nbins=30,
-        title=f"توزيع الأسعار في حي {district}",
-        color_discrete_sequence=[self.COLORS["plum"]],
-    )
+        if len(prices) < 5:
+            return None
 
-    fig.update_layout(
-        template="plotly_white",
-        xaxis_title="السعر",
-        yaxis_title="عدد الصفقات",
-    )
+        fig = px.histogram(
+            prices,
+            nbins=30,
+            title=f"توزيع الأسعار في حي {district}",
+            color_discrete_sequence=[self.COLORS["plum"]],
+        )
 
-    return fig
-# =====================
-# DISTRICT PROPERTY TYPE ANALYSIS
-# =====================
-def generate_district_property_type_analysis(self, df, district):
-    """
-    تحليل أنواع العقارات في الحي
-    """
+        fig.update_layout(
+            template="plotly_white",
+            xaxis_title="السعر",
+            yaxis_title="عدد الصفقات",
+            font=dict(family="Tajawal"),
+        )
 
-    if df is None or df.empty:
-        return None
+        # تحديد نطاق المحور X لتحسين المظهر
+        price_threshold = prices.quantile(0.99)
+        fig.update_xaxes(range=[0, price_threshold])
 
-    if not self._has_columns(df, ["district", "property_type"]):
-        return None
+        return fig
 
-    df = df.copy()
-    df = df[df["district"] == district]
+    # =====================
+    # DISTRICT PROPERTY TYPE ANALYSIS
+    # =====================
+    def generate_district_property_type_analysis(self, df, district):
+        """
+        تحليل أنواع العقارات في الحي
+        """
+        if df is None or df.empty:
+            return None
 
-    if df.empty:
-        return None
+        if not self._has_columns(df, ["district", "property_type"]):
+            return None
 
-    analysis = (
-        df.groupby("property_type")
-        .size()
-        .reset_index(name="transactions")
-    )
+        df = df.copy()
+        df = df[df["district"] == district]
 
-    fig = px.pie(
-        analysis,
-        names="property_type",
-        values="transactions",
-        title=f"توزيع أنواع العقارات في حي {district}",
-        color_discrete_sequence=[
-            self.COLORS["emerald"],
-            self.COLORS["gold"],
-            self.COLORS["plum"],
-        ],
-    )
+        if df.empty:
+            return None
 
-    fig.update_layout(
-        template="plotly_white"
-    )
+        analysis = (
+            df.groupby("property_type")
+            .size()
+            .reset_index(name="transactions")
+        )
 
-    return fig
+        fig = px.pie(
+            analysis,
+            names="property_type",
+            values="transactions",
+            title=f"توزيع أنواع العقارات في حي {district}",
+            color_discrete_sequence=[
+                self.COLORS["emerald"],
+                self.COLORS["gold"],
+                self.COLORS["plum"],
+            ],
+        )
 
-# =====================
-# DISTRICT CHARTS ENGINE
-# =====================
-def generate_all_district_charts(self, df, district, nearby_districts=None):
-    """
-    محرك توليد جميع رسومات الحي
-    يعيد قاموس يحتوي على كل الرسومات الجاهزة للاستخدام في PDF أو الواجهة
-    """
+        fig.update_layout(
+            template="plotly_white",
+            font=dict(family="Tajawal"),
+        )
 
-    if df is None or df.empty:
-        return {}
+        # تحديث تنسيق النص في الـ pie chart
+        fig.update_traces(
+            textposition='inside',
+            textinfo='percent+label',
+            textfont=dict(family="Tajawal", size=14)
+        )
 
-    charts = {}
+        return fig
 
-    # 1️⃣ تطور سعر المتر
-    price_trend = self.generate_district_price_trend(df, district)
-    if price_trend is not None:
-        charts["price_trend"] = price_trend
+    # =====================
+    # DISTRICT CHARTS ENGINE
+    # =====================
+    def generate_all_district_charts(self, df, district, nearby_districts=None):
+        """
+        محرك توليد جميع رسومات الحي
+        يعيد قاموس يحتوي على كل الرسومات الجاهزة للاستخدام في PDF أو الواجهة
+        """
+        if df is None or df.empty:
+            return {}
 
-    # 2️⃣ مقارنة الأحياء
-    if nearby_districts:
+        # توحيد الأعمدة أولاً
+        df = self._normalize_market_columns(df)
+        df = self._ensure_numeric_core(df)
+
+        charts = {}
+
+        # 1️⃣ تطور سعر المتر
+        price_trend = self.generate_district_price_trend(df, district)
+        if price_trend is not None:
+            charts["price_trend"] = price_trend
+
+        # 2️⃣ مقارنة الأحياء
         comparison = self.generate_district_comparison(df, nearby_districts)
         if comparison is not None:
             charts["district_comparison"] = comparison
 
-    # 3️⃣ عدد الصفقات عبر الزمن
-    transactions = self.generate_district_transactions_over_time(df, district)
-    if transactions is not None:
-        charts["transactions_over_time"] = transactions
+        # 3️⃣ عدد الصفقات عبر الزمن
+        transactions = self.generate_district_transactions_over_time(df, district)
+        if transactions is not None:
+            charts["transactions_over_time"] = transactions
 
-    # 4️⃣ توزيع الأسعار
-    distribution = self.generate_district_price_distribution(df, district)
-    if distribution is not None:
-        charts["price_distribution"] = distribution
+        # 4️⃣ توزيع الأسعار
+        distribution = self.generate_district_price_distribution(df, district)
+        if distribution is not None:
+            charts["price_distribution"] = distribution
 
-    # 5️⃣ تحليل أنواع العقارات
-    property_types = self.generate_district_property_type_analysis(df, district)
-    if property_types is not None:
-        charts["property_type_analysis"] = property_types
+        # 5️⃣ تحليل أنواع العقارات
+        property_types = self.generate_district_property_type_analysis(df, district)
+        if property_types is not None:
+            charts["property_type_analysis"] = property_types
 
-    return charts
+        return charts
