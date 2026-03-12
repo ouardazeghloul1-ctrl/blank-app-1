@@ -5,6 +5,7 @@ from ai_report_reasoner import AIReportReasoner
 from ai_executive_summary import generate_executive_summary
 from market_data_core import get_market_data
 from investment_scorecard import calculate_investment_score  # ✅ إضافة Scorecard الاستثماري
+from scorecard_visualizer import build_scorecard_text  # ✅ إضافة المُنسق البصري للـ Scorecard
 
 from district_metrics_engine import (
     prepare_district_data,
@@ -257,6 +258,7 @@ def build_report_story(user_info, provided_dataframe=None):
     # 💹 حساب Investment Scorecard (بعد التصحيح)
     # =====================================
     investment_scores = {}
+    scorecard_text = ""  # تهيئة متغير النص البصري
     try:
         if df is not None and not df.empty:
             print("💹 جاري حساب Investment Scorecard...")
@@ -266,6 +268,10 @@ def build_report_story(user_info, provided_dataframe=None):
             print(f"   ✅ Price Score: {investment_scores.get('price_score', 'N/A')}")
             print(f"   ✅ Growth Score: {investment_scores.get('growth_score', 'N/A')}")
             print(f"   ✅ Risk Score: {investment_scores.get('risk_score', 'N/A')}")
+            
+            # 🎨 توليد النص البصري للـ Scorecard
+            scorecard_text = build_scorecard_text(investment_scores)
+            print("   ✅ تم توليد النص البصري للـ Scorecard")
         else:
             # قيم افتراضية متوافقة مع هيكل الدالة الأصلية
             investment_scores = {
@@ -275,6 +281,8 @@ def build_report_story(user_info, provided_dataframe=None):
                 "growth_score": 50,
                 "risk_score": 50
             }
+            # توليد Scorecard من القيم الافتراضية
+            scorecard_text = build_scorecard_text(investment_scores)
             print("⚠️ استخدام قيم افتراضية لـ Investment Scorecard")
     except Exception as e:
         print("⚠️ فشل حساب Investment Scorecard:", e)
@@ -288,6 +296,7 @@ def build_report_story(user_info, provided_dataframe=None):
             "growth_score": 50,
             "risk_score": 50
         }
+        scorecard_text = build_scorecard_text(investment_scores)
 
     # توليد رؤى الذكاء الاصطناعي
     ai_reasoner = AIReportReasoner()
@@ -416,6 +425,12 @@ def build_report_story(user_info, provided_dataframe=None):
     else:
         charts = {}
         print("⚠️ لا توجد بيانات لتوليد الرسومات")
+
+    # =============================================
+    # 📝 إضافة Scorecard البصري إلى التقرير النصي
+    # =============================================
+    content_text += "\n\n" + scorecard_text
+    print("📝 تم إضافة Scorecard البصري إلى التقرير")
 
     return {
         "meta": {
