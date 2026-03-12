@@ -992,3 +992,131 @@ class AdvancedCharts:
         )
 
         return fig
+# =====================
+# DISTRICT TRANSACTIONS OVER TIME
+# =====================
+def generate_district_transactions_over_time(self, df, district):
+    """
+    عدد الصفقات في الحي عبر الزمن
+    """
+
+    if df is None or df.empty:
+        return None
+
+    if not self._has_columns(df, ["district", "date"]):
+        return None
+
+    df = df.copy()
+    df = df[df["district"] == district]
+
+    if df.empty:
+        return None
+
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"])
+
+    df["month"] = df["date"].dt.to_period("M").astype(str)
+
+    monthly = (
+        df.groupby("month")
+        .size()
+        .reset_index(name="transactions")
+    )
+
+    fig = px.bar(
+        monthly,
+        x="month",
+        y="transactions",
+        title=f"عدد الصفقات عبر الزمن في حي {district}",
+        color_discrete_sequence=[self.COLORS["emerald"]],
+    )
+
+    fig.update_layout(
+        template="plotly_white",
+        xaxis_title="الشهر",
+        yaxis_title="عدد الصفقات",
+    )
+
+    return fig
+# =====================
+# DISTRICT PRICE DISTRIBUTION
+# =====================
+def generate_district_price_distribution(self, df, district):
+    """
+    توزيع الأسعار داخل الحي
+    """
+
+    if df is None or df.empty:
+        return None
+
+    if "price" not in df.columns or "district" not in df.columns:
+        return None
+
+    df = df.copy()
+    df = df[df["district"] == district]
+
+    if df.empty:
+        return None
+
+    prices = pd.to_numeric(df["price"], errors="coerce").dropna()
+
+    if len(prices) < 5:
+        return None
+
+    fig = px.histogram(
+        prices,
+        nbins=30,
+        title=f"توزيع الأسعار في حي {district}",
+        color_discrete_sequence=[self.COLORS["plum"]],
+    )
+
+    fig.update_layout(
+        template="plotly_white",
+        xaxis_title="السعر",
+        yaxis_title="عدد الصفقات",
+    )
+
+    return fig
+# =====================
+# DISTRICT PROPERTY TYPE ANALYSIS
+# =====================
+def generate_district_property_type_analysis(self, df, district):
+    """
+    تحليل أنواع العقارات في الحي
+    """
+
+    if df is None or df.empty:
+        return None
+
+    if not self._has_columns(df, ["district", "property_type"]):
+        return None
+
+    df = df.copy()
+    df = df[df["district"] == district]
+
+    if df.empty:
+        return None
+
+    analysis = (
+        df.groupby("property_type")
+        .size()
+        .reset_index(name="transactions")
+    )
+
+    fig = px.pie(
+        analysis,
+        names="property_type",
+        values="transactions",
+        title=f"توزيع أنواع العقارات في حي {district}",
+        color_discrete_sequence=[
+            self.COLORS["emerald"],
+            self.COLORS["gold"],
+            self.COLORS["plum"],
+        ],
+    )
+
+    fig.update_layout(
+        template="plotly_white"
+    )
+
+    return fig
