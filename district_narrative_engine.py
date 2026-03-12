@@ -455,13 +455,36 @@ def generate_district_narrative(
     try:
         if real_data is not None and hasattr(real_data, "columns") and "date" in real_data.columns:
             import pandas as pd
-            df = real_data[real_data["district"] == district].copy()
+            
+            # ✅ التعديل الأول: مقارنة الأحياء بطريقة ذكية (تجاهل حالة الأحرف والمسافات)
+            df = real_data[ 
+                real_data["district"].astype(str).str.strip().str.lower() == str(district).strip().lower() 
+            ].copy()
+            
+            # ✅ إزالة الصفقات المكررة
+            df = df.drop_duplicates()
+            
             df["date"] = pd.to_datetime(df["date"])
             
-            # حماية من القسمة على صفر في المساحة
-            df = df[df["area"] > 0]
+            # ✅ التعديل الثاني: عدم حذف الصفقات بسبب المساحة + تجنب القسمة على صفر
+            df = df[df["area"].notna() & (df["area"] != 0)]
+            
+            # حساب سعر المتر
             df["price_per_sqm"] = df["price"] / df["area"]
+            
+            # ✅ التعديل الثالث: معالجة القيم اللانهائية الناتجة عن القسمة على صفر
+            df["price_per_sqm"] = df["price_per_sqm"].replace(
+                [float("inf"), float("-inf")], 
+                None
+            )
+            
+            # إزالة القيم الفارغة بعد المعالجة
+            df = df[df["price_per_sqm"].notna()]
+            
             df = df.sort_values("date")
+            
+            # سطر اختبار DEBUG (يمكنك إضافته مؤقتاً للتحقق)
+            # print("DEBUG trend rows:", len(df))
             
             if len(df) >= 4:  # نحتاج على الأقل 4 صفقات لتحليل ذي معنى
                 midpoint = len(df) // 2
