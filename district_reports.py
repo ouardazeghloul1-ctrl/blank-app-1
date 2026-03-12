@@ -26,6 +26,13 @@ def show_district_reports(df_raw):
         .str.contains(city, case=False, na=False)
     ].copy()
 
+    # =========================================
+    # تحويل البيانات إلى أرقام وحذف القيم الفارغة
+    # =========================================
+    city_data["price"] = pd.to_numeric(city_data["price"], errors="coerce")
+    city_data["area"] = pd.to_numeric(city_data["area"], errors="coerce")
+    city_data = city_data.dropna(subset=["price", "area"])
+    
     # -------- المرحلة 4: استخراج الأحياء النشطة فقط (5 صفقات فأكثر) --------
     district_col = "district_clean" if "district_clean" in city_data.columns else "district"
     
@@ -67,10 +74,13 @@ def show_district_reports(df_raw):
             "أرض": "أرض"
         }
         property_category = property_map.get(property_type, "سكني")
-            
+        
+        # =========================================
+        # تحسين فلترة نوع العقار باستخدام contains للتعامل مع الاختلافات في التسمية
+        # =========================================
         district_data = city_data[
             (city_data[district_col].astype(str).str.strip() == district) & 
-            (city_data["property_type"] == property_category)
+            (city_data["property_type"].astype(str).str.contains(property_category, case=False, na=False))
         ].copy()
 
         # التحقق من وجود بيانات
@@ -86,12 +96,10 @@ def show_district_reports(df_raw):
                 st.metric("عدد الصفقات", len(district_data))
             
             with col_metrics2:
-                district_data["price"] = pd.to_numeric(district_data["price"], errors="coerce")
                 avg_price = district_data["price"].mean()
                 st.metric("متوسط السعر", f"{avg_price:,.0f} ريال" if pd.notna(avg_price) else "غير متوفر")
             
             with col_metrics3:
-                district_data["area"] = pd.to_numeric(district_data["area"], errors="coerce")
                 valid_area = district_data[district_data["area"] > 0]
                 if not valid_area.empty:
                     avg_price_per_sqm = (valid_area["price"] / valid_area["area"]).mean()
@@ -110,17 +118,11 @@ def show_district_reports(df_raw):
             if generate_report_clicked:
                 with st.spinner("🔄 جاري إنشاء تقرير الحي..."):
                     try:
-                        # توحيد أسماء الأعمدة للرسومات البيانية
-                        if "district_clean" in district_data.columns:
+                        # =========================================
+                        # تحسين: توحيد أسماء الأعمدة مع حماية من التضارب
+                        # =========================================
+                        if "district_clean" in district_data.columns and "district" not in district_data.columns:
                             district_data = district_data.rename(columns={"district_clean": "district"})
-                        
-                        # التأكد من أن البيانات رقمية للرسومات
-                        district_data["price"] = pd.to_numeric(district_data["price"], errors="coerce")
-                        district_data["area"] = pd.to_numeric(district_data["area"], errors="coerce")
-                        
-                        # تنظيف البيانات قبل توليد الرسومات
-                        district_data = district_data.dropna(subset=["price", "area"])
-                        district_data = district_data[district_data["area"] > 0]
                         
                         # حساب مؤشرات الحي مع التأكد من عدم وجود قيم صفرية في المساحة
                         valid_area_data = district_data[district_data["area"] > 0]
@@ -130,6 +132,7 @@ def show_district_reports(df_raw):
                         else:
                             district_price_per_m2 = 0
                         
+                        # استخدام البيانات المحولة للمدينة
                         valid_city_area = city_data[city_data["area"] > 0]
                         if not valid_city_area.empty:
                             city_price_per_m2 = (valid_city_area["price"] / valid_city_area["area"]).mean()
@@ -154,19 +157,61 @@ def show_district_reports(df_raw):
                             "city": city,
                             "district": district,
                             "property_type": property_type,
-                            "package": "ذهبية",  # استخدام الباقة الذهبية للتقارير المتقدمة
+                            "package": "ذهبية",
                             "user_type": "مستثمر",
                             "analysis_mode": "district"
                         }
                         
-                        # استخدام محرك الأحياء لتوليد النص
+                        # =========================================
+                        # تجهيز بيانات الأحياء المجاورة
+                        # استخدام الأحياء النشطة فقط (districts) وأول 10 أحياء فقط
+                        # =========================================
+                        nearby_districts = []
+                        for d in districts[:10]:  # استخدام أول 10 أحياء فقط لتجنب طول التقرير
+                            if d != district and pd.notna(d) and d not in ["غير محدد", ""]:
+                                d_data = city_data[city_data[district_col] == d]
+                                if not d_data.empty and "area" in d_data.columns:
+                                    d_valid_area = d_data[d_data["area"] > 0]
+                                    if not d_valid_area.empty:
+                                        avg_price = (d_valid_area["price"] / d_valid_area["area"]).mean()
+                                        nearby_districts.append({
+                                            "district_name": d,
+                                            "avg_price": avg_price
+                                        })
+                        
+                        # =========================================
+                        # حساب DPI الحقيقي بدلاً من الرقم الثابت
+                        # =========================================
+                        # DPI = مؤشر قوة الحي (يعتمد على عدد الصفقات والنشاط)
+                        if len(district_data) >= 50:
+                            dpi_score = 85
+                        elif len(district_data) >= 30:
+                            dpi_score = 75
+                        elif len(district_data) >= 20:
+                            dpi_score = 65
+                        elif len(district_data) >= 10:
+                            dpi_score = 55
+                        elif len(district_data) >= 5:
+                            dpi_score = 45
+                        else:
+                            dpi_score = 35
+                            
+                        # تحسين إضافي: إضافة عامل السعر إذا كان الحي في موقع متميز
+                        if district_price_per_m2 > city_price_per_m2 * 1.2:
+                            dpi_score = min(95, dpi_score + 10)  # حي راقي يزيد القوة
+                        elif district_price_per_m2 < city_price_per_m2 * 0.8:
+                            dpi_score = max(30, dpi_score - 5)   # حي منخفض السعر قد يكون أقل قوة
+                        
+                        # =========================================
+                        # استخدام محرك الأحياء لتوليد النص مع البيانات الكاملة
+                        # =========================================
                         report_text = generate_district_narrative(
                             user_info=user_info,
                             district_metrics=district_metrics,
-                            nearby_districts=[],
-                            dpi_score=50,
-                            market_data={},
-                            real_data=district_data
+                            nearby_districts=nearby_districts,
+                            dpi_score=dpi_score,
+                            market_data=city_data,
+                            real_data=city_data
                         )
                         
                         # توليد الرسومات البيانية للحي
@@ -192,11 +237,11 @@ def show_district_reports(df_raw):
                         for k in charts_by_chapter:
                             charts_by_chapter[k] = [c for c in charts_by_chapter[k] if c is not None]
                         
-                        # -------- المرحلة 10: إنشاء ملف PDF باستخدام نفس نظام المدن --------
+                        # -------- المرحلة 10: إنشاء ملف PDF --------
                         pdf_buffer = create_pdf_from_content(
                             user_info=user_info,
                             content_text=report_text,
-                            executive_decision="",  # فارغ مؤقتاً لتجنب ظهور أقسام فارغة
+                            executive_decision="",
                             charts_by_chapter=charts_by_chapter,
                             package_level="ذهبية"
                         )
@@ -204,14 +249,10 @@ def show_district_reports(df_raw):
                         st.session_state.district_pdf_data = pdf_buffer.getvalue()
                         st.session_state.district_report_generated = True
                         
-                        # عرض معلومات debug للمطور (تظهر فقط في terminal)
-                        print(f"🚀 DEBUG: تم إنشاء تقرير الحي بنجاح باستخدام نظام PDF الموحد")
-                        print(f"📊 DEBUG: عدد فصول الرسومات: {len(charts_by_chapter)}")
-                        for chapter, figs in charts_by_chapter.items():
-                            # التحقق من نوع figs قبل استخدام len()
-                            if not isinstance(figs, list):
-                                figs = [figs]
-                            print(f"   - {chapter}: {len(figs)} رسم بياني")
+                        # عرض معلومات debug للمطور
+                        print(f"🚀 DEBUG: تم إنشاء تقرير الحي بنجاح")
+                        print(f"📊 DEBUG: DPI Score: {dpi_score}")
+                        print(f"📊 DEBUG: عدد الأحياء المجاورة: {len(nearby_districts)}")
                         
                         st.success("✅ تم إنشاء تقرير الحي بنجاح!")
                         st.balloons()
