@@ -842,13 +842,17 @@ Investment Intelligence Score
     report_sections.append(verdict_section)
 
     # =========================================
-    # تجميع التقرير النهائي
+    # تجميع التقرير النهائي مع إضافة عناوين الفصول
+    # بدون مسافات قبل "الفصل" + معالجة النص لإزالة الفراغات الزائدة
     # =========================================
 
-    final_report = "\n".join(report_sections)
+    final_report = ""
+    for i, section in enumerate(report_sections, start=1):
+        final_report += f"الفصل {i}\n\n"
+        final_report += section.strip()
+        final_report += "\n\n"
 
     final_report += """
-
 --------------------------------------------------
 Warda Intelligence
 تحليل عقاري مبني على بيانات السوق الفعلية
