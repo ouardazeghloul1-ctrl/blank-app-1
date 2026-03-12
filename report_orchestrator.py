@@ -399,10 +399,11 @@ def build_report_story(user_info, provided_dataframe=None):
     # =============================================
     # 🎨 توليد الرسومات (السوق العام + رسومات الأحياء)
     # =============================================
+    print("🚀 DEBUG: بدء توليد الرسومات...")
     if df is not None and not df.empty:
         # رسومات السوق العامة
         charts = charts_engine.generate_all_charts(df)
-        print(f"📊 تم توليد {len(charts)} فصل بالرسومات العامة")
+        print(f"📊 DEBUG: عدد الرسومات المولدة: {len(charts)}")
         
         # =====================================
         # 🏙️ رسومات الحي (بعد التصحيح)
@@ -415,16 +416,16 @@ def build_report_story(user_info, provided_dataframe=None):
                     selected_district
                 )
                 charts["district_analysis"] = district_charts
-                print(f"📊 District charts generated: {len(district_charts)}")
+                print(f"📊 DEBUG: رسومات الحي المولدة: {len(district_charts)}")
         except Exception as e:
             print("⚠️ فشل توليد رسومات الحي:", e)
             import traceback
             traceback.print_exc()
         
-        print(f"📊 إجمالي فصول الرسومات: {len(charts)}")
+        print(f"📊 DEBUG: إجمالي فصول الرسومات: {len(charts)}")
     else:
+        print("❌ DEBUG: df فارغ قبل توليد الرسومات")
         charts = {}
-        print("⚠️ لا توجد بيانات لتوليد الرسومات")
 
     # =============================================
     # 📝 إضافة Scorecard البصري إلى التقرير النصي
