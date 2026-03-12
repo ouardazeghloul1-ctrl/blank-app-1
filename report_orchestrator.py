@@ -6,6 +6,7 @@ from ai_executive_summary import generate_executive_summary
 from market_data_core import get_market_data
 from investment_scorecard import calculate_investment_score  # ✅ إضافة Scorecard الاستثماري
 from scorecard_visualizer import build_scorecard_text  # ✅ إضافة المُنسق البصري للـ Scorecard
+from data_repair_engine import repair_market_data  # ✅ استيراد إصلاح البيانات (مرة واحدة في الأعلى)
 
 from district_metrics_engine import (
     prepare_district_data,
@@ -187,6 +188,15 @@ def build_report_story(user_info, provided_dataframe=None):
     
     df = normalize_dataframe(df)
     
+    # ✅ إصلاح البيانات الناقصة (الاستيراد من الأعلى)
+    df = repair_market_data(df)
+    print("🛠️ تم إصلاح البيانات الناقصة بنجاح")
+    
+    # ✅ تحويل التاريخ إلى datetime إذا كان موجوداً
+    if df is not None and not df.empty and "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        print("📅 تم تحويل عمود التاريخ إلى datetime")
+    
     # ✅ التحقق من أن DataFrame ليس فارغاً قبل المعالجة
     if df is not None and not df.empty:
         # =========================================
@@ -210,6 +220,7 @@ def build_report_story(user_info, provided_dataframe=None):
         # ✅ توحيد الأعمدة لمحرك الرسومات بعد التصفية
         df = unify_columns_for_charts(df)
         print(f"📊 الأعمدة بعد التوحيد: {list(df.columns)}")
+        print(f"📊 إجمالي الصفقات بعد الإصلاح: {len(df)}")
     else:
         print("⚠️ DataFrame فارغ أو غير موجود - سيتم استخدام بيانات افتراضية")
         df = pd.DataFrame()  # DataFrame فارغ للمعالجة اللاحقة
@@ -332,8 +343,8 @@ def build_report_story(user_info, provided_dataframe=None):
                 selected_district
             )
             
-            # ✅ التعديل 2: حماية حساب DPI
-            if district_metrics:
+            # ✅ التعديل 2: حماية حساب DPI (مع التحقق من النوع)
+            if district_metrics and isinstance(district_metrics, dict):
                 dpi_score = calculate_dpi_score(district_metrics)
             else:
                 dpi_score = 50
