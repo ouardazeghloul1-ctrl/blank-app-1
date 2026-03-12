@@ -137,6 +137,7 @@ def build_report_story(user_info, provided_dataframe=None):
             "city": "الرياض",
             "property_type": "سكني",
             "property_subtype": "شقة",  # ✅ النوع التفصيلي (شقة، فيلا، قصر/عقار كبير)
+            "district": "الملقا",  # ✅ الحي المحدد للتحليل
             "package": "ذهبية"
         }
     
@@ -349,10 +350,32 @@ def build_report_story(user_info, provided_dataframe=None):
         package=package_key  # ✅ تمرير package إجباريًا
     )
 
-    # توليد الرسومات
+    # =============================================
+    # 🎨 توليد الرسومات (السوق العام + رسومات الأحياء)
+    # =============================================
     if df is not None and not df.empty:
+        # رسومات السوق العامة
         charts = charts_engine.generate_all_charts(df)
-        print(f"📊 تم توليد {len(charts)} فصل بالرسومات")
+        print(f"📊 تم توليد {len(charts)} فصل بالرسومات العامة")
+        
+        # =====================================
+        # 🏙️ رسومات الحي (بعد التصحيح)
+        # =====================================
+        try:
+            selected_district = user_info.get("district")
+            if selected_district:
+                district_charts = charts_engine.generate_all_district_charts(
+                    df, 
+                    selected_district
+                )
+                charts["district_analysis"] = district_charts
+                print(f"📊 District charts generated: {len(district_charts)}")
+        except Exception as e:
+            print("⚠️ فشل توليد رسومات الحي:", e)
+            import traceback
+            traceback.print_exc()
+        
+        print(f"📊 إجمالي فصول الرسومات: {len(charts)}")
     else:
         charts = {}
         print("⚠️ لا توجد بيانات لتوليد الرسومات")
