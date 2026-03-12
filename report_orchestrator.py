@@ -220,24 +220,32 @@ def build_report_story(user_info, provided_dataframe=None):
     district_ranking = None
     top_districts = None
     try:
-        if df is not None and not df.empty and "district_clean" in df.columns:
-            print("🏆 جاري حساب ترتيب الأحياء الاستثمارية...")
+        # ✅ التعديل الرئيسي: دعم كلا العمودين district و district_clean
+        if df is not None and not df.empty and ("district_clean" in df.columns or "district" in df.columns):
+            # تحديد عمود الحي المناسب
+            district_column = "district_clean" if "district_clean" in df.columns else "district"
+            print(f"🏆 جاري حساب ترتيب الأحياء الاستثمارية باستخدام العمود: {district_column}")
+            
             district_ranking = rank_districts(df)
             if district_ranking is not None and not district_ranking.empty:
                 top_districts = get_top_districts(df, top_n=5)
                 print("🏆 أفضل الأحياء استثمارياً:")
                 if top_districts is not None and not top_districts.empty:
-                    display_cols = [col for col in ["district_clean", "dpi"] if col in top_districts.columns]
+                    # استخدام أسماء الأعمدة المتاحة
+                    display_cols = [col for col in ["district_clean", "district", "dpi"] if col in top_districts.columns]
                     if display_cols:
                         print(top_districts[display_cols].head())
                     
                     # إضافة فقرة متميزة عن أفضل الأحياء إلى التقرير
-                    if len(display_cols) >= 2:
-                        top_districts_text = "\n\n🏆 أفضل الأحياء للاستثمار:\n"
+                    # تحديد عمود العرض المناسب
+                    display_district_col = "district_clean" if "district_clean" in top_districts.columns else "district" if "district" in top_districts.columns else None
+                    
+                    if display_district_col and "dpi" in top_districts.columns:
+                        top_districts_text = f"\n\n🏆 أفضل الأحياء للاستثمار في {user_info.get('city', 'الرياض')}:\n"
                         
                         # ✅ تحسين: استخدام عداد منفصل للترقيم الصحيح 1,2,3 بدلاً من idx
                         for i, (_, row) in enumerate(top_districts.head(5).iterrows(), start=1):
-                            district_name = row.get("district_clean", "غير محدد")
+                            district_name = row.get(display_district_col, "غير محدد")
                             dpi_score = row.get("dpi", 0)
                             top_districts_text += f"  {i}. {district_name} (DPI: {dpi_score:.0f})\n"
                         
@@ -247,7 +255,7 @@ def build_report_story(user_info, provided_dataframe=None):
                         # حقن الفقرة في التقرير (بعد التنويه)
                         content_text = content_text.replace(
                             "📌 تنويه مهم حول البيانات:",
-                            f"🏆 أفضل الأحياء للاستثمار في {user_info.get('city', 'الرياض')}\n{top_districts_text}\n\n📌 تنويه مهم حول البيانات:"
+                            f"{top_districts_text}\n\n📌 تنويه مهم حول البيانات:"
                         )
     except Exception as e:
         print("⚠️ فشل حساب ترتيب الأحياء:", e)
