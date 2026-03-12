@@ -4,9 +4,9 @@ from advanced_charts import AdvancedCharts
 from ai_report_reasoner import AIReportReasoner
 from ai_executive_summary import generate_executive_summary
 from market_data_core import get_market_data
-from investment_scorecard import calculate_investment_score  # ✅ إضافة Scorecard الاستثماري
-from scorecard_visualizer import build_scorecard_text  # ✅ إضافة المُنسق البصري للـ Scorecard
-from data_repair_engine import repair_market_data  # ✅ استيراد إصلاح البيانات (مرة واحدة في الأعلى)
+from investment_scorecard import calculate_investment_score
+from scorecard_visualizer import build_scorecard_text
+from data_repair_engine import repair_market_data
 
 from district_metrics_engine import (
     prepare_district_data,
@@ -15,7 +15,7 @@ from district_metrics_engine import (
 )
 
 from district_narrative_engine import generate_district_narrative
-from district_ranking_engine import rank_districts, get_top_districts  # ✅ نظام ترتيب الأحياء
+from district_ranking_engine import rank_districts, get_top_districts
 
 import pandas as pd
 import numpy as np
@@ -32,17 +32,13 @@ def unify_columns_for_charts(df):
     """
     توحيد أعمدة البيانات لتتوافق مع Data Contract الخاص بـ AdvancedCharts
     AdvancedCharts يتوقع: price | area | district | date
-    
-    ⚠️ ملاحظة معمارية:
-    هذا التوحيد طبقة حماية قبل orchestration
-    التوحيد النهائي الصارم يتم داخل AdvancedCharts
     """
     if df is None or df.empty:
         return df
     
     df = df.copy()
     
-    # خريطة تحويل الأعمدة العربية إلى الإنجليزية - محدثة حسب التعديلات النهائية
+    # خريطة تحويل الأعمدة العربية إلى الإنجليزية
     column_map = {
         "السعر": "price",
         "المساحة": "area", 
@@ -59,12 +55,40 @@ def unify_columns_for_charts(df):
     required_cols = ["price", "area", "district", "date"]
     for col in required_cols:
         if col not in df.columns:
-            # إذا كان العمود مفقوداً، نضيفه بقيمة افتراضية
             if col == "district":
                 df[col] = "غير محدد"
             elif col == "date":
-                # ✅ استخدام pd.NA بدلاً من None (يتجاهل بشكل نظيف في العمليات)
                 df[col] = pd.NA
+    
+    # ✅ التعديل 1: إصلاح الأعمدة الرقمية والتواريخ
+    # تحويل الأعمدة الرقمية
+    if "price" in df.columns:
+        df["price"] = pd.to_numeric(df["price"], errors="coerce")
+    if "area" in df.columns:
+        df["area"] = pd.to_numeric(df["area"], errors="coerce")
+    
+    # إصلاح القيم الناقصة
+    if "price" in df.columns:
+        median_price = df["price"].median()
+        if pd.isna(median_price):
+            median_price = 500000
+        df["price"] = df["price"].fillna(median_price)
+    
+    if "area" in df.columns:
+        median_area = df["area"].median()
+        if pd.isna(median_area):
+            median_area = 120
+        df["area"] = df["area"].fillna(median_area)
+    
+    # ✅ إصلاح التواريخ (بشكل أكثر أماناً)
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        # استخدام fillna مع method بدلاً من ffill() المباشر
+        df["date"] = df["date"].fillna(method="ffill")
+        # إذا بقي أي NaN، استخدم التاريخ الأكثر تكراراً
+        if df["date"].isna().any():
+            most_common_date = df["date"].mode()[0] if not df["date"].mode().empty else pd.Timestamp.now()
+            df["date"] = df["date"].fillna(most_common_date)
     
     return df
 
@@ -72,28 +96,26 @@ def blocks_to_text(report):
     sections = []
 
     for chapter in report.get("chapters", []):
-        # استخراج عنوان الفصل من blocks
+        # استخراج عنوان الفصل
         for block in chapter.get("blocks", []):
             if block.get("type") == "chapter_title":
                 title = block.get("content", "").strip()
                 if title:
                     sections.append(title)
-                    sections.append("")  # سطر فارغ بعد العنوان
+                    sections.append("")
                 break
 
-        # تجميع الفقرات كوحدات مع الحفاظ على الرسومات
+        # تجميع الفقرات
         for block in chapter.get("blocks", []):
             block_type = block.get("type")
             content = block.get("content", "")
             tag = block.get("tag", "")
 
-            # تخطي عنوان الفصل (تم معالجته أعلاه)
             if block_type == "chapter_title":
                 continue
 
-            # التعامل مع الرسومات والعلامات
             if block_type == "chart":
-                sections.append(tag)   # 👈 هذا هو الجسر للرسومات
+                sections.append(tag)
                 sections.append("")
                 continue
 
@@ -102,22 +124,19 @@ def blocks_to_text(report):
                 sections.append("")
                 continue
 
-            # التعامل مع النص العادي
             if block_type in ("text", "rich_text") and content:
-                # تنظيف المحتوى مع الحفاظ على المسافات الطبيعية
                 paragraph = "\n".join(
                     line.rstrip() for line in content.splitlines()
                 ).strip()
                 
-                if paragraph:  # فقط إذا كان هناك محتوى بعد التنظيف
+                if paragraph:
                     sections.append(paragraph)
-                    sections.append("")  # فاصل فقرة واضح
+                    sections.append("")
 
-    # دمج نهائي بنمط مستقر
     return "\n\n".join(sections).strip()
 
 def inject_ai_by_anchor(content_text, anchor, title, ai_content):
-    """حقن محتوى الذكاء الاصطناعي باستخدام Anchors المضمونة"""
+    """حقن محتوى الذكاء الاصطناعي"""
     if not ai_content or anchor not in content_text:
         return content_text
 
@@ -132,20 +151,6 @@ def inject_ai_by_anchor(content_text, anchor, title, ai_content):
 def build_report_story(user_info, provided_dataframe=None):
     """
     بناء قصة التقرير الكاملة
-    
-    Args:
-        user_info: معلومات المستخدم (المدينة، نوع العقار، النوع التفصيلي، الباقة)
-        مثال:
-        {
-            "city": "الرياض",
-            "property_type": "سكني",
-            "property_subtype": "شقة",  # ✅ النوع التفصيلي (شقة، فيلا، قصر/عقار كبير)
-            "district": "الملقا",  # ✅ الحي المحدد للتحليل
-            "package": "ذهبية"
-        }
-    
-    Returns:
-        dict: يحتوي على meta, content_text, executive_decision, charts, district_ranking, top_districts, investment_scorecard
     """
     prepared = {
         "المدينة": user_info.get("city", ""),
@@ -162,7 +167,7 @@ def build_report_story(user_info, provided_dataframe=None):
     report = build_complete_report(prepared)
     content_text = blocks_to_text(report)
 
-    # تنويه البيانات - صادق قانونياً واستثمارياً ✅
+    # تنويه البيانات
     content_text += "\n\n"
     content_text += "📌 تنويه مهم حول البيانات:\n"
     content_text += (
@@ -172,7 +177,7 @@ def build_report_story(user_info, provided_dataframe=None):
         "وقد تختلف النتائج مستقبلًا تبعًا لتغيرات العرض والطلب.\n\n"
     )
 
-    # تحميل البيانات الحية - استخدام الـ DataFrame المُمرر إذا وُجد، وإلا جلب من المصدر الحي
+    # تحميل البيانات
     if provided_dataframe is not None:
         df = provided_dataframe
         print("📊 استخدام DataFrame مُمرر خارجياً")
@@ -188,111 +193,77 @@ def build_report_story(user_info, provided_dataframe=None):
     
     df = normalize_dataframe(df)
     
-    # ✅ إصلاح البيانات الناقصة (الاستيراد من الأعلى)
-    df = repair_market_data(df)
-    print("🛠️ تم إصلاح البيانات الناقصة بنجاح")
-    
-    # ✅ تحويل التاريخ إلى datetime إذا كان موجوداً
-    if df is not None and not df.empty and "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-        print("📅 تم تحويل عمود التاريخ إلى datetime")
-    
-    # ✅ التحقق من أن DataFrame ليس فارغاً قبل المعالجة
+    # إصلاح البيانات الناقصة
     if df is not None and not df.empty:
-        # =========================================
-        # 🎯 Smart Property Subtype Filter
-        # =========================================
-        # ✅ تحسين: الفلتر قبل توحيد الأعمدة للحفاظ على property_subtype
+        df = repair_market_data(df)
+        print("🛠️ تم إصلاح البيانات الناقصة بنجاح")
+    
+    # التحقق من البيانات
+    if df is not None and not df.empty:
+        # تصفية حسب النوع التفصيلي
         property_subtype = user_info.get("property_subtype")
         if property_subtype and "property_subtype" in df.columns:
             print(f"🎯 تصفية حسب النوع التفصيلي: {property_subtype}")
             before_filter = len(df)
             df = df[df["property_subtype"] == property_subtype]
-            print(f"   ✅ بعد التصفية: {len(df)} صفقة (تمت إزالة {before_filter - len(df)} صفقة)")
+            print(f"   ✅ بعد التصفية: {len(df)} صفقة")
             
-            # تحديث عنوان التقرير ليعكس النوع التفصيلي
             if len(df) > 0:
                 content_text = content_text.replace(
                     f"تقرير سوق {user_info.get('city', '')}",
                     f"تقرير سوق {property_subtype} في {user_info.get('city', '')}"
                 )
         
-        # ✅ توحيد الأعمدة لمحرك الرسومات بعد التصفية
+        # توحيد الأعمدة (يتضمن الآن التعديل 1)
         df = unify_columns_for_charts(df)
         print(f"📊 الأعمدة بعد التوحيد: {list(df.columns)}")
         print(f"📊 إجمالي الصفقات بعد الإصلاح: {len(df)}")
     else:
-        print("⚠️ DataFrame فارغ أو غير موجود - سيتم استخدام بيانات افتراضية")
-        df = pd.DataFrame()  # DataFrame فارغ للمعالجة اللاحقة
+        print("⚠️ DataFrame فارغ - استخدام بيانات افتراضية")
+        df = pd.DataFrame()
 
-    # =====================================
-    # حساب ترتيب الأحياء الاستثمارية 🏆
-    # =====================================
+    # حساب ترتيب الأحياء
     district_ranking = None
     top_districts = None
     try:
-        # ✅ التعديل الرئيسي: دعم كلا العمودين district و district_clean
         if df is not None and not df.empty and ("district_clean" in df.columns or "district" in df.columns):
-            # تحديد عمود الحي المناسب
             district_column = "district_clean" if "district_clean" in df.columns else "district"
-            print(f"🏆 جاري حساب ترتيب الأحياء الاستثمارية باستخدام العمود: {district_column}")
+            print(f"🏆 حساب ترتيب الأحياء باستخدام: {district_column}")
             
             district_ranking = rank_districts(df)
             if district_ranking is not None and not district_ranking.empty:
                 top_districts = get_top_districts(df, top_n=5)
-                print("🏆 أفضل الأحياء استثمارياً:")
+                
                 if top_districts is not None and not top_districts.empty:
-                    # استخدام أسماء الأعمدة المتاحة
-                    display_cols = [col for col in ["district_clean", "district", "dpi"] if col in top_districts.columns]
-                    if display_cols:
-                        print(top_districts[display_cols].head())
-                    
-                    # إضافة فقرة متميزة عن أفضل الأحياء إلى التقرير
-                    # تحديد عمود العرض المناسب
                     display_district_col = "district_clean" if "district_clean" in top_districts.columns else "district" if "district" in top_districts.columns else None
                     
                     if display_district_col and "dpi" in top_districts.columns:
                         top_districts_text = f"\n\n🏆 أفضل الأحياء للاستثمار في {user_info.get('city', 'الرياض')}:\n"
                         
-                        # ✅ تحسين: استخدام عداد منفصل للترقيم الصحيح 1,2,3 بدلاً من idx
                         for i, (_, row) in enumerate(top_districts.head(5).iterrows(), start=1):
                             district_name = row.get(display_district_col, "غير محدد")
                             dpi_score = row.get("dpi", 0)
                             top_districts_text += f"  {i}. {district_name} (DPI: {dpi_score:.0f})\n"
                         
-                        # إضافة تفسير DPI
-                        top_districts_text += "\n*DPI: مؤشر قوة الحي (District Power Index) - كلما ارتفع كلما كان الحي أقوى استثمارياً*\n"
+                        top_districts_text += "\n*DPI: مؤشر قوة الحي - كلما ارتفع كلما كان الحي أقوى استثمارياً*\n"
                         
-                        # حقن الفقرة في التقرير (بعد التنويه)
                         content_text = content_text.replace(
                             "📌 تنويه مهم حول البيانات:",
                             f"{top_districts_text}\n\n📌 تنويه مهم حول البيانات:"
                         )
     except Exception as e:
         print("⚠️ فشل حساب ترتيب الأحياء:", e)
-        import traceback
-        traceback.print_exc()
 
-    # =====================================
-    # 💹 حساب Investment Scorecard (بعد التصحيح)
-    # =====================================
+    # حساب Investment Scorecard
     investment_scores = {}
-    scorecard_text = ""  # تهيئة متغير النص البصري
+    scorecard_text = ""
     try:
         if df is not None and not df.empty:
-            print("💹 جاري حساب Investment Scorecard...")
+            print("💹 حساب Investment Scorecard...")
             investment_scores = calculate_investment_score(df)
-            print(f"   ✅ Investment Score: {investment_scores.get('investment_score', 'N/A')}")
-            print(f"   ✅ Liquidity Score: {investment_scores.get('liquidity_score', 'N/A')}")
-            print(f"   ✅ Price Score: {investment_scores.get('price_score', 'N/A')}")
-            print(f"   ✅ Growth Score: {investment_scores.get('growth_score', 'N/A')}")
-            print(f"   ✅ Risk Score: {investment_scores.get('risk_score', 'N/A')}")
-            
-            # 🎨 توليد النص البصري للـ Scorecard
             scorecard_text = build_scorecard_text(investment_scores)
-            print("   ✅ تم توليد النص البصري للـ Scorecard")
+            print("   ✅ تم توليد Scorecard")
         else:
-            # قيم افتراضية متوافقة مع هيكل الدالة الأصلية
             investment_scores = {
                 "investment_score": 50,
                 "liquidity_score": 50,
@@ -300,14 +271,9 @@ def build_report_story(user_info, provided_dataframe=None):
                 "growth_score": 50,
                 "risk_score": 50
             }
-            # توليد Scorecard من القيم الافتراضية
             scorecard_text = build_scorecard_text(investment_scores)
-            print("⚠️ استخدام قيم افتراضية لـ Investment Scorecard")
     except Exception as e:
-        print("⚠️ فشل حساب Investment Scorecard:", e)
-        import traceback
-        traceback.print_exc()
-        # قيم افتراضية في حالة الفشل (متوافقة مع هيكل الدالة)
+        print("⚠️ فشل حساب Scorecard:", e)
         investment_scores = {
             "investment_score": 50,
             "liquidity_score": 50,
@@ -317,9 +283,7 @@ def build_report_story(user_info, provided_dataframe=None):
         }
         scorecard_text = build_scorecard_text(investment_scores)
 
-    # =====================================
-    # 🏙️ District Deep Analysis
-    # =====================================
+    # تحليل الحي
     district_analysis_text = ""
     try:
         selected_district = user_info.get("district")
@@ -329,27 +293,33 @@ def build_report_story(user_info, provided_dataframe=None):
             
             df_prepared = df.copy()
             
-            # ✅ التعديل 1: إصلاح عمود التاريخ
             if "transaction_date" not in df_prepared.columns and "date" in df_prepared.columns:
                 df_prepared["transaction_date"] = df_prepared["date"]
             
-            # تجهيز البيانات
             df_prepared = prepare_district_data(df_prepared)
             
-            # حساب المؤشرات الأساسية
             district_metrics = calculate_basic_district_metrics(
                 df_prepared, 
                 selected_city, 
                 selected_district
             )
             
-            # ✅ التعديل 2: حماية حساب DPI (مع التحقق من النوع)
+            # ✅ التعديل 2: منع انهيار تحليل الحي
+            if not district_metrics:
+                district_metrics = {
+                    "district_name": selected_district,
+                    "city_name": selected_city,
+                    "district_avg_price": df_prepared["price"].mean() if "price" in df_prepared.columns else 0,
+                    "city_avg_price": df_prepared["price"].mean() if "price" in df_prepared.columns else 0,
+                    "transactions_count": len(df_prepared)
+                }
+            
+            # تحسين DPI
             if district_metrics and isinstance(district_metrics, dict):
                 dpi_score = calculate_dpi_score(district_metrics)
             else:
                 dpi_score = 50
             
-            # توليد التقرير التحليلي
             district_analysis_text = generate_district_narrative(
                 user_info=user_info,
                 district_metrics=district_metrics,
@@ -361,21 +331,15 @@ def build_report_story(user_info, provided_dataframe=None):
             print("✅ تم توليد تحليل الحي")
     except Exception as e:
         print("⚠️ فشل تحليل الحي:", e)
-        import traceback
-        traceback.print_exc()
 
     # توليد رؤى الذكاء الاصطناعي
     ai_reasoner = AIReportReasoner()
     
-    # ✅ بناء market_data من البيانات الحية - مع حساب النمو المحسّن والمستقر
+    # بناء market_data
     if df is not None and not df.empty:
-        # ============================
-        # حساب معدل النمو الشهري - نسخة مستقرة احترافياً
-        # ============================
         if "date" in df.columns and "price" in df.columns:
             try:
                 tmp = df.copy()
-                # ✅ إزالة القيم الفارغة قبل حساب الشهر (تحسين احترافي)
                 tmp = tmp.dropna(subset=["date", "price"])
                 
                 tmp["month"] = tmp["date"].astype(str).str[:7]
@@ -387,7 +351,6 @@ def build_report_story(user_info, provided_dataframe=None):
                 
                 if len(monthly_avg) >= 2:
                     growth_series = monthly_avg.pct_change().dropna()
-                    # إزالة القيم الشاذة (±200%)
                     growth_series = growth_series[
                         (growth_series > -2) & (growth_series < 2)
                     ]
@@ -419,7 +382,7 @@ def build_report_story(user_info, provided_dataframe=None):
         real_data=df if df is not None else pd.DataFrame()
     )
 
-    # ✅ إدخال الذكاء الاصطناعي باستخدام Anchors (مضمون)
+    # حقن رؤى الذكاء الاصطناعي
     content_text = inject_ai_by_anchor(
         content_text,
         "[[AI_SLOT_CH1]]",
@@ -441,10 +404,9 @@ def build_report_story(user_info, provided_dataframe=None):
         ai_insights.get("ai_opportunities", "")
     )
 
-    # توليد الخلاصة التنفيذية بشكل مستقل
+    # توليد الخلاصة التنفيذية
     package_level = user_info.get("package") or user_info.get("chosen_pkg") or "مجانية"
     
-    # تحويل اسم الباقة العربي إلى المفتاح الإنجليزي
     package_key_map = {
         "مجانية": "free",
         "فضية": "silver",
@@ -459,21 +421,23 @@ def build_report_story(user_info, provided_dataframe=None):
         user_info=user_info,
         market_data=market_data,
         real_data=df if df is not None else pd.DataFrame(),
-        package=package_key  # ✅ تمرير package إجباريًا
+        package=package_key
     )
 
-    # =============================================
-    # 🎨 توليد الرسومات (السوق العام + رسومات الأحياء)
-    # =============================================
-    print("🚀 DEBUG: بدء توليد الرسومات...")
+    # ✅ التعديل 3: إصلاح المساحة قبل الرسومات
+    if df is not None and not df.empty and "area" in df.columns:
+        median_area = df["area"].median()
+        if pd.isna(median_area):
+            median_area = 120
+        df.loc[df["area"] <= 0, "area"] = median_area
+        print("🛠️ تم إصلاح المساحة الصفرية قبل الرسومات")
+
+    # توليد الرسومات
+    print("🚀 بدء توليد الرسومات...")
     if df is not None and not df.empty:
-        # رسومات السوق العامة
         charts = charts_engine.generate_all_charts(df)
-        print(f"📊 DEBUG: عدد الرسومات المولدة: {len(charts)}")
+        print(f"📊 عدد الرسومات المولدة: {len(charts)}")
         
-        # =====================================
-        # 🏙️ رسومات الحي (بعد التصحيح)
-        # =====================================
         try:
             selected_district = user_info.get("district")
             if selected_district:
@@ -482,25 +446,16 @@ def build_report_story(user_info, provided_dataframe=None):
                     selected_district
                 )
                 charts["district_analysis"] = district_charts
-                print(f"📊 DEBUG: رسومات الحي المولدة: {len(district_charts)}")
+                print(f"📊 رسومات الحي المولدة: {len(district_charts)}")
         except Exception as e:
             print("⚠️ فشل توليد رسومات الحي:", e)
-            import traceback
-            traceback.print_exc()
-        
-        print(f"📊 DEBUG: إجمالي فصول الرسومات: {len(charts)}")
     else:
-        print("❌ DEBUG: df فارغ قبل توليد الرسومات")
         charts = {}
 
-    # =============================================
-    # 📝 إضافة Scorecard البصري إلى التقرير النصي
-    # =============================================
+    # إضافة Scorecard
     content_text += "\n\n" + scorecard_text
     
-    # =============================================
-    # ✅ التعديل 3: إضافة تحليل الحي إلى التقرير النصي
-    # =============================================
+    # إضافة تحليل الحي إلى التقرير النصي
     if district_analysis_text:
         content_text += "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         content_text += "🏙️ التحليل العميق للحي\n"
@@ -513,13 +468,10 @@ def build_report_story(user_info, provided_dataframe=None):
             "generated_at": datetime.now().isoformat()
         },
         "content_text": content_text,
-        "executive_decision": executive_decision,  # ⭐ عنصر مستقل
+        "executive_decision": executive_decision,
         "charts": charts,
-        # ⭐ إضافات نظام ترتيب الأحياء
         "district_ranking": district_ranking,
         "top_districts": top_districts,
-        # ⭐ إضافة Investment Scorecard (بعد التصحيح)
         "investment_scorecard": investment_scores,
-        # ⭐ إضافة تحليل الحي للنظام
         "district_analysis": district_analysis_text
     }
