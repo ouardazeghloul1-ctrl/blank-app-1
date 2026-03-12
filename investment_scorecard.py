@@ -45,7 +45,7 @@ def calculate_investment_score(df, district=None):
     # -----------------------------
     if "price" in data.columns and "area" in data.columns:
 
-        # ✅ تعديل: منع القسمة على صفر
+        # ✅ تعديل: منع القسمة على صفر والحفاظ على الصفقات
         valid = data[(data["area"].notna()) & (data["area"] > 0)]
 
         if not valid.empty:
