@@ -306,6 +306,53 @@ def build_report_story(user_info, provided_dataframe=None):
         }
         scorecard_text = build_scorecard_text(investment_scores)
 
+    # =====================================
+    # 🏙️ District Deep Analysis
+    # =====================================
+    district_analysis_text = ""
+    try:
+        selected_district = user_info.get("district")
+        selected_city = user_info.get("city")
+        if selected_district and selected_city and df is not None and not df.empty:
+            print(f"📍 تحليل الحي: {selected_district}")
+            
+            df_prepared = df.copy()
+            
+            # ✅ التعديل 1: إصلاح عمود التاريخ
+            if "transaction_date" not in df_prepared.columns and "date" in df_prepared.columns:
+                df_prepared["transaction_date"] = df_prepared["date"]
+            
+            # تجهيز البيانات
+            df_prepared = prepare_district_data(df_prepared)
+            
+            # حساب المؤشرات الأساسية
+            district_metrics = calculate_basic_district_metrics(
+                df_prepared, 
+                selected_city, 
+                selected_district
+            )
+            
+            # ✅ التعديل 2: حماية حساب DPI
+            if district_metrics:
+                dpi_score = calculate_dpi_score(district_metrics)
+            else:
+                dpi_score = 50
+            
+            # توليد التقرير التحليلي
+            district_analysis_text = generate_district_narrative(
+                user_info=user_info,
+                district_metrics=district_metrics,
+                nearby_districts=[],
+                dpi_score=dpi_score,
+                market_data={},
+                real_data=df_prepared
+            )
+            print("✅ تم توليد تحليل الحي")
+    except Exception as e:
+        print("⚠️ فشل تحليل الحي:", e)
+        import traceback
+        traceback.print_exc()
+
     # توليد رؤى الذكاء الاصطناعي
     ai_reasoner = AIReportReasoner()
     
@@ -439,7 +486,15 @@ def build_report_story(user_info, provided_dataframe=None):
     # 📝 إضافة Scorecard البصري إلى التقرير النصي
     # =============================================
     content_text += "\n\n" + scorecard_text
-    print("📝 تم إضافة Scorecard البصري إلى التقرير")
+    
+    # =============================================
+    # ✅ التعديل 3: إضافة تحليل الحي إلى التقرير النصي
+    # =============================================
+    if district_analysis_text:
+        content_text += "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        content_text += "🏙️ التحليل العميق للحي\n"
+        content_text += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        content_text += district_analysis_text
 
     return {
         "meta": {
@@ -453,5 +508,7 @@ def build_report_story(user_info, provided_dataframe=None):
         "district_ranking": district_ranking,
         "top_districts": top_districts,
         # ⭐ إضافة Investment Scorecard (بعد التصحيح)
-        "investment_scorecard": investment_scores
+        "investment_scorecard": investment_scores,
+        # ⭐ إضافة تحليل الحي للنظام
+        "district_analysis": district_analysis_text
     }
