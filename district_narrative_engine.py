@@ -217,13 +217,18 @@ def generate_district_narrative(
     ranking_section = ""
     try:
         if real_data is not None and hasattr(real_data, "columns") and "district" in real_data.columns:
-            district_counts = real_data["district"].value_counts()
+            # تنظيف أسماء الأحياء قبل حساب التكرارات
+            clean_districts = real_data["district"].astype(str).str.split("/").str[-1].str.strip()
+            district_counts = clean_districts.value_counts()
             total_districts = len(district_counts)
             
-            if district in district_counts.index:
+            # تنظيف اسم الحي للمقارنة
+            clean_district = str(district).strip()
+            
+            if clean_district in district_counts.index:
                 # طريقة أكثر أماناً للحصول على الترتيب
-                district_rank = list(district_counts.index).index(district) + 1
-                district_transactions = district_counts[district]
+                district_rank = list(district_counts.index).index(clean_district) + 1
+                district_transactions = district_counts[clean_district]
                 
                 if district_rank <= 5:
                     rank_label = "ضمن الأحياء الأكثر نشاطاً في المدينة"
@@ -250,8 +255,8 @@ def generate_district_narrative(
         print("Narrative Engine Error (Ranking):", e)
         ranking_section = ""
 
-    if ranking_section:
-        report_sections.append(ranking_section)
+    # إضافة القسم بدون شرط
+    report_sections.append(ranking_section)
 
     # =========================================
     # تحليل الفجوة السعرية وفرصة الاستثمار
@@ -457,22 +462,27 @@ def generate_district_narrative(
         if real_data is not None and hasattr(real_data, "columns") and "date" in real_data.columns:
             import pandas as pd
             
-            # مقارنة الأحياء بطريقة ذكية (تجاهل حالة الأحرف والمسافات)
+            # تنظيف اسم الحي أثناء الفلترة
             df = real_data[ 
-                real_data["district"].astype(str).str.strip().str.lower() == str(district).strip().lower() 
+                real_data["district"]
+                .astype(str)
+                .str.split("/")
+                .str[-1]
+                .str.strip()
+                .str.lower() == str(district).strip().lower()
             ].copy()
             
-            # ✅ تحسين الأداء 1: استخدام subset محدد لـ drop_duplicates
+            # تحسين الأداء 1: استخدام subset محدد لـ drop_duplicates
             df = df.drop_duplicates(subset=["price", "area", "date"])
             
-            # ✅ تحسين معالجة التاريخ
+            # تحسين معالجة التاريخ
             df["date"] = pd.to_datetime(df["date"], errors="coerce")
             df = df[df["date"].notna()]
             
             # عدم حذف الصفقات بسبب المساحة + تجنب القسمة على صفر
             df = df[df["area"].notna() & (df["area"] != 0)]
             
-            # ✅ تحسين الأداء 2: حماية من القسمة على صفر
+            # تحسين الأداء 2: حماية من القسمة على صفر
             df["price_per_sqm"] = df["price"] / df["area"].replace(0, 1)
             
             # معالجة القيم اللانهائية الناتجة عن القسمة على صفر
@@ -486,7 +496,7 @@ def generate_district_narrative(
             
             df = df.sort_values("date")
             
-            # ✅ التعديل: خفض الحد الأدنى من 4 إلى 2 صفقات
+            # خفض الحد الأدنى من 4 إلى 2 صفقات
             if len(df) >= 2:
                 midpoint = len(df) // 2
                 first_period = df.iloc[:midpoint]
@@ -496,7 +506,7 @@ def generate_district_narrative(
                     first_price = first_period["price_per_sqm"].mean()
                     last_price = last_period["price_per_sqm"].mean()
                     
-                    # ✅ التعديل: منع القسمة على صفر في حساب التغير
+                    # منع القسمة على صفر في حساب التغير
                     if first_price > 0:
                         change = ((last_price - first_price) / first_price) * 100
                     else:
@@ -524,8 +534,8 @@ def generate_district_narrative(
         print("Narrative Engine Error (Trend):", e)
         trend_section = ""
 
-    if trend_section:
-        report_sections.append(trend_section)
+    # إضافة القسم بدون شرط
+    report_sections.append(trend_section)
 
     # =========================================
     # Investment Intelligence Score
@@ -877,14 +887,17 @@ Investment Intelligence Score
     report_sections.append(verdict_section)
 
     # =========================================
-    # ✅ التعديل النهائي: تجميع التقرير مع تنسيق الفصول الصحيح
+    # ✅ التعديل النهائي: تجميع التقرير مع ضمان ظهور جميع الفصول
     # =========================================
 
     final_report = ""
     for i, section in enumerate(report_sections, start=1):
         final_report += f"الفصل {i}\n"
         final_report += "-" * 40 + "\n\n"
-        final_report += section.strip()
+        if section.strip():
+            final_report += section.strip()
+        else:
+            final_report += "لا توجد بيانات كافية لهذا التحليل."
         final_report += "\n\n"
 
     final_report += """
