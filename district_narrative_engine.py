@@ -4,6 +4,22 @@
 # محرك التقرير الاستثماري للأحياء
 # =========================================
 
+# =========================================
+# Data Schema (أسماء الأعمدة القياسية)
+# =========================================
+# تعتمد المنصة على الأعمدة التالية في بيانات الصفقات:
+#
+# city     : اسم المدينة
+# district : اسم الحي بصيغة "المدينة/الحي"
+# price    : سعر الصفقة
+# area     : مساحة العقار بالمتر
+# property_type : نوع العقار (شقة / فيلا / أرض ...)
+# date     : تاريخ الصفقة بصيغة YYYY-MM-DD
+#
+# مثال:
+# city = الرياض
+# district = الرياض/الصفاء
+
 
 def generate_district_narrative(
         user_info,
@@ -25,10 +41,10 @@ def generate_district_narrative(
     district = district_metrics.get("district_name", "غير محدد")
     city = district_metrics.get("city_name", "غير محدد")
     
-    # ✅ التعديل 1: إضافة نوع العقار من user_info
+    # إضافة نوع العقار من user_info
     property_type = user_info.get("property_type", "عقار")
     
-    # ✅ التعديل 2: تحويل نوع العقار إلى صيغة السوق (شقق / فلل)
+    # تحويل نوع العقار إلى صيغة السوق (شقق / فلل)
     if property_type == "شقة":
         property_market = "الشقق"
     elif property_type == "فيلا":
@@ -59,7 +75,7 @@ def generate_district_narrative(
 
     report_sections = []
     
-    # ✅ التعديل 3: إضافة ملخص تنفيذي
+    # ملخص تنفيذي
     summary_section = f"""
 ملخص تنفيذي
 
@@ -74,7 +90,6 @@ def generate_district_narrative(
     # بطاقة معلومات الحي
     # =========================================
 
-    # ✅ التعديل 4: تحديث العنوان ليشمل نوع العقار بصيغة السوق
     overview_section = f"""
 تحليل سوق {property_market} في حي {district} – مدينة {city}
 
@@ -178,6 +193,151 @@ def generate_district_narrative(
 """
 
     report_sections.append(market_position_section)
+
+    # =========================================
+    # Price Gap Analysis
+    # =========================================
+    gap_section = ""
+    try:
+        if city_price > 0:
+            gap = ((district_price - city_price) / city_price) * 100
+            if gap > 0:
+                relation = "أعلى"
+            else:
+                relation = "أقل"
+            
+            gap_section = f"""
+--------------------------------------------------
+
+فجوة السعر داخل المدينة
+
+متوسط سعر المتر في حي {district}: {district_price:,.0f} ريال
+متوسط سعر المتر في مدينة {city}: {city_price:,.0f} ريال
+
+هذا يعني أن الحي {relation} من متوسط المدينة بنسبة: {abs(gap):.1f}%
+
+يعطي هذا المؤشر فكرة عن موقع الحي السعري داخل السوق.
+"""
+    except Exception as e:
+        print("Gap Analysis Error:", e)
+    
+    report_sections.append(gap_section)
+
+    # =========================================
+    # Price Ranking داخل المدينة
+    # =========================================
+    price_rank_section = ""
+    rank = None
+    total = None
+    try:
+        if real_data is not None and "district" in real_data.columns:
+            import pandas as pd
+            
+            # فلترة بيانات المدينة فقط
+            df_city = real_data[
+                real_data["district"]
+                .astype(str)
+                .str.strip()
+                .str.startswith(city)
+            ].copy()
+            
+            # تنظيف أسماء الأحياء
+            df_city["district_clean"] = (
+                df_city["district"]
+                .astype(str)
+                .str.split("/")
+                .str[-1]
+                .str.strip()
+            )
+            
+            # تحويل price إلى أرقام
+            df_city["price"] = pd.to_numeric(df_city["price"], errors="coerce")
+            
+            # تحويل area إلى أرقام وتنظيفها
+            df_city["area"] = pd.to_numeric(df_city["area"], errors="coerce")
+            df_city = df_city[df_city["area"] > 0]
+            
+            # حساب سعر المتر مع حماية من القسمة على صفر
+            df_city["price_sqm"] = df_city["price"] / df_city["area"].replace(0, None)
+            
+            # استخدام median بدلاً من mean لتجنب تأثير الصفقات الشاذة
+            district_prices = df_city.groupby("district_clean")["price_sqm"].median()
+            district_prices = district_prices.sort_values()
+            
+            # الحصول على ترتيب الحي الحالي
+            clean_district = str(district).strip()
+            if clean_district in district_prices.index:
+                rank = list(district_prices.index).index(clean_district) + 1
+                total = len(district_prices)
+                # تصحيح percentile: المرتبة 1 = 100%
+                percentile = ((total - rank + 1) / total) * 100
+                
+                # ✅ التعديل الصحيح: استخدام >= لأن المرتبة 1 = 100%
+                if percentile >= 80:
+                    label = "ضمن أعلى 20% من الأحياء سعراً في المدينة"
+                elif percentile >= 50:
+                    label = "ضمن الشريحة السعرية المتوسطة"
+                else:
+                    label = "ضمن الشريحة السعرية الاقتصادية"
+                
+                price_rank_section = f"""
+--------------------------------------------------
+
+ترتيب الحي من حيث الأسعار داخل المدينة
+
+يحتل حي {district} المرتبة {rank} من أصل {total} حي
+من حيث متوسط سعر المتر.
+
+هذا يضع الحي {label}.
+"""
+    except Exception as e:
+        print("Price Rank Error:", e)
+    
+    report_sections.append(price_rank_section)
+
+    # =========================================
+    # Liquidity Ranking
+    # =========================================
+    liquidity_rank_section = ""
+    try:
+        if real_data is not None and "district" in real_data.columns:
+            # تنظيف أسماء الأحياء لمدينة فقط
+            clean_districts = (
+                real_data[
+                    real_data["district"]
+                    .astype(str)
+                    .str.strip()
+                    .str.startswith(city)
+                ]["district"]
+                .astype(str)
+                .str.split("/")
+                .str[-1]
+                .str.strip()
+            )
+            
+            # حساب عدد الصفقات لكل حي مع الترتيب
+            district_counts = clean_districts.value_counts().sort_values(ascending=False)
+            
+            # الحصول على ترتيب الحي الحالي
+            clean_district = str(district).strip()
+            if clean_district in district_counts.index:
+                rank_l = list(district_counts.index).index(clean_district) + 1
+                total_l = len(district_counts)
+                
+                liquidity_rank_section = f"""
+--------------------------------------------------
+
+ترتيب الحي من حيث السيولة العقارية
+
+يحتل حي {district} المرتبة {rank_l} من أصل {total_l} حي
+من حيث عدد الصفقات العقارية في المدينة.
+
+كلما كان الترتيب أقرب إلى المركز الأول كان السوق أكثر سيولة.
+"""
+    except Exception as e:
+        print("Liquidity Rank Error:", e)
+    
+    report_sections.append(liquidity_rank_section)
 
     # =========================================
     # تحليل السيولة العقارية
@@ -288,6 +448,53 @@ def generate_district_narrative(
 
     # إضافة القسم بدون شرط
     report_sections.append(ranking_section)
+
+    # =========================================
+    # الأحياء الأكثر نشاطاً في المدينة (TOP 5)
+    # =========================================
+
+    top_districts_section = ""
+    try:
+        if real_data is not None and "district" in real_data.columns:
+            # تنظيف أسماء الأحياء لمدينة فقط مع strip
+            clean_districts = (
+                real_data[
+                    real_data["district"]
+                    .astype(str)
+                    .str.strip()
+                    .str.startswith(city)
+                ]["district"]
+                .astype(str)
+                .str.split("/")
+                .str[-1]
+                .str.strip()
+            )
+            
+            # حساب عدد الصفقات لكل حي وأخذ أول 5
+            district_counts = clean_districts.value_counts().sort_values(ascending=False)
+            top_districts = district_counts.head(5)
+            
+            # بناء نص الجدول
+            lines = ""
+            for i, (name, count) in enumerate(top_districts.items(), start=1):
+                lines += f"{i}. {name} — {count:,} صفقة\n"
+            
+            top_districts_section = f"""
+--------------------------------------------------
+
+الأحياء الأكثر نشاطاً في السوق العقاري
+
+بحسب تحليل بيانات الصفقات العقارية في مدينة {city}،
+تظهر الأحياء التالية كأكثر المناطق نشاطاً في السوق:
+
+{lines}
+"""
+    except Exception as e:
+        print("Top Districts Error:", e)
+        top_districts_section = ""
+
+    # إضافة القسم
+    report_sections.append(top_districts_section)
 
     # =========================================
     # تحليل الفجوة السعرية وفرصة الاستثمار
@@ -510,11 +717,13 @@ def generate_district_narrative(
             df["date"] = pd.to_datetime(df["date"], errors="coerce")
             df = df[df["date"].notna()]
             
-            # عدم حذف الصفقات بسبب المساحة + تجنب القسمة على صفر
-            df = df[df["area"].notna() & (df["area"] != 0)]
+            # تحويل القيم الرقمية
+            df["price"] = pd.to_numeric(df["price"], errors="coerce")
+            df["area"] = pd.to_numeric(df["area"], errors="coerce")
+            df = df[df["area"] > 0]
             
             # تحسين الأداء 2: حماية من القسمة على صفر
-            df["price_per_sqm"] = df["price"] / df["area"].replace(0, 1)
+            df["price_per_sqm"] = df["price"] / df["area"].replace(0, None)
             
             # معالجة القيم اللانهائية الناتجة عن القسمة على صفر
             df["price_per_sqm"] = df["price_per_sqm"].replace(
@@ -569,6 +778,83 @@ def generate_district_narrative(
     report_sections.append(trend_section)
 
     # =========================================
+    # Market Cycle Detection
+    # =========================================
+    cycle_section = ""
+    try:
+        if real_data is not None and "date" in real_data.columns:
+            import pandas as pd
+            
+            df = real_data.copy()
+            
+            # تنظيف اسم الحي
+            df["district_clean"] = (
+                df["district"]
+                .astype(str)
+                .str.split("/")
+                .str[-1]
+                .str.strip()
+            )
+            
+            # فلترة الحي
+            df = df[
+                df["district_clean"].str.lower() == str(district).strip().lower()
+            ]
+            
+            # تحويل التاريخ
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            df = df[df["date"].notna()]
+            
+            # تحويل القيم الرقمية
+            df["price"] = pd.to_numeric(df["price"], errors="coerce")
+            df["area"] = pd.to_numeric(df["area"], errors="coerce")
+            df = df[df["area"] > 0]
+            
+            # حساب سعر المتر مع حماية من القسمة على صفر
+            df["price_sqm"] = df["price"] / df["area"].replace(0, None)
+            
+            # استخراج السنة
+            df["year"] = df["date"].dt.year
+            # استخدام median بدلاً من mean لتجنب تأثير الصفقات الشاذة
+            yearly_prices = df.groupby("year")["price_sqm"].median()
+            
+            if len(yearly_prices) >= 2:
+                first_price = yearly_prices.iloc[0]
+                last_price = yearly_prices.iloc[-1]
+                
+                if first_price > 0:
+                    change = ((last_price - first_price) / first_price) * 100
+                else:
+                    change = 0
+                
+                if change > 8:
+                    cycle = "مرحلة نمو في السوق العقاري"
+                    explanation = "تشير البيانات إلى ارتفاع واضح في متوسط أسعار المتر خلال السنوات الأخيرة."
+                elif change < -5:
+                    cycle = "مرحلة تصحيح سعري"
+                    explanation = "تشير البيانات إلى تراجع في متوسط الأسعار خلال الفترة المدروسة."
+                else:
+                    cycle = "مرحلة استقرار في السوق"
+                    explanation = "الأسعار تتحرك ضمن نطاق مستقر دون تغيرات كبيرة."
+                
+                cycle_section = f"""
+--------------------------------------------------
+
+دورة السوق العقاري
+
+بناءً على تحليل تطور أسعار المتر عبر السنوات،
+يبدو أن السوق في حي {district} يمر حالياً بـ:
+
+{cycle}
+
+{explanation}
+"""
+    except Exception as e:
+        print("Market Cycle Error:", e)
+    
+    report_sections.append(cycle_section)
+
+    # =========================================
     # Investment Intelligence Score
     # =========================================
 
@@ -618,18 +904,6 @@ def generate_district_narrative(
         )
         investment_score = round(investment_score, 1)
 
-        # ------------------------------
-        # تصنيف النتيجة
-        # ------------------------------
-        if investment_score >= 80:
-            score_label = "فرصة استثمارية قوية جداً"
-        elif investment_score >= 65:
-            score_label = "فرصة استثمارية جيدة"
-        elif investment_score >= 50:
-            score_label = "فرصة استثمارية متوسطة"
-        else:
-            score_label = "فرصة استثمارية ضعيفة"
-
         score_section = f"""
 --------------------------------------------------
 
@@ -637,7 +911,6 @@ Investment Intelligence Score
 التقييم الكلي لجاذبية الاستثمار في الحي
 
 النتيجة النهائية: {investment_score} / 100
-التصنيف: {score_label}
 
 يعتمد هذا التقييم على عدة عوامل رئيسية تشمل:
 - مستوى الأسعار مقارنة بمتوسط المدينة
@@ -650,6 +923,113 @@ Investment Intelligence Score
 
     if score_section:
         report_sections.append(score_section)
+
+    # =========================================
+    # Investment Grade Rating
+    # =========================================
+    grade_section = ""
+    try:
+        # استخدام locals().get للحماية من الأخطاء
+        score = locals().get("investment_score", 0)
+        if score >= 85:
+            grade = "A+"
+            label = "فرصة استثمارية ممتازة"
+        elif score >= 75:
+            grade = "A"
+            label = "فرصة استثمارية قوية"
+        elif score >= 65:
+            grade = "B+"
+            label = "فرصة استثمارية جيدة"
+        elif score >= 55:
+            grade = "B"
+            label = "فرصة استثمارية متوسطة"
+        elif score >= 45:
+            grade = "C"
+            label = "فرصة استثمارية محدودة"
+        else:
+            grade = "D"
+            label = "جاذبية استثمارية ضعيفة"
+        
+        grade_section = f"""
+--------------------------------------------------
+
+Investment Grade Rating
+التصنيف الاستثماري للحي
+
+التصنيف: {grade}
+التقييم: {label}
+
+يعتمد هذا التصنيف على تحليل شامل لمستوى الأسعار،
+نشاط السوق العقاري، ومؤشر قوة الحي الاستثماري.
+"""
+    except Exception as e:
+        print("Grade Error:", e)
+    
+    report_sections.append(grade_section)
+
+    # =========================================
+    # Market Position Percentile
+    # =========================================
+    position_section = ""
+    try:
+        if 'rank' in locals() and rank is not None and total is not None:
+            # استخدام الصيغة المحسنة: المرتبة 1 = 100%
+            percentile = ((total - rank + 1) / total) * 100
+            if percentile >= 80:
+                tier = "ضمن أعلى 20% من الأحياء سعراً في المدينة"
+            elif percentile >= 60:
+                tier = "ضمن الشريحة السعرية المرتفعة"
+            elif percentile >= 40:
+                tier = "ضمن الشريحة السعرية المتوسطة"
+            elif percentile >= 20:
+                tier = "ضمن الشريحة السعرية المنخفضة"
+            else:
+                tier = "ضمن أقل 20% من الأحياء سعراً في المدينة"
+            
+            position_section = f"""
+--------------------------------------------------
+
+موقع الحي في الهيكل السعري للمدينة
+
+يحتل حي {district} موقعاً {tier}
+عند مقارنة متوسط الأسعار مع بقية أحياء مدينة {city}.
+"""
+    except Exception as e:
+        print("Position Error:", e)
+    
+    report_sections.append(position_section)
+
+    # =========================================
+    # Market Liquidity Speed
+    # =========================================
+    speed_section = ""
+    try:
+        if transactions >= 60:
+            speed = "سوق سريع جداً"
+            text = "العقارات في هذا الحي غالباً ما تباع بسرعة بسبب الطلب المرتفع."
+        elif transactions >= 30:
+            speed = "سوق نشط"
+            text = "السوق يتمتع بحركة بيع وشراء جيدة مقارنة بعدد من الأحياء."
+        elif transactions >= 15:
+            speed = "سوق متوسط النشاط"
+            text = "السيولة متوسطة وقد تستغرق بعض الصفقات وقتاً أطول."
+        else:
+            speed = "سوق بطيء نسبياً"
+            text = "حجم الصفقات منخفض نسبياً مما قد يعني فترة بيع أطول."
+        
+        speed_section = f"""
+--------------------------------------------------
+
+سرعة السوق العقاري
+
+تصنيف سرعة السوق: {speed}
+
+{text}
+"""
+    except Exception as e:
+        print("Speed Error:", e)
+    
+    report_sections.append(speed_section)
 
     # =========================================
     # Market Heat Index
@@ -918,7 +1298,7 @@ Investment Intelligence Score
     report_sections.append(verdict_section)
 
     # =========================================
-    # ✅ التعديل النهائي: تجميع التقرير مع ضمان ظهور جميع الفصول
+    # ✅ تجميع التقرير مع ضمان ظهور جميع الفصول
     # =========================================
 
     final_report = ""
