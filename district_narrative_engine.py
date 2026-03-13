@@ -24,6 +24,23 @@ def generate_district_narrative(
 
     district = district_metrics.get("district_name", "غير محدد")
     city = district_metrics.get("city_name", "غير محدد")
+    
+    # ✅ التعديل 1: إضافة نوع العقار من user_info
+    property_type = user_info.get("property_type", "عقار")
+    
+    # ✅ التعديل 2: تحويل نوع العقار إلى صيغة السوق (شقق / فلل)
+    if property_type == "شقة":
+        property_market = "الشقق"
+    elif property_type == "فيلا":
+        property_market = "الفلل"
+    elif property_type == "تاون هاوس":
+        property_market = "التاون هاوس"
+    elif property_type == "أرض":
+        property_market = "الأراضي"
+    elif property_type == "محل تجاري":
+        property_market = "المحلات التجارية"
+    else:
+        property_market = property_type
 
     district_price = district_metrics.get("district_avg_price", 0)
     city_price = district_metrics.get("city_avg_price", 0)
@@ -41,13 +58,25 @@ def generate_district_narrative(
     # =========================================
 
     report_sections = []
+    
+    # ✅ التعديل 3: إضافة ملخص تنفيذي
+    summary_section = f"""
+ملخص تنفيذي
+
+يعرض هذا التقرير تحليلاً لسوق {property_market} في حي {district} بمدينة {city}.
+
+بلغ متوسط سعر المتر {district_price:,.0f} ريال مقارنة بمتوسط المدينة البالغ {city_price:,.0f} ريال.
+كما سجل الحي {transactions:,} صفقة عقارية خلال الفترة المدروسة، مما يشير إلى مستوى سيولة { "مرتفع" if transactions >= 30 else "جيد" if transactions >= 15 else "متوسط" if transactions >= 8 else "محدود" } في السوق.
+"""
+    report_sections.append(summary_section)
 
     # =========================================
     # بطاقة معلومات الحي
     # =========================================
 
+    # ✅ التعديل 4: تحديث العنوان ليشمل نوع العقار بصيغة السوق
     overview_section = f"""
-تحليل حي {district} – مدينة {city}
+تحليل سوق {property_market} في حي {district} – مدينة {city}
 
 يعتمد هذا التقرير على تحليل بيانات الصفقات العقارية
 المسجلة في السوق بهدف تقييم الجاذبية الاستثمارية
@@ -55,11 +84,13 @@ def generate_district_narrative(
 
 --------------------------------------------------
 
-بطاقة معلومات الحي
+بطاقة معلومات السوق العقاري
 
 المدينة: {city}
 
 الحي: {district}
+
+نوع العقار محل التحليل: {property_type}
 
 متوسط سعر المتر في الحي:
 {district_price:,.0f} ريال
