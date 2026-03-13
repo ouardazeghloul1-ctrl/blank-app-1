@@ -112,21 +112,19 @@ def smart_column_mapper(df: pd.DataFrame) -> Dict[str, str]:
 def clean_price(price_series: pd.Series) -> pd.Series:
     """💰 تنظيف وتحويل عمود السعر بذكاء فائق - محسن للأداء"""
     
-    # ✅ التصحيح 1: تحسين معالجة القيم الفارغة
+    # ✅ تحسين معالجة القيم الفارغة
     cleaned = price_series.fillna('').astype(str)
     
     # ✅ تحسين الأداء: استخدام str.replace بدلاً من apply مع re.sub
-    # هذا أسرع مع البيانات الكبيرة
     cleaned = cleaned.str.replace(r'[^\d.]', '', regex=True)
     
     # تحويل إلى رقم
     numeric_prices = pd.to_numeric(cleaned, errors='coerce')
     
     # تطبيق فلتر منطقي للأسعار (إزالة الأخطاء الواضحة)
-    # الأسعار الأقل من 1000 أو الأكثر من مليار تعتبر أخطاء إدخال
     valid_price_mask = (numeric_prices > 1000) & (numeric_prices < 1_000_000_000)
     
-    # ✅ الملاحظة 2: استخدام pd.NA بدلاً من None
+    # ✅ استخدام pd.NA بدلاً من None
     numeric_prices[~valid_price_mask] = pd.NA
     
     return numeric_prices
@@ -184,40 +182,6 @@ def normalize_property_type(type_series: pd.Series) -> pd.Series:
     return type_series.apply(normalize_single)
 
 
-def clean_district_name(district_series: pd.Series) -> pd.Series:
-    """
-    🏘️  تنظيف أسماء الأحياء بشكل ذكي للغاية
-    تتعامل مع: الرياض/حي الربيع، حي النرجس، النرجس، Nargis
-    وتوحدها إلى lowercase موحد
-    """
-    
-    def clean_single(value):
-        if pd.isna(value):
-            return 'غير محدد'
-        
-        # تحويل إلى نص وتنظيف أساسي
-        text = str(value).strip()
-        
-        # التعامل مع الأسماء التي تحتوي على '/'
-        # مثلاً: "الرياض/حي الربيع" -> "الربيع"
-        if '/' in text:
-            parts = text.split('/')
-            text = parts[-1]  # نأخذ الجزء الأخير
-        
-        # إزالة كلمة "حي" أو "الحي" أو "حى" أو "الحى"
-        text = re.sub(r'(حي|الحي|حى|الحى|District|dist|Dist)\s*', '', text, flags=re.IGNORECASE)
-        
-        # إزالة المسافات الزائدة
-        text = re.sub(r'\s+', ' ', text).strip()
-        
-        # تحويل إلى lowercase لتوحيد الكتابة (مهم جداً للتحليل)
-        text = text.lower()
-        
-        return text if text else 'غير محدد'
-    
-    return district_series.apply(clean_single)
-
-
 def load_government_data(selected_city: Optional[str] = None, 
                         selected_property_type: Optional[str] = None) -> pd.DataFrame:
     """
@@ -230,6 +194,7 @@ def load_government_data(selected_city: Optional[str] = None,
     - city: المدينة
     - district: الحي الأصلي
     - property_type: نوع العقار الموحد
+    - property_subtype: نوع العقار الفرعي (شقة/فيلا/تاون هاوس/غير سكني)
     - date: التاريخ
     - units: عدد الوحدات
     """
@@ -245,7 +210,7 @@ def load_government_data(selected_city: Optional[str] = None,
         
         print(f"📂 جاري قراءة الملف: {DATA_PATH}")
         
-        # التعديل 1 — دعم CSV و Excel
+        # دعم CSV و Excel
         if DATA_PATH.suffix.lower() == ".xlsx":
             df = pd.read_excel(DATA_PATH)
         else:
@@ -275,7 +240,7 @@ def load_government_data(selected_city: Optional[str] = None,
         # السعر (مع الفلترة الذكية)
         normalized_df['price'] = clean_price(df[column_mapping['price']])
         
-        # ✅ التعديل الأول: إصلاح الأسعار الفارغة باستخدام المتوسط
+        # إصلاح الأسعار الفارغة باستخدام المتوسط
         median_price = normalized_df['price'].median()
         if pd.isna(median_price):
             median_price = 500000
@@ -283,10 +248,9 @@ def load_government_data(selected_city: Optional[str] = None,
         
         # المساحة
         if 'area' in column_mapping:
-            # ✅ التعديل الثاني: إصلاح المساحات الفارغة ومنع الصفرية
             normalized_df['area'] = pd.to_numeric(df[column_mapping['area']], errors='coerce')
             
-            # ✅ التصحيح 2: حساب متوسط المساحة من القيم الموجبة فقط
+            # حساب متوسط المساحة من القيم الموجبة فقط
             median_area = normalized_df.loc[normalized_df['area'] > 0, 'area'].median()
             if pd.isna(median_area):
                 median_area = 120
@@ -299,7 +263,6 @@ def load_government_data(selected_city: Optional[str] = None,
         
         # المدينة
         if 'city' in column_mapping:
-            # التعديل 2 — تنظيف اسم المدينة
             normalized_df['city'] = df[column_mapping['city']].astype(str).str.strip()
             # تنظيف اسم المدينة
             normalized_df['city'] = normalized_df['city'].str.replace("منطقة", "", regex=False)
@@ -309,7 +272,7 @@ def load_government_data(selected_city: Optional[str] = None,
         else:
             normalized_df['city'] = 'غير محدد'
         
-        # ✅ التعديل الرابع: استخدام district مباشرة بدون clean
+        # الحي - استخدام district مباشرة بدون clean
         if 'district' in column_mapping:
             normalized_df['district'] = df[column_mapping['district']].astype(str).str.strip()
         else:
@@ -318,7 +281,6 @@ def load_government_data(selected_city: Optional[str] = None,
         # التاريخ
         if 'date' in column_mapping:
             normalized_df['date'] = pd.to_datetime(df[column_mapping['date']], errors='coerce')
-            # ✅ الملاحظة 1: استخدام ffill() بدلاً من fillna(method="ffill")
             normalized_df['date'] = normalized_df['date'].ffill()
         else:
             normalized_df['date'] = None
@@ -342,31 +304,56 @@ def load_government_data(selected_city: Optional[str] = None,
         # 4️⃣ تنظيف البيانات
         # ======================
         
-        # ✅ التعديل الثالث: تم حذف جزء حذف الصفقات نهائياً
-        
         # تعبئة القيم الناقصة
         normalized_df['units'] = normalized_df['units'].fillna(1)
         
-        # ✅ التعديل الخامس: حساب سعر المتر بعد إصلاح القيم
+        # حساب سعر المتر
         normalized_df['price_per_sqm'] = normalized_df['price'] / normalized_df['area']
         
-        # ✅ التحسين: تحويل سعر المتر إلى عدد صحيح (Int64) بدلاً من float
-        # هذا أفضل للتحليل والعرض
-        # أولاً: التأكد من أن جميع القيم رقمية
+        # ✅ تعديل مهم: استخدام clip بدلاً من حذف الصفقات
+        # هذا يحافظ على جميع الصفقات مع تصحيح القيم الشاذة
+        normalized_df['price_per_sqm'] = normalized_df['price_per_sqm'].clip(500, 200000)
+        
+        # تحويل سعر المتر إلى عدد صحيح
         normalized_df['price_per_sqm'] = pd.to_numeric(
             normalized_df['price_per_sqm'], 
             errors="coerce"
         )
-        # ثانياً: إزالة القيم اللانهائية (inf, -inf)
         normalized_df['price_per_sqm'] = normalized_df['price_per_sqm'].replace(
             [float("inf"), float("-inf")], 
             pd.NA
         )
-        # ثالثاً: التقريب والتحويل إلى Int64
         normalized_df['price_per_sqm'] = (
             normalized_df['price_per_sqm']
             .round(0)
-            .astype("Int64")  # Int64 يتعامل مع القيم الفارغة (NaN)
+            .astype("Int64")
+        )
+        
+        # =====================================
+        # ✅ تصنيف نوع العقار الفرعي (شقة / فيلا / تاون هاوس)
+        # يطبق فقط على العقارات السكنية
+        # =====================================
+        def classify_property_subtype(area, property_type):
+            # إذا لم يكن العقار سكني، نصنفه كـ "غير سكني"
+            if property_type != "سكني":
+                return "غير سكني"
+            
+            if pd.isna(area):
+                return "غير محدد"
+            
+            # شقة
+            if area < 180:
+                return "شقة"
+            # تاون هاوس
+            elif area < 350:
+                return "تاون هاوس"
+            # فيلا
+            else:
+                return "فيلا"
+        
+        normalized_df["property_subtype"] = normalized_df.apply(
+            lambda row: classify_property_subtype(row["area"], row["property_type"]), 
+            axis=1
         )
         
         # ======================
@@ -375,7 +362,6 @@ def load_government_data(selected_city: Optional[str] = None,
         
         # فلترة المدينة
         if selected_city and selected_city != 'الكل':
-            # التعديل 4 — تحسين فلترة المدينة
             city_mask = normalized_df['city'].astype(str).str.strip().str.contains(
                 selected_city.strip(), case=False, na=False
             )
@@ -397,6 +383,7 @@ def load_government_data(selected_city: Optional[str] = None,
         print(f"  🏙️  المدن: {normalized_df['city'].nunique()}")
         print(f"  🏘️  الأحياء: {normalized_df['district'].nunique()}")
         print(f"  🏠  أنواع العقارات: {normalized_df['property_type'].unique().tolist()}")
+        print(f"  🏢  أنواع العقارات الفرعية: {normalized_df['property_subtype'].unique().tolist()}")
         
         # إحصائيات الأسعار
         if len(normalized_df) > 0:
@@ -404,6 +391,12 @@ def load_government_data(selected_city: Optional[str] = None,
             print(f"  📏 متوسط سعر المتر: {normalized_df['price_per_sqm'].mean():,.0f} ريال")
             print(f"  📐 إجمالي الصفقات المحتفظ بها: {len(normalized_df):,} صفقة")
             print(f"  🔢 نوع بيانات سعر المتر: {normalized_df['price_per_sqm'].dtype}")
+            
+            # إحصائيات أنواع العقارات الفرعية
+            subtype_counts = normalized_df['property_subtype'].value_counts()
+            print(f"  📊 توزيع أنواع العقارات الفرعية:")
+            for subtype, count in subtype_counts.items():
+                print(f"     - {subtype}: {count:,} صفقة ({count/len(normalized_df)*100:.1f}%)")
         
         if 'date' in normalized_df.columns and normalized_df['date'].notna().any():
             min_date = normalized_df['date'].min()
@@ -425,7 +418,7 @@ def load_government_data(selected_city: Optional[str] = None,
         print("🔥 ERROR IN GOVERNMENT DATA PROVIDER")
         import traceback
         traceback.print_exc()
-        raise e  # 👈 هذا السهم مهم - نرفع الخطأ بدلاً من إخفائه
+        raise e
 
 
 # =========================================
@@ -442,7 +435,7 @@ if __name__ == "__main__":
     
     if not df.empty:
         print("\n🔍 عينة من البيانات النهائية:")
-        display_cols = ['price', 'area', 'price_per_sqm', 'district', 'property_type', 'date']
+        display_cols = ['price', 'area', 'price_per_sqm', 'district', 'property_type', 'property_subtype', 'date']
         print(df[display_cols].head(10).to_string())
         
         # ✅ التحقق من أن سعر المتر أصبح عدداً صحيحاً
@@ -468,6 +461,12 @@ if __name__ == "__main__":
         # التحقق من التواريخ
         print(f"✅ عدد التواريخ الصالحة: {df['date'].notna().sum():,}")
         
+        # التحقق من تصنيف العقار الفرعي
+        print(f"\n✅ توزيع أنواع العقارات الفرعية:")
+        subtype_counts = df['property_subtype'].value_counts()
+        for subtype, count in subtype_counts.items():
+            print(f"   - {subtype}: {count:,} صفقة ({count/len(df)*100:.1f}%)")
+        
         # اختبار فلترة الرياض
         print("\n🏙️  اختبار 2: فلترة مدينة الرياض")
         riyadh_df = load_government_data(selected_city='الرياض')
@@ -480,7 +479,11 @@ if __name__ == "__main__":
         residential_df = load_government_data(selected_property_type='سكني')
         if not residential_df.empty:
             print(f"   ✅ عدد الصفقات السكنية: {len(residential_df):,}")
+            print(f"   📊 توزيع أنواع العقارات السكنية:")
+            subtype_counts = residential_df['property_subtype'].value_counts()
+            for subtype, count in subtype_counts.items():
+                print(f"      - {subtype}: {count:,} صفقة")
         
         print("\n" + "=" * 60)
-        print("✅✅✅ النظام جاهز بالكامل - تم الاحتفاظ بجميع الصفقات")
+        print("✅✅✅ النظام جاهز بالكامل - تم إغلاق government_data_provider.py نهائياً")
         print("=" * 60)
