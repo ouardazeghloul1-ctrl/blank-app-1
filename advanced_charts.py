@@ -55,11 +55,26 @@ class AdvancedCharts:
         df = df.copy()
         threshold = df[column].quantile(quantile)
         return df[df[column] < threshold]
+    
+    def _filter_price_per_sqm(self, df):
+        """
+        فلتر القيم الشاذة لسعر المتر
+        """
+        if df is None or df.empty:
+            return df
+        
+        df = df.copy()
+        if "price_per_sqm" in df.columns:
+            # ✅ التعديل الأخير: فلتر القيم الشاذة (500 - 200,000 ريال)
+            df = df[(df["price_per_sqm"] > 500) & (df["price_per_sqm"] < 200000)]
+        
+        return df
 
     def _normalize_market_columns(self, df):
         """
         توحيد أعمدة market_data_core مع محرك الرسومات - نسخة مضمونة 100%
         مع إزالة الأعمدة المكررة
+        ✅ تم تعديلها للاحتفاظ بـ property_type
         """
         if df is None or df.empty:
             return df
@@ -82,6 +97,9 @@ class AdvancedCharts:
             "تاريخ الصفقة": "date",
             "تاريخ البيع": "date",
             "تاريخ التسجيل": "date",
+            
+            "نوع العقار": "property_type",
+            "تصنيف العقار": "property_type",
         }
 
         # إعادة التسمية
@@ -90,8 +108,8 @@ class AdvancedCharts:
         # إزالة الأعمدة المكررة بعد إعادة التسمية
         df = df.loc[:, ~df.columns.duplicated()]
 
-        # الاحتفاظ فقط بالعقد النهائي
-        required = ["price", "area", "district", "date"]
+        # الاحتفاظ فقط بالعقد النهائي (مع إضافة property_type)
+        required = ["price", "area", "district", "date", "property_type"]
         existing = [c for c in required if c in df.columns]
 
         return df[existing]
@@ -202,6 +220,9 @@ class AdvancedCharts:
         tmp["price"] = self._numeric(tmp["price"])
         tmp["area"] = self._numeric(tmp["area"])
         tmp["price_per_sqm"] = tmp["price"] / tmp["area"]
+        
+        # ✅ فلتر القيم الشاذة لسعر المتر
+        tmp = self._filter_price_per_sqm(tmp)
 
         tmp = tmp.dropna(subset=["price_per_sqm", district_col])
 
@@ -274,7 +295,8 @@ class AdvancedCharts:
         tmp = tmp.dropna(subset=["date", "price"])
         tmp = tmp.sort_values("date")  # الترتيب صحيح لأن التاريخ نصي
 
-        if len(tmp) < 5:
+        # ✅ التعديل: خفض الحد الأدنى من 5 إلى 2 صفقات
+        if len(tmp) < 2:
             return None
 
         fig = go.Figure()
@@ -344,7 +366,8 @@ class AdvancedCharts:
             return None
 
         p = self._numeric(df["price"]).dropna()
-        if len(p) < 10:
+        # ✅ التعديل: خفض الحد الأدنى من 10 إلى 3 صفقات
+        if len(p) < 3:
             return None
 
         hist_y, hist_x = np.histogram(p, bins=30, density=True)
@@ -418,7 +441,8 @@ class AdvancedCharts:
         tmp["area"] = self._numeric(tmp["area"])
         tmp = tmp.dropna(subset=["price", "area"])
 
-        if len(tmp) < 5:
+        # ✅ التعديل: خفض الحد الأدنى من 5 إلى 2 صفقات
+        if len(tmp) < 2:
             return None
 
         fig = go.Figure()
@@ -613,7 +637,8 @@ class AdvancedCharts:
         tmp["area"] = self._numeric(tmp["area"])
         tmp = tmp.dropna(subset=["price", "area"])
 
-        if len(tmp) < 5:
+        # ✅ التعديل: خفض الحد الأدنى من 5 إلى 2 صفقات
+        if len(tmp) < 2:
             return None
 
         avg_price = tmp["price"].mean()
@@ -695,7 +720,8 @@ class AdvancedCharts:
         tmp["area"] = self._numeric(tmp["area"])
         tmp = tmp.dropna(subset=["price", "area"])
 
-        if len(tmp) < 5:
+        # ✅ التعديل: خفض الحد الأدنى من 5 إلى 2 صفقات
+        if len(tmp) < 2:
             return None
 
         price_per_sqm = (tmp["price"] / tmp["area"]).mean()
@@ -770,7 +796,8 @@ class AdvancedCharts:
             return None
 
         p = self._numeric(df["price"]).dropna()
-        if len(p) < 10:
+        # ✅ التعديل: خفض الحد الأدنى من 10 إلى 3 صفقات
+        if len(p) < 3:
             return None
 
         hist_y, hist_x = np.histogram(p, bins=20, density=True)
@@ -912,12 +939,15 @@ class AdvancedCharts:
         if df.empty:
             return None
 
-        # حساب سعر المتر مع التأكد من عدم وجود مساحة صفرية
-        df = df[df["area"] > 0]
+        # ✅ التأكد من أن المساحة والسعر موجبين
+        df = df[(df["area"] > 0) & (df["price"] > 0)]
         if df.empty:
             return None
             
         df["price_per_sqm"] = df["price"] / df["area"]
+        
+        # ✅ فلتر القيم الشاذة لسعر المتر
+        df = df[(df["price_per_sqm"] > 500) & (df["price_per_sqm"] < 200000)]
 
         # تحويل التاريخ (التاريخ ميلادي)
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
@@ -969,12 +999,15 @@ class AdvancedCharts:
 
         df = df.copy()
         
-        # حساب سعر المتر مع التأكد من عدم وجود مساحة صفرية
-        df = df[df["area"] > 0]
+        # ✅ التأكد من أن المساحة والسعر موجبين
+        df = df[(df["area"] > 0) & (df["price"] > 0)]
         if df.empty:
             return None
             
         df["price_per_sqm"] = df["price"] / df["area"]
+        
+        # ✅ فلتر القيم الشاذة لسعر المتر
+        df = df[(df["price_per_sqm"] > 500) & (df["price_per_sqm"] < 200000)]
 
         # إذا لم يتم تحديد أحياء، نأخذ أشهر 5 أحياء
         if districts is None:
@@ -1084,7 +1117,8 @@ class AdvancedCharts:
 
         prices = pd.to_numeric(df["price"], errors="coerce").dropna()
 
-        if len(prices) < 5:
+        # ✅ الملاحظة الأولى: خفض الحد الأدنى من 5 إلى 3 صفقات
+        if len(prices) < 3:
             return None
 
         fig = px.histogram(
@@ -1131,6 +1165,10 @@ class AdvancedCharts:
             .size()
             .reset_index(name="transactions")
         )
+        
+        # ✅ الملاحظة الثانية: التأكد من وجود بيانات
+        if len(analysis) < 1:
+            return None
 
         fig = px.pie(
             analysis,
