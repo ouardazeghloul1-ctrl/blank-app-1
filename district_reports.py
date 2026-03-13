@@ -31,14 +31,20 @@ def show_district_reports(df_raw):
     # =========================================
     city_data["price"] = pd.to_numeric(city_data["price"], errors="coerce")
     city_data["area"] = pd.to_numeric(city_data["area"], errors="coerce")
-    city_data = city_data.dropna(subset=["price"])
+    
+    # ✅ التعديل 2: حذف الصفوف التي ليس بها price أو area معاً
+    city_data = city_data.dropna(subset=["price", "area"])
     
     # -------- المرحلة 4: استخراج الأحياء النشطة فقط (5 صفقات فأكثر) --------
     district_col = "district_clean" if "district_clean" in city_data.columns else "district"
     
-    # حساب عدد الصفقات لكل حي
+    # ✅ التعديل 1: تنظيف اسم الحي قبل حساب عدد الصفقات
     district_counts = (
         city_data[district_col]
+        .astype(str)
+        .str.split("/")
+        .str[-1]
+        .str.strip()
         .value_counts()
         .sort_values(ascending=False)
     )
@@ -69,9 +75,6 @@ def show_district_reports(df_raw):
         )
 
         # -------- المرحلة 7: فلترة البيانات حسب الحي ونوع العقار --------
-        # =========================================
-        # ✅ التعديل النهائي: تنظيف اسم الحي أثناء الفلترة أيضاً
-        # =========================================
         # أولاً: فلترة الحي فقط - مع تنظيف الاسم من المدينة
         district_data = city_data[
             city_data[district_col]
@@ -93,6 +96,9 @@ def show_district_reports(df_raw):
             district_data = district_data[district_data["property_type"] == "تجاري"]
         elif property_type == "أرض":
             district_data = district_data[district_data["property_type"] == "أرض"]
+
+        # ✅ للاختبار: عرض عدد الصفقات بعد الفلترة
+        st.write("عدد الصفقات بعد الفلترة:", len(district_data))
 
         # التحقق من وجود بيانات
         if district_data.empty:
@@ -183,7 +189,7 @@ def show_district_reports(df_raw):
                         
                         # =========================================
                         # تجهيز بيانات الأحياء المجاورة
-                        # ✅ تعديل فلترة الأحياء المجاورة أيضاً
+                        # استخدام الأحياء النشطة فقط وأول 10 أحياء فقط
                         # =========================================
                         nearby_districts = []
                         for d in districts[:10]:  # استخدام أول 10 أحياء فقط
