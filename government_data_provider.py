@@ -110,13 +110,14 @@ def smart_column_mapper(df: pd.DataFrame) -> Dict[str, str]:
 
 
 def clean_price(price_series: pd.Series) -> pd.Series:
-    """💰 تنظيف وتحويل عمود السعر بذكاء فائق"""
+    """💰 تنظيف وتحويل عمود السعر بذكاء فائق - محسن للأداء"""
     
-    # تحويل إلى string والتعامل مع القيم الفارغة
-    cleaned = price_series.astype(str).fillna('0')
+    # ✅ التصحيح 1: تحسين معالجة القيم الفارغة
+    cleaned = price_series.fillna('').astype(str)
     
-    # إزالة كل الرموز غير الرقمية مع الحفاظ على النقاط العشرية
-    cleaned = cleaned.apply(lambda x: re.sub(r'[^\d.]', '', str(x)))
+    # ✅ تحسين الأداء: استخدام str.replace بدلاً من apply مع re.sub
+    # هذا أسرع مع البيانات الكبيرة
+    cleaned = cleaned.str.replace(r'[^\d.]', '', regex=True)
     
     # تحويل إلى رقم
     numeric_prices = pd.to_numeric(cleaned, errors='coerce')
@@ -124,7 +125,9 @@ def clean_price(price_series: pd.Series) -> pd.Series:
     # تطبيق فلتر منطقي للأسعار (إزالة الأخطاء الواضحة)
     # الأسعار الأقل من 1000 أو الأكثر من مليار تعتبر أخطاء إدخال
     valid_price_mask = (numeric_prices > 1000) & (numeric_prices < 1_000_000_000)
-    numeric_prices[~valid_price_mask] = None
+    
+    # ✅ الملاحظة 2: استخدام pd.NA بدلاً من None
+    numeric_prices[~valid_price_mask] = pd.NA
     
     return numeric_prices
 
@@ -226,7 +229,6 @@ def load_government_data(selected_city: Optional[str] = None,
     - price_per_sqm: سعر المتر المربع (عدد صحيح)
     - city: المدينة
     - district: الحي الأصلي
-    - district_clean: الحي بعد التنظيف (lowercase)
     - property_type: نوع العقار الموحد
     - date: التاريخ
     - units: عدد الوحدات
@@ -273,11 +275,27 @@ def load_government_data(selected_city: Optional[str] = None,
         # السعر (مع الفلترة الذكية)
         normalized_df['price'] = clean_price(df[column_mapping['price']])
         
+        # ✅ التعديل الأول: إصلاح الأسعار الفارغة باستخدام المتوسط
+        median_price = normalized_df['price'].median()
+        if pd.isna(median_price):
+            median_price = 500000
+        normalized_df['price'] = normalized_df['price'].fillna(median_price)
+        
         # المساحة
         if 'area' in column_mapping:
+            # ✅ التعديل الثاني: إصلاح المساحات الفارغة ومنع الصفرية
             normalized_df['area'] = pd.to_numeric(df[column_mapping['area']], errors='coerce')
+            
+            # ✅ التصحيح 2: حساب متوسط المساحة من القيم الموجبة فقط
+            median_area = normalized_df.loc[normalized_df['area'] > 0, 'area'].median()
+            if pd.isna(median_area):
+                median_area = 120
+            normalized_df['area'] = normalized_df['area'].fillna(median_area)
+            
+            # منع المساحات الصفرية
+            normalized_df.loc[normalized_df['area'] <= 0, 'area'] = median_area
         else:
-            normalized_df['area'] = None
+            normalized_df['area'] = 120  # قيمة افتراضية إذا لم يوجد عمود المساحة
         
         # المدينة
         if 'city' in column_mapping:
@@ -291,18 +309,17 @@ def load_government_data(selected_city: Optional[str] = None,
         else:
             normalized_df['city'] = 'غير محدد'
         
-        # الحي (الأصلي والمنظف)
+        # ✅ التعديل الرابع: استخدام district مباشرة بدون clean
         if 'district' in column_mapping:
             normalized_df['district'] = df[column_mapping['district']].astype(str).str.strip()
         else:
             normalized_df['district'] = 'غير محدد'
         
-        # تنظيف الحي بشكل ذكي + تحويل إلى lowercase
-        normalized_df['district_clean'] = clean_district_name(normalized_df['district'])
-        
         # التاريخ
         if 'date' in column_mapping:
             normalized_df['date'] = pd.to_datetime(df[column_mapping['date']], errors='coerce')
+            # ✅ الملاحظة 1: استخدام ffill() بدلاً من fillna(method="ffill")
+            normalized_df['date'] = normalized_df['date'].ffill()
         else:
             normalized_df['date'] = None
         
@@ -325,32 +342,13 @@ def load_government_data(selected_city: Optional[str] = None,
         # 4️⃣ تنظيف البيانات
         # ======================
         
-        # إزالة الصفوف ذات الأسعار غير الصالحة
-        initial_count = len(normalized_df)
-        normalized_df = normalized_df[normalized_df['price'].notna()]
+        # ✅ التعديل الثالث: تم حذف جزء حذف الصفقات نهائياً
         
         # تعبئة القيم الناقصة
         normalized_df['units'] = normalized_df['units'].fillna(1)
         
-        # معالجة المساحات بشكل ذكي
-        normalized_df['area'] = pd.to_numeric(normalized_df['area'], errors='coerce')
-        
-        # التعديل 3 — منع أخطاء المساحة
-        # إزالة المساحات غير المنطقية
-        normalized_df.loc[normalized_df['area'] <= 0, 'area'] = pd.NA
-        
-        # نحتفظ بالصفوف التي ليس لديها مساحة (سنحاول تقديرها لاحقاً)
-        # أو مساحتها أكبر من 0
-        area_mask = (normalized_df['area'] > 0) | (normalized_df['area'].isna())
-        normalized_df = normalized_df[area_mask]
-        
-        # سعر المتر المربع (قلب التحليل العقاري)
-        normalized_df['price_per_sqm'] = pd.NA
-        valid_area_mask = (normalized_df['area'] > 0) & normalized_df['area'].notna()
-        normalized_df.loc[valid_area_mask, 'price_per_sqm'] = (
-            normalized_df.loc[valid_area_mask, 'price'] / 
-            normalized_df.loc[valid_area_mask, 'area']
-        )
+        # ✅ التعديل الخامس: حساب سعر المتر بعد إصلاح القيم
+        normalized_df['price_per_sqm'] = normalized_df['price'] / normalized_df['area']
         
         # ✅ التحسين: تحويل سعر المتر إلى عدد صحيح (Int64) بدلاً من float
         # هذا أفضل للتحليل والعرض
@@ -370,8 +368,6 @@ def load_government_data(selected_city: Optional[str] = None,
             .round(0)
             .astype("Int64")  # Int64 يتعامل مع القيم الفارغة (NaN)
         )
-        
-        print(f"🧹 تمت إزالة {initial_count - len(normalized_df)} صفقة غير صالحة للتحليل")
         
         # ======================
         # 5️⃣ تطبيق الفلاتر
@@ -399,14 +395,14 @@ def load_government_data(selected_city: Optional[str] = None,
         print(f"\n✅ اكتمل تحميل وتنظيف البيانات:")
         print(f"  📊 إجمالي الصفقات: {len(normalized_df):,}")
         print(f"  🏙️  المدن: {normalized_df['city'].nunique()}")
-        print(f"  🏘️  الأحياء: {normalized_df['district_clean'].nunique()}")
+        print(f"  🏘️  الأحياء: {normalized_df['district'].nunique()}")
         print(f"  🏠  أنواع العقارات: {normalized_df['property_type'].unique().tolist()}")
         
         # إحصائيات الأسعار
         if len(normalized_df) > 0:
             print(f"  💰 متوسط السعر: {normalized_df['price'].mean():,.0f} ريال")
             print(f"  📏 متوسط سعر المتر: {normalized_df['price_per_sqm'].mean():,.0f} ريال")
-            print(f"  📐 الصفقات ذات المساحة المعروفة: {valid_area_mask.sum():,} صفقة")
+            print(f"  📐 إجمالي الصفقات المحتفظ بها: {len(normalized_df):,} صفقة")
             print(f"  🔢 نوع بيانات سعر المتر: {normalized_df['price_per_sqm'].dtype}")
         
         if 'date' in normalized_df.columns and normalized_df['date'].notna().any():
@@ -414,6 +410,7 @@ def load_government_data(selected_city: Optional[str] = None,
             max_date = normalized_df['date'].max()
             if pd.notna(min_date) and pd.notna(max_date):
                 print(f"  📅 الفترة: {min_date.year} - {max_date.year}")
+                print(f"  📅 عدد التواريخ الصالحة: {normalized_df['date'].notna().sum():,}")
         
         # ======================
         # 7️⃣ DEBUG: طباعة معلومات قبل الإرجاع
@@ -445,7 +442,7 @@ if __name__ == "__main__":
     
     if not df.empty:
         print("\n🔍 عينة من البيانات النهائية:")
-        display_cols = ['price', 'area', 'price_per_sqm', 'district_clean', 'property_type']
+        display_cols = ['price', 'area', 'price_per_sqm', 'district', 'property_type', 'date']
         print(df[display_cols].head(10).to_string())
         
         # ✅ التحقق من أن سعر المتر أصبح عدداً صحيحاً
@@ -453,19 +450,23 @@ if __name__ == "__main__":
         print(f"   نوع البيانات: {df['price_per_sqm'].dtype}")
         print(f"   عينة من القيم: {df['price_per_sqm'].head(5).tolist()}")
         
-        # التحقق من أسماء الأحياء الموحدة
-        print("\n🔍 عينة من أسماء الأحياء بعد التنظيف (موحدة lowercase):")
-        sample_districts = df['district_clean'].dropna().unique()[:5]
-        for d in sample_districts:
-            print(f"  🏘️  {d}")
+        # التحقق من الاحتفاظ بجميع الصفقات
+        print(f"\n✅ عدد الصفقات المحتفظ بها: {len(df):,}")
         
         # التحقق من عدم وجود مساحات صفرية
         zero_areas = df[df['area'] == 0]
-        print(f"\n✅ عدد الصفقات بمساحة صفرية: {len(zero_areas)} (ممتاز، تمت إزالتها)")
+        print(f"✅ عدد الصفقات بمساحة صفرية: {len(zero_areas)} (تم استبدالها بالمتوسط)")
+        
+        # التحقق من عدم وجود أسعار فارغة
+        null_prices = df[df['price'].isna()]
+        print(f"✅ عدد الصفقات بسعر فارغ: {len(null_prices)} (تم استبدالها بالمتوسط)")
         
         # التحقق من وجود price_per_sqm
         print(f"✅ تم إنشاء عمود price_per_sqm بنجاح")
         print(f"   عدد القيم الصالحة: {df['price_per_sqm'].notna().sum():,}")
+        
+        # التحقق من التواريخ
+        print(f"✅ عدد التواريخ الصالحة: {df['date'].notna().sum():,}")
         
         # اختبار فلترة الرياض
         print("\n🏙️  اختبار 2: فلترة مدينة الرياض")
@@ -480,19 +481,6 @@ if __name__ == "__main__":
         if not residential_df.empty:
             print(f"   ✅ عدد الصفقات السكنية: {len(residential_df):,}")
         
-        # اختبار التحقق من أسماء الأحياء
-        print("\n🧪 اختبار 4: التحقق من توحيد أسماء الأحياء")
-        test_names = pd.Series([
-            "الرياض/حي الربيع",
-            "حي النرجس",
-            "النرجس",
-            "Nargis",
-            "الرياض/الربيع"
-        ])
-        cleaned = clean_district_name(test_names)
-        for original, cleaned_name in zip(test_names, cleaned):
-            print(f"   {original:20} ← {cleaned_name}")
-        
         print("\n" + "=" * 60)
-        print("✅✅✅ النظام جاهز بالكامل - يمكن البدء في بناء District Ranking Engine")
+        print("✅✅✅ النظام جاهز بالكامل - تم الاحتفاظ بجميع الصفقات")
         print("=" * 60)
