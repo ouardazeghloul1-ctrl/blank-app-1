@@ -462,20 +462,18 @@ def generate_district_narrative(
                 real_data["district"].astype(str).str.strip().str.lower() == str(district).strip().lower() 
             ].copy()
             
-            # إزالة الصفقات المكررة
-            df = df.drop_duplicates()
+            # ✅ تحسين الأداء 1: استخدام subset محدد لـ drop_duplicates
+            df = df.drop_duplicates(subset=["price", "area", "date"])
             
             # ✅ تحسين معالجة التاريخ
             df["date"] = pd.to_datetime(df["date"], errors="coerce")
-            
-            # ✅ تحسين إضافي: إزالة التواريخ الفارغة
             df = df[df["date"].notna()]
             
             # عدم حذف الصفقات بسبب المساحة + تجنب القسمة على صفر
             df = df[df["area"].notna() & (df["area"] != 0)]
             
-            # حساب سعر المتر
-            df["price_per_sqm"] = df["price"] / df["area"]
+            # ✅ تحسين الأداء 2: حماية من القسمة على صفر
+            df["price_per_sqm"] = df["price"] / df["area"].replace(0, 1)
             
             # معالجة القيم اللانهائية الناتجة عن القسمة على صفر
             df["price_per_sqm"] = df["price_per_sqm"].replace(
