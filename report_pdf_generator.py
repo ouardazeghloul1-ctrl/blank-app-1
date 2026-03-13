@@ -45,7 +45,7 @@ def ar(text):
 
 
 # =========================
-# Clean bullets & junk
+# Clean bullets & junk - معدلة لدعم الرموز المالية
 # =========================
 def clean_text(text: str) -> str:
     if not text:
@@ -54,7 +54,8 @@ def clean_text(text: str) -> str:
     cleaned = []
     for ch in text:
         cat = unicodedata.category(ch)
-        if cat.startswith(("L", "N", "P", "Z")):
+        # ✅ إضافة "S" للرموز المالية ($, %, ▲, ▼)
+        if cat.startswith(("L", "N", "P", "Z", "S")):
             cleaned.append(ch)
 
     text = "".join(cleaned)
@@ -64,12 +65,13 @@ def clean_text(text: str) -> str:
 
 
 # =========================
-# Plotly → Image - معدلة مع دعم kaleido
+# Plotly → Image - معدلة مع دعم kaleido وحذف الملفات المؤقتة
 # =========================
 def plotly_to_image(fig, width_cm, height_cm):
     if fig is None:
         return None
 
+    tmp = None
     try:
         img_bytes = fig.to_image(
             format="png",
@@ -82,10 +84,20 @@ def plotly_to_image(fig, width_cm, height_cm):
         tmp.write(img_bytes)
         tmp.close()
 
-        return Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
+        img_obj = Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
+        
+        # ✅ إضافة معلومات الملف المؤقت للكائن ليتم حذفه لاحقاً
+        img_obj._temp_file = tmp.name
+        
+        return img_obj
 
     except Exception as e:
         print("Chart export error:", e)
+        if tmp and os.path.exists(tmp.name):
+            try:
+                os.unlink(tmp.name)
+            except:
+                pass
         return None
 
 
@@ -205,6 +217,17 @@ def create_pdf_from_content(
         spaceAfter=14,
     )
 
+    # ✅ إضافة نمط للإحصائيات الرئيسية
+    stats_style = ParagraphStyle(
+        "StatsStyle",
+        parent=body,
+        fontSize=16,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#1B5E20"),
+        spaceBefore=20,
+        spaceAfter=20,
+    )
+
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
 
     story = []
@@ -212,6 +235,18 @@ def create_pdf_from_content(
     # COVER
     story.append(Spacer(1, 7.5 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
+    
+    # ✅ إضافة إجمالي عدد الصفقات من user_info إذا كان متوفراً
+    if user_info and "total_transactions" in user_info:
+        total = user_info["total_transactions"]
+        # ✅ تحسين: استخدام is not None بدلاً من if total
+        if total is not None:
+            story.append(Spacer(1, 1 * cm))
+            story.append(Paragraph(
+                ar(f"إجمالي الصفقات المستخدمة في التحليل: {total:,} صفقة"),
+                stats_style
+            ))
+    
     story.append(PageBreak())
 
     # =========================
@@ -301,6 +336,9 @@ def create_pdf_from_content(
     chapter_index = 0
     chart_cursor = {}
     first_chapter_processed = False
+    
+    # ✅ قائمة لتتبع الملفات المؤقتة لحذفها لاحقاً
+    temp_files = []
 
     lines_iter = iter(content_text.split("\n"))
 
@@ -339,6 +377,10 @@ def create_pdf_from_content(
             if cursor < len(charts):
                 img = plotly_to_image(charts[cursor], 16.8, 8.8)
                 if img:
+                    # ✅ حفظ مسار الملف المؤقت لحذفه لاحقاً
+                    if hasattr(img, '_temp_file'):
+                        temp_files.append(img._temp_file)
+                    
                     story.append(Spacer(1, 1.6 * cm))
                     story.append(img)
                     story.append(Spacer(1, 0.6 * cm))
@@ -360,6 +402,10 @@ def create_pdf_from_content(
                 img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
                                        9.5 if is_indicator else 8.8)
                 if img:
+                    # ✅ حفظ مسار الملف المؤقت لحذفه لاحقاً
+                    if hasattr(img, '_temp_file'):
+                        temp_files.append(img._temp_file)
+                    
                     story.append(Spacer(1, 1.8 * cm if is_indicator else 1.4 * cm))
                     story.append(img)
                     story.append(Spacer(1, 0.6 * cm))
@@ -370,4 +416,15 @@ def create_pdf_from_content(
 
     doc.build(story)
     buffer.seek(0)
+    
+    # ✅ حذف جميع الملفات المؤقتة بعد بناء PDF
+    # ✅ تحسين: استخدام set() لمنع تكرار حذف نفس الملف
+    unique_temp_files = list(set(temp_files))
+    for temp_file in unique_temp_files:
+        try:
+            if os.path.exists(temp_file):
+                os.unlink(temp_file)
+        except Exception as e:
+            print(f"Error deleting temp file {temp_file}: {e}")
+    
     return buffer
