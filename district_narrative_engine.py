@@ -246,7 +246,8 @@ def generate_district_narrative(
 
 هذا يضع الحي {rank_label} مقارنة ببقية الأحياء داخل المدينة.
 """
-    except:
+    except Exception as e:
+        print("Narrative Engine Error (Ranking):", e)
         ranking_section = ""
 
     if ranking_section:
@@ -456,23 +457,27 @@ def generate_district_narrative(
         if real_data is not None and hasattr(real_data, "columns") and "date" in real_data.columns:
             import pandas as pd
             
-            # ✅ التعديل الأول: مقارنة الأحياء بطريقة ذكية (تجاهل حالة الأحرف والمسافات)
+            # مقارنة الأحياء بطريقة ذكية (تجاهل حالة الأحرف والمسافات)
             df = real_data[ 
                 real_data["district"].astype(str).str.strip().str.lower() == str(district).strip().lower() 
             ].copy()
             
-            # ✅ إزالة الصفقات المكررة
+            # إزالة الصفقات المكررة
             df = df.drop_duplicates()
             
-            df["date"] = pd.to_datetime(df["date"])
+            # ✅ تحسين معالجة التاريخ
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
             
-            # ✅ التعديل الثاني: عدم حذف الصفقات بسبب المساحة + تجنب القسمة على صفر
+            # ✅ تحسين إضافي: إزالة التواريخ الفارغة
+            df = df[df["date"].notna()]
+            
+            # عدم حذف الصفقات بسبب المساحة + تجنب القسمة على صفر
             df = df[df["area"].notna() & (df["area"] != 0)]
             
             # حساب سعر المتر
             df["price_per_sqm"] = df["price"] / df["area"]
             
-            # ✅ التعديل الثالث: معالجة القيم اللانهائية الناتجة عن القسمة على صفر
+            # معالجة القيم اللانهائية الناتجة عن القسمة على صفر
             df["price_per_sqm"] = df["price_per_sqm"].replace(
                 [float("inf"), float("-inf")], 
                 None
@@ -483,10 +488,8 @@ def generate_district_narrative(
             
             df = df.sort_values("date")
             
-            # سطر اختبار DEBUG (يمكنك إضافته مؤقتاً للتحقق)
-            # print("DEBUG trend rows:", len(df))
-            
-            if len(df) >= 4:  # نحتاج على الأقل 4 صفقات لتحليل ذي معنى
+            # ✅ التعديل: خفض الحد الأدنى من 4 إلى 2 صفقات
+            if len(df) >= 2:
                 midpoint = len(df) // 2
                 first_period = df.iloc[:midpoint]
                 last_period = df.iloc[midpoint:]
@@ -494,7 +497,12 @@ def generate_district_narrative(
                 if not first_period.empty and not last_period.empty:
                     first_price = first_period["price_per_sqm"].mean()
                     last_price = last_period["price_per_sqm"].mean()
-                    change = ((last_price - first_price) / first_price) * 100
+                    
+                    # ✅ التعديل: منع القسمة على صفر في حساب التغير
+                    if first_price > 0:
+                        change = ((last_price - first_price) / first_price) * 100
+                    else:
+                        change = 0
                     
                     if change > 3:
                         trend = "اتجاه صعودي"
@@ -514,7 +522,8 @@ def generate_district_narrative(
 هذا يشير إلى {trend} في السوق العقاري داخل الحي
 خلال الفترة المتاحة من البيانات.
 """
-    except:
+    except Exception as e:
+        print("Narrative Engine Error (Trend):", e)
         trend_section = ""
 
     if trend_section:
@@ -596,7 +605,8 @@ Investment Intelligence Score
 - نشاط السوق العقاري وعدد الصفقات
 - مؤشر قوة الحي الاستثماري (DPI)
 """
-    except:
+    except Exception as e:
+        print("Narrative Engine Error (Score):", e)
         score_section = ""
 
     if score_section:
@@ -634,7 +644,8 @@ Investment Intelligence Score
 
 القيم المرتفعة تعني سوقاً نشطاً وسرعة أكبر في تنفيذ الصفقات.
 """
-    except:
+    except Exception as e:
+        print("Narrative Engine Error (Heat):", e)
         heat_section = ""
 
     if heat_section:
@@ -701,7 +712,8 @@ Investment Intelligence Score
 ماذا يفعل المستثمر الذكي في هذا الحي
 {smart_text}
 """
-    except:
+    except Exception as e:
+        print("Narrative Engine Error (Smart):", e)
         smart_section = ""
 
     if smart_section:
@@ -743,7 +755,8 @@ Investment Intelligence Score
 السيناريو المتحفظ:
 {pessimistic}
 """
-    except:
+    except Exception as e:
+        print("Narrative Engine Error (Future):", e)
         future_section = ""
 
     if future_section:
@@ -780,7 +793,8 @@ Investment Intelligence Score
 
 {horizon_text}
 """
-    except:
+    except Exception as e:
+        print("Narrative Engine Error (Horizon):", e)
         horizon_section = ""
 
     if horizon_section:
@@ -870,7 +884,8 @@ Investment Intelligence Score
 
     final_report = ""
     for i, section in enumerate(report_sections, start=1):
-        final_report += f"الفصل {i}\n\n"
+        final_report += f"الفصل {i}\n"
+        final_report += "-" * 40 + "\n\n"
         final_report += section.strip()
         final_report += "\n\n"
 
