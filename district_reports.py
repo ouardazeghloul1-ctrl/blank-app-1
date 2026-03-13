@@ -59,16 +59,18 @@ def show_district_reports(df_raw):
         district = st.selectbox("اختر الحي", districts, key="district_select")
 
         # -------- المرحلة 6: اختيار نوع العقار --------
+        # ✅ التعديل 1: إضافة "تاون هاوس" إلى القائمة
         property_type = st.selectbox(
             "نوع العقار", 
-            ["شقة", "فيلا", "أرض", "محل تجاري"],
+            ["شقة", "تاون هاوس", "فيلا", "أرض", "محل تجاري"],
             key="property_type_select"
         )
 
         # -------- المرحلة 7: فلترة البيانات حسب الحي ونوع العقار --------
-        # تحويل نوع العقار إلى التصنيف الداخلي
+        # ✅ التعديل 2: تحديث خريطة التصنيف لتشمل تاون هاوس
         property_map = {
             "شقة": "سكني",
+            "تاون هاوس": "سكني",
             "فيلا": "سكني",
             "محل تجاري": "تجاري",
             "أرض": "أرض"
@@ -76,12 +78,26 @@ def show_district_reports(df_raw):
         property_category = property_map.get(property_type, "سكني")
         
         # =========================================
-        # تحسين فلترة نوع العقار باستخدام contains للتعامل مع الاختلافات في التسمية
+        # ✅ التعديل 3: تحسين فلترة نوع العقار باستخدام property_subtype
         # =========================================
+        # أولاً: فلترة الحي فقط
         district_data = city_data[
-            (city_data[district_col].astype(str).str.strip().str.lower() == district.lower()) & 
-            (city_data["property_type"].astype(str).str.contains(property_category, case=False, na=False))
+            city_data[district_col].astype(str).str.strip().str.lower() == district.lower()
         ].copy()
+        
+        # ثانياً: فلترة نوع العقار
+        if property_type in ["شقة", "تاون هاوس", "فيلا"]:
+            district_data = district_data[
+                district_data["property_subtype"] == property_type
+            ]
+        elif property_type == "محل تجاري":
+            district_data = district_data[
+                district_data["property_type"] == "تجاري"
+            ]
+        elif property_type == "أرض":
+            district_data = district_data[
+                district_data["property_type"] == "أرض"
+            ]
 
         # التحقق من وجود بيانات
         if district_data.empty:
@@ -100,7 +116,11 @@ def show_district_reports(df_raw):
                 st.metric("متوسط السعر", f"{avg_price:,.0f} ريال" if pd.notna(avg_price) else "غير متوفر")
             
             with col_metrics3:
-                valid_area = district_data[district_data["area"] > 0]
+                # ✅ التعديل 4: منع مشكلة infinity في حساب سعر المتر
+                valid_area = district_data[
+                    (district_data["area"].notna()) & 
+                    (district_data["area"] > 0)
+                ]
                 if not valid_area.empty:
                     avg_price_per_sqm = (valid_area["price"] / valid_area["area"]).mean()
                     st.metric("متوسط سعر المتر", f"{avg_price_per_sqm:,.0f} ريال")
@@ -124,16 +144,22 @@ def show_district_reports(df_raw):
                         if "district_clean" in district_data.columns and "district" not in district_data.columns:
                             district_data = district_data.rename(columns={"district_clean": "district"})
                         
-                        # حساب مؤشرات الحي مع التأكد من عدم وجود قيم صفرية في المساحة
-                        valid_area_data = district_data[district_data["area"] > 0]
+                        # ✅ التعديل 5: منع مشكلة infinity في حساب مؤشرات الحي
+                        valid_area_data = district_data[
+                            (district_data["area"].notna()) & 
+                            (district_data["area"] > 0)
+                        ]
                         
                         if not valid_area_data.empty:
                             district_price_per_m2 = (valid_area_data["price"] / valid_area_data["area"]).mean()
                         else:
                             district_price_per_m2 = 0
                         
-                        # استخدام البيانات المحولة للمدينة
-                        valid_city_area = city_data[city_data["area"] > 0]
+                        # ✅ التعديل 6: منع مشكلة infinity في حساب مؤشرات المدينة
+                        valid_city_area = city_data[
+                            (city_data["area"].notna()) & 
+                            (city_data["area"] > 0)
+                        ]
                         if not valid_city_area.empty:
                             city_price_per_m2 = (valid_city_area["price"] / valid_city_area["area"]).mean()
                         else:
@@ -169,9 +195,19 @@ def show_district_reports(df_raw):
                         nearby_districts = []
                         for d in districts[:10]:  # استخدام أول 10 أحياء فقط لتجنب طول التقرير
                             if d != district and pd.notna(d) and d not in ["غير محدد", ""]:
-                                d_data = city_data[city_data[district_col] == d]
+                                # ✅ التعديل 7: تحسين فلترة الأحياء المجاورة
+                                d_data = city_data[
+                                    city_data[district_col]
+                                    .astype(str)
+                                    .str.strip()
+                                    .str.lower() == d.lower()
+                                ]
                                 if not d_data.empty and "area" in d_data.columns:
-                                    d_valid_area = d_data[d_data["area"] > 0]
+                                    # ✅ منع مشكلة infinity في الأحياء المجاورة أيضاً
+                                    d_valid_area = d_data[
+                                        (d_data["area"].notna()) & 
+                                        (d_data["area"] > 0)
+                                    ]
                                     if not d_valid_area.empty:
                                         avg_price = (d_valid_area["price"] / d_valid_area["area"]).mean()
                                         nearby_districts.append({
@@ -216,10 +252,10 @@ def show_district_reports(df_raw):
                             real_data=city_data  # ✅ تم التصحيح: city_data بدلاً من district_data
                         )
                         
-                        # توليد الرسومات البيانية للحي
+                        # ✅ التعديل 4: استخدام city_data بدلاً من district_data للرسومات
                         charts_engine = AdvancedCharts()
                         raw_charts = charts_engine.generate_all_district_charts(
-                            district_data,
+                            city_data,  # ✅ استخدام city_data وليس district_data
                             district
                         )
                         
@@ -255,6 +291,8 @@ def show_district_reports(df_raw):
                         print(f"🚀 DEBUG: تم إنشاء تقرير الحي بنجاح")
                         print(f"📊 DEBUG: DPI Score: {dpi_score}")
                         print(f"📊 DEBUG: عدد الأحياء المجاورة: {len(nearby_districts)}")
+                        print(f"📊 DEBUG: نوع العقار المحدد: {property_type}")
+                        print(f"📊 DEBUG: عدد الصفقات للحي {district}: {len(district_data)}")
                         
                         st.success("✅ تم إنشاء تقرير الحي بنجاح!")
                         st.balloons()
