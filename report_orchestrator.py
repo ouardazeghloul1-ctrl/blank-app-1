@@ -79,12 +79,14 @@ def unify_columns_for_charts(df):
         if pd.isna(median_area):
             median_area = 120
         df["area"] = df["area"].fillna(median_area)
+        # ✅ التعديل 2: منع القيم الصفرية أو السالبة للمساحة (يمنع Infinity)
+        df.loc[df["area"] <= 0, "area"] = median_area
     
-    # ✅ إصلاح التواريخ (بشكل أكثر أماناً)
+    # ✅ التعديل 3: إصلاح التواريخ بطريقة متوافقة مع الإصدارات الحديثة
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
-        # استخدام fillna مع method بدلاً من ffill() المباشر
-        df["date"] = df["date"].fillna(method="ffill")
+        # استخدام ffill() بدلاً من fillna(method="ffill") (الأسلوب الحديث)
+        df["date"] = df["date"].ffill()
         # إذا بقي أي NaN، استخدم التاريخ الأكثر تكراراً
         if df["date"].isna().any():
             most_common_date = df["date"].mode()[0] if not df["date"].mode().empty else pd.Timestamp.now()
@@ -214,8 +216,13 @@ def build_report_story(user_info, provided_dataframe=None):
                     f"تقرير سوق {property_subtype} في {user_info.get('city', '')}"
                 )
         
-        # توحيد الأعمدة (يتضمن الآن التعديل 1)
+        # توحيد الأعمدة (يتضمن الآن التعديلات 1, 2, 3)
         df = unify_columns_for_charts(df)
+        
+        # ✅ التعديل 3 (الجديد): إضافة price_per_sqm مع حماية إضافية
+        df["price_per_sqm"] = df["price"] / df["area"].replace(0, 1)
+        print(f"📊 تم إضافة price_per_sqm للتحليلات")
+        
         print(f"📊 الأعمدة بعد التوحيد: {list(df.columns)}")
         print(f"📊 إجمالي الصفقات بعد الإصلاح: {len(df)}")
     else:
@@ -230,9 +237,11 @@ def build_report_story(user_info, provided_dataframe=None):
             district_column = "district_clean" if "district_clean" in df.columns else "district"
             print(f"🏆 حساب ترتيب الأحياء باستخدام: {district_column}")
             
-            district_ranking = rank_districts(df)
+            # ✅ التعديل 4: استخدام نسخة من dataframe لمنع SettingWithCopyWarning
+            district_ranking = rank_districts(df.copy())
             if district_ranking is not None and not district_ranking.empty:
-                top_districts = get_top_districts(df, top_n=5)
+                # ✅ التعديل 1 (الجديد): استخدام copy() هنا أيضاً
+                top_districts = get_top_districts(df.copy(), top_n=5)
                 
                 if top_districts is not None and not top_districts.empty:
                     display_district_col = "district_clean" if "district_clean" in top_districts.columns else "district" if "district" in top_districts.columns else None
@@ -304,7 +313,7 @@ def build_report_story(user_info, provided_dataframe=None):
                 selected_district
             )
             
-            # ✅ التعديل 2: منع انهيار تحليل الحي
+            # ✅ التعديل 2 (من الدالة الأصلية): منع انهيار تحليل الحي
             if not district_metrics:
                 district_metrics = {
                     "district_name": selected_district,
@@ -339,10 +348,12 @@ def build_report_story(user_info, provided_dataframe=None):
     if df is not None and not df.empty:
         if "date" in df.columns and "price" in df.columns:
             try:
-                tmp = df.copy()
-                tmp = tmp.dropna(subset=["date", "price"])
+                # ✅ التعديل 2 (الجديد): نسخ العمودين فقط بدلاً من نسخ الـ DataFrame كاملاً
+                tmp = df[["date", "price"]].dropna().copy()
                 
-                tmp["month"] = tmp["date"].astype(str).str[:7]
+                # ✅ التعديل 1 (الصغير): استخدام dt.to_period مباشرة دون إعادة to_datetime
+                # لأن date تم تحويلها مسبقاً في unify_columns_for_charts
+                tmp["month"] = tmp["date"].dt.to_period("M")
                 monthly_avg = (
                     tmp.groupby("month")["price"]
                     .mean()
@@ -359,17 +370,25 @@ def build_report_story(user_info, provided_dataframe=None):
                     )
                 else:
                     growth_value = 0.01
-            except Exception:
+            except Exception as e:
+                print("⚠️ خطأ في حساب النمو:", e)
                 growth_value = 0.01
         else:
             growth_value = 0.01
         
         growth_rate = round(float(growth_value * 100), 2)
         
+        # ✅ تحسين مؤشر السيولة ليكون أكثر واقعية مع 44k صفقة
+        # استخدام معامل 500 بدلاً من 20 لجعل المؤشر يتدرج بشكل أفضل
+        # 44,000 / 500 = 88 (أقل من 100) -> يعطي مجالاً للنمو
+        liquidity_base = len(df) / 500
+        liquidity_score = int(min(100, max(30, liquidity_base)))
+        
         market_data = {
-            "مؤشر_السيولة": int(min(100, max(30, len(df) * 2))),
+            "مؤشر_السيولة": liquidity_score,
             "معدل_النمو_الشهري": growth_rate
         }
+        print(f"📊 مؤشر السيولة المحسوب: {market_data['مؤشر_السيولة']} (بناءً على {len(df)} صفقة)")
     else:
         market_data = {
             "مؤشر_السيولة": 50,
@@ -424,13 +443,15 @@ def build_report_story(user_info, provided_dataframe=None):
         package=package_key
     )
 
-    # ✅ التعديل 3: إصلاح المساحة قبل الرسومات
+    # ✅ التعديل 3 (من الدالة السابقة): إصلاح المساحة قبل الرسومات
     if df is not None and not df.empty and "area" in df.columns:
         median_area = df["area"].median()
         if pd.isna(median_area):
             median_area = 120
         df.loc[df["area"] <= 0, "area"] = median_area
-        print("🛠️ تم إصلاح المساحة الصفرية قبل الرسومات")
+        # تحديث price_per_sqm بعد إصلاح المساحة مع حماية إضافية
+        df["price_per_sqm"] = df["price"] / df["area"].replace(0, 1)
+        print("🛠️ تم إصلاح المساحة الصفرية قبل الرسومات وتحديث price_per_sqm")
 
     # توليد الرسومات
     print("🚀 بدء توليد الرسومات...")
