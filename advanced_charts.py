@@ -1,4 +1,3 @@
-# advanced_charts.py - الإصدار النهائي المعدّل مع تحسينات بصرية
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -933,8 +932,9 @@ class AdvancedCharts:
 
         df = df.copy()
 
-        # فلترة الحي
-        df = df[df["district"] == district]
+        # ✅ تعديل رئيسي: استخدام contains بدلاً من المساواة التامة
+        # للتعامل مع تنسيق "الرياض / الصفاء"
+        df = df[df["district"].astype(str).str.contains(district, case=False, na=False)]
 
         if df.empty:
             return None
@@ -1013,11 +1013,16 @@ class AdvancedCharts:
         if districts is None:
             districts = df["district"].value_counts().head(5).index.tolist()
 
-        df = df[df["district"].isin(districts)]
+        # ✅ تعديل رئيسي: استخدام contains للتعامل مع تنسيق الأحياء
+        district_mask = False
+        for d in districts:
+            district_mask |= df["district"].astype(str).str.contains(d, case=False, na=False)
+        df = df[district_mask]
 
         if df.empty:
             return None
 
+        # إعادة حساب المتوسطات بعد الفلترة
         comparison = (
             df.groupby("district")["price_per_sqm"]
             .mean()
@@ -1058,7 +1063,9 @@ class AdvancedCharts:
             return None
 
         df = df.copy()
-        df = df[df["district"] == district]
+        
+        # ✅ تعديل رئيسي: استخدام contains بدلاً من المساواة التامة
+        df = df[df["district"].astype(str).str.contains(district, case=False, na=False)]
 
         if df.empty:
             return None
@@ -1110,7 +1117,9 @@ class AdvancedCharts:
             return None
 
         df = df.copy()
-        df = df[df["district"] == district]
+        
+        # ✅ تعديل رئيسي: استخدام contains بدلاً من المساواة التامة
+        df = df[df["district"].astype(str).str.contains(district, case=False, na=False)]
 
         if df.empty:
             return None
@@ -1155,7 +1164,9 @@ class AdvancedCharts:
             return None
 
         df = df.copy()
-        df = df[df["district"] == district]
+        
+        # ✅ تعديل رئيسي: استخدام contains بدلاً من المساواة التامة
+        df = df[df["district"].astype(str).str.contains(district, case=False, na=False)]
 
         if df.empty:
             return None
