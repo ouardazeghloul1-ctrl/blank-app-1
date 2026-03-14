@@ -1202,18 +1202,12 @@ class AdvancedCharts:
 
         df = df.copy()
         
-        # ✅ إزالة القيم الفارغة والسعر غير الموجب
-        df = df.dropna(subset=["price"])
-        df = df[df["price"] > 0]
-        if df.empty:
-            return None
-            
         # ✅ تحويل districts إذا كانت list of dicts
         if districts is not None and len(districts) > 0 and isinstance(districts[0], dict):
             districts = [d.get("district_name", "") for d in districts if d.get("district_name")]
             # إزالة القيم الفارغة
             districts = [d for d in districts if d]
-        
+            
         # معالجة المساحة - لا نستخدم القيمة 1 أبداً
         area_median = df["area"].median()
         if pd.isna(area_median):
@@ -1473,10 +1467,6 @@ class AdvancedCharts:
         # توحيد الأعمدة أولاً
         df = self._normalize_market_columns(df)
         df = self._ensure_numeric_core(df)
-        
-        # ✅ إزالة القيم الفارغة والسعر غير الموجب
-        df = df.dropna(subset=["price"])
-        df = df[df["price"] > 0]
 
         charts = {}
 
