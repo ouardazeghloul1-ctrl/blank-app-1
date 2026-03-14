@@ -217,7 +217,8 @@ def load_government_data(selected_city: Optional[str] = None,
         if DATA_PATH.suffix.lower() == ".xlsx":
             df = pd.read_excel(DATA_PATH)
         else:
-            df = pd.read_csv(DATA_PATH, encoding="utf-8-sig", low_memory=False)
+            # ملفات الوزارة مفصولة بفاصلة منقوطة ;
+            df = pd.read_csv(DATA_PATH, encoding="utf-8-sig", sep=";", low_memory=False)
         if df.empty:
             print("⚠️ الملف فارغ - لا توجد بيانات للتحليل")
             return df
@@ -271,12 +272,12 @@ def load_government_data(selected_city: Optional[str] = None,
         else:
             normalized_df['city'] = 'غير محدد'
         
-        # الحي - استخراج اسم الحي فقط مع تنظيف أفضل للمسافات
+        # الحي - استخراج اسم الحي فقط مع توحيد المسافات بشكل ذكي
         if 'district' in column_mapping:
             normalized_df['district'] = (
                 df[column_mapping['district']]
                 .astype(str)
-                .str.replace(" ", "", regex=False)  # إزالة جميع المسافات أولاً
+                .str.replace(r"\s+", " ", regex=True)  # توحيد المسافات المتعددة إلى مسافة واحدة
                 .str.split("/")
                 .str[-1]
                 .str.strip()
