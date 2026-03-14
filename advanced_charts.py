@@ -204,11 +204,11 @@ class AdvancedCharts:
             return "neutral"
 
     # =====================
-    # CHAPTER 1 – PRICE PER SQM BY DISTRICT
+    # CHAPTER 4 – PRICE PER SQM BY DISTRICT
     # =====================
-    def ch1_price_per_sqm_by_district(self, df):
+    def ch4_price_per_sqm_by_district(self, df):
         """
-        رسم 1: متوسط سعر المتر حسب المنطقة
+        رسم 4: متوسط سعر المتر حسب المنطقة
         """
         district_col = "district" if "district" in df.columns else None
 
@@ -302,11 +302,11 @@ class AdvancedCharts:
         return self._safe(fig, height=540)
 
     # =====================
-    # CHAPTER 2 – TIME FLOW
+    # CHAPTER 7 – TIME FLOW
     # =====================
-    def ch2_price_stream(self, df):
+    def ch7_price_stream(self, df):
         """
-        رسم 2: تدفق الأسعار عبر الزمن
+        رسم 7: تدفق الأسعار عبر الزمن
         """
         if not self._has_columns(df, ["date", "price"]):
             return None
@@ -404,11 +404,11 @@ class AdvancedCharts:
         return self._safe(fig, height=540)
 
     # =====================
-    # CHAPTER 3 – PRICE DISTRIBUTION
+    # CHAPTER 11 – PRICE DISTRIBUTION
     # =====================
-    def rhythm_price_curve(self, df, title):
+    def ch11_rhythm_price_curve(self, df, title):
         """
-        رسم 3: توزيع الأسعار
+        رسم 11: توزيع الأسعار
         """
         if "price" not in df.columns:
             return None
@@ -494,11 +494,11 @@ class AdvancedCharts:
         return self._safe(fig, height=540)
 
     # =====================
-    # CHAPTER 4 – MARKET RELATION
+    # CHAPTER 16 – MARKET RELATION
     # =====================
-    def ch4_price_vs_area_flow(self, df):
+    def ch16_price_vs_area_flow(self, df):
         """
-        رسم 4: تحليل العلاقة بين المساحة والسعر
+        رسم 16: تحليل العلاقة بين المساحة والسعر
         """
         if not self._has_columns(df, ["price", "area"]):
             return None
@@ -622,11 +622,11 @@ class AdvancedCharts:
         return self._safe(fig, height=540)
 
     # =====================
-    # CHAPTER 5 – MARKET INDICATORS
+    # CHAPTER 21 – MARKET INDICATORS
     # =====================
-    def ch5_market_indicators_bar(self, df):
+    def ch21_market_indicators_bar(self, df):
         """
-        رسم 5: لوحة قراءة السوق
+        رسم 21: لوحة قراءة السوق
         """
         if not self._has_columns(df, ["price", "area"]):
             return None
@@ -742,308 +742,13 @@ class AdvancedCharts:
         return self._safe(fig, height=540)
 
     # =====================
-    # CHAPTER 6 – GAUGE
-    # =====================
-    def ch6_gauge(self, df):
-        """
-        رسم 6: مؤشر القرار التنفيذي
-        """
-        if not self._has_columns(df, ["price", "area"]):
-            return None
-
-        tmp = df.copy()
-        tmp["price"] = self._numeric(tmp["price"])
-        tmp["area"] = self._numeric(tmp["area"])
-        
-        # التحقق من وجود بيانات صالحة
-        if tmp["price"].notna().sum() == 0:
-            return None
-        
-        # ✅ تعبئة القيم الفارغة بالوسيط بدلاً من حذفها
-        price_median = tmp["price"].median()
-        if pd.isna(price_median):
-            price_median = tmp["price"].dropna().mean()
-            if pd.isna(price_median):
-                return None
-        
-        # معالجة المساحة - لا نستخدم القيمة 1 أبداً
-        area_median = tmp["area"].median()
-        if pd.isna(area_median):
-            area_median = tmp["area"].dropna().mean()
-            if pd.isna(area_median):
-                return None  # لا يمكن تقدير المساحة
-        
-        tmp["price"] = tmp["price"].fillna(price_median)
-        tmp["area"] = tmp["area"].fillna(area_median)
-
-        # ✅ تعديل الشرط: حتى لو صفقة واحدة نرسم
-        if len(tmp) < 1:
-            return None
-
-        avg_price = tmp["price"].mean()
-        avg_area = tmp["area"].mean()
-        
-        # حساب سعر المتر فقط للصفقات الصالحة
-        valid_mask = (tmp["area"] > 0)
-        if valid_mask.sum() > 0:
-            price_per_sqm = (tmp.loc[valid_mask, "price"] / tmp.loc[valid_mask, "area"]).mean()
-            score = min(100, max(0, (price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM) * 100 if self.DECISION_BASE_PRICE_PER_SQM > 0 else 50))
-        else:
-            score = 50
-
-        fig = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=score,
-            domain={'x': [0, 1], 'y': [0, 1]},
-            gauge={
-                'axis': {'range': [0, 100], 'visible': False},
-                'bar': {'color': self.COLORS["gold"], 'thickness': 0.25},
-                'steps': [
-                    {'range': [0, 40], 'color': self.COLORS["lavender"]},
-                    {'range': [40, 70], 'color': self.COLORS["mint"]},
-                    {'range': [70, 100], 'color': self.COLORS["emerald"]},
-                ],
-                'threshold': {
-                    'line': {'color': "red", 'width': 4},
-                    'thickness': 0.75,
-                    'value': 90
-                }
-            }
-        ))
-
-        fig.update_layout(
-            title=TERMS['DCI']['label'],
-            height=540,
-            margin=dict(l=30, r=30, t=90, b=90),
-            font=dict(family="Tajawal", size=18)
-        )
-
-        # إضافة القراءة التنفيذية
-        if score >= 70:
-            state = "positive"
-        elif score <= 40:
-            state = "negative"
-        else:
-            state = "neutral"
-
-        caption = self._executive_caption(
-            state,
-            positive=f"{TERMS['DECISION']['label']}: {TERMS['DCI']['display']} مرتفع يدعم التحرك المنضبط وفق {TERMS['PROTOCOL']['label']}.",
-            neutral=f"{TERMS['DECISION']['label']}: {TERMS['DCI']['display']} متوسط، يتطلب انتقاءً صارماً دون توسع.",
-            negative=f"{TERMS['DECISION']['label']}: {TERMS['DCI']['display']} منخفض، البيئة الحالية تتطلب حذراً وانتقاءً أشد."
-        )
-
-        fig.add_annotation(
-            text=caption,
-            xref="paper",
-            yref="paper",
-            x=0.5,
-            y=-0.18,
-            showarrow=False,
-            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
-            align="center"
-        )
-
-        return self._safe(fig, height=540)
-
-    # =====================
-    # CHAPTER 7 – EXECUTIVE DECISION BAR
-    # =====================
-    def ch7_executive_decision_bar(self, df):
-        """
-        رسم 7: قرار الاستثمار التنفيذي (بديل Donut الملخص التنفيذي)
-        """
-        if not self._has_columns(df, ["price", "area"]):
-            return None
-
-        tmp = df.copy()
-        tmp["price"] = self._numeric(tmp["price"])
-        tmp["area"] = self._numeric(tmp["area"])
-        
-        # التحقق من وجود بيانات صالحة
-        if tmp["price"].notna().sum() == 0:
-            return None
-        
-        # ✅ تعبئة القيم الفارغة بالوسيط بدلاً من حذفها
-        price_median = tmp["price"].median()
-        if pd.isna(price_median):
-            price_median = tmp["price"].dropna().mean()
-            if pd.isna(price_median):
-                return None
-        
-        # معالجة المساحة - لا نستخدم القيمة 1 أبداً
-        area_median = tmp["area"].median()
-        if pd.isna(area_median):
-            area_median = tmp["area"].dropna().mean()
-            if pd.isna(area_median):
-                return None  # لا يمكن تقدير المساحة
-        
-        tmp["price"] = tmp["price"].fillna(price_median)
-        tmp["area"] = tmp["area"].fillna(area_median)
-
-        # ✅ تعديل الشرط: حتى لو صفقة واحدة نرسم
-        if len(tmp) < 1:
-            return None
-
-        # حساب سعر المتر فقط للصفقات الصالحة
-        valid_mask = (tmp["area"] > 0)
-        if valid_mask.sum() > 0:
-            price_per_sqm = (tmp.loc[valid_mask, "price"] / tmp.loc[valid_mask, "area"]).mean()
-            score = min(100, max(0, (price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM) * 100 if self.DECISION_BASE_PRICE_PER_SQM > 0 else 50))
-        else:
-            score = 50
-
-        fig = go.Figure()
-
-        fig.add_trace(
-            go.Bar(
-                x=[score],
-                y=[TERMS['DECISION']['label']],
-                orientation="h",
-                marker=dict(color=self.COLORS["emerald"]),
-                text=[f"{score:.0f}"],
-                textposition="outside"
-            )
-        )
-
-        fig.update_layout(
-            title=TERMS['DECISION']['label'],
-            xaxis=dict(
-                range=[0, 100],
-                visible=False
-            ),
-            yaxis=dict(
-                visible=False
-            ),
-            showlegend=False,
-            height=360,
-            margin=dict(l=70, r=70, t=90, b=90),
-            font=dict(family="Tajawal")
-        )
-
-        # إضافة القراءة التنفيذية
-        if score >= 70:
-            state = "positive"
-        elif score <= 40:
-            state = "negative"
-        else:
-            state = "neutral"
-
-        caption = self._executive_caption(
-            state,
-            positive=f"{TERMS['DECISION']['label']}: درجة قرار عالية، تفعيل الاستراتيجية طويل المدى.",
-            neutral=f"{TERMS['DECISION']['label']}: درجة قرار متوسطة، {TERMS['PROTOCOL']['label']} صارم.",
-            negative=f"{TERMS['DECISION']['label']}: درجة قرار منخفضة، تعليق أي توسع أفقي."
-        )
-
-        fig.add_annotation(
-            text=caption,
-            xref="paper",
-            yref="paper",
-            x=0.5,
-            y=-0.18,
-            showarrow=False,
-            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
-            align="center"
-        )
-
-        return self._safe(fig, height=400)
-
-    # =====================
-    # CHAPTER 8 – FINAL CURVE
-    # =====================
-    def ch8_final_curve(self, df):
-        """
-        رسم 8: المنحنى الختامي - نظرة نهائية
-        """
-        if "price" not in df.columns:
-            return None
-
-        p = self._numeric(df["price"])
-        
-        # التحقق من وجود بيانات صالحة
-        if p.notna().sum() == 0:
-            return None
-        
-        # ✅ تعبئة القيم الفارغة بالوسيط
-        price_median = p.median()
-        if pd.isna(price_median):
-            price_median = p.dropna().mean()
-            if pd.isna(price_median):
-                return None
-        
-        p = p.fillna(price_median)
-        p = p.dropna()
-        
-        # ✅ تعديل الشرط: حتى لو صفقة واحدة نرسم
-        if len(p) < 1:
-            return None
-
-        # إذا كان لدينا صفقة واحدة فقط، ننشئ بيانات افتراضية للتوزيع
-        if len(p) == 1:
-            p = pd.concat([p, p * 1.1, p * 0.9])
-
-        hist_y, hist_x = np.histogram(p, bins=20, density=True)
-        hist_x = (hist_x[:-1] + hist_x[1:]) / 2
-
-        fig = go.Figure()
-
-        fig.add_trace(
-            go.Scatter(
-                x=hist_x,
-                y=hist_y,
-                mode="lines",
-                line=dict(color=self.COLORS["lavender"], width=2),
-                name="التوزيع الختامي",
-                hoverinfo="skip"
-            )
-        )
-
-        fig.update_layout(
-            title="المنحنى الختامي",
-            xaxis_title="نطاق السعر",
-            yaxis_title="",
-        )
-        
-        fig.update_xaxes(tickformat="~s", showgrid=False)
-        fig.update_yaxes(showticklabels=False, showgrid=False)
-
-        # تحديد نطاق المحور X لتحسين المظهر
-        price_threshold = p.quantile(0.99)
-        fig.update_xaxes(range=[0, price_threshold])
-
-        # إضافة القراءة التنفيذية
-        mean_price = p.mean()
-        decision_ratio = mean_price / self.DECISION_BASE_PRICE_PER_SQM if self.DECISION_BASE_PRICE_PER_SQM > 0 else 1
-        state = self._get_decision_state(decision_ratio)
-
-        caption = self._executive_caption(
-            state,
-            positive=f"{TERMS['DECISION']['label']}: المؤشرات الختامية تؤكد صلاحية {TERMS['DECISION']['label']}.",
-            neutral=f"{TERMS['DECISION']['label']}: المؤشرات الختامية متوازنة، لا تعديل على {TERMS['DECISION']['label']}.",
-            negative=f"{TERMS['DECISION']['label']}: المؤشرات الختامية تحذّر، استمرار الانضباط."
-        )
-
-        fig.add_annotation(
-            text=caption,
-            xref="paper",
-            yref="paper",
-            x=0.5,
-            y=-0.18,
-            showarrow=False,
-            font=dict(size=14, family="Tajawal", color=self.COLORS["text"]),
-            align="center"
-        )
-        
-        return self._safe(fig, height=540)
-
-    # =====================
     # ENGINE
     # =====================
     def generate_all_charts(self, df):
         """
         ✅ المحرك النهائي - رسم واحد واضح لكل فصل
         متوافق مع بيانات وزارة العدل
+        يرجع الرسومات بنفس أرقام الفصول في التقرير (4, 7, 11, 16, 21)
         """
         if df is None or df.empty:
             return {}
@@ -1056,49 +761,30 @@ class AdvancedCharts:
             return [x for x in lst if x is not None]
 
         return {
-            # ✅ فصل 1: سعر المتر حسب المنطقة
-            "chapter_1": clean([
-                self.ch1_price_per_sqm_by_district(df),
-            ]),
-
-            # ✅ فصل 2: تدفق الأسعار عبر الزمن (يعمل مع التاريخ الميلادي)
-            "chapter_2": clean([
-                self.ch2_price_stream(df),
-            ]),
-
-            # ✅ فصل 3: توزيع الأسعار
-            "chapter_3": clean([
-                self.rhythm_price_curve(df, "توزيع الأسعار"),
-            ]),
-
-            # ✅ فصل 4: العلاقة بين المساحة والسعر
+            # ✅ فصل 4: سعر المتر حسب المنطقة
             "chapter_4": clean([
-                self.ch4_price_vs_area_flow(df),
+                self.ch4_price_per_sqm_by_district(df),
             ]),
 
-            # ✅ فصل 5: لوحة قراءة السوق
-            "chapter_5": clean([
-                self.ch5_market_indicators_bar(df),
-            ]),
-
-            # ✅ فصل 6: مؤشر القرار التنفيذي
-            "chapter_6": clean([
-                self.ch6_gauge(df),
-            ]),
-
-            # ✅ فصل 7: قرار الاستثمار التنفيذي
+            # ✅ فصل 7: تدفق الأسعار عبر الزمن (يعمل مع التاريخ الميلادي)
             "chapter_7": clean([
-                self.ch7_executive_decision_bar(df),
+                self.ch7_price_stream(df),
             ]),
 
-            # ✅ فصل 8: المنحنى الختامي
-            "chapter_8": clean([
-                self.ch8_final_curve(df),
+            # ✅ فصل 11: توزيع الأسعار
+            "chapter_11": clean([
+                self.ch11_rhythm_price_curve(df, "توزيع الأسعار"),
             ]),
 
-            # ❌ الفصول الإضافية فارغة (لنصوص الذكاء الاصطناعي)
-            "chapter_9": [],
-            "chapter_10": [],
+            # ✅ فصل 16: العلاقة بين المساحة والسعر
+            "chapter_16": clean([
+                self.ch16_price_vs_area_flow(df),
+            ]),
+
+            # ✅ فصل 21: لوحة قراءة السوق
+            "chapter_21": clean([
+                self.ch21_market_indicators_bar(df),
+            ]),
         }
 
     # =====================
