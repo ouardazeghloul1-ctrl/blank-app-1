@@ -32,8 +32,12 @@ def show_district_reports(df_raw):
     city_data["price"] = pd.to_numeric(city_data["price"], errors="coerce")
     city_data["area"] = pd.to_numeric(city_data["area"], errors="coerce")
     
-    # ✅ التعديل 2: حذف الصفوف التي ليس بها price أو area معاً
-    city_data = city_data.dropna(subset=["price", "area"])
+    # ✅ التعديل 2: الاحتفاظ بالصفوف التي لها سعر ومساحة صالحة فقط
+    city_data = city_data[
+        (city_data["price"].notna()) & 
+        (city_data["area"].notna()) & 
+        (city_data["area"] > 0)
+    ]
     
     # -------- المرحلة 4: استخراج الأحياء النشطة فقط (5 صفقات فأكثر) --------
     district_col = "district_clean" if "district_clean" in city_data.columns else "district"
@@ -85,17 +89,14 @@ def show_district_reports(df_raw):
             .str.lower() == district.lower()
         ].copy()
         
-        # ثانياً: فلترة نوع العقار حسب التصنيف الصحيح
-        if property_type == "شقة":
-            district_data = district_data[district_data["property_type"] == "سكني"]
-        elif property_type == "فيلا":
-            district_data = district_data[district_data["property_type"] == "سكني"]
-        elif property_type == "تاون هاوس":
-            district_data = district_data[district_data["property_type"] == "سكني"]
-        elif property_type == "محل تجاري":
-            district_data = district_data[district_data["property_type"] == "تجاري"]
-        elif property_type == "أرض":
-            district_data = district_data[district_data["property_type"] == "أرض"]
+        # ثانياً: فلترة نوع العقار - استخدام contains للتعامل مع صيغ متعددة
+        # ✅ التعديل 2: فلترة دقيقة حسب نوع العقار
+        district_data = district_data[
+            district_data["property_type"]
+            .astype(str)
+            .str.strip()
+            .str.contains(property_type, case=False, na=False)
+        ]
 
         # ✅ للاختبار: عرض عدد الصفقات بعد الفلترة
         st.write("عدد الصفقات بعد الفلترة:", len(district_data))
@@ -113,7 +114,8 @@ def show_district_reports(df_raw):
                 st.metric("عدد الصفقات", len(district_data))
             
             with col_metrics2:
-                avg_price = district_data["price"].mean()
+                # ✅ التعديل 1: استخدام median بدلاً من mean
+                avg_price = district_data["price"].median()
                 st.metric("متوسط السعر", f"{avg_price:,.0f} ريال" if pd.notna(avg_price) else "غير متوفر")
             
             with col_metrics3:
@@ -123,8 +125,9 @@ def show_district_reports(df_raw):
                     (district_data["area"] > 0)
                 ]
                 if not valid_area.empty:
-                    avg_price_per_sqm = (valid_area["price"] / valid_area["area"]).mean()
-                    st.metric("متوسط سعر المتر", f"{avg_price_per_sqm:,.0f} ريال")
+                    # ✅ التعديل 3: استخدام median بدلاً من mean
+                    district_price_per_m2 = (valid_area["price"] / valid_area["area"]).median()
+                    st.metric("متوسط سعر المتر", f"{district_price_per_m2:,.0f} ريال")
                 else:
                     st.metric("متوسط سعر المتر", "غير متوفر")
 
@@ -150,7 +153,8 @@ def show_district_reports(df_raw):
                         ]
                         
                         if not valid_area_data.empty:
-                            district_price_per_m2 = (valid_area_data["price"] / valid_area_data["area"]).mean()
+                            # ✅ التعديل 3: استخدام median بدلاً من mean
+                            district_price_per_m2 = (valid_area_data["price"] / valid_area_data["area"]).median()
                         else:
                             district_price_per_m2 = 0
                         
@@ -160,7 +164,8 @@ def show_district_reports(df_raw):
                             (city_data["area"] > 0)
                         ]
                         if not valid_city_area.empty:
-                            city_price_per_m2 = (valid_city_area["price"] / valid_city_area["area"]).mean()
+                            # ✅ التعديل 4: استخدام median بدلاً من mean
+                            city_price_per_m2 = (valid_city_area["price"] / valid_city_area["area"]).median()
                         else:
                             city_price_per_m2 = 0
                         
@@ -210,7 +215,7 @@ def show_district_reports(df_raw):
                                         (d_data["area"] > 0)
                                     ]
                                     if not d_valid_area.empty:
-                                        avg_price = (d_valid_area["price"] / d_valid_area["area"]).mean()
+                                        avg_price = (d_valid_area["price"] / d_valid_area["area"]).median()
                                         nearby_districts.append({
                                             "district_name": d,
                                             "avg_price": avg_price
@@ -240,6 +245,7 @@ def show_district_reports(df_raw):
                         
                         # =========================================
                         # استخدام محرك الأحياء لتوليد النص
+                        # ✅ التعديل 1 (الأهم): استخدام df_raw بدلاً من city_data
                         # =========================================
                         report_text = generate_district_narrative(
                             user_info=user_info,
@@ -247,7 +253,7 @@ def show_district_reports(df_raw):
                             nearby_districts=nearby_districts,
                             dpi_score=dpi_score,
                             market_data=city_data,
-                            real_data=city_data
+                            real_data=df_raw  # تغيير من city_data إلى df_raw
                         )
                         
                         # استخدام city_data للرسومات
