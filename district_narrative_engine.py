@@ -4,6 +4,8 @@
 # محرك التقرير الاستثماري للأحياء
 # =========================================
 
+import pandas as pd
+
 # =========================================
 # Data Schema (أسماء الأعمدة القياسية)
 # =========================================
@@ -75,19 +77,20 @@ def generate_district_narrative(
 
     report_sections = []
     
-    # ملخص تنفيذي
+    # ملخص تنفيذي محسن
     summary_section = f"""
 ملخص تنفيذي
 
 يعرض هذا التقرير تحليلاً لسوق {property_market} في حي {district} بمدينة {city}.
+يعتمد التحليل على {transactions:,} صفقة عقارية تم تسجيلها في السوق خلال الفترة المدروسة.
 
-بلغ متوسط سعر المتر {district_price:,.0f} ريال مقارنة بمتوسط المدينة البالغ {city_price:,.0f} ريال.
-كما سجل الحي {transactions:,} صفقة عقارية خلال الفترة المدروسة، مما يشير إلى مستوى سيولة { "مرتفع" if transactions >= 30 else "جيد" if transactions >= 15 else "متوسط" if transactions >= 8 else "محدود" } في السوق.
+متوسط سعر المتر في الحي يبلغ {district_price:,.0f} ريال، مقارنة بمتوسط المدينة البالغ {city_price:,.0f} ريال.
+هذا يضع الحي ضمن شريحة { "مرتفع السعر" if price_ratio > 1.1 else "متوسط السعر" if price_ratio > 0.9 else "منخفض السعر" } داخل السوق العقاري للمدينة.
 """
     report_sections.append(summary_section)
 
     # =========================================
-    # بطاقة معلومات الحي
+    # بطاقة معلومات السوق
     # =========================================
 
     overview_section = f"""
@@ -121,6 +124,24 @@ def generate_district_narrative(
 """
 
     report_sections.append(overview_section)
+
+    # =========================================
+    # منهجية التحليل (مصدر البيانات)
+    # =========================================
+    data_method_section = f"""
+--------------------------------------------------
+
+منهجية التحليل
+
+يعتمد هذا التقرير على تحليل بيانات الصفقات العقارية الفعلية المسجلة في السوق.
+تم حساب متوسط سعر المتر باستخدام المعادلة التالية:
+سعر المتر = سعر الصفقة ÷ مساحة العقار
+
+ولتقليل تأثير الصفقات الشاذة تم استخدام القيمة الوسيطة (Median) بدلاً من المتوسط الحسابي في بعض المؤشرات.
+
+يعتمد التقرير على {transactions:,} صفقة عقارية داخل حي {district} خلال الفترة المتاحة من البيانات.
+"""
+    report_sections.append(data_method_section)
 
     # =========================================
     # تحليل موقع الحي في السوق
@@ -231,8 +252,6 @@ def generate_district_narrative(
     total = None
     try:
         if real_data is not None and "district" in real_data.columns:
-            import pandas as pd
-            
             # فلترة بيانات المدينة فقط
             df_city = real_data[
                 real_data["district"]
@@ -241,46 +260,51 @@ def generate_district_narrative(
                 .str.startswith(city)
             ].copy()
             
-            # تنظيف أسماء الأحياء
-            df_city["district_clean"] = (
-                df_city["district"]
-                .astype(str)
-                .str.split("/")
-                .str[-1]
-                .str.strip()
-            )
-            
-            # تحويل price إلى أرقام
-            df_city["price"] = pd.to_numeric(df_city["price"], errors="coerce")
-            
-            # تحويل area إلى أرقام وتنظيفها
-            df_city["area"] = pd.to_numeric(df_city["area"], errors="coerce")
-            df_city = df_city[df_city["area"] > 0]
-            
-            # حساب سعر المتر مع حماية من القسمة على صفر
-            df_city["price_sqm"] = df_city["price"] / df_city["area"].replace(0, None)
-            
-            # استخدام median بدلاً من mean لتجنب تأثير الصفقات الشاذة
-            district_prices = df_city.groupby("district_clean")["price_sqm"].median()
-            district_prices = district_prices.sort_values()
-            
-            # الحصول على ترتيب الحي الحالي
-            clean_district = str(district).strip()
-            if clean_district in district_prices.index:
-                rank = list(district_prices.index).index(clean_district) + 1
-                total = len(district_prices)
-                # تصحيح percentile: المرتبة 1 = 100%
-                percentile = ((total - rank + 1) / total) * 100
+            # التأكد من وجود بيانات بعد الفلترة
+            if len(df_city) > 0:
+                # تنظيف أسماء الأحياء
+                df_city["district_clean"] = (
+                    df_city["district"]
+                    .astype(str)
+                    .str.split("/")
+                    .str[-1]
+                    .str.strip()
+                )
                 
-                # ✅ التعديل الصحيح: استخدام >= لأن المرتبة 1 = 100%
-                if percentile >= 80:
-                    label = "ضمن أعلى 20% من الأحياء سعراً في المدينة"
-                elif percentile >= 50:
-                    label = "ضمن الشريحة السعرية المتوسطة"
-                else:
-                    label = "ضمن الشريحة السعرية الاقتصادية"
+                # تحويل price إلى أرقام
+                df_city["price"] = pd.to_numeric(df_city["price"], errors="coerce")
                 
-                price_rank_section = f"""
+                # ✅ تنظيف المساحة قبل حساب سعر المتر
+                df_city["area"] = pd.to_numeric(df_city["area"], errors="coerce")
+                df_city = df_city[df_city["area"] > 0]
+                df_city["price_sqm"] = df_city["price"] / df_city["area"]
+                
+                # ✅ إزالة القيم الفارغة قبل الترتيب
+                df_city = df_city[df_city["price_sqm"].notna()]
+                
+                # استخدام median بدلاً من mean لتجنب تأثير الصفقات الشاذة
+                district_prices = df_city.groupby("district_clean")["price_sqm"].median()
+                # ✅ إزالة الأحياء التي ليس لديها بيانات صالحة
+                district_prices = district_prices.dropna()
+                district_prices = district_prices.sort_values()
+                
+                # الحصول على ترتيب الحي الحالي
+                clean_district = str(district).strip()
+                if clean_district in district_prices.index:
+                    rank = list(district_prices.index).index(clean_district) + 1
+                    total = len(district_prices)
+                    # تصحيح percentile: المرتبة 1 = 100%
+                    percentile = ((total - rank + 1) / total) * 100
+                    
+                    # ✅ التعديل الصحيح: استخدام >= لأن المرتبة 1 = 100%
+                    if percentile >= 80:
+                        label = "ضمن أعلى 20% من الأحياء سعراً في المدينة"
+                    elif percentile >= 50:
+                        label = "ضمن الشريحة السعرية المتوسطة"
+                    else:
+                        label = "ضمن الشريحة السعرية الاقتصادية"
+                    
+                    price_rank_section = f"""
 --------------------------------------------------
 
 ترتيب الحي من حيث الأسعار داخل المدينة
@@ -698,8 +722,6 @@ def generate_district_narrative(
     trend_section = ""
     try:
         if real_data is not None and hasattr(real_data, "columns") and "date" in real_data.columns:
-            import pandas as pd
-            
             # تنظيف اسم الحي أثناء الفلترة
             df = real_data[ 
                 real_data["district"]
@@ -719,28 +741,22 @@ def generate_district_narrative(
             
             # تحويل القيم الرقمية
             df["price"] = pd.to_numeric(df["price"], errors="coerce")
+            
+            # ✅ تنظيف المساحة قبل حساب سعر المتر
             df["area"] = pd.to_numeric(df["area"], errors="coerce")
             df = df[df["area"] > 0]
+            df["price_per_sqm"] = df["price"] / df["area"]
             
-            # تحسين الأداء 2: حماية من القسمة على صفر
-            df["price_per_sqm"] = df["price"] / df["area"].replace(0, None)
-            
-            # معالجة القيم اللانهائية الناتجة عن القسمة على صفر
-            df["price_per_sqm"] = df["price_per_sqm"].replace(
-                [float("inf"), float("-inf")], 
-                None
-            )
-            
-            # إزالة القيم الفارغة بعد المعالجة
+            # ✅ إزالة القيم الفارغة بعد الحساب
             df = df[df["price_per_sqm"].notna()]
             
             df = df.sort_values("date")
             
-            # خفض الحد الأدنى من 4 إلى 2 صفقات
+            # استخدام التقسيم الزمني بدلاً من التقسيم النصفي
             if len(df) >= 2:
-                midpoint = len(df) // 2
-                first_period = df.iloc[:midpoint]
-                last_period = df.iloc[midpoint:]
+                midpoint_date = df["date"].median()
+                first_period = df[df["date"] <= midpoint_date]
+                last_period = df[df["date"] > midpoint_date]
                 
                 if not first_period.empty and not last_period.empty:
                     first_price = first_period["price_per_sqm"].mean()
@@ -783,8 +799,6 @@ def generate_district_narrative(
     cycle_section = ""
     try:
         if real_data is not None and "date" in real_data.columns:
-            import pandas as pd
-            
             df = real_data.copy()
             
             # تنظيف اسم الحي
@@ -807,11 +821,14 @@ def generate_district_narrative(
             
             # تحويل القيم الرقمية
             df["price"] = pd.to_numeric(df["price"], errors="coerce")
+            
+            # ✅ تنظيف المساحة قبل حساب سعر المتر
             df["area"] = pd.to_numeric(df["area"], errors="coerce")
             df = df[df["area"] > 0]
+            df["price_sqm"] = df["price"] / df["area"]
             
-            # حساب سعر المتر مع حماية من القسمة على صفر
-            df["price_sqm"] = df["price"] / df["area"].replace(0, None)
+            # ✅ إزالة القيم الفارغة بعد الحساب
+            df = df[df["price_sqm"].notna()]
             
             # استخراج السنة
             df["year"] = df["date"].dt.year
@@ -1032,14 +1049,13 @@ Investment Grade Rating
     report_sections.append(speed_section)
 
     # =========================================
-    # Market Heat Index
+    # Market Heat Index (محسن)
     # =========================================
 
     heat_section = ""
     try:
-        # حساب مؤشر حرارة السوق
-        # يعتمد على عدد الصفقات ومؤشر DPI
-        heat_score = min(100, int((transactions / 50 * 40) + (dpi_score * 0.6)))
+        # ✅ حساب مؤشر حرارة السوق مع حد أقصى 60 صفقة لمنع التشبع
+        heat_score = min(100, int((min(transactions, 60) / 60 * 50) + (dpi_score * 0.5)))
         
         if heat_score >= 80:
             heat_label = "سوق شديد السخونة"
@@ -1220,6 +1236,49 @@ Investment Grade Rating
         report_sections.append(horizon_section)
 
     # =========================================
+    # Investment Decision (قرار الاستثمار المباشر)
+    # =========================================
+    decision_section = ""
+    try:
+        if price_ratio < 0.9 and transactions >= 20 and dpi_score >= 70:
+            decision = "شراء"
+            reasoning = f"""
+البيانات تشير إلى أن حي {district} يوفر فرصة استثمارية جيدة حالياً.
+السبب الرئيسي:
+• سعر المتر أقل من متوسط المدينة
+• نشاط السوق جيد ({transactions:,} صفقة)
+• مؤشر قوة الحي مرتفع ({dpi_score}/100)
+
+الاستراتيجية المقترحة:
+شراء عقار بسعر قريب أو أقل من متوسط سعر الحي والاحتفاظ به لمدة 3 إلى 5 سنوات.
+"""
+        elif price_ratio > 1.15 and transactions < 20:
+            decision = "الانتظار"
+            reasoning = f"""
+أسعار الحي مرتفعة مقارنة بمتوسط السوق مع نشاط محدود في عدد الصفقات.
+في هذه الحالة قد يكون من الأفضل انتظار فرص شراء بأسعار أفضل.
+"""
+        else:
+            decision = "شراء انتقائي"
+            reasoning = f"""
+السوق في حي {district} متوازن نسبياً.
+يمكن الاستثمار بشرط اختيار عقار بسعر مناسب وموقع جيد داخل الحي.
+"""
+        decision_section = f"""
+--------------------------------------------------
+
+قرار الاستثمار
+
+التوصية الأساسية: {decision}
+
+{reasoning}
+"""
+    except Exception as e:
+        print("Decision Section Error:", e)
+    
+    report_sections.append(decision_section)
+
+    # =========================================
     # الحكم الاستثماري النهائي
     # =========================================
 
@@ -1314,7 +1373,7 @@ Investment Grade Rating
     final_report += """
 --------------------------------------------------
 Warda Intelligence
-تحليل عقاري مبني على بيانات السوق الفعلية
+منصة التحليل الاستثماري العقاري المعتمدة على بيانات الصفقات الفعلية في السوق.
 """
 
     return final_report
