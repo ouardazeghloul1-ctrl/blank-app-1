@@ -57,15 +57,15 @@ class AdvancedCharts:
     
     def _filter_price_per_sqm(self, df):
         """
-        فلتر القيم الشاذة لسعر المتر
+        فلتر القيم الشاذة لسعر المتر - مخفف ليشمل معظم الصفقات
         """
         if df is None or df.empty:
             return df
         
         df = df.copy()
         if "price_per_sqm" in df.columns:
-            # ✅ التعديل الأخير: فلتر القيم الشاذة (500 - 200,000 ريال)
-            df = df[(df["price_per_sqm"] > 500) & (df["price_per_sqm"] < 200000)]
+            # ✅ فلتر مخفف: 100 - 300,000 ريال (يشمل الأراضي والصفقات الكبيرة)
+            df = df[(df["price_per_sqm"] > 100) & (df["price_per_sqm"] < 300000)]
         
         return df
 
@@ -218,14 +218,35 @@ class AdvancedCharts:
         tmp = df.copy()
         tmp["price"] = self._numeric(tmp["price"])
         tmp["area"] = self._numeric(tmp["area"])
+        
+        # التحقق من وجود بيانات صالحة
+        if tmp["price"].notna().sum() == 0:
+            return None
+        
+        # ✅ تعبئة القيم الفارغة بالوسيط بدلاً من حذفها
+        price_median = tmp["price"].median()
+        if pd.isna(price_median):
+            price_median = tmp["price"].dropna().mean()
+            if pd.isna(price_median):
+                return None
+        
+        # معالجة المساحة - لا نستخدم القيمة 1 أبداً
+        area_median = tmp["area"].median()
+        if pd.isna(area_median):
+            area_median = tmp["area"].dropna().mean()
+            if pd.isna(area_median):
+                return None  # لا يمكن تقدير المساحة
+        
+        tmp["price"] = tmp["price"].fillna(price_median)
+        tmp["area"] = tmp["area"].fillna(area_median)
+        
         tmp["price_per_sqm"] = tmp["price"] / tmp["area"]
         
-        # ✅ فلتر القيم الشاذة لسعر المتر
+        # ✅ فلتر القيم الشاذة لسعر المتر - مخفف
         tmp = self._filter_price_per_sqm(tmp)
 
-        tmp = tmp.dropna(subset=["price_per_sqm", district_col])
-
-        if tmp[district_col].nunique() < 2:
+        # ✅ تعديل الشرط: حتى لو صفقة واحدة نرسم
+        if tmp[district_col].nunique() < 1:
             return None
 
         agg = (
@@ -235,6 +256,9 @@ class AdvancedCharts:
             .sort_values(ascending=False)
             .head(10)
         )
+        
+        if agg.empty:
+            return None
 
         fig = go.Figure(
             go.Bar(
@@ -254,7 +278,7 @@ class AdvancedCharts:
 
         # إضافة القراءة التنفيذية
         max_price = agg.max() if not agg.empty else 0
-        decision_ratio = max_price / self.DECISION_BASE_PRICE_PER_SQM
+        decision_ratio = max_price / self.DECISION_BASE_PRICE_PER_SQM if self.DECISION_BASE_PRICE_PER_SQM > 0 else 1
         state = self._get_decision_state(decision_ratio)
 
         caption = self._executive_caption(
@@ -291,11 +315,36 @@ class AdvancedCharts:
         # ✅ التاريخ ميلادي من وزارة العدل - نحتفظ به كنص ثم نحوله عند التحليل الزمني
         tmp["date"] = tmp["date"].astype(str)
         tmp["price"] = self._numeric(tmp["price"])
+        
+        # التحقق من وجود بيانات صالحة
+        if tmp["price"].notna().sum() == 0:
+            return None
+        
+        # ✅ تعبئة القيم الفارغة بالوسيط
+        price_median = tmp["price"].median()
+        if pd.isna(price_median):
+            price_median = tmp["price"].dropna().mean()
+            if pd.isna(price_median):
+                return None
+        
+        tmp["price"] = tmp["price"].fillna(price_median)
+        
+        # ✅ تحويل التاريخ واستخدام الوسيط للتواريخ الفارغة
+        tmp["date"] = pd.to_datetime(tmp["date"], errors="coerce")
+        
+        # التحقق من وجود تواريخ صالحة
+        if tmp["date"].notna().sum() == 0:
+            return None
+            
+        date_median = tmp["date"].median()
+        if not pd.isna(date_median):
+            tmp["date"] = tmp["date"].fillna(date_median)
+        
         tmp = tmp.dropna(subset=["date", "price"])
-        tmp = tmp.sort_values("date")  # الترتيب صحيح لأن التاريخ نصي
+        tmp = tmp.sort_values("date")
 
-        # ✅ التعديل: خفض الحد الأدنى من 5 إلى 2 صفقات
-        if len(tmp) < 2:
+        # ✅ تعديل الشرط: حتى لو صفقة واحدة نرسم
+        if len(tmp) < 1:
             return None
 
         fig = go.Figure()
@@ -364,10 +413,29 @@ class AdvancedCharts:
         if "price" not in df.columns:
             return None
 
-        p = self._numeric(df["price"]).dropna()
-        # ✅ التعديل: خفض الحد الأدنى من 10 إلى 3 صفقات
-        if len(p) < 3:
+        p = self._numeric(df["price"])
+        
+        # التحقق من وجود بيانات صالحة
+        if p.notna().sum() == 0:
             return None
+        
+        # ✅ تعبئة القيم الفارغة بالوسيط
+        price_median = p.median()
+        if pd.isna(price_median):
+            price_median = p.dropna().mean()
+            if pd.isna(price_median):
+                return None
+        
+        p = p.fillna(price_median)
+        p = p.dropna()
+        
+        # ✅ تعديل الشرط: حتى لو صفقة واحدة نرسم
+        if len(p) < 1:
+            return None
+
+        # إذا كان لدينا صفقة واحدة فقط، ننشئ بيانات افتراضية للتوزيع
+        if len(p) == 1:
+            p = pd.concat([p, p * 1.1, p * 0.9])
 
         hist_y, hist_x = np.histogram(p, bins=30, density=True)
         hist_x = (hist_x[:-1] + hist_x[1:]) / 2
@@ -402,7 +470,7 @@ class AdvancedCharts:
 
         # إضافة القراءة التنفيذية
         mean_price = p.mean()
-        decision_ratio = mean_price / self.DECISION_BASE_PRICE_PER_SQM
+        decision_ratio = mean_price / self.DECISION_BASE_PRICE_PER_SQM if self.DECISION_BASE_PRICE_PER_SQM > 0 else 1
         state = self._get_decision_state(decision_ratio)
 
         caption = self._executive_caption(
@@ -438,10 +506,30 @@ class AdvancedCharts:
         tmp = df.copy()
         tmp["price"] = self._numeric(tmp["price"])
         tmp["area"] = self._numeric(tmp["area"])
-        tmp = tmp.dropna(subset=["price", "area"])
+        
+        # التحقق من وجود بيانات صالحة
+        if tmp["price"].notna().sum() == 0:
+            return None
+        
+        # ✅ تعبئة القيم الفارغة بالوسيط بدلاً من حذفها
+        price_median = tmp["price"].median()
+        if pd.isna(price_median):
+            price_median = tmp["price"].dropna().mean()
+            if pd.isna(price_median):
+                return None
+        
+        # معالجة المساحة - لا نستخدم القيمة 1 أبداً
+        area_median = tmp["area"].median()
+        if pd.isna(area_median):
+            area_median = tmp["area"].dropna().mean()
+            if pd.isna(area_median):
+                return None  # لا يمكن تقدير المساحة
+        
+        tmp["price"] = tmp["price"].fillna(price_median)
+        tmp["area"] = tmp["area"].fillna(area_median)
 
-        # ✅ التعديل: خفض الحد الأدنى من 5 إلى 2 صفقات
-        if len(tmp) < 2:
+        # ✅ تعديل الشرط: حتى لو صفقة واحدة نرسم
+        if len(tmp) < 1:
             return None
 
         fig = go.Figure()
@@ -457,7 +545,7 @@ class AdvancedCharts:
                     opacity=0.7
                 ),
                 name="العقارات",
-                text=[f"{a} متر — {p:,.0f}" for a, p in zip(tmp["area"], tmp["price"])],
+                text=[f"{a:.0f} متر — {p:,.0f}" for a, p in zip(tmp["area"], tmp["price"])],
                 hoverinfo="text"
             )
         )
@@ -504,8 +592,13 @@ class AdvancedCharts:
         fig.update_yaxes(range=[0, price_threshold])
 
         # إضافة القراءة التنفيذية
-        avg_price_per_sqm = (tmp["price"] / tmp["area"]).mean()
-        decision_ratio = avg_price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM
+        valid_mask = (tmp["area"] > 0)
+        if valid_mask.sum() > 0:
+            avg_price_per_sqm = (tmp.loc[valid_mask, "price"] / tmp.loc[valid_mask, "area"]).mean()
+        else:
+            avg_price_per_sqm = 0
+            
+        decision_ratio = avg_price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM if avg_price_per_sqm > 0 and self.DECISION_BASE_PRICE_PER_SQM > 0 else 1
         state = self._get_decision_state(decision_ratio)
 
         caption = self._executive_caption(
@@ -541,14 +634,41 @@ class AdvancedCharts:
         tmp = df.copy()
         tmp["price"] = self._numeric(tmp["price"])
         tmp["area"] = self._numeric(tmp["area"])
-        tmp = tmp.dropna(subset=["price", "area"])
+        
+        # التحقق من وجود بيانات صالحة
+        if tmp["price"].notna().sum() == 0:
+            return None
+        
+        # ✅ تعبئة القيم الفارغة بالوسيط بدلاً من حذفها
+        price_median = tmp["price"].median()
+        if pd.isna(price_median):
+            price_median = tmp["price"].dropna().mean()
+            if pd.isna(price_median):
+                return None
+        
+        # معالجة المساحة - لا نستخدم القيمة 1 أبداً
+        area_median = tmp["area"].median()
+        if pd.isna(area_median):
+            area_median = tmp["area"].dropna().mean()
+            if pd.isna(area_median):
+                return None  # لا يمكن تقدير المساحة
+        
+        tmp["price"] = tmp["price"].fillna(price_median)
+        tmp["area"] = tmp["area"].fillna(area_median)
 
-        if len(tmp) < 3:
+        # ✅ تعديل الشرط: حتى لو صفقة واحدة نرسم
+        if len(tmp) < 1:
             return None
 
         avg_price = tmp["price"].mean()
         avg_area = tmp["area"].mean()
-        price_per_sqm = avg_price / avg_area if avg_area > 0 else 0
+        
+        # حساب سعر المتر فقط للصفقات الصالحة
+        valid_mask = (tmp["area"] > 0)
+        if valid_mask.sum() > 0:
+            price_per_sqm = (tmp.loc[valid_mask, "price"] / tmp.loc[valid_mask, "area"]).mean()
+        else:
+            price_per_sqm = 0
         
         categories = ["متوسط السعر", "متوسط المساحة", "سعر المتر"]
         
@@ -598,7 +718,7 @@ class AdvancedCharts:
         )
 
         # إضافة القراءة التنفيذية
-        decision_ratio = price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM if price_per_sqm > 0 else 1
+        decision_ratio = price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM if price_per_sqm > 0 and self.DECISION_BASE_PRICE_PER_SQM > 0 else 1
         state = self._get_decision_state(decision_ratio)
 
         caption = self._executive_caption(
@@ -634,18 +754,40 @@ class AdvancedCharts:
         tmp = df.copy()
         tmp["price"] = self._numeric(tmp["price"])
         tmp["area"] = self._numeric(tmp["area"])
-        tmp = tmp.dropna(subset=["price", "area"])
+        
+        # التحقق من وجود بيانات صالحة
+        if tmp["price"].notna().sum() == 0:
+            return None
+        
+        # ✅ تعبئة القيم الفارغة بالوسيط بدلاً من حذفها
+        price_median = tmp["price"].median()
+        if pd.isna(price_median):
+            price_median = tmp["price"].dropna().mean()
+            if pd.isna(price_median):
+                return None
+        
+        # معالجة المساحة - لا نستخدم القيمة 1 أبداً
+        area_median = tmp["area"].median()
+        if pd.isna(area_median):
+            area_median = tmp["area"].dropna().mean()
+            if pd.isna(area_median):
+                return None  # لا يمكن تقدير المساحة
+        
+        tmp["price"] = tmp["price"].fillna(price_median)
+        tmp["area"] = tmp["area"].fillna(area_median)
 
-        # ✅ التعديل: خفض الحد الأدنى من 5 إلى 2 صفقات
-        if len(tmp) < 2:
+        # ✅ تعديل الشرط: حتى لو صفقة واحدة نرسم
+        if len(tmp) < 1:
             return None
 
         avg_price = tmp["price"].mean()
         avg_area = tmp["area"].mean()
         
-        if avg_area > 0:
-            price_per_sqm = avg_price / avg_area
-            score = min(100, max(0, (price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM) * 100))
+        # حساب سعر المتر فقط للصفقات الصالحة
+        valid_mask = (tmp["area"] > 0)
+        if valid_mask.sum() > 0:
+            price_per_sqm = (tmp.loc[valid_mask, "price"] / tmp.loc[valid_mask, "area"]).mean()
+            score = min(100, max(0, (price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM) * 100 if self.DECISION_BASE_PRICE_PER_SQM > 0 else 50))
         else:
             score = 50
 
@@ -717,16 +859,39 @@ class AdvancedCharts:
         tmp = df.copy()
         tmp["price"] = self._numeric(tmp["price"])
         tmp["area"] = self._numeric(tmp["area"])
-        tmp = tmp.dropna(subset=["price", "area"])
+        
+        # التحقق من وجود بيانات صالحة
+        if tmp["price"].notna().sum() == 0:
+            return None
+        
+        # ✅ تعبئة القيم الفارغة بالوسيط بدلاً من حذفها
+        price_median = tmp["price"].median()
+        if pd.isna(price_median):
+            price_median = tmp["price"].dropna().mean()
+            if pd.isna(price_median):
+                return None
+        
+        # معالجة المساحة - لا نستخدم القيمة 1 أبداً
+        area_median = tmp["area"].median()
+        if pd.isna(area_median):
+            area_median = tmp["area"].dropna().mean()
+            if pd.isna(area_median):
+                return None  # لا يمكن تقدير المساحة
+        
+        tmp["price"] = tmp["price"].fillna(price_median)
+        tmp["area"] = tmp["area"].fillna(area_median)
 
-        # ✅ التعديل: خفض الحد الأدنى من 5 إلى 2 صفقات
-        if len(tmp) < 2:
+        # ✅ تعديل الشرط: حتى لو صفقة واحدة نرسم
+        if len(tmp) < 1:
             return None
 
-        price_per_sqm = (tmp["price"] / tmp["area"]).mean()
-
-        # تحويله إلى مقياس قرار (0 – 100)
-        score = min(100, max(0, (price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM) * 100))
+        # حساب سعر المتر فقط للصفقات الصالحة
+        valid_mask = (tmp["area"] > 0)
+        if valid_mask.sum() > 0:
+            price_per_sqm = (tmp.loc[valid_mask, "price"] / tmp.loc[valid_mask, "area"]).mean()
+            score = min(100, max(0, (price_per_sqm / self.DECISION_BASE_PRICE_PER_SQM) * 100 if self.DECISION_BASE_PRICE_PER_SQM > 0 else 50))
+        else:
+            score = 50
 
         fig = go.Figure()
 
@@ -794,10 +959,29 @@ class AdvancedCharts:
         if "price" not in df.columns:
             return None
 
-        p = self._numeric(df["price"]).dropna()
-        # ✅ التعديل: خفض الحد الأدنى من 10 إلى 3 صفقات
-        if len(p) < 3:
+        p = self._numeric(df["price"])
+        
+        # التحقق من وجود بيانات صالحة
+        if p.notna().sum() == 0:
             return None
+        
+        # ✅ تعبئة القيم الفارغة بالوسيط
+        price_median = p.median()
+        if pd.isna(price_median):
+            price_median = p.dropna().mean()
+            if pd.isna(price_median):
+                return None
+        
+        p = p.fillna(price_median)
+        p = p.dropna()
+        
+        # ✅ تعديل الشرط: حتى لو صفقة واحدة نرسم
+        if len(p) < 1:
+            return None
+
+        # إذا كان لدينا صفقة واحدة فقط، ننشئ بيانات افتراضية للتوزيع
+        if len(p) == 1:
+            p = pd.concat([p, p * 1.1, p * 0.9])
 
         hist_y, hist_x = np.histogram(p, bins=20, density=True)
         hist_x = (hist_x[:-1] + hist_x[1:]) / 2
@@ -830,7 +1014,7 @@ class AdvancedCharts:
 
         # إضافة القراءة التنفيذية
         mean_price = p.mean()
-        decision_ratio = mean_price / self.DECISION_BASE_PRICE_PER_SQM
+        decision_ratio = mean_price / self.DECISION_BASE_PRICE_PER_SQM if self.DECISION_BASE_PRICE_PER_SQM > 0 else 1
         state = self._get_decision_state(decision_ratio)
 
         caption = self._executive_caption(
@@ -939,18 +1123,37 @@ class AdvancedCharts:
         if df.empty:
             return None
 
-        # ✅ التأكد من أن المساحة والسعر موجبين
-        df = df[(df["area"] > 0) & (df["price"] > 0)]
+        # ✅ إزالة القيم الفارغة والسعر غير الموجب
+        df = df.dropna(subset=["price"])
+        df = df[df["price"] > 0]
         if df.empty:
             return None
             
+        # معالجة المساحة - لا نستخدم القيمة 1 أبداً
+        area_median = df["area"].median()
+        if pd.isna(area_median):
+            area_median = df["area"].dropna().mean()
+            if pd.isna(area_median):
+                return None
+        
+        df["area"] = df["area"].fillna(area_median)
         df["price_per_sqm"] = df["price"] / df["area"]
         
-        # ✅ فلتر القيم الشاذة لسعر المتر
-        df = df[(df["price_per_sqm"] > 500) & (df["price_per_sqm"] < 200000)]
+        # ✅ فلتر القيم الشاذة لسعر المتر - مخفف
+        df = self._filter_price_per_sqm(df)
 
         # تحويل التاريخ (التاريخ ميلادي)
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        
+        # التحقق من وجود تواريخ صالحة
+        if df["date"].notna().sum() == 0:
+            return None
+            
+        # ✅ تعبئة التواريخ الفارغة بالوسيط
+        date_median = df["date"].median()
+        if not pd.isna(date_median):
+            df["date"] = df["date"].fillna(date_median)
+        
         df = df.dropna(subset=["date"])
 
         # تجميع شهري
@@ -999,24 +1202,40 @@ class AdvancedCharts:
 
         df = df.copy()
         
-        # ✅ التأكد من أن المساحة والسعر موجبين
-        df = df[(df["area"] > 0) & (df["price"] > 0)]
+        # ✅ إزالة القيم الفارغة والسعر غير الموجب
+        df = df.dropna(subset=["price"])
+        df = df[df["price"] > 0]
         if df.empty:
             return None
             
+        # ✅ تحويل districts إذا كانت list of dicts
+        if districts is not None and len(districts) > 0 and isinstance(districts[0], dict):
+            districts = [d.get("district_name", "") for d in districts if d.get("district_name")]
+            # إزالة القيم الفارغة
+            districts = [d for d in districts if d]
+        
+        # معالجة المساحة - لا نستخدم القيمة 1 أبداً
+        area_median = df["area"].median()
+        if pd.isna(area_median):
+            area_median = df["area"].dropna().mean()
+            if pd.isna(area_median):
+                return None
+        
+        df["area"] = df["area"].fillna(area_median)
         df["price_per_sqm"] = df["price"] / df["area"]
         
-        # ✅ فلتر القيم الشاذة لسعر المتر
-        df = df[(df["price_per_sqm"] > 500) & (df["price_per_sqm"] < 200000)]
+        # ✅ فلتر القيم الشاذة لسعر المتر - مخفف
+        df = self._filter_price_per_sqm(df)
 
         # إذا لم يتم تحديد أحياء، نأخذ أشهر 5 أحياء
-        if districts is None:
+        if districts is None or len(districts) == 0:
             districts = df["district"].value_counts().head(5).index.tolist()
 
-        # ✅ تعديل رئيسي: استخدام contains للتعامل مع تنسيق الأحياء
-        district_mask = False
+        # ✅ تعديل رئيسي: استخدام contains مع Series mask
+        district_mask = pd.Series(False, index=df.index)
         for d in districts:
-            district_mask |= df["district"].astype(str).str.contains(d, case=False, na=False)
+            if d:  # التأكد من أن القيمة ليست فارغة
+                district_mask |= df["district"].astype(str).str.contains(d, case=False, na=False)
         df = df[district_mask]
 
         if df.empty:
@@ -1072,6 +1291,16 @@ class AdvancedCharts:
 
         # تحويل التاريخ (التاريخ ميلادي)
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        
+        # التحقق من وجود تواريخ صالحة
+        if df["date"].notna().sum() == 0:
+            return None
+            
+        # ✅ تعبئة التواريخ الفارغة بالوسيط
+        date_median = df["date"].median()
+        if not pd.isna(date_median):
+            df["date"] = df["date"].fillna(date_median)
+        
         df = df.dropna(subset=["date"])
 
         df["month"] = df["date"].dt.to_period("M").astype(str)
@@ -1124,10 +1353,30 @@ class AdvancedCharts:
         if df.empty:
             return None
 
-        prices = pd.to_numeric(df["price"], errors="coerce").dropna()
+        # ✅ إزالة القيم الفارغة والسعر غير الموجب
+        df = df.dropna(subset=["price"])
+        df = df[df["price"] > 0]
+        if df.empty:
+            return None
 
-        # ✅ الملاحظة الأولى: خفض الحد الأدنى من 5 إلى 3 صفقات
-        if len(prices) < 3:
+        prices = pd.to_numeric(df["price"], errors="coerce")
+        
+        # التحقق من وجود بيانات صالحة
+        if prices.notna().sum() == 0:
+            return None
+        
+        # ✅ تعبئة القيم الفارغة بالوسيط
+        price_median = prices.median()
+        if pd.isna(price_median):
+            price_median = prices.dropna().mean()
+            if pd.isna(price_median):
+                return None
+        
+        prices = prices.fillna(price_median)
+        prices = prices.dropna()
+
+        # ✅ تعديل الشرط: حتى لو صفقة واحدة نرسم
+        if len(prices) < 1:
             return None
 
         fig = px.histogram(
@@ -1171,13 +1420,16 @@ class AdvancedCharts:
         if df.empty:
             return None
 
+        # ✅ تعبئة أنواع العقارات الفارغة بقيمة "غير محدد"
+        df["property_type"] = df["property_type"].fillna("غير محدد")
+
         analysis = (
             df.groupby("property_type")
             .size()
             .reset_index(name="transactions")
         )
         
-        # ✅ الملاحظة الثانية: التأكد من وجود بيانات
+        # ✅ تعديل الشرط: حتى لو نوع واحد نرسم
         if len(analysis) < 1:
             return None
 
@@ -1221,32 +1473,26 @@ class AdvancedCharts:
         # توحيد الأعمدة أولاً
         df = self._normalize_market_columns(df)
         df = self._ensure_numeric_core(df)
+        
+        # ✅ إزالة القيم الفارغة والسعر غير الموجب
+        df = df.dropna(subset=["price"])
+        df = df[df["price"] > 0]
 
         charts = {}
 
         # 1️⃣ تطور سعر المتر
-        price_trend = self.generate_district_price_trend(df, district)
-        if price_trend is not None:
-            charts["price_trend"] = price_trend
+        charts["price_trend"] = self.generate_district_price_trend(df, district)
 
         # 2️⃣ مقارنة الأحياء
-        comparison = self.generate_district_comparison(df, nearby_districts)
-        if comparison is not None:
-            charts["district_comparison"] = comparison
+        charts["district_comparison"] = self.generate_district_comparison(df, nearby_districts)
 
         # 3️⃣ عدد الصفقات عبر الزمن
-        transactions = self.generate_district_transactions_over_time(df, district)
-        if transactions is not None:
-            charts["transactions_over_time"] = transactions
+        charts["transactions_over_time"] = self.generate_district_transactions_over_time(df, district)
 
         # 4️⃣ توزيع الأسعار
-        distribution = self.generate_district_price_distribution(df, district)
-        if distribution is not None:
-            charts["price_distribution"] = distribution
+        charts["price_distribution"] = self.generate_district_price_distribution(df, district)
 
         # 5️⃣ تحليل أنواع العقارات
-        property_types = self.generate_district_property_type_analysis(df, district)
-        if property_types is not None:
-            charts["property_type_analysis"] = property_types
+        charts["property_type_analysis"] = self.generate_district_property_type_analysis(df, district)
 
         return charts
