@@ -333,8 +333,19 @@ def create_pdf_from_content(
     story.append(elegant_divider("30%"))
     story.append(PageBreak())
 
+    # ✅ خريطة تحويل الفصول (الفصل النصي ← الفصل الفعلي للرسومات)
+    # الفصول التي تحتوي على رسومات: 4, 7, 11, 16, 21
+    CHAPTER_CHART_MAP = {
+        4: 4,   # الفصل 4 → chapter_4
+        7: 7,   # الفصل 7 → chapter_7
+        11: 11, # الفصل 11 → chapter_11
+        16: 16, # الفصل 16 → chapter_16
+        21: 21  # الفصل 21 → chapter_21
+    }
+    
     chapter_index = 0
-    chart_cursor = {}
+    chart_cursor = {}  # ✅ المؤشر لكل فصل (كما كان أصلاً)
+    
     first_chapter_processed = False
     
     # ✅ قائمة لتتبع الملفات المؤقتة لحذفها لاحقاً
@@ -362,6 +373,7 @@ def create_pdf_from_content(
             if first_chapter_processed:
                 story.append(PageBreak())
             chapter_index += 1
+            # ✅ تهيئة المؤشر لهذا الفصل
             chart_cursor[chapter_index] = 0
             story.append(KeepTogether([
                 Paragraph(ar(clean), chapter),
@@ -371,45 +383,51 @@ def create_pdf_from_content(
             continue
 
         if clean == "[[ANCHOR_CHART]]":
-            charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
-            cursor = chart_cursor.get(chapter_index, 0)
+            # ✅ الحصول على رقم الفصل الحقيقي للرسومات
+            real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
+            if real_chapter:
+                charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
+                cursor = chart_cursor.get(chapter_index, 0)
 
-            if cursor < len(charts):
-                img = plotly_to_image(charts[cursor], 16.8, 8.8)
-                if img:
-                    # ✅ حفظ مسار الملف المؤقت لحذفه لاحقاً
-                    if hasattr(img, '_temp_file'):
-                        temp_files.append(img._temp_file)
-                    
-                    story.append(Spacer(1, 1.6 * cm))
-                    story.append(img)
-                    story.append(Spacer(1, 0.6 * cm))
-                chart_cursor[chapter_index] += 1
+                if cursor < len(charts):
+                    img = plotly_to_image(charts[cursor], 16.8, 8.8)
+                    if img:
+                        # ✅ حفظ مسار الملف المؤقت لحذفه لاحقاً
+                        if hasattr(img, '_temp_file'):
+                            temp_files.append(img._temp_file)
+                        
+                        story.append(Spacer(1, 1.6 * cm))
+                        story.append(img)
+                        story.append(Spacer(1, 0.6 * cm))
+                    chart_cursor[chapter_index] += 1
             continue
 
         if clean == "[[RHYTHM_CHART]]":
-            charts = charts_by_chapter.get(f"chapter_{chapter_index}", [])
-            cursor = chart_cursor.get(chapter_index, 0)
+            # ✅ الحصول على رقم الفصل الحقيقي للرسومات
+            real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
+            if real_chapter:
+                charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
+                cursor = chart_cursor.get(chapter_index, 0)
 
-            if cursor < len(charts):
-                fig = charts[cursor]
-                is_indicator = (
-                    fig is not None
-                    and hasattr(fig, 'data')
-                    and len(fig.data) > 0
-                    and isinstance(fig.data[0], go.Indicator)
-                )
-                img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
-                                       9.5 if is_indicator else 8.8)
-                if img:
-                    # ✅ حفظ مسار الملف المؤقت لحذفه لاحقاً
-                    if hasattr(img, '_temp_file'):
-                        temp_files.append(img._temp_file)
-                    
-                    story.append(Spacer(1, 1.8 * cm if is_indicator else 1.4 * cm))
-                    story.append(img)
-                    story.append(Spacer(1, 0.6 * cm))
-                chart_cursor[chapter_index] += 1
+                if cursor < len(charts):
+                    fig = charts[cursor]
+                    is_indicator = (
+                        fig is not None
+                        and hasattr(fig, 'data')
+                        and len(fig.data) > 0
+                        and isinstance(fig.data[0], go.Indicator)
+                    )
+                    img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
+                                           9.5 if is_indicator else 8.8)
+                    if img:
+                        # ✅ حفظ مسار الملف المؤقت لحذفه لاحقاً
+                        if hasattr(img, '_temp_file'):
+                            temp_files.append(img._temp_file)
+                        
+                        story.append(Spacer(1, 1.8 * cm if is_indicator else 1.4 * cm))
+                        story.append(img)
+                        story.append(Spacer(1, 0.6 * cm))
+                    chart_cursor[chapter_index] += 1
             continue
 
         story.append(Paragraph(ar(clean), body))
