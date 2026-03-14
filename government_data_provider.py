@@ -189,14 +189,17 @@ def load_government_data(selected_city: Optional[str] = None,
     
     المخرجات: DataFrame موحد يحتوي على:
     - price: السعر بعد التنظيف
+    - price_raw: السعر الأصلي قبل التقدير
     - area: المساحة (بدون قيم صفرية)
     - price_per_sqm: سعر المتر المربع (عدد صحيح)
     - city: المدينة
-    - district: الحي الأصلي
+    - district: الحي الأصلي (بعد استخراج اسم الحي فقط)
     - property_type: نوع العقار الموحد
     - property_subtype: نوع العقار الفرعي (شقة/فيلا/تاون هاوس/غير سكني)
     - date: التاريخ
     - units: عدد الوحدات
+    - price_source: مصدر السعر (original/estimated)
+    - price_validity: حالة السعر (valid/estimated/corrected)
     """
     
     try:
@@ -214,7 +217,7 @@ def load_government_data(selected_city: Optional[str] = None,
         if DATA_PATH.suffix.lower() == ".xlsx":
             df = pd.read_excel(DATA_PATH)
         else:
-            df = pd.read_csv(DATA_PATH, encoding="utf-8-sig", sep=";", low_memory=False)
+            df = pd.read_csv(DATA_PATH, encoding="utf-8-sig", low_memory=False)
         if df.empty:
             print("⚠️ الملف فارغ - لا توجد بيانات للتحليل")
             return df
@@ -237,27 +240,23 @@ def load_government_data(selected_city: Optional[str] = None,
         # ======================
         normalized_df = pd.DataFrame()
         
-        # السعر (مع الفلترة الذكية)
-        normalized_df['price'] = clean_price(df[column_mapping['price']])
-        
-        # إصلاح الأسعار الفارغة باستخدام المتوسط
-        median_price = normalized_df['price'].median()
-        if pd.isna(median_price):
-            median_price = 500000
-        normalized_df['price'] = normalized_df['price'].fillna(median_price)
+        # السعر الخام (مع الاحتفاظ به للمراجعة)
+        normalized_df['price_raw'] = clean_price(df[column_mapping['price']])
+        normalized_df['price'] = normalized_df['price_raw'].copy()
         
         # المساحة
         if 'area' in column_mapping:
             normalized_df['area'] = pd.to_numeric(df[column_mapping['area']], errors='coerce')
+            
+            # إزالة المساحات غير المنطقية
+            normalized_df.loc[normalized_df['area'] <= 0, 'area'] = pd.NA
+            normalized_df.loc[normalized_df['area'] > 20000, 'area'] = pd.NA  # تعديل الحد الأقصى للمساحة
             
             # حساب متوسط المساحة من القيم الموجبة فقط
             median_area = normalized_df.loc[normalized_df['area'] > 0, 'area'].median()
             if pd.isna(median_area):
                 median_area = 120
             normalized_df['area'] = normalized_df['area'].fillna(median_area)
-            
-            # منع المساحات الصفرية
-            normalized_df.loc[normalized_df['area'] <= 0, 'area'] = median_area
         else:
             normalized_df['area'] = 120  # قيمة افتراضية إذا لم يوجد عمود المساحة
         
@@ -272,9 +271,16 @@ def load_government_data(selected_city: Optional[str] = None,
         else:
             normalized_df['city'] = 'غير محدد'
         
-        # الحي - استخدام district مباشرة بدون clean
+        # الحي - استخراج اسم الحي فقط مع تنظيف أفضل للمسافات
         if 'district' in column_mapping:
-            normalized_df['district'] = df[column_mapping['district']].astype(str).str.strip()
+            normalized_df['district'] = (
+                df[column_mapping['district']]
+                .astype(str)
+                .str.replace(" ", "", regex=False)  # إزالة جميع المسافات أولاً
+                .str.split("/")
+                .str[-1]
+                .str.strip()
+            )
         else:
             normalized_df['district'] = 'غير محدد'
         
@@ -301,16 +307,43 @@ def load_government_data(selected_city: Optional[str] = None,
             normalized_df['units'] = 1
         
         # ======================
-        # 4️⃣ تنظيف البيانات
+        # 4️⃣ التأكد من نوع البيانات قبل التقدير
         # ======================
         
-        # تعبئة القيم الناقصة
-        normalized_df['units'] = normalized_df['units'].fillna(1)
+        normalized_df['price'] = pd.to_numeric(normalized_df['price'], errors='coerce')
         
-        # حساب سعر المتر
+        # ======================
+        # 5️⃣ التقدير الهرمي للأسعار المفقودة (Hierarchical Price Imputation)
+        # ======================
+        
+        # تعويض السعر بمتوسط الحي
+        district_median_price = normalized_df.groupby('district')['price'].transform('median')
+        normalized_df['price'] = normalized_df['price'].fillna(district_median_price)
+        
+        # تعويض السعر بمتوسط المدينة
+        city_median_price = normalized_df.groupby('city')['price'].transform('median')
+        normalized_df['price'] = normalized_df['price'].fillna(city_median_price)
+        
+        # التعويض الأخير بالمتوسط العام (نادراً ما يستخدم)
+        global_median_price = normalized_df['price'].median()
+        if pd.isna(global_median_price):
+            global_median_price = 500000
+        normalized_df['price'] = normalized_df['price'].fillna(global_median_price)
+        
+        # ======================
+        # 6️⃣ حساب سعر المتر بعد تصحيح الأسعار
+        # ======================
+        
+        # إعادة حساب سعر المتر بعد تصحيح الأسعار
         normalized_df['price_per_sqm'] = normalized_df['price'] / normalized_df['area']
         
-        # ✅ تعديل مهم: استخدام clip بدلاً من حذف الصفقات
+        # إزالة القيم غير المنطقية (أقل من 200 ريال أو أكثر من 200,000 ريال)
+        normalized_df.loc[
+            (normalized_df['price_per_sqm'] < 200) | (normalized_df['price_per_sqm'] > 200000), 
+            'price_per_sqm'
+        ] = pd.NA
+        
+        # تعديل مهم: استخدام clip بدلاً من حذف الصفقات
         # هذا يحافظ على جميع الصفقات مع تصحيح القيم الشاذة
         normalized_df['price_per_sqm'] = normalized_df['price_per_sqm'].clip(500, 200000)
         
@@ -329,8 +362,41 @@ def load_government_data(selected_city: Optional[str] = None,
             .astype("Int64")
         )
         
+        # تعبئة القيم الناقصة
+        normalized_df['units'] = normalized_df['units'].fillna(1)
+        
+        # ======================
+        # 7️⃣ إضافة مؤشرات جودة البيانات
+        # ======================
+        
+        normalized_df['price_source'] = 'original'
+        normalized_df.loc[normalized_df['price_raw'].isna(), 'price_source'] = 'estimated'
+        
+        # مؤشر جودة متقدم (3 مستويات) - مع منطق صحيح
+        normalized_df['price_validity'] = 'valid'
+        normalized_df.loc[normalized_df['price_raw'].isna(), 'price_validity'] = 'estimated'
+        # فقط الصفقات التي كانت valid ثم أصبح سعر المتر غير منطقي تصبح corrected
+        normalized_df.loc[
+            (normalized_df['price_per_sqm'].isna()) & (normalized_df['price_validity'] == 'valid'), 
+            'price_validity'
+        ] = 'corrected'
+        
+        # إحصائيات جودة البيانات
+        price_quality = (normalized_df['price_source'] == 'original').sum() / len(normalized_df) * 100
+        estimated_ratio = (normalized_df['price_validity'] == 'estimated').sum() / len(normalized_df) * 100
+        corrected_ratio = (normalized_df['price_validity'] == 'corrected').sum() / len(normalized_df) * 100
+        valid_ratio = (normalized_df['price_validity'] == 'valid').sum() / len(normalized_df) * 100
+        
+        print(f"\n📊 جودة البيانات:")
+        print(f"   نسبة الأسعار الأصلية: {price_quality:.1f}%")
+        print(f"   نسبة الأسعار المقدرة: {100-price_quality:.1f}%")
+        print(f"\n📊 تصنيف جودة الأسعار (ثلاثي المستويات):")
+        print(f"   - أسعار صالحة (valid): {valid_ratio:.1f}%")
+        print(f"   - أسعار مقدرة (estimated): {estimated_ratio:.1f}%")
+        print(f"   - أسعار مصححة (corrected): {corrected_ratio:.1f}%")
+        
         # =====================================
-        # ✅ تصنيف نوع العقار الفرعي (شقة / فيلا / تاون هاوس)
+        # 8️⃣ تصنيف نوع العقار الفرعي (شقة / فيلا / تاون هاوس)
         # يطبق فقط على العقارات السكنية
         # =====================================
         def classify_property_subtype(area, property_type):
@@ -357,7 +423,7 @@ def load_government_data(selected_city: Optional[str] = None,
         )
         
         # ======================
-        # 5️⃣ تطبيق الفلاتر
+        # 9️⃣ تطبيق الفلاتر
         # ======================
         
         # فلترة المدينة
@@ -375,7 +441,7 @@ def load_government_data(selected_city: Optional[str] = None,
                 print(f"🏠 بعد فلترة النوع '{selected_property_type}': {len(normalized_df)} صفقة")
         
         # ======================
-        # 6️⃣ تقرير إحصائي شامل
+        # 🔟 تقرير إحصائي شامل
         # ======================
         
         print(f"\n✅ اكتمل تحميل وتنظيف البيانات:")
@@ -406,7 +472,7 @@ def load_government_data(selected_city: Optional[str] = None,
                 print(f"  📅 عدد التواريخ الصالحة: {normalized_df['date'].notna().sum():,}")
         
         # ======================
-        # 7️⃣ DEBUG: طباعة معلومات قبل الإرجاع
+        # 🔍 DEBUG: طباعة معلومات قبل الإرجاع
         # ======================
         print("\n🔍 DEBUG INFO:")
         print(f"  DEBUG FINAL ROWS: {len(normalized_df)}")
@@ -435,7 +501,7 @@ if __name__ == "__main__":
     
     if not df.empty:
         print("\n🔍 عينة من البيانات النهائية:")
-        display_cols = ['price', 'area', 'price_per_sqm', 'district', 'property_type', 'property_subtype', 'date']
+        display_cols = ['price', 'price_raw', 'area', 'price_per_sqm', 'district', 'property_type', 'property_subtype', 'price_source', 'price_validity', 'date']
         print(df[display_cols].head(10).to_string())
         
         # ✅ التحقق من أن سعر المتر أصبح عدداً صحيحاً
@@ -466,6 +532,12 @@ if __name__ == "__main__":
         subtype_counts = df['property_subtype'].value_counts()
         for subtype, count in subtype_counts.items():
             print(f"   - {subtype}: {count:,} صفقة ({count/len(df)*100:.1f}%)")
+        
+        # التحقق من جودة البيانات (ثلاثي المستويات)
+        print(f"\n✅ جودة البيانات (تصنيف ثلاثي):")
+        validity_counts = df['price_validity'].value_counts()
+        for validity, count in validity_counts.items():
+            print(f"   - {validity}: {count:,} صفقة ({count/len(df)*100:.1f}%)")
         
         # اختبار فلترة الرياض
         print("\n🏙️  اختبار 2: فلترة مدينة الرياض")
