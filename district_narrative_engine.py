@@ -1357,13 +1357,30 @@ Investment Grade Rating
     report_sections.append(verdict_section)
 
     # =========================================
-    # ✅ تجميع التقرير مع ضمان ظهور جميع الفصول
+    # ✅ تجميع التقرير مع عناوين الفصول بالكلمات العربية وإدراج الرسومات
     # =========================================
 
+    chapter_names = [
+        "الأول","الثاني","الثالث","الرابع","الخامس",
+        "السادس","السابع","الثامن","التاسع","العاشر",
+        "الحادي عشر","الثاني عشر","الثالث عشر","الرابع عشر","الخامس عشر",
+        "السادس عشر","السابع عشر","الثامن عشر","التاسع عشر","العشرون",
+        "الحادي والعشرون","الثاني والعشرون","الثالث والعشرون","الرابع والعشرون"
+    ]
+    
+    # الفصول التي تحتوي الرسومات
+    chart_chapters = [4,7,11,16,21]
+    
     final_report = ""
     for i, section in enumerate(report_sections, start=1):
-        final_report += f"الفصل {i}\n"
+        chapter_title = chapter_names[i-1] if i <= len(chapter_names) else str(i)
+        final_report += f"الفصل {chapter_title}\n"
         final_report += "-" * 40 + "\n\n"
+        
+        # إدراج الرسم في الفصول المحددة - بالضبط بدون مسافات إضافية
+        if i in chart_chapters:
+            final_report += "[[ANCHOR_CHART]]\n\n"
+        
         if section.strip():
             final_report += section.strip()
         else:
