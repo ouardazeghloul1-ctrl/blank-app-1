@@ -811,12 +811,11 @@ def generate_district_narrative(
     report_sections.append(trend_section)
 
     # =========================================
-    # Market Cycle Detection
+    # Market Momentum Analysis (بدلاً من Market Cycle)
     # =========================================
     cycle_section = ""
     try:
         if not df_city.empty and "date" in df_city.columns:
-            # فلترة الحي
             df_cycle = df_city[
                 df_city["district_clean"].str.lower() == clean_district_base.lower()
             ].copy()
@@ -825,45 +824,55 @@ def generate_district_narrative(
                 # تحويل التاريخ
                 df_cycle["date"] = pd.to_datetime(df_cycle["date"], errors="coerce")
                 df_cycle = df_cycle[df_cycle["date"].notna()]
+                df_cycle = df_cycle.sort_values("date")
                 
-                # استخراج السنة
-                df_cycle["year"] = df_cycle["date"].dt.year
-                # استخدام median لتجنب تأثير الصفقات الشاذة
-                yearly_prices = df_cycle.groupby("year")["price_sqm"].median()
-                
-                if len(yearly_prices) >= 2:
-                    first_price = yearly_prices.iloc[0]
-                    last_price = yearly_prices.iloc[-1]
+                if len(df_cycle) >= 10:
+                    # تقسيم البيانات لنصفين زمنيًا
+                    midpoint = len(df_cycle) // 2
+                    first_period = df_cycle.iloc[:midpoint]
+                    last_period = df_cycle.iloc[midpoint:]
+                    
+                    first_price = first_period["price_sqm"].median()
+                    last_price = last_period["price_sqm"].median()
                     
                     if first_price > 0:
                         change = ((last_price - first_price) / first_price) * 100
                     else:
                         change = 0
                     
-                    if change > 8:
-                        cycle = "مرحلة نمو في السوق العقاري"
-                        explanation = "تشير البيانات إلى ارتفاع واضح في متوسط أسعار المتر خلال السنوات الأخيرة."
+                    # تحديد الاتجاه
+                    if change > 5:
+                        trend = "اتجاه صعودي واضح"
+                        interpretation = "يشير هذا إلى زيادة الطلب أو تحسن في مستويات التسعير داخل الحي."
                     elif change < -5:
-                        cycle = "مرحلة تصحيح سعري"
-                        explanation = "تشير البيانات إلى تراجع في متوسط الأسعار خلال الفترة المدروسة."
+                        trend = "اتجاه هبوطي ملحوظ"
+                        interpretation = "قد يعكس هذا تراجعاً في الطلب أو تصحيحاً في مستويات الأسعار."
                     else:
-                        cycle = "مرحلة استقرار في السوق"
-                        explanation = "الأسعار تتحرك ضمن نطاق مستقر دون تغيرات كبيرة."
+                        trend = "استقرار نسبي في الأسعار"
+                        interpretation = "السوق يتحرك ضمن نطاق سعري مستقر دون تغيرات كبيرة."
                     
                     cycle_section = f"""
 --------------------------------------------------
 
-دورة السوق العقاري
+تحليل الزخم السعري في السوق
 
-بناءً على تحليل تطور أسعار المتر عبر السنوات،
-يبدو أن السوق في حي {district} يمر حالياً بـ:
+تم تحليل حركة أسعار المتر في حي {district} خلال الفترة الزمنية المتاحة من البيانات.
+أظهر التحليل أن متوسط سعر المتر تغير بنسبة {change:.1f}%.
 
-{cycle}
+هذا يشير إلى {trend} في السوق العقاري داخل الحي خلال الأشهر الأخيرة.
+{interpretation}
+"""
+                else:
+                    cycle_section = f"""
+--------------------------------------------------
 
-{explanation}
+تحليل الزخم السعري في السوق
+
+البيانات المتاحة لحي {district} محدودة زمنياً ({len(df_cycle)} صفقة) ولا تحتوي على عدد كافٍ من الصفقات لإجراء تحليل دقيق لاتجاه الأسعار.
+يوصى بمتابعة السوق خلال الأشهر القادمة للحصول على قراءة أوضح لاتجاه الأسعار.
 """
     except Exception as e:
-        print("Market Cycle Error:", e)
+        print("Market Momentum Error:", e)
     
     report_sections.append(cycle_section)
 
