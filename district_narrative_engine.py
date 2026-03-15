@@ -289,7 +289,8 @@ def generate_district_narrative(
                 district_prices = district_prices.sort_values()
                 
                 # الحصول على ترتيب الحي الحالي
-                clean_district = str(district).strip()
+                # ✅ تعديل: تنظيف اسم الحي باستخدام split للحصول على اسم الحي فقط
+                clean_district = str(district).split("/")[-1].strip()
                 if clean_district in district_prices.index:
                     rank = list(district_prices.index).index(clean_district) + 1
                     total = len(district_prices)
@@ -343,7 +344,7 @@ def generate_district_narrative(
             district_counts = clean_districts.value_counts().sort_values(ascending=False)
             
             # الحصول على ترتيب الحي الحالي
-            clean_district = str(district).strip()
+            clean_district = str(district).split("/")[-1].strip()
             if clean_district in district_counts.index:
                 rank_l = list(district_counts.index).index(clean_district) + 1
                 total_l = len(district_counts)
@@ -438,7 +439,7 @@ def generate_district_narrative(
             total_districts = len(district_counts)
             
             # تنظيف اسم الحي للمقارنة
-            clean_district = str(district).strip()
+            clean_district = str(district).split("/")[-1].strip()
             
             if clean_district in district_counts.index:
                 # طريقة أكثر أماناً للحصول على الترتيب
@@ -729,7 +730,7 @@ def generate_district_narrative(
                 .str.split("/")
                 .str[-1]
                 .str.strip()
-                .str.lower() == str(district).strip().lower()
+                .str.lower() == str(district).split("/")[-1].strip().lower()
             ].copy()
             
             # تحسين الأداء 1: استخدام subset محدد لـ drop_duplicates
@@ -812,7 +813,7 @@ def generate_district_narrative(
             
             # فلترة الحي
             df = df[
-                df["district_clean"].str.lower() == str(district).strip().lower()
+                df["district_clean"].str.lower() == str(district).split("/")[-1].strip().lower()
             ]
             
             # تحويل التاريخ
