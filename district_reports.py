@@ -240,7 +240,7 @@ def show_district_reports(df_raw):
                         
                         # =========================================
                         # استخدام محرك الأحياء لتوليد النص
-                        # ✅ استخدام df_raw بدلاً من city_data
+                        # ✅ تم التعديل هنا: استخدام city_data بدلاً من df_raw
                         # =========================================
                         report_text = generate_district_narrative(
                             user_info=user_info,
@@ -248,7 +248,7 @@ def show_district_reports(df_raw):
                             nearby_districts=nearby_districts,
                             dpi_score=dpi_score,
                             market_data=city_data,
-                            real_data=df_raw  # تغيير من city_data إلى df_raw
+                            real_data=city_data  # ✅ تم التعديل من df_raw إلى city_data
                         )
                         
                         # استخدام city_data للرسومات
