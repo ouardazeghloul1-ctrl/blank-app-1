@@ -751,7 +751,7 @@ def generate_district_narrative(
     report_sections.append(risk_section)
 
     # =========================================
-    # تحليل اتجاه السعر داخل الفترة المتاحة (محسّن)
+    # تحليل اتجاه السعر داخل الفترة المتاحة (محسّن - تقسيم حسب الترتيب)
     # =========================================
 
     trend_section = ""
@@ -766,33 +766,31 @@ def generate_district_narrative(
                 # تحسين معالجة التاريخ
                 df_trend["date"] = pd.to_datetime(df_trend["date"], errors="coerce")
                 df_trend = df_trend[df_trend["date"].notna()]
-                
                 df_trend = df_trend.sort_values("date")
                 
-                # استخدام التقسيم الزمني
-                if len(df_trend) >= 2:
-                    midpoint_date = df_trend["date"].median()
-                    first_period = df_trend[df_trend["date"] <= midpoint_date]
-                    last_period = df_trend[df_trend["date"] > midpoint_date]
+                # ✅ التعديل الرئيسي: تقسيم الصفقات إلى نصفين حسب الترتيب الزمني
+                if len(df_trend) >= 4:  # نحتاج 4 صفقات على الأقل لتقسيم منطقي
+                    midpoint = len(df_trend) // 2
+                    first_period = df_trend.iloc[:midpoint]
+                    last_period = df_trend.iloc[midpoint:]
                     
-                    if not first_period.empty and not last_period.empty:
-                        first_price = first_period["price_sqm"].mean()
-                        last_price = last_period["price_sqm"].mean()
+                    first_price = first_period["price_sqm"].median()
+                    last_price = last_period["price_sqm"].median()
+                    
+                    # منع القسمة على صفر
+                    if first_price > 0:
+                        change = ((last_price - first_price) / first_price) * 100
+                    else:
+                        change = 0
+                    
+                    if change > 3:
+                        trend = "اتجاه صعودي"
+                    elif change < -3:
+                        trend = "اتجاه هبوطي"
+                    else:
+                        trend = "استقرار نسبي"
                         
-                        # منع القسمة على صفر
-                        if first_price > 0:
-                            change = ((last_price - first_price) / first_price) * 100
-                        else:
-                            change = 0
-                        
-                        if change > 3:
-                            trend = "اتجاه صعودي"
-                        elif change < -3:
-                            trend = "اتجاه هبوطي"
-                        else:
-                            trend = "استقرار نسبي"
-                            
-                        trend_section = f"""
+                    trend_section = f"""
 --------------------------------------------------
 
 اتجاه السوق داخل الفترة المدروسة
@@ -802,6 +800,15 @@ def generate_district_narrative(
 
 هذا يشير إلى {trend} في السوق العقاري داخل الحي
 خلال الفترة المتاحة من البيانات.
+"""
+                else:
+                    trend_section = f"""
+--------------------------------------------------
+
+اتجاه السوق داخل الفترة المدروسة
+
+عدد الصفقات المتاحة لحي {district} ({len(df_trend)} صفقة) لا يسمح بإجراء تحليل موثوق لاتجاه السوق.
+يوصى بتجميع المزيد من البيانات للحصول على قراءة أدق لاتجاه الأسعار.
 """
     except Exception as e:
         print("Narrative Engine Error (Trend):", e)
