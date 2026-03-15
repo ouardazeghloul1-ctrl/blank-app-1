@@ -1,10 +1,11 @@
 # =========================================
 # Warda Intelligence
-# District Narrative Engine
+# District Narrative Engine (الإصدار النهائي للإنتاج)
 # محرك التقرير الاستثماري للأحياء
 # =========================================
 
 import pandas as pd
+import numpy as np
 
 # =========================================
 # Data Schema (أسماء الأعمدة القياسية)
@@ -12,7 +13,7 @@ import pandas as pd
 # تعتمد المنصة على الأعمدة التالية في بيانات الصفقات:
 #
 # city     : اسم المدينة
-# district : اسم الحي بصيغة "المدينة/الحي"
+# district : اسم الحي (قد يكون "المدينة/الحي" أو "الحي" فقط)
 # price    : سعر الصفقة
 # area     : مساحة العقار بالمتر
 # property_type : نوع العقار (شقة / فيلا / أرض ...)
@@ -20,7 +21,7 @@ import pandas as pd
 #
 # مثال:
 # city = الرياض
-# district = الرياض/الصفاء
+# district = الرياض/الصفاء أو الصفاء
 
 
 def generate_district_narrative(
@@ -42,6 +43,9 @@ def generate_district_narrative(
 
     district = district_metrics.get("district_name", "غير محدد")
     city = district_metrics.get("city_name", "غير محدد")
+    
+    # ✅ توحيد تنظيف اسم الحي ليطابق طريقة تنظيف البيانات
+    clean_district_base = str(district).split("/")[-1].strip()
     
     # إضافة نوع العقار من user_info
     property_type = user_info.get("property_type", "عقار")
@@ -70,6 +74,108 @@ def generate_district_narrative(
         price_ratio = district_price / city_price
     else:
         price_ratio = 1
+
+    # =========================================
+    # تحسين الأداء: إنشاء df_city مرة واحدة
+    # وتخزين جميع التحليلات المطلوبة
+    # =========================================
+    
+    # متغيرات التخزين المؤقت
+    city_districts_list = []
+    city_transactions_by_district = pd.Series(dtype=int)
+    city_price_by_district = pd.Series(dtype=float)
+    total_city_transactions = 0
+    df_city = pd.DataFrame()
+    
+    # متغيرات للتشخيص
+    debug_info = []
+    
+    try:
+        if real_data is not None and not real_data.empty and "district" in real_data.columns:
+            print("="*50)
+            print(f"تحليل مدينة: {city}")
+            print(f"الحي المطلوب: {clean_district_base}")
+            print(f"إجمالي البيانات المستقبلة: {len(real_data):,} صفقة")
+            
+            # ✅ استخدام البيانات كما هي (لأنها مفلترة مسبقاً في Streamlit)
+            df_city = real_data.copy()
+            print(f"✅ تم استخدام البيانات مباشرة بدون إعادة فلترة")
+            print(f"صفقات المدينة: {len(df_city):,}")
+            
+            if not df_city.empty:
+                # تنظيف أسماء الأحياء في df_city
+                df_city["district_clean"] = (
+                    df_city["district"]
+                    .astype(str)
+                    .str.split("/")
+                    .str[-1]
+                    .str.strip()
+                )
+                
+                # تنظيف البيانات الرقمية
+                df_city["price"] = pd.to_numeric(df_city["price"], errors="coerce")
+                df_city["area"] = pd.to_numeric(df_city["area"], errors="coerce")
+                
+                # حماية من المساحات الصفرية أو الناقصة
+                before_area_filter = len(df_city)
+                df_city = df_city[df_city["area"] > 0]
+                print(f"بعد إزالة المساحات الصفرية: {len(df_city):,} (تم حذف {before_area_filter - len(df_city)})")
+                
+                df_city["price_sqm"] = df_city["price"] / df_city["area"]
+                
+                # إزالة القيم الفارغة
+                before_na_filter = len(df_city)
+                df_city = df_city[df_city["price_sqm"].notna()]
+                print(f"بعد إزالة القيم الفارغة: {len(df_city):,} (تم حذف {before_na_filter - len(df_city)})")
+                
+                # نطاق آمن للأسعار (50 - 200,000 ريال للمتر)
+                before_price_filter = len(df_city)
+                df_city = df_city[(df_city["price_sqm"] >= 50) & (df_city["price_sqm"] <= 200000)]
+                print(f"بعد فلترة الأسعار (50-200,000): {len(df_city):,} (تم حذف {before_price_filter - len(df_city)})")
+                
+                # ✅ تخزين إجمالي الصفقات
+                total_city_transactions = len(df_city)
+                
+                # ✅ تخزين التحليلات المطلوبة مرة واحدة (مع ترتيب تنازلي)
+                city_transactions_by_district = df_city["district_clean"].value_counts(sort=True)
+                city_districts_list = city_transactions_by_district.index.tolist()
+                
+                # ✅ متوسط سعر المتر لكل حي - مرتب من الأعلى إلى الأقل
+                city_price_by_district = df_city.groupby("district_clean")["price_sqm"].median()
+                city_price_by_district = city_price_by_district.dropna().sort_values(ascending=False)
+                
+                print(f"عدد الأحياء المكتشفة: {len(city_districts_list)}")
+                print(f"عينة من الأحياء: {city_districts_list[:10]}")
+                
+                # هل الحي المطلوب موجود؟
+                if clean_district_base in city_districts_list:
+                    print(f"✅ تم العثور على الحي: {clean_district_base}")
+                    print(f"عدد صفقات الحي: {city_transactions_by_district[clean_district_base]:,}")
+                    
+                    # ترتيب الحي من حيث النشاط
+                    rank_activity = list(city_transactions_by_district.index).index(clean_district_base) + 1
+                    print(f"ترتيب النشاط: {rank_activity} من {len(city_districts_list)}")
+                    
+                    # ترتيب الحي من حيث السعر
+                    if clean_district_base in city_price_by_district.index:
+                        rank_price = list(city_price_by_district.index).index(clean_district_base) + 1
+                        print(f"ترتيب السعر: {rank_price} من {len(city_price_by_district)}")
+                else:
+                    print(f"⚠️ الحي {clean_district_base} غير موجود في القائمة")
+                    # بحث عن أسماء مشابهة
+                    similar = [d for d in city_districts_list[:10] if clean_district_base in d or d in clean_district_base]
+                    if similar:
+                        print(f"أسماء مشابهة: {similar}")
+                    
+            else:
+                print(f"⚠️ البيانات فارغة للمدينة {city}")
+                
+    except Exception as e:
+        print(f"❌ خطأ في تجهيز بيانات المدينة: {e}")
+        import traceback
+        traceback.print_exc()
+
+    print("="*50)
 
     # =========================================
     # تهيئة متغيرات التقرير
@@ -251,61 +357,20 @@ def generate_district_narrative(
     rank = None
     total = None
     try:
-        if real_data is not None and "district" in real_data.columns:
-            # فلترة بيانات المدينة فقط
-            df_city = real_data[
-                real_data["district"]
-                .astype(str)
-                .str.strip()
-                .str.startswith(city)
-            ].copy()
+        if not city_price_by_district.empty and clean_district_base in city_price_by_district.index:
+            rank = list(city_price_by_district.index).index(clean_district_base) + 1
+            total = len(city_price_by_district)
+            # تصحيح percentile: المرتبة 1 = 100%
+            percentile = ((total - rank + 1) / total) * 100
             
-            # التأكد من وجود بيانات بعد الفلترة
-            if len(df_city) > 0:
-                # تنظيف أسماء الأحياء
-                df_city["district_clean"] = (
-                    df_city["district"]
-                    .astype(str)
-                    .str.split("/")
-                    .str[-1]
-                    .str.strip()
-                )
-                
-                # تحويل price إلى أرقام
-                df_city["price"] = pd.to_numeric(df_city["price"], errors="coerce")
-                
-                # ✅ تنظيف المساحة قبل حساب سعر المتر
-                df_city["area"] = pd.to_numeric(df_city["area"], errors="coerce")
-                df_city = df_city[df_city["area"] > 0]
-                df_city["price_sqm"] = df_city["price"] / df_city["area"]
-                
-                # ✅ إزالة القيم الفارغة قبل الترتيب
-                df_city = df_city[df_city["price_sqm"].notna()]
-                
-                # استخدام median بدلاً من mean لتجنب تأثير الصفقات الشاذة
-                district_prices = df_city.groupby("district_clean")["price_sqm"].median()
-                # ✅ إزالة الأحياء التي ليس لديها بيانات صالحة
-                district_prices = district_prices.dropna()
-                district_prices = district_prices.sort_values()
-                
-                # الحصول على ترتيب الحي الحالي
-                # ✅ تعديل: تنظيف اسم الحي باستخدام split للحصول على اسم الحي فقط
-                clean_district = str(district).split("/")[-1].strip()
-                if clean_district in district_prices.index:
-                    rank = list(district_prices.index).index(clean_district) + 1
-                    total = len(district_prices)
-                    # تصحيح percentile: المرتبة 1 = 100%
-                    percentile = ((total - rank + 1) / total) * 100
-                    
-                    # ✅ التعديل الصحيح: استخدام >= لأن المرتبة 1 = 100%
-                    if percentile >= 80:
-                        label = "ضمن أعلى 20% من الأحياء سعراً في المدينة"
-                    elif percentile >= 50:
-                        label = "ضمن الشريحة السعرية المتوسطة"
-                    else:
-                        label = "ضمن الشريحة السعرية الاقتصادية"
-                    
-                    price_rank_section = f"""
+            if percentile >= 80:
+                label = "ضمن أعلى 20% من الأحياء سعراً في المدينة"
+            elif percentile >= 50:
+                label = "ضمن الشريحة السعرية المتوسطة"
+            else:
+                label = "ضمن الشريحة السعرية الاقتصادية"
+            
+            price_rank_section = f"""
 --------------------------------------------------
 
 ترتيب الحي من حيث الأسعار داخل المدينة
@@ -325,31 +390,11 @@ def generate_district_narrative(
     # =========================================
     liquidity_rank_section = ""
     try:
-        if real_data is not None and "district" in real_data.columns:
-            # تنظيف أسماء الأحياء لمدينة فقط
-            clean_districts = (
-                real_data[
-                    real_data["district"]
-                    .astype(str)
-                    .str.strip()
-                    .str.startswith(city)
-                ]["district"]
-                .astype(str)
-                .str.split("/")
-                .str[-1]
-                .str.strip()
-            )
+        if not city_transactions_by_district.empty and clean_district_base in city_transactions_by_district.index:
+            rank_l = list(city_transactions_by_district.index).index(clean_district_base) + 1
+            total_l = len(city_transactions_by_district)
             
-            # حساب عدد الصفقات لكل حي مع الترتيب
-            district_counts = clean_districts.value_counts().sort_values(ascending=False)
-            
-            # الحصول على ترتيب الحي الحالي
-            clean_district = str(district).split("/")[-1].strip()
-            if clean_district in district_counts.index:
-                rank_l = list(district_counts.index).index(clean_district) + 1
-                total_l = len(district_counts)
-                
-                liquidity_rank_section = f"""
+            liquidity_rank_section = f"""
 --------------------------------------------------
 
 ترتيب الحي من حيث السيولة العقارية
@@ -432,28 +477,19 @@ def generate_district_narrative(
 
     ranking_section = ""
     try:
-        if real_data is not None and hasattr(real_data, "columns") and "district" in real_data.columns:
-            # تنظيف أسماء الأحياء قبل حساب التكرارات
-            clean_districts = real_data["district"].astype(str).str.split("/").str[-1].str.strip()
-            district_counts = clean_districts.value_counts()
-            total_districts = len(district_counts)
+        if not city_transactions_by_district.empty and clean_district_base in city_transactions_by_district.index:
+            district_rank = list(city_transactions_by_district.index).index(clean_district_base) + 1
+            district_transactions = city_transactions_by_district[clean_district_base]
+            total_districts = len(city_transactions_by_district)
             
-            # تنظيف اسم الحي للمقارنة
-            clean_district = str(district).split("/")[-1].strip()
-            
-            if clean_district in district_counts.index:
-                # طريقة أكثر أماناً للحصول على الترتيب
-                district_rank = list(district_counts.index).index(clean_district) + 1
-                district_transactions = district_counts[clean_district]
+            if district_rank <= 5:
+                rank_label = "ضمن الأحياء الأكثر نشاطاً في المدينة"
+            elif district_rank <= 15:
+                rank_label = "ضمن الأحياء النشطة في السوق العقاري"
+            else:
+                rank_label = "ضمن الأحياء الأقل نشاطاً نسبياً"
                 
-                if district_rank <= 5:
-                    rank_label = "ضمن الأحياء الأكثر نشاطاً في المدينة"
-                elif district_rank <= 15:
-                    rank_label = "ضمن الأحياء النشطة في السوق العقاري"
-                else:
-                    rank_label = "ضمن الأحياء الأقل نشاطاً نسبياً"
-                    
-                ranking_section = f"""
+            ranking_section = f"""
 --------------------------------------------------
 
 موقع الحي من حيث النشاط العقاري داخل المدينة
@@ -471,7 +507,7 @@ def generate_district_narrative(
         print("Narrative Engine Error (Ranking):", e)
         ranking_section = ""
 
-    # إضافة القسم بدون شرط
+    # إضافة القسم
     report_sections.append(ranking_section)
 
     # =========================================
@@ -480,39 +516,37 @@ def generate_district_narrative(
 
     top_districts_section = ""
     try:
-        if real_data is not None and "district" in real_data.columns:
-            # تنظيف أسماء الأحياء لمدينة فقط مع strip
-            clean_districts = (
-                real_data[
-                    real_data["district"]
-                    .astype(str)
-                    .str.strip()
-                    .str.startswith(city)
-                ]["district"]
-                .astype(str)
-                .str.split("/")
-                .str[-1]
-                .str.strip()
-            )
+        if not city_transactions_by_district.empty:
+            top_districts = city_transactions_by_district.sort_values(ascending=False).head(5)
             
-            # حساب عدد الصفقات لكل حي وأخذ أول 5
-            district_counts = clean_districts.value_counts().sort_values(ascending=False)
-            top_districts = district_counts.head(5)
-            
-            # بناء نص الجدول
-            lines = ""
-            for i, (name, count) in enumerate(top_districts.items(), start=1):
-                lines += f"{i}. {name} — {count:,} صفقة\n"
-            
-            top_districts_section = f"""
+            if not top_districts.empty:
+                # بناء نص الجدول
+                lines = ""
+                for i, (name, count) in enumerate(top_districts.items(), start=1):
+                    # استخدام total_city_transactions للدقة
+                    market_share = (count / total_city_transactions) * 100 if total_city_transactions > 0 else 0
+                    lines += f"{i}. {name} — {count:,} صفقة ({market_share:.1f}% من السوق)\n"
+                
+                # إضافة تحليل لموقع الحي الحالي
+                if clean_district_base in city_transactions_by_district.index:
+                    current_rank = list(city_transactions_by_district.index).index(clean_district_base) + 1
+                    if current_rank <= 5:
+                        rank_note = f"\n📍 حي {district} من ضمن هذه القائمة في المرتبة {current_rank}."
+                    else:
+                        rank_note = f"\n📍 حي {district} يحتل المرتبة {current_rank} خارج هذه القائمة."
+                else:
+                    rank_note = ""
+                
+                top_districts_section = f"""
 --------------------------------------------------
 
-الأحياء الأكثر نشاطاً في السوق العقاري
+🏆 الأحياء الأكثر نشاطاً في السوق العقاري
 
 بحسب تحليل بيانات الصفقات العقارية في مدينة {city}،
 تظهر الأحياء التالية كأكثر المناطق نشاطاً في السوق:
 
 {lines}
+{rank_note}
 """
     except Exception as e:
         print("Top Districts Error:", e)
@@ -717,66 +751,48 @@ def generate_district_narrative(
     report_sections.append(risk_section)
 
     # =========================================
-    # تحليل اتجاه السعر داخل الفترة المتاحة
+    # تحليل اتجاه السعر داخل الفترة المتاحة (محسّن)
     # =========================================
 
     trend_section = ""
     try:
-        if real_data is not None and hasattr(real_data, "columns") and "date" in real_data.columns:
-            # تنظيف اسم الحي أثناء الفلترة
-            df = real_data[ 
-                real_data["district"]
-                .astype(str)
-                .str.split("/")
-                .str[-1]
-                .str.strip()
-                .str.lower() == str(district).split("/")[-1].strip().lower()
+        if not df_city.empty and "date" in df_city.columns:
+            # ✅ استخدام df_city بدلاً من real_data (أسرع)
+            df_trend = df_city[
+                df_city["district_clean"].str.lower() == clean_district_base.lower()
             ].copy()
             
-            # تحسين الأداء 1: استخدام subset محدد لـ drop_duplicates
-            df = df.drop_duplicates(subset=["price", "area", "date"])
-            
-            # تحسين معالجة التاريخ
-            df["date"] = pd.to_datetime(df["date"], errors="coerce")
-            df = df[df["date"].notna()]
-            
-            # تحويل القيم الرقمية
-            df["price"] = pd.to_numeric(df["price"], errors="coerce")
-            
-            # ✅ تنظيف المساحة قبل حساب سعر المتر
-            df["area"] = pd.to_numeric(df["area"], errors="coerce")
-            df = df[df["area"] > 0]
-            df["price_per_sqm"] = df["price"] / df["area"]
-            
-            # ✅ إزالة القيم الفارغة بعد الحساب
-            df = df[df["price_per_sqm"].notna()]
-            
-            df = df.sort_values("date")
-            
-            # استخدام التقسيم الزمني بدلاً من التقسيم النصفي
-            if len(df) >= 2:
-                midpoint_date = df["date"].median()
-                first_period = df[df["date"] <= midpoint_date]
-                last_period = df[df["date"] > midpoint_date]
+            if not df_trend.empty:
+                # تحسين معالجة التاريخ
+                df_trend["date"] = pd.to_datetime(df_trend["date"], errors="coerce")
+                df_trend = df_trend[df_trend["date"].notna()]
                 
-                if not first_period.empty and not last_period.empty:
-                    first_price = first_period["price_per_sqm"].mean()
-                    last_price = last_period["price_per_sqm"].mean()
+                df_trend = df_trend.sort_values("date")
+                
+                # استخدام التقسيم الزمني
+                if len(df_trend) >= 2:
+                    midpoint_date = df_trend["date"].median()
+                    first_period = df_trend[df_trend["date"] <= midpoint_date]
+                    last_period = df_trend[df_trend["date"] > midpoint_date]
                     
-                    # منع القسمة على صفر في حساب التغير
-                    if first_price > 0:
-                        change = ((last_price - first_price) / first_price) * 100
-                    else:
-                        change = 0
-                    
-                    if change > 3:
-                        trend = "اتجاه صعودي"
-                    elif change < -3:
-                        trend = "اتجاه هبوطي"
-                    else:
-                        trend = "استقرار نسبي"
+                    if not first_period.empty and not last_period.empty:
+                        first_price = first_period["price_sqm"].mean()
+                        last_price = last_period["price_sqm"].mean()
                         
-                    trend_section = f"""
+                        # منع القسمة على صفر
+                        if first_price > 0:
+                            change = ((last_price - first_price) / first_price) * 100
+                        else:
+                            change = 0
+                        
+                        if change > 3:
+                            trend = "اتجاه صعودي"
+                        elif change < -3:
+                            trend = "اتجاه هبوطي"
+                        else:
+                            trend = "استقرار نسبي"
+                            
+                        trend_section = f"""
 --------------------------------------------------
 
 اتجاه السوق داخل الفترة المدروسة
@@ -791,7 +807,7 @@ def generate_district_narrative(
         print("Narrative Engine Error (Trend):", e)
         trend_section = ""
 
-    # إضافة القسم بدون شرط
+    # إضافة القسم
     report_sections.append(trend_section)
 
     # =========================================
@@ -799,63 +815,42 @@ def generate_district_narrative(
     # =========================================
     cycle_section = ""
     try:
-        if real_data is not None and "date" in real_data.columns:
-            df = real_data.copy()
-            
-            # تنظيف اسم الحي
-            df["district_clean"] = (
-                df["district"]
-                .astype(str)
-                .str.split("/")
-                .str[-1]
-                .str.strip()
-            )
-            
+        if not df_city.empty and "date" in df_city.columns:
             # فلترة الحي
-            df = df[
-                df["district_clean"].str.lower() == str(district).split("/")[-1].strip().lower()
-            ]
+            df_cycle = df_city[
+                df_city["district_clean"].str.lower() == clean_district_base.lower()
+            ].copy()
             
-            # تحويل التاريخ
-            df["date"] = pd.to_datetime(df["date"], errors="coerce")
-            df = df[df["date"].notna()]
-            
-            # تحويل القيم الرقمية
-            df["price"] = pd.to_numeric(df["price"], errors="coerce")
-            
-            # ✅ تنظيف المساحة قبل حساب سعر المتر
-            df["area"] = pd.to_numeric(df["area"], errors="coerce")
-            df = df[df["area"] > 0]
-            df["price_sqm"] = df["price"] / df["area"]
-            
-            # ✅ إزالة القيم الفارغة بعد الحساب
-            df = df[df["price_sqm"].notna()]
-            
-            # استخراج السنة
-            df["year"] = df["date"].dt.year
-            # استخدام median بدلاً من mean لتجنب تأثير الصفقات الشاذة
-            yearly_prices = df.groupby("year")["price_sqm"].median()
-            
-            if len(yearly_prices) >= 2:
-                first_price = yearly_prices.iloc[0]
-                last_price = yearly_prices.iloc[-1]
+            if not df_cycle.empty:
+                # تحويل التاريخ
+                df_cycle["date"] = pd.to_datetime(df_cycle["date"], errors="coerce")
+                df_cycle = df_cycle[df_cycle["date"].notna()]
                 
-                if first_price > 0:
-                    change = ((last_price - first_price) / first_price) * 100
-                else:
-                    change = 0
+                # استخراج السنة
+                df_cycle["year"] = df_cycle["date"].dt.year
+                # استخدام median لتجنب تأثير الصفقات الشاذة
+                yearly_prices = df_cycle.groupby("year")["price_sqm"].median()
                 
-                if change > 8:
-                    cycle = "مرحلة نمو في السوق العقاري"
-                    explanation = "تشير البيانات إلى ارتفاع واضح في متوسط أسعار المتر خلال السنوات الأخيرة."
-                elif change < -5:
-                    cycle = "مرحلة تصحيح سعري"
-                    explanation = "تشير البيانات إلى تراجع في متوسط الأسعار خلال الفترة المدروسة."
-                else:
-                    cycle = "مرحلة استقرار في السوق"
-                    explanation = "الأسعار تتحرك ضمن نطاق مستقر دون تغيرات كبيرة."
-                
-                cycle_section = f"""
+                if len(yearly_prices) >= 2:
+                    first_price = yearly_prices.iloc[0]
+                    last_price = yearly_prices.iloc[-1]
+                    
+                    if first_price > 0:
+                        change = ((last_price - first_price) / first_price) * 100
+                    else:
+                        change = 0
+                    
+                    if change > 8:
+                        cycle = "مرحلة نمو في السوق العقاري"
+                        explanation = "تشير البيانات إلى ارتفاع واضح في متوسط أسعار المتر خلال السنوات الأخيرة."
+                    elif change < -5:
+                        cycle = "مرحلة تصحيح سعري"
+                        explanation = "تشير البيانات إلى تراجع في متوسط الأسعار خلال الفترة المدروسة."
+                    else:
+                        cycle = "مرحلة استقرار في السوق"
+                        explanation = "الأسعار تتحرك ضمن نطاق مستقر دون تغيرات كبيرة."
+                    
+                    cycle_section = f"""
 --------------------------------------------------
 
 دورة السوق العقاري
@@ -990,7 +985,7 @@ Investment Grade Rating
     # =========================================
     position_section = ""
     try:
-        if 'rank' in locals() and rank is not None and total is not None:
+        if rank is not None and total is not None:
             # استخدام الصيغة المحسنة: المرتبة 1 = 100%
             percentile = ((total - rank + 1) / total) * 100
             if percentile >= 80:
@@ -1055,7 +1050,7 @@ Investment Grade Rating
 
     heat_section = ""
     try:
-        # ✅ حساب مؤشر حرارة السوق مع حد أقصى 60 صفقة لمنع التشبع
+        # حساب مؤشر حرارة السوق مع حد أقصى 60 صفقة لمنع التشبع
         heat_score = min(100, int((min(transactions, 60) / 60 * 50) + (dpi_score * 0.5)))
         
         if heat_score >= 80:
@@ -1378,7 +1373,7 @@ Investment Grade Rating
         final_report += f"الفصل {chapter_title}\n"
         final_report += "-" * 40 + "\n\n"
         
-        # إدراج الرسم في الفصول المحددة - بالضبط بدون مسافات إضافية
+        # إدراج الرسم في الفصول المحددة
         if i in chart_chapters:
             final_report += "[[ANCHOR_CHART]]\n\n"
         
