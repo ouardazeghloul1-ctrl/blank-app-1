@@ -258,16 +258,16 @@ def show_district_reports(df_raw):
                             district
                         )
                         
-                        # توحيد شكل الرسومات ليطابق محرك PDF
+                        # =========================================
+                        # ✅ التعديل المهم: تغيير أرقام الفصول لتتوافق مع محرك PDF
+                        # الفصول التي تحتوي على رسومات: 4, 7, 11, 16, 21
+                        # =========================================
                         charts_by_chapter = {
-                            "chapter_1": [raw_charts.get("price_trend")],
-                            "chapter_2": [raw_charts.get("district_comparison")],
-                            "chapter_3": [raw_charts.get("transactions_over_time")],
-                            "chapter_4": [raw_charts.get("price_distribution")],
-                            "chapter_5": [raw_charts.get("property_type_analysis")],
-                            "chapter_6": [],
-                            "chapter_7": [],
-                            "chapter_8": [],
+                            "chapter_4": [raw_charts.get("price_trend")],
+                            "chapter_7": [raw_charts.get("district_comparison")],
+                            "chapter_11": [raw_charts.get("transactions_over_time")],
+                            "chapter_16": [raw_charts.get("price_distribution")],
+                            "chapter_21": [raw_charts.get("property_type_analysis")],
                         }
                         
                         # تنظيف الرسومات الفارغة
