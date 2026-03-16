@@ -39,17 +39,37 @@ def generate_district_narrative(
     """
 
     # =========================================
+    # ✅ التحسينات الأمنية الأساسية (حماية 100%)
+    # =========================================
+    
+    # التحسين 1: حماية district_metrics من None
+    district_metrics = district_metrics or {}
+    
+    # التحسين 2: حماية dpi_score من None
+    dpi_score = float(dpi_score or 0)
+    
+    # التحسين 3: حماية user_info من None
+    user_info = user_info or {}
+    
+    # =========================================
     # استخراج البيانات الأساسية
     # =========================================
 
     district = district_metrics.get("district_name", "غير محدد")
     city = district_metrics.get("city_name", "غير محدد")
     
+    # ✅ حماية القيم الرقمية من None والنصوص
+    district_price = float(district_metrics.get("district_avg_price", 0) or 0)
+    city_price = float(district_metrics.get("city_avg_price", 0) or 0)
+    
+    # ✅ تحويل عدد الصفقات إلى integer بشكل آمن
+    transactions = int(district_metrics.get("transactions_count", 0) or 0)
+    
+    # ✅ نوع العقار مع حماية كاملة
+    property_type = user_info.get("property_type", "عقار")
+    
     # ✅ توحيد تنظيف اسم الحي ليطابق طريقة تنظيف البيانات
     clean_district_base = str(district).split("/")[-1].strip()
-    
-    # إضافة نوع العقار من user_info
-    property_type = user_info.get("property_type", "عقار")
     
     # تحويل نوع العقار إلى صيغة السوق (شقق / فلل)
     if property_type == "شقة":
@@ -64,11 +84,6 @@ def generate_district_narrative(
         property_market = "المحلات التجارية"
     else:
         property_market = property_type
-
-    district_price = district_metrics.get("district_avg_price", 0)
-    city_price = district_metrics.get("city_avg_price", 0)
-
-    transactions = district_metrics.get("transactions_count", 0)
 
     # حماية من القسمة على صفر
     if city_price > 0:
@@ -92,7 +107,8 @@ def generate_district_narrative(
     debug_info = []
     
     try:
-        if real_data is not None and not real_data.empty and "district" in real_data.columns:
+        # ✅ التحسين 4: التأكد من أن real_data هو DataFrame
+        if isinstance(real_data, pd.DataFrame) and not real_data.empty and "district" in real_data.columns:
             print("="*50)
             print(f"تحليل مدينة: {city}")
             print(f"الحي المطلوب: {clean_district_base}")
@@ -117,11 +133,12 @@ def generate_district_narrative(
                 df_city["price"] = pd.to_numeric(df_city["price"], errors="coerce")
                 df_city["area"] = pd.to_numeric(df_city["area"], errors="coerce")
                 
-                # حماية من المساحات الصفرية أو الناقصة
+                # ✅ إزالة المساحات الصفرية قبل حساب سعر المتر
                 before_area_filter = len(df_city)
                 df_city = df_city[df_city["area"] > 0]
                 print(f"بعد إزالة المساحات الصفرية: {len(df_city):,} (تم حذف {before_area_filter - len(df_city)})")
                 
+                # حساب سعر المتر (آمن الآن من القسمة على صفر)
                 df_city["price_sqm"] = df_city["price"] / df_city["area"]
                 
                 # إزالة القيم الفارغة
@@ -227,17 +244,17 @@ def generate_district_narrative(
         )
         investment_score = round(investment_score, 1)
         
-        # حساب درجة الثقة في القرار
-        confidence = min(95, int((dpi_score + transactions) / 2))
-        if confidence < 20:
-            confidence = 20
+        # ✅ Confidence محسّن
+        confidence = int(0.7 * dpi_score + 0.3 * min(transactions, 60))
+        confidence = min(95, max(30, confidence))
+        
     except Exception as e:
         print("Error calculating scores:", e)
         investment_score = 50
         confidence = 50
 
     # =========================================
-    # ✅ التعديل 1: Investment Snapshot محسّن مع Investment Score
+    # Investment Snapshot
     # =========================================
     snapshot_section = f"""
 --------------------------------------------------
@@ -1009,18 +1026,23 @@ Investment Score: {investment_score} / 100
     report_sections.append(strategy_section)
 
     # =========================================
-    # ✅ التعديل 2: Capital Growth Potential محسّن مع إضافة المدة الزمنية
+    # ✅ Capital Growth Potential محسّن
     # =========================================
     growth_section = ""
+    
+    # ✅ النسخة الأفضل للنمو
     if price_ratio < 0.9 and transactions >= 20:
         growth = "مرتفعة"
-        range_text = "10% إلى 18% خلال 3 إلى 5 سنوات"
-    elif price_ratio < 1.05:
+        range_text = "12% إلى 20% خلال 3 إلى 5 سنوات"
+    elif price_ratio <= 1.0:
         growth = "متوسطة"
-        range_text = "5% إلى 12% خلال 3 إلى 5 سنوات"
-    else:
+        range_text = "6% إلى 12% خلال 3 إلى 5 سنوات"
+    elif price_ratio <= 1.15:
         growth = "محدودة"
-        range_text = "0% إلى 8% خلال 3 إلى 5 سنوات"
+        range_text = "3% إلى 8% خلال 3 إلى 5 سنوات"
+    else:
+        growth = "ضعيفة"
+        range_text = "0% إلى 5% خلال 3 إلى 5 سنوات"
     
     growth_section = f"""
 --------------------------------------------------
@@ -1032,9 +1054,9 @@ Investment Score: {investment_score} / 100
 النطاق التقديري: {range_text}
 
 يعتمد هذا التقدير على:
-• موقع الحي السعري
-• نشاط السوق
-• حجم الصفقات
+• موقع الحي السعري (أقل/أعلى من متوسط المدينة)
+• نشاط السوق (عدد الصفقات)
+• مؤشر قوة الحي (DPI)
 """
     report_sections.append(growth_section)
 
@@ -1163,22 +1185,27 @@ Investment Grade Rating
     report_sections.append(speed_section)
 
     # =========================================
-    # Market Heat Index (محسن)
+    # ✅ Market Heat Index محسّن
     # =========================================
 
     heat_section = ""
     try:
-        # حساب مؤشر حرارة السوق مع حد أقصى 60 صفقة لمنع التشبع
-        heat_score = min(100, int((min(transactions, 60) / 60 * 50) + (dpi_score * 0.5)))
+        # ✅ 0.6 * dpi_score + 0.4 * min(transactions, 100)
+        heat_score = int(0.6 * dpi_score + 0.4 * min(transactions, 100))
+        heat_score = min(100, heat_score)
         
         if heat_score >= 80:
-            heat_label = "سوق شديد السخونة"
+            heat_label = "شديد السخونة"
+            heat_description = "نشاط مرتفع جداً، سرعة في تنفيذ الصفقات"
         elif heat_score >= 60:
-            heat_label = "سوق ساخن"
+            heat_label = "ساخن"
+            heat_description = "سوق نشط، طلب جيد على العقارات"
         elif heat_score >= 40:
-            heat_label = "سوق دافئ"
+            heat_label = "دافئ"
+            heat_description = "حركة متوسطة، فرص متاحة"
         else:
-            heat_label = "سوق هادئ"
+            heat_label = "هادئ"
+            heat_description = "سوق هادئ، يحتاج إلى متابعة"
             
         heat_section = f"""
 --------------------------------------------------
@@ -1187,11 +1214,10 @@ Investment Grade Rating
 
 درجة حرارة السوق: {heat_score} / 100
 التصنيف: {heat_label}
+الوصف: {heat_description}
 
 يشير هذا المؤشر إلى مستوى النشاط والطلب في السوق العقاري
 داخل الحي مقارنة ببقية أحياء المدينة.
-
-القيم المرتفعة تعني سوقاً نشطاً وسرعة أكبر في تنفيذ الصفقات.
 """
     except Exception as e:
         print("Narrative Engine Error (Heat):", e)
@@ -1350,7 +1376,7 @@ Investment Grade Rating
         report_sections.append(horizon_section)
 
     # =========================================
-    # ✅ التعديل 3: Investment Decision محسّن مع درجة الثقة
+    # Investment Decision
     # =========================================
     decision_section = ""
     try:
