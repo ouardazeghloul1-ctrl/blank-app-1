@@ -476,6 +476,13 @@ def build_report_story(user_info, provided_dataframe=None):
     # إضافة Scorecard
     content_text += "\n\n" + scorecard_text
     
+    # إضافة الخلاصة التنفيذية - التعديل المطلوب
+    if executive_decision:
+        content_text += "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        content_text += "📊 القرار التنفيذي للاستثمار\n"
+        content_text += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        content_text += executive_decision
+    
     # إضافة تحليل الحي إلى التقرير النصي
     if district_analysis_text:
         content_text += "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
