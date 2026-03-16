@@ -1,9 +1,7 @@
 # report_pdf_generator.py
 from io import BytesIO
-from datetime import datetime
 import os
 import tempfile
-import streamlit as st
 import re
 import unicodedata
 
@@ -35,8 +33,12 @@ def ar(text):
     try:
         text = str(text)
 
-        # إصلاح عرض النسب السالبة داخل RTL
-        text = re.sub(r"(-?\d+\.\d+)%", lambda m: f"\u200E{m.group(0)}", text)
+        # إزالة الأقواس لأنها تسبب انقلاب RTL
+        text = text.replace("(", " - ")
+        text = text.replace(")", " - ")
+
+        # تثبيت عرض النسب
+        text = re.sub(r"(-?\d+\.?\d*)%", lambda m: f"\u200E{m.group(0)}", text)
 
         reshaped = arabic_reshaper.reshape(text)
         return get_display(reshaped)
@@ -51,6 +53,7 @@ def clean_text(text: str) -> str:
     if not text:
         return ""
 
+    text = str(text)
     cleaned = []
     for ch in text:
         cat = unicodedata.category(ch)
@@ -60,6 +63,9 @@ def clean_text(text: str) -> str:
 
     text = "".join(cleaned)
     text = re.sub(r"^[\-\*\d\.\)]\s*", "", text)
+    text = text.replace(":", " : ")
+    text = text.replace("،", " ، ")
+    text = text.replace("؛", " ؛ ")
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
@@ -104,7 +110,7 @@ def plotly_to_image(fig, width_cm, height_cm):
 # =========================
 # Elegant divider
 # =========================
-def elegant_divider(width="80%", thickness=0.6, color=colors.HexColor("#B0B0B0")):
+def elegant_divider(width="80%", thickness=0.6, color=colors.HexColor("#C8C8C8")):
     return HRFlowable(
         width=width,
         thickness=thickness,
@@ -113,6 +119,36 @@ def elegant_divider(width="80%", thickness=0.6, color=colors.HexColor("#B0B0B0")
         spaceAfter=14,
         lineCap='round'
     )
+
+
+# =========================
+# FOOTER
+# =========================
+def add_footer(canvas, doc):
+    canvas.saveState()
+    
+    # رسم خط خفيف فوق الفوتر
+    canvas.setStrokeColor(colors.HexColor("#DDDDDD"))
+    canvas.line(2.4 * cm, 2 * cm, A4[0] - 2.4 * cm, 2 * cm)
+    
+    canvas.setFont("Amiri", 9)
+    canvas.setFillColor(colors.HexColor("#777777"))
+    
+    page_number = canvas.getPageNumber()
+    
+    canvas.drawRightString(
+        A4[0] - 2.4 * cm, 
+        1.5 * cm, 
+        ar("Warda Intelligence | منصة الذكاء العقاري")
+    )
+    
+    canvas.drawString(
+        2.4 * cm, 
+        1.5 * cm, 
+        ar(f"الصفحة {page_number}")
+    )
+    
+    canvas.restoreState()
 
 
 # =========================
@@ -165,24 +201,24 @@ def create_pdf_from_content(
         "ArabicBody",
         parent=styles["Normal"],
         fontName="Amiri",
-        fontSize=14.5,
-        leading=22,
+        fontSize=14,
+        leading=24,
         alignment=TA_RIGHT,
         wordWrap='RTL',
-        spaceAfter=22,
-        allowWidows=0,
-        allowOrphans=0,
+        spaceAfter=16,
+        allowWidows=1,
+        allowOrphans=1,
     )
 
     chapter = ParagraphStyle(
         "ArabicChapter",
         parent=styles["Heading2"],
         fontName="Amiri",
-        fontSize=18,
+        fontSize=19,
         alignment=TA_RIGHT,
-        textColor=colors.HexColor("#9c1c1c"),
-        spaceBefore=36,
-        spaceAfter=18,
+        textColor=colors.HexColor("#8B0000"),
+        spaceBefore=30,
+        spaceAfter=14,
         keepWithNext=1
     )
 
@@ -357,7 +393,7 @@ def create_pdf_from_content(
         raw_stripped = raw.strip()
 
         if not raw_stripped:
-            story.append(Spacer(1, 0.8 * cm))
+            story.append(Spacer(1, 0.6 * cm))
             continue
 
         clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
@@ -375,10 +411,10 @@ def create_pdf_from_content(
             chapter_index += 1
             # ✅ تهيئة المؤشر لهذا الفصل
             chart_cursor[chapter_index] = 0
-            story.append(KeepTogether([
-                Paragraph(ar(clean), chapter),
-                Spacer(1, 0.6 * cm)
-            ]))
+            story.append(Paragraph(ar(clean), chapter))
+            story.append(Spacer(1, 0.4 * cm))
+            story.append(elegant_divider("40%"))
+            story.append(Spacer(1, 0.8 * cm))
             first_chapter_processed = True
             continue
 
@@ -390,7 +426,7 @@ def create_pdf_from_content(
                 cursor = chart_cursor.get(chapter_index, 0)
 
                 if cursor < len(charts):
-                    img = plotly_to_image(charts[cursor], 16.8, 8.8)
+                    img = plotly_to_image(charts[cursor], 16.8, 9)
                     if img:
                         # ✅ حفظ مسار الملف المؤقت لحذفه لاحقاً
                         if hasattr(img, '_temp_file'):
@@ -418,7 +454,7 @@ def create_pdf_from_content(
                         and isinstance(fig.data[0], go.Indicator)
                     )
                     img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
-                                           9.5 if is_indicator else 8.8)
+                                           9.5 if is_indicator else 9)
                     if img:
                         # ✅ حفظ مسار الملف المؤقت لحذفه لاحقاً
                         if hasattr(img, '_temp_file'):
@@ -431,8 +467,14 @@ def create_pdf_from_content(
             continue
 
         story.append(Paragraph(ar(clean), body))
+        story.append(Spacer(1, 0.2 * cm))
 
-    doc.build(story)
+    doc.build(
+        story, 
+        onFirstPage=add_footer, 
+        onLaterPages=add_footer
+    )
+    
     buffer.seek(0)
     
     # ✅ حذف جميع الملفات المؤقتة بعد بناء PDF
