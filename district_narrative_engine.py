@@ -6,6 +6,7 @@
 
 import pandas as pd
 import numpy as np
+from ai_executive_summary import generate_executive_summary
 
 # =========================================
 # Data Schema (أسماء الأعمدة القياسية)
@@ -1289,6 +1290,28 @@ Investment Grade Rating
         print("Decision Section Error:", e)
     
     report_sections.append(decision_section)
+
+    # =========================================
+    # Executive Decision Engine (التعديل الجديد)
+    # =========================================
+    try:
+        executive_summary = generate_executive_summary(
+            user_info=user_info,
+            market_data=market_data,
+            real_data=real_data,
+            package="gold"
+        )
+        
+        if executive_summary:
+            executive_section = f"""
+--------------------------------------------------
+
+📊 القرار التنفيذي للاستثمار
+{executive_summary}
+"""
+            report_sections.append(executive_section)
+    except Exception as e:
+        print("Executive Summary Error:", e)
 
     # =========================================
     # الحكم الاستثماري النهائي
