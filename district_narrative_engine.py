@@ -183,6 +183,81 @@ def generate_district_narrative(
     # =========================================
 
     report_sections = []
+
+    # =========================================
+    # Investment Intelligence Score (محسوب مسبقاً للاستخدام)
+    # =========================================
+    try:
+        # ------------------------------
+        # حساب نقاط السعر
+        # ------------------------------
+        price_score = 50
+        if price_ratio < 0.85:
+            price_score = 85
+        elif price_ratio < 0.95:
+            price_score = 70
+        elif price_ratio <= 1.05:
+            price_score = 60
+        elif price_ratio <= 1.15:
+            price_score = 50
+        else:
+            price_score = 40
+
+        # ------------------------------
+        # حساب نقاط السيولة
+        # ------------------------------
+        if transactions >= 40:
+            liquidity_score = 90
+        elif transactions >= 25:
+            liquidity_score = 75
+        elif transactions >= 15:
+            liquidity_score = 60
+        elif transactions >= 8:
+            liquidity_score = 45
+        else:
+            liquidity_score = 30
+
+        # ------------------------------
+        # حساب النتيجة النهائية
+        # ------------------------------
+        investment_score = (
+            price_score * 0.30 +
+            liquidity_score * 0.30 +
+            dpi_score * 0.40
+        )
+        investment_score = round(investment_score, 1)
+        
+        # حساب درجة الثقة في القرار
+        confidence = min(95, int((dpi_score + transactions) / 2))
+        if confidence < 20:
+            confidence = 20
+    except Exception as e:
+        print("Error calculating scores:", e)
+        investment_score = 50
+        confidence = 50
+
+    # =========================================
+    # ✅ التعديل 1: Investment Snapshot محسّن مع Investment Score
+    # =========================================
+    snapshot_section = f"""
+--------------------------------------------------
+
+Investment Snapshot
+ملخص الاستثمار السريع
+
+المدينة: {city}
+الحي: {district}
+نوع العقار: {property_type}
+
+متوسط سعر المتر: {district_price:,.0f} ريال
+متوسط سعر المدينة: {city_price:,.0f} ريال
+عدد الصفقات: {transactions:,} صفقة
+مؤشر قوة الحي (DPI): {dpi_score:.1f} / 100
+Investment Score: {investment_score} / 100
+
+--------------------------------------------------
+"""
+    report_sections.append(snapshot_section)
     
     # ملخص تنفيذي محسن
     summary_section = f"""
@@ -350,6 +425,23 @@ def generate_district_narrative(
         print("Gap Analysis Error:", e)
     
     report_sections.append(gap_section)
+
+    # =========================================
+    # Market Benchmark
+    # =========================================
+    benchmark_section = f"""
+--------------------------------------------------
+
+مقارنة الحي مع متوسط السوق
+
+متوسط سعر المتر في الحي: {district_price:,.0f} ريال
+متوسط سعر المتر في المدينة: {city_price:,.0f} ريال
+
+الفارق: {((district_price - city_price)/city_price*100):.1f}%
+
+هذا المؤشر يساعد المستثمر على فهم ما إذا كان الحي يتداول عند خصم سعري أو بعلاوة سعرية مقارنة بالسوق.
+"""
+    report_sections.append(benchmark_section)
 
     # =========================================
     # Price Ranking داخل المدينة
@@ -885,56 +977,72 @@ def generate_district_narrative(
     report_sections.append(cycle_section)
 
     # =========================================
+    # Investment Strategy
+    # =========================================
+    strategy_section = ""
+    if price_ratio < 0.9:
+        strategy_text = f"""
+الاستراتيجية المقترحة:
+• البحث عن عقارات أقل من متوسط سعر الحي.
+• التركيز على المواقع القريبة من الخدمات.
+• الاحتفاظ بالعقار لمدة 3 إلى 5 سنوات للاستفادة من نمو الأسعار.
+"""
+    elif price_ratio > 1.1:
+        strategy_text = f"""
+الاستراتيجية المقترحة:
+• اختيار عقارات مميزة داخل الحي.
+• الاستثمار طويل الأجل.
+• التركيز على المواقع ذات الطلب المرتفع.
+"""
+    else:
+        strategy_text = f"""
+الاستراتيجية المقترحة:
+• اختيار عقارات بسعر السوق أو أقل قليلاً.
+• التركيز على السيولة وسهولة إعادة البيع.
+"""
+    strategy_section = f"""
+--------------------------------------------------
+
+استراتيجية الاستثمار في الحي
+{strategy_text}
+"""
+    report_sections.append(strategy_section)
+
+    # =========================================
+    # ✅ التعديل 2: Capital Growth Potential محسّن مع إضافة المدة الزمنية
+    # =========================================
+    growth_section = ""
+    if price_ratio < 0.9 and transactions >= 20:
+        growth = "مرتفعة"
+        range_text = "10% إلى 18% خلال 3 إلى 5 سنوات"
+    elif price_ratio < 1.05:
+        growth = "متوسطة"
+        range_text = "5% إلى 12% خلال 3 إلى 5 سنوات"
+    else:
+        growth = "محدودة"
+        range_text = "0% إلى 8% خلال 3 إلى 5 سنوات"
+    
+    growth_section = f"""
+--------------------------------------------------
+
+إمكانية النمو الرأسمالي
+
+تقدير النمو المحتمل للأسعار في الحي:
+مستوى النمو المتوقع: {growth}
+النطاق التقديري: {range_text}
+
+يعتمد هذا التقدير على:
+• موقع الحي السعري
+• نشاط السوق
+• حجم الصفقات
+"""
+    report_sections.append(growth_section)
+
+    # =========================================
     # Investment Intelligence Score
     # =========================================
 
-    score_section = ""
-    try:
-        # ------------------------------
-        # حساب نقاط السعر
-        # ------------------------------
-        price_score = 50
-        if price_ratio < 0.85:
-            price_score = 85
-        elif price_ratio < 0.95:
-            price_score = 70
-        elif price_ratio <= 1.05:
-            price_score = 60
-        elif price_ratio <= 1.15:
-            price_score = 50
-        else:
-            price_score = 40
-
-        # ------------------------------
-        # حساب نقاط السيولة
-        # ------------------------------
-        if transactions >= 40:
-            liquidity_score = 90
-        elif transactions >= 25:
-            liquidity_score = 75
-        elif transactions >= 15:
-            liquidity_score = 60
-        elif transactions >= 8:
-            liquidity_score = 45
-        else:
-            liquidity_score = 30
-
-        # ------------------------------
-        # قوة الحي
-        # ------------------------------
-        dpi_component = dpi_score
-
-        # ------------------------------
-        # حساب النتيجة النهائية
-        # ------------------------------
-        investment_score = (
-            price_score * 0.30 +
-            liquidity_score * 0.30 +
-            dpi_component * 0.40
-        )
-        investment_score = round(investment_score, 1)
-
-        score_section = f"""
+    score_section = f"""
 --------------------------------------------------
 
 Investment Intelligence Score
@@ -947,33 +1055,26 @@ Investment Intelligence Score
 - نشاط السوق العقاري وعدد الصفقات
 - مؤشر قوة الحي الاستثماري (DPI)
 """
-    except Exception as e:
-        print("Narrative Engine Error (Score):", e)
-        score_section = ""
-
-    if score_section:
-        report_sections.append(score_section)
+    report_sections.append(score_section)
 
     # =========================================
     # Investment Grade Rating
     # =========================================
     grade_section = ""
     try:
-        # استخدام locals().get للحماية من الأخطاء
-        score = locals().get("investment_score", 0)
-        if score >= 85:
+        if investment_score >= 85:
             grade = "A+"
             label = "فرصة استثمارية ممتازة"
-        elif score >= 75:
+        elif investment_score >= 75:
             grade = "A"
             label = "فرصة استثمارية قوية"
-        elif score >= 65:
+        elif investment_score >= 65:
             grade = "B+"
             label = "فرصة استثمارية جيدة"
-        elif score >= 55:
+        elif investment_score >= 55:
             grade = "B"
             label = "فرصة استثمارية متوسطة"
-        elif score >= 45:
+        elif investment_score >= 45:
             grade = "C"
             label = "فرصة استثمارية محدودة"
         else:
@@ -1249,7 +1350,7 @@ Investment Grade Rating
         report_sections.append(horizon_section)
 
     # =========================================
-    # Investment Decision (قرار الاستثمار المباشر)
+    # ✅ التعديل 3: Investment Decision محسّن مع درجة الثقة
     # =========================================
     decision_section = ""
     try:
@@ -1277,12 +1378,14 @@ Investment Grade Rating
 السوق في حي {district} متوازن نسبياً.
 يمكن الاستثمار بشرط اختيار عقار بسعر مناسب وموقع جيد داخل الحي.
 """
+        
         decision_section = f"""
 --------------------------------------------------
 
 قرار الاستثمار
 
 التوصية الأساسية: {decision}
+درجة الثقة في القرار: {confidence}%
 
 {reasoning}
 """
@@ -1400,11 +1503,13 @@ Investment Grade Rating
         "السادس","السابع","الثامن","التاسع","العاشر",
         "الحادي عشر","الثاني عشر","الثالث عشر","الرابع عشر","الخامس عشر",
         "السادس عشر","السابع عشر","الثامن عشر","التاسع عشر","العشرون",
-        "الحادي والعشرون","الثاني والعشرون","الثالث والعشرون","الرابع والعشرون"
+        "الحادي والعشرون","الثاني والعشرون","الثالث والعشرون","الرابع والعشرون",
+        "الخامس والعشرون","السادس والعشرون","السابع والعشرون","الثامن والعشرون",
+        "التاسع والعشرون","الثلاثون"
     ]
     
     # الفصول التي تحتوي الرسومات
-    chart_chapters = [4,7,11,16,21]
+    chart_chapters = [4,7,11,16,21,24,28]
     
     final_report = ""
     for i, section in enumerate(report_sections, start=1):
