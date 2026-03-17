@@ -4,6 +4,7 @@ import os
 import tempfile
 import re
 import unicodedata
+from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -140,10 +141,11 @@ def add_footer(canvas, doc):
     
     page_number = canvas.getPageNumber()
     
+    # ✅ تعديل الفوتر لإضافة السنة
     canvas.drawRightString(
         A4[0] - 2.4 * cm, 
         1.5 * cm, 
-        ar("Warda Intelligence | منصة الذكاء العقاري")
+        ar(f"Warda Intelligence | منصة الذكاء العقاري | {datetime.now().year}")
     )
     
     canvas.drawString(
@@ -257,6 +259,17 @@ def create_pdf_from_content(
         spaceAfter=12,
     )
 
+    # ✅ نمط خاص للتاريخ في الغلاف (مركز)
+    date_style = ParagraphStyle(
+        "DateStyle",
+        parent=body,
+        alignment=TA_CENTER,
+        fontSize=14,
+        textColor=colors.HexColor("#555555"),
+        spaceBefore=6,
+        spaceAfter=12,
+    )
+
     # ✅ إضافة نمط للإحصائيات الرئيسية
     stats_style = ParagraphStyle(
         "StatsStyle",
@@ -272,17 +285,95 @@ def create_pdf_from_content(
 
     story = []
 
-    # COVER - مسافة مثالية 4 سم
+    # =========================
+    # COVER - مع العنوان الكامل والتاريخ
+    # =========================
     story.append(Spacer(1, 4 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
+    
+    # ✅ 1️⃣ إضافة عنوان التقرير الحقيقي
+    if user_info:
+        district = user_info.get("district_name", "")
+        city = user_info.get("city_name", "")
+        property_type = user_info.get("property_type", "")
+        subtitle = f"التقرير الاستثماري العقاري\nحي {district} – مدينة {city}\nتحليل سوق {property_type}"
+        story.append(Spacer(1, 0.6 * cm))
+        story.append(Paragraph(ar(subtitle), ai_executive_header))
+    
+    # ✅ 2️⃣ إضافة تاريخ التقرير (باستخدام نمط مركزي)
+    date_text = f"تاريخ التقرير: {datetime.now().strftime('%B %Y')}"
+    story.append(Spacer(1, 0.3 * cm))
+    story.append(Paragraph(ar(date_text), date_style))  # ✅ استخدام date_style بدلاً من body
+    
+    # ✅ 3️⃣ إضافة جدول المؤشرات مع تحسينات التنسيق وفاصلة الآلاف
+    if user_info:
+        district = user_info.get("district_name", "")
+        city = user_info.get("city_name", "")
+        property_type = user_info.get("property_type", "")
+        
+        # ✅ استخدام قيم افتراضية آمنة مع شرطة "--" في حالة عدم وجود بيانات
+        price = user_info.get("district_avg_price", "—")
+        city_price = user_info.get("city_avg_price", "—")
+        transactions = user_info.get("transactions_count", "—")
+        dpi = user_info.get("dpi_score", "—")
+        
+        # ✅ تحويل القيم الرقمية إلى نص مع فاصلة الآلاف (بدون أرقام عشرية للأعداد الصحيحة)
+        def format_number_with_commas(value):
+            if value == "—":
+                return "—"
+            try:
+                # محاولة تحويل القيمة إلى رقم
+                num = float(value)
+                # إذا كان الرقم عدداً صحيحاً (أو قريب جداً من الصحيح)
+                if abs(num - round(num)) < 0.01:
+                    return f"{int(round(num)):,}"
+                else:
+                    return f"{num:,.2f}"
+            except (ValueError, TypeError):
+                return str(value)
+        
+        price_formatted = format_number_with_commas(price)
+        city_price_formatted = format_number_with_commas(city_price)
+        transactions_formatted = format_number_with_commas(transactions)
+        
+        table_data = [
+            [ar("المؤشر"), ar("القيمة")],
+            [ar("المدينة"), ar(city)],
+            [ar("الحي"), ar(district)],
+            [ar("نوع العقار"), ar(property_type)],
+            [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
+            [ar("متوسط المدينة"), ar(f"{city_price_formatted} ريال") if city_price != "—" else ar("—")],
+            [ar("عدد الصفقات"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
+            [ar("مؤشر قوة الحي"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
+        ]
+        
+        table = Table(table_data, colWidths=[7*cm, 9*cm])
+        table.setStyle(TableStyle([
+            ('FONTNAME', (0,0), (-1,-1), 'Amiri'),
+            ('FONTSIZE', (0,0), (-1,-1), 12),  # ✅ إضافة حجم خط مناسب
+            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),  # ✅ محاذاة أفقية لليمين
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),  # ✅ محاذاة رأسية في المنتصف
+            ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#8B0000")),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#F9F9F9")),  # ✅ خلفية فاتحة للصفوف
+            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#F9F9F9"), colors.white]),  # ✅ تناوب الألوان
+        ]))
+        story.append(Spacer(1, 1*cm))
+        story.append(table)
     
     # ✅ إضافة إجمالي عدد الصفقات من user_info إذا كان متوفراً
     if user_info and "total_transactions" in user_info:
         total = user_info["total_transactions"]
         if total is not None:
             story.append(Spacer(1, 0.8 * cm))
+            # ✅ تنسيق العدد الإجمالي بفاصلة الآلاف أيضاً
+            try:
+                total_formatted = f"{int(float(total)):,}" if total else "0"
+            except (ValueError, TypeError):
+                total_formatted = str(total)
             story.append(Paragraph(
-                ar(f"إجمالي الصفقات المستخدمة في التحليل: {total:,} صفقة"),
+                ar(f"إجمالي الصفقات المستخدمة في التحليل: {total_formatted} صفقة"),
                 stats_style
             ))
     
