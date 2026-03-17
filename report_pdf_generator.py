@@ -11,7 +11,7 @@ from bidi.algorithm import get_display
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer,
-    PageBreak, Image, KeepTogether, HRFlowable,
+    PageBreak, Image, HRFlowable,
     Table, TableStyle
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -24,7 +24,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - معدلة لإصلاح النسب المعكوسة
+# Arabic helper - النسخة النهائية مع معالجة النسب (تدعم الأرقام السالبة)
 # =========================
 def ar(text):
     if not text:
@@ -37,8 +37,11 @@ def ar(text):
         text = text.replace("(", " - ")
         text = text.replace(")", " - ")
 
-        # تثبيت عرض النسب
-        text = re.sub(r"(-?\d+\.?\d*)%", lambda m: f"\u200E{m.group(0)}", text)
+        # ✅ معالجة النسب المئوية بشكل نهائي (تدعم الأرقام السالبة والموجبة)
+        text = text.replace("% ", "%")
+        text = text.replace(" %", "%")
+        # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
+        text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
         reshaped = arabic_reshaper.reshape(text)
         return get_display(reshaped)
@@ -47,7 +50,7 @@ def ar(text):
 
 
 # =========================
-# Clean bullets & junk - معدلة لدعم الرموز المالية
+# Clean bullets & junk - معدلة لدعم الرموز المالية بشكل آمن
 # =========================
 def clean_text(text: str) -> str:
     if not text:
@@ -57,8 +60,8 @@ def clean_text(text: str) -> str:
     cleaned = []
     for ch in text:
         cat = unicodedata.category(ch)
-        # ✅ إضافة "S" للرموز المالية ($, %, ▲, ▼)
-        if cat.startswith(("L", "N", "P", "Z", "S")):
+        # ✅ السماح بالحروف والأرقام وعلامات الترقيم والرموز المالية المحددة
+        if cat.startswith(("L", "N", "P", "Z")) or ch in "%$▲▼":
             cleaned.append(ch)
 
     text = "".join(cleaned)
@@ -71,7 +74,7 @@ def clean_text(text: str) -> str:
 
 
 # =========================
-# Plotly → Image - معدلة مع دعم kaleido وحذف الملفات المؤقتة
+# Plotly → Image - النسخة النهائية مع scale=2 لجودة عالية
 # =========================
 def plotly_to_image(fig, width_cm, height_cm):
     if fig is None:
@@ -83,6 +86,7 @@ def plotly_to_image(fig, width_cm, height_cm):
             format="png",
             width=1200,
             height=700,
+            scale=2,  # ✅ إضافة scale لتحسين جودة الصور في PDF
             engine="kaleido"
         )
 
@@ -108,15 +112,15 @@ def plotly_to_image(fig, width_cm, height_cm):
 
 
 # =========================
-# Elegant divider
+# Elegant divider - نسخة نهائية بمسافات مثالية
 # =========================
 def elegant_divider(width="80%", thickness=0.6, color=colors.HexColor("#C8C8C8")):
     return HRFlowable(
         width=width,
         thickness=thickness,
         color=color,
-        spaceBefore=12,
-        spaceAfter=14,
+        spaceBefore=6,
+        spaceAfter=8,
         lineCap='round'
     )
 
@@ -152,7 +156,7 @@ def add_footer(canvas, doc):
 
 
 # =========================
-# MAIN PDF GENERATOR
+# MAIN PDF GENERATOR - النسخة النهائية Production Ready
 # =========================
 def create_pdf_from_content(
     user_info,
@@ -205,7 +209,7 @@ def create_pdf_from_content(
         leading=24,
         alignment=TA_RIGHT,
         wordWrap='RTL',
-        spaceAfter=16,
+        spaceAfter=12,
         allowWidows=1,
         allowOrphans=1,
     )
@@ -217,8 +221,8 @@ def create_pdf_from_content(
         fontSize=19,
         alignment=TA_RIGHT,
         textColor=colors.HexColor("#8B0000"),
-        spaceBefore=30,
-        spaceAfter=14,
+        spaceBefore=24,
+        spaceAfter=12,
         keepWithNext=1
     )
 
@@ -229,8 +233,8 @@ def create_pdf_from_content(
         fontSize=15.5,
         alignment=TA_RIGHT,
         textColor=colors.HexColor("#444444"),
-        spaceBefore=18,
-        spaceAfter=10,
+        spaceBefore=14,
+        spaceAfter=8,
     )
 
     title = ParagraphStyle(
@@ -240,7 +244,7 @@ def create_pdf_from_content(
         fontSize=22,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
-        spaceAfter=50
+        spaceAfter=40
     )
 
     ai_executive_header = ParagraphStyle(
@@ -249,8 +253,8 @@ def create_pdf_from_content(
         alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
         fontSize=17,
-        spaceBefore=30,
-        spaceAfter=14,
+        spaceBefore=24,
+        spaceAfter=12,
     )
 
     # ✅ إضافة نمط للإحصائيات الرئيسية
@@ -260,24 +264,23 @@ def create_pdf_from_content(
         fontSize=16,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#1B5E20"),
-        spaceBefore=20,
-        spaceAfter=20,
+        spaceBefore=16,
+        spaceAfter=16,
     )
 
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
 
     story = []
 
-    # COVER
-    story.append(Spacer(1, 7.5 * cm))
+    # COVER - مسافة مثالية 4 سم
+    story.append(Spacer(1, 4 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     
     # ✅ إضافة إجمالي عدد الصفقات من user_info إذا كان متوفراً
     if user_info and "total_transactions" in user_info:
         total = user_info["total_transactions"]
-        # ✅ تحسين: استخدام is not None بدلاً من if total
         if total is not None:
-            story.append(Spacer(1, 1 * cm))
+            story.append(Spacer(1, 0.8 * cm))
             story.append(Paragraph(
                 ar(f"إجمالي الصفقات المستخدمة في التحليل: {total:,} صفقة"),
                 stats_style
@@ -298,15 +301,15 @@ def create_pdf_from_content(
     }
 
     if executive_decision and executive_decision.strip():
-        story.append(Spacer(1, 1.5 * cm))
+        story.append(Spacer(1, 1.2 * cm))
         story.append(Paragraph(ar("الخلاصة التنفيذية للقرار"), ai_executive_header))
         story.append(elegant_divider("60%"))
-        story.append(Spacer(1, 0.8 * cm))
+        story.append(Spacer(1, 0.6 * cm))
 
         for line in executive_decision.split("\n"):
             line = line.strip()
             if not line:
-                story.append(Spacer(1, 0.4 * cm))
+                story.append(Spacer(1, 0.2 * cm))
                 continue
 
             # عناوين الكتل
@@ -314,7 +317,7 @@ def create_pdf_from_content(
                 key = line.replace("[DECISION_BLOCK:", "").replace("]", "")
                 title_text = DECISION_BLOCK_TITLES.get(key, "")
                 if title_text:
-                    story.append(Spacer(1, 0.9 * cm))
+                    story.append(Spacer(1, 0.6 * cm))
                     story.append(Paragraph(ar(title_text), chapter))
                     story.append(elegant_divider("50%"))
                 continue
@@ -324,16 +327,16 @@ def create_pdf_from_content(
 
             # النص الفعلي
             story.append(Paragraph(ar(line), body))
-            story.append(Spacer(1, 0.35 * cm))
+            story.append(Spacer(1, 0.2 * cm))
 
-        story.append(Spacer(1, 1.2 * cm))
+        story.append(Spacer(1, 1.0 * cm))
         story.append(elegant_divider("30%"))
         story.append(PageBreak())
 
     # =========================
     # TRANSITION PAGE – HOW TO READ THIS REPORT
     # =========================
-    story.append(Spacer(1, 3 * cm))
+    story.append(Spacer(1, 2.5 * cm))
 
     story.append(Paragraph(
         ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"),
@@ -341,7 +344,7 @@ def create_pdf_from_content(
     ))
 
     story.append(elegant_divider("55%"))
-    story.append(Spacer(1, 1.2 * cm))
+    story.append(Spacer(1, 1.0 * cm))
 
     story.append(Paragraph(ar(
         "الخلاصة التنفيذية للقرار تمثل القرار المعتمد لهذا التقرير، "
@@ -365,7 +368,7 @@ def create_pdf_from_content(
         "ويحدّد نطاق صلاحيته، ويضبط تطبيقه."
     ), body))
 
-    story.append(Spacer(1, 1.5 * cm))
+    story.append(Spacer(1, 1.2 * cm))
     story.append(elegant_divider("30%"))
     story.append(PageBreak())
 
@@ -380,46 +383,46 @@ def create_pdf_from_content(
     }
     
     chapter_index = 0
-    chart_cursor = {}  # ✅ المؤشر لكل فصل (كما كان أصلاً)
+    chart_cursor = {}  # المؤشر لكل فصل
     
     first_chapter_processed = False
     
-    # ✅ قائمة لتتبع الملفات المؤقتة لحذفها لاحقاً
+    # قائمة لتتبع الملفات المؤقتة لحذفها لاحقاً
     temp_files = []
 
-    lines_iter = iter(content_text.split("\n"))
-
-    for raw in lines_iter:
+    # ✅ تحسين: إزالة iter() غير الضرورية
+    for raw in content_text.split("\n"):
         raw_stripped = raw.strip()
 
+        # ✅ تعديل مهم: إزالة Spacer للأسطر الفارغة لمنع الصفحات الفارغة
         if not raw_stripped:
-            story.append(Spacer(1, 0.6 * cm))
             continue
 
         clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
 
         if clean.startswith(("📊", "💎", "⚠️")):
-            story.append(Spacer(1, 0.8 * cm))
+            story.append(Spacer(1, 0.6 * cm))
             story.append(elegant_divider())
             story.append(Paragraph(ar(clean), ai_sub_title))
-            story.append(Spacer(1, 0.4 * cm))
+            story.append(Spacer(1, 0.3 * cm))
             continue
 
         if raw_stripped.startswith("الفصل"):
+            # ✅ شرط PageBreak الصحيح: بعد أول فصل فقط
             if first_chapter_processed:
                 story.append(PageBreak())
             chapter_index += 1
-            # ✅ تهيئة المؤشر لهذا الفصل
+            # تهيئة المؤشر لهذا الفصل
             chart_cursor[chapter_index] = 0
             story.append(Paragraph(ar(clean), chapter))
-            story.append(Spacer(1, 0.4 * cm))
+            story.append(Spacer(1, 0.3 * cm))
             story.append(elegant_divider("40%"))
-            story.append(Spacer(1, 0.8 * cm))
+            story.append(Spacer(1, 0.6 * cm))
             first_chapter_processed = True
             continue
 
         if clean == "[[ANCHOR_CHART]]":
-            # ✅ الحصول على رقم الفصل الحقيقي للرسومات
+            # الحصول على رقم الفصل الحقيقي للرسومات
             real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
             if real_chapter:
                 charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
@@ -428,18 +431,18 @@ def create_pdf_from_content(
                 if cursor < len(charts):
                     img = plotly_to_image(charts[cursor], 16.8, 9)
                     if img:
-                        # ✅ حفظ مسار الملف المؤقت لحذفه لاحقاً
+                        # حفظ مسار الملف المؤقت لحذفه لاحقاً
                         if hasattr(img, '_temp_file'):
                             temp_files.append(img._temp_file)
                         
-                        story.append(Spacer(1, 1.6 * cm))
+                        story.append(Spacer(1, 0.8 * cm))
                         story.append(img)
-                        story.append(Spacer(1, 0.6 * cm))
+                        story.append(Spacer(1, 0.4 * cm))
                     chart_cursor[chapter_index] += 1
             continue
 
         if clean == "[[RHYTHM_CHART]]":
-            # ✅ الحصول على رقم الفصل الحقيقي للرسومات
+            # الحصول على رقم الفصل الحقيقي للرسومات
             real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
             if real_chapter:
                 charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
@@ -456,18 +459,18 @@ def create_pdf_from_content(
                     img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
                                            9.5 if is_indicator else 9)
                     if img:
-                        # ✅ حفظ مسار الملف المؤقت لحذفه لاحقاً
+                        # حفظ مسار الملف المؤقت لحذفه لاحقاً
                         if hasattr(img, '_temp_file'):
                             temp_files.append(img._temp_file)
                         
-                        story.append(Spacer(1, 1.8 * cm if is_indicator else 1.4 * cm))
+                        story.append(Spacer(1, 0.8 * cm if is_indicator else 0.7 * cm))
                         story.append(img)
-                        story.append(Spacer(1, 0.6 * cm))
+                        story.append(Spacer(1, 0.4 * cm))
                     chart_cursor[chapter_index] += 1
             continue
 
         story.append(Paragraph(ar(clean), body))
-        story.append(Spacer(1, 0.2 * cm))
+        story.append(Spacer(1, 0.15 * cm))
 
     doc.build(
         story, 
@@ -477,8 +480,7 @@ def create_pdf_from_content(
     
     buffer.seek(0)
     
-    # ✅ حذف جميع الملفات المؤقتة بعد بناء PDF
-    # ✅ تحسين: استخدام set() لمنع تكرار حذف نفس الملف
+    # حذف جميع الملفات المؤقتة بعد بناء PDF
     unique_temp_files = list(set(temp_files))
     for temp_file in unique_temp_files:
         try:
