@@ -176,11 +176,41 @@ def show_district_reports(df_raw):
                             "price_deviation_percent": round(price_deviation_percent, 1)
                         }
                         
-                        # إعداد معلومات المستخدم للتقرير
+                        # حساب DPI حسب قوة الحي
+                        if len(district_data) >= 50:
+                            dpi_score = 85
+                        elif len(district_data) >= 30:
+                            dpi_score = 75
+                        elif len(district_data) >= 20:
+                            dpi_score = 65
+                        elif len(district_data) >= 10:
+                            dpi_score = 55
+                        elif len(district_data) >= 5:
+                            dpi_score = 45
+                        else:
+                            dpi_score = 35
+                            
+                        # تحسين إضافي: إضافة عامل السعر
+                        if district_price_per_m2 > city_price_per_m2 * 1.2:
+                            dpi_score = min(95, dpi_score + 10)
+                        elif district_price_per_m2 < city_price_per_m2 * 0.8:
+                            dpi_score = max(30, dpi_score - 5)
+                        
+                        # =========================================
+                        # ✅ التعديل الأساسي: إعداد user_info بالمفاتيح الصحيحة
+                        # =========================================
                         user_info = {
-                            "city": city,
-                            "district": district,
+                            # المفاتيح المطلوبة من report_pdf_generator.py
+                            "city_name": city,
+                            "district_name": district,
                             "property_type": property_type,
+                            "district_avg_price": district_price_per_m2,
+                            "city_avg_price": city_price_per_m2,
+                            "transactions_count": len(district_data),
+                            "dpi_score": dpi_score,
+                            "total_transactions": len(district_data),  # ✅ إضافة إجمالي الصفقات
+                            
+                            # مفاتيح إضافية للاستخدام الداخلي
                             "package": "ذهبية",
                             "user_type": "مستثمر",
                             "analysis_mode": "district"
@@ -215,28 +245,6 @@ def show_district_reports(df_raw):
                                             "district_name": d,
                                             "avg_price": avg_price
                                         })
-                        
-                        # =========================================
-                        # حساب DPI حسب قوة الحي
-                        # =========================================
-                        if len(district_data) >= 50:
-                            dpi_score = 85
-                        elif len(district_data) >= 30:
-                            dpi_score = 75
-                        elif len(district_data) >= 20:
-                            dpi_score = 65
-                        elif len(district_data) >= 10:
-                            dpi_score = 55
-                        elif len(district_data) >= 5:
-                            dpi_score = 45
-                        else:
-                            dpi_score = 35
-                            
-                        # تحسين إضافي: إضافة عامل السعر
-                        if district_price_per_m2 > city_price_per_m2 * 1.2:
-                            dpi_score = min(95, dpi_score + 10)
-                        elif district_price_per_m2 < city_price_per_m2 * 0.8:
-                            dpi_score = max(30, dpi_score - 5)
                         
                         # =========================================
                         # استخدام محرك الأحياء لتوليد النص
