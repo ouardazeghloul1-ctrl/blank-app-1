@@ -5,7 +5,6 @@
 # =========================================
 
 import pandas as pd
-import numpy as np
 from ai_executive_summary import generate_executive_summary
 
 # =========================================
@@ -257,9 +256,7 @@ def generate_district_narrative(
     # Investment Snapshot
     # =========================================
     snapshot_section = f"""
---------------------------------------------------
 
-Investment Snapshot
 ملخص الاستثمار السريع
 
 المدينة: {city}
@@ -270,9 +267,8 @@ Investment Snapshot
 متوسط سعر المدينة: {city_price:,.0f} ريال
 عدد الصفقات: {transactions:,} صفقة
 مؤشر قوة الحي (DPI): {dpi_score:.1f} / 100
-Investment Score: {investment_score} / 100
+النتيجة الاستثمارية: {investment_score} / 100
 
---------------------------------------------------
 """
     report_sections.append(snapshot_section)
     
@@ -299,7 +295,6 @@ Investment Score: {investment_score} / 100
 المسجلة في السوق بهدف تقييم الجاذبية الاستثمارية
 للحي وموقعه داخل السوق العقاري للمدينة.
 
---------------------------------------------------
 
 بطاقة معلومات السوق العقاري
 
@@ -328,7 +323,6 @@ Investment Score: {investment_score} / 100
     # منهجية التحليل (مصدر البيانات)
     # =========================================
     data_method_section = f"""
---------------------------------------------------
 
 منهجية التحليل
 
@@ -402,7 +396,6 @@ Investment Score: {investment_score} / 100
 """
 
     market_position_section = f"""
---------------------------------------------------
 
 موقع الحي في السوق العقاري
 
@@ -427,7 +420,6 @@ Investment Score: {investment_score} / 100
                 relation = "أقل"
             
             gap_section = f"""
---------------------------------------------------
 
 فجوة السعر داخل المدينة
 
@@ -447,7 +439,6 @@ Investment Score: {investment_score} / 100
     # Market Benchmark
     # =========================================
     benchmark_section = f"""
---------------------------------------------------
 
 مقارنة الحي مع متوسط السوق
 
@@ -481,7 +472,6 @@ Investment Score: {investment_score} / 100
                 label = "ضمن الشريحة السعرية الاقتصادية"
             
             price_rank_section = f"""
---------------------------------------------------
 
 ترتيب الحي من حيث الأسعار داخل المدينة
 
@@ -505,7 +495,6 @@ Investment Score: {investment_score} / 100
             total_l = len(city_transactions_by_district)
             
             liquidity_rank_section = f"""
---------------------------------------------------
 
 ترتيب الحي من حيث السيولة العقارية
 
@@ -569,7 +558,6 @@ Investment Score: {investment_score} / 100
 """
 
     liquidity_section = f"""
---------------------------------------------------
 
 تحليل السيولة العقارية
 
@@ -600,7 +588,6 @@ Investment Score: {investment_score} / 100
                 rank_label = "ضمن الأحياء الأقل نشاطاً نسبياً"
                 
             ranking_section = f"""
---------------------------------------------------
 
 موقع الحي من حيث النشاط العقاري داخل المدينة
 
@@ -648,7 +635,6 @@ Investment Score: {investment_score} / 100
                     rank_note = ""
                 
                 top_districts_section = f"""
---------------------------------------------------
 
 🏆 الأحياء الأكثر نشاطاً في السوق العقاري
 
@@ -719,7 +705,6 @@ Investment Score: {investment_score} / 100
 """
 
     opportunity_section = f"""
---------------------------------------------------
 
 تحليل القيمة الاستثمارية للحي
 
@@ -767,7 +752,6 @@ Investment Score: {investment_score} / 100
 """
 
     comparison_section = f"""
---------------------------------------------------
 
 مقارنة الأسعار مع الأحياء القريبة
 
@@ -843,7 +827,6 @@ Investment Score: {investment_score} / 100
 """
 
     risk_section = f"""
---------------------------------------------------
 
 تحليل المخاطر الاستثمارية
 
@@ -901,7 +884,6 @@ Investment Score: {investment_score} / 100
                         trend = "استقرار نسبي"
                         
                     trend_section = f"""
---------------------------------------------------
 
 اتجاه السوق داخل الفترة المدروسة
 
@@ -913,7 +895,6 @@ Investment Score: {investment_score} / 100
 """
                 else:
                     trend_section = f"""
---------------------------------------------------
 
 اتجاه السوق داخل الفترة المدروسة
 
@@ -969,7 +950,6 @@ Investment Score: {investment_score} / 100
                         interpretation = "السوق يتحرك ضمن نطاق سعري مستقر دون تغيرات كبيرة."
                     
                     cycle_section = f"""
---------------------------------------------------
 
 تحليل الزخم السعري في السوق
 
@@ -981,7 +961,6 @@ Investment Score: {investment_score} / 100
 """
                 else:
                     cycle_section = f"""
---------------------------------------------------
 
 تحليل الزخم السعري في السوق
 
@@ -1018,7 +997,6 @@ Investment Score: {investment_score} / 100
 • التركيز على السيولة وسهولة إعادة البيع.
 """
     strategy_section = f"""
---------------------------------------------------
 
 استراتيجية الاستثمار في الحي
 {strategy_text}
@@ -1045,7 +1023,6 @@ Investment Score: {investment_score} / 100
         range_text = "0% إلى 5% خلال 3 إلى 5 سنوات"
     
     growth_section = f"""
---------------------------------------------------
 
 إمكانية النمو الرأسمالي
 
@@ -1065,9 +1042,7 @@ Investment Score: {investment_score} / 100
     # =========================================
 
     score_section = f"""
---------------------------------------------------
 
-Investment Intelligence Score
 التقييم الكلي لجاذبية الاستثمار في الحي
 
 النتيجة النهائية: {investment_score} / 100
@@ -1104,9 +1079,7 @@ Investment Intelligence Score
             label = "جاذبية استثمارية ضعيفة"
         
         grade_section = f"""
---------------------------------------------------
 
-Investment Grade Rating
 التصنيف الاستثماري للحي
 
 التصنيف: {grade}
@@ -1140,7 +1113,6 @@ Investment Grade Rating
                 tier = "ضمن أقل 20% من الأحياء سعراً في المدينة"
             
             position_section = f"""
---------------------------------------------------
 
 موقع الحي في الهيكل السعري للمدينة
 
@@ -1171,7 +1143,6 @@ Investment Grade Rating
             text = "حجم الصفقات منخفض نسبياً مما قد يعني فترة بيع أطول."
         
         speed_section = f"""
---------------------------------------------------
 
 سرعة السوق العقاري
 
@@ -1208,7 +1179,6 @@ Investment Grade Rating
             heat_description = "سوق هادئ، يحتاج إلى متابعة"
             
         heat_section = f"""
---------------------------------------------------
 
 مؤشر حرارة السوق العقاري
 
@@ -1282,7 +1252,6 @@ Investment Grade Rating
   لتوزيع المخاطر وزيادة فرص العائد.
 """
         smart_section = f"""
---------------------------------------------------
 
 ماذا يفعل المستثمر الذكي في هذا الحي
 {smart_text}
@@ -1314,7 +1283,6 @@ Investment Grade Rating
             pessimistic = "في حالة ضعف الطلب قد يحدث انخفاض طفيف في الأسعار."
 
         future_section = f"""
---------------------------------------------------
 
 السيناريو المستقبلي للسوق العقاري
 
@@ -1357,7 +1325,6 @@ Investment Grade Rating
             horizon_text = "هذا الأفق يمنح السوق وقتاً كافياً للنمو وتحقيق عوائد مناسبة."
 
         horizon_section = f"""
---------------------------------------------------
 
 الأفق الاستثماري المقترح
 
@@ -1406,7 +1373,6 @@ Investment Grade Rating
 """
         
         decision_section = f"""
---------------------------------------------------
 
 قرار الاستثمار
 
@@ -1433,7 +1399,6 @@ Investment Grade Rating
         
         if executive_summary:
             executive_section = f"""
---------------------------------------------------
 
 📊 القرار التنفيذي للاستثمار
 {executive_summary}
@@ -1508,7 +1473,6 @@ Investment Grade Rating
 """
 
     verdict_section = f"""
---------------------------------------------------
 
 الخلاصة الاستثمارية
 
@@ -1541,9 +1505,8 @@ Investment Grade Rating
     for i, section in enumerate(report_sections, start=1):
         chapter_title = chapter_names[i-1] if i <= len(chapter_names) else str(i)
         final_report += f"الفصل {chapter_title}\n"
-        final_report += "-" * 40 + "\n\n"
         
-        # إدراج الرسم في الفصول المحددة
+        # إدراج الرسم في الفصول المحددة مع سطر فارغ بعده
         if i in chart_chapters:
             final_report += "[[ANCHOR_CHART]]\n\n"
         
@@ -1551,12 +1514,9 @@ Investment Grade Rating
             final_report += section.strip()
         else:
             final_report += "لا توجد بيانات كافية لهذا التحليل."
-        final_report += "\n\n"
+        final_report += "\n"
 
-    final_report += """
---------------------------------------------------
-Warda Intelligence
-منصة التحليل الاستثماري العقاري المعتمدة على بيانات الصفقات الفعلية في السوق.
-"""
+    final_report += "\nWarda Intelligence\n"
+    final_report += "منصة التحليل الاستثماري العقاري المعتمدة على بيانات الصفقات الفعلية في السوق.\n"
 
     return final_report
