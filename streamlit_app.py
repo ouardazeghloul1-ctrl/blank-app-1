@@ -69,6 +69,7 @@ from dotenv import load_dotenv
 import os
 import streamlit.components.v1 as components
 import io
+import json
 
 # ===== Robo Chat System =====
 from robo_advisor import handle_robo_question, RoboGuard, RoboKnowledge
@@ -173,7 +174,7 @@ st.markdown("""
 
 # إعداد الدفع
 load_dotenv()
-for folder in ["outputs", "logs", "models"]:
+for folder in ["outputs", "logs", "models", "reports_store/metadata"]:
     os.makedirs(folder, exist_ok=True)
 
 paypalrestsdk.configure({
@@ -452,6 +453,54 @@ def setup_arabic_support():
         transform: scale(1.02) !important;
         box-shadow: 0 0 30px rgba(255, 215, 0, 0.8) !important;
         background: linear-gradient(135deg, #ffd700, #d4af37) !important;
+    }
+    
+    /* ستايل بطاقات المتجر */
+    .store-card {
+        background: linear-gradient(135deg, #1a1a1a, #2d2d2d) !important;
+        padding: 20px !important;
+        border-radius: 15px !important;
+        border: 1px solid gold !important;
+        margin: 10px 0 !important;
+        transition: transform 0.3s ease !important;
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    
+    .store-card:hover {
+        transform: translateY(-5px) !important;
+        box-shadow: 0 10px 30px rgba(255, 215, 0, 0.2) !important;
+    }
+    
+    .store-card h4 {
+        color: gold !important;
+        margin: 0 0 10px 0 !important;
+        font-size: 18px !important;
+    }
+    
+    .store-card .price {
+        color: #00FFD1 !important;
+        font-size: 24px !important;
+        font-weight: bold !important;
+        margin: 10px 0 !important;
+    }
+    
+    .store-card .location {
+        color: #aaa !important;
+        font-size: 14px !important;
+        margin: 5px 0 !important;
+    }
+    
+    .store-card .type {
+        color: #888 !important;
+        font-size: 13px !important;
+        margin: 5px 0 !important;
+    }
+    
+    .store-card .download-btn {
+        margin-top: auto !important;
+        padding-top: 15px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -743,6 +792,27 @@ def generate_advanced_market_data(city, property_type, status, real_data):
         "طالب_الشراء": demand,
         "المصدر": "government_data_provider"
     }
+
+# ========== تحميل مخزون المتجر من metadata ==========
+def load_store_inventory():
+    """تحميل جميع التقارير المتاحة من مجلد metadata"""
+    inventory = []
+    metadata_folder = "reports_store/metadata"
+    
+    if not os.path.exists(metadata_folder):
+        return inventory
+    
+    for file in os.listdir(metadata_folder):
+        if file.endswith("latest.json"):
+            try:
+                with open(os.path.join(metadata_folder, file), 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    inventory.append(data)
+            except Exception as e:
+                print(f"خطأ في قراءة ملف {file}: {e}")
+                continue
+    
+    return inventory
 
 # ========== الواجهة الرئيسية ==========
 st.markdown("""
@@ -1531,37 +1601,104 @@ if st.session_state.go_store:
     st.markdown("## 🛍️ متجر التقارير الذكية")
     st.markdown("""
     <div style='text-align: center; padding: 30px; background: linear-gradient(135deg, #1a1a1a, #2d2d2d); border-radius: 20px; border: 3px solid gold; margin: 20px 0;'>
-        <h2 style='color: gold;'>🎯 اختر باقتك الاستثمارية</h2>
+        <h2 style='color: gold;'>📊 تصفح آلاف التقارير العقارية الجاهزة</h2>
         <p style='color: #EAEAEA; font-size: 18px;'>تحليلات متقدمة • بيانات حقيقية • قرارات ذكية</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # عرض الباقات بشكل جذاب
-    cols = st.columns(3)
-    packages_list = list(PACKAGES.items())
+    # تحميل المخزون من مجلد metadata
+    inventory = load_store_inventory()
     
-    for i, (pkg_name, pkg_details) in enumerate(packages_list[:3]):
+    if not inventory:
+        st.warning("⚠️ لا توجد تقارير في المتجر حالياً. سيتم إضافتها قريباً.")
+        if st.button("🔙 العودة للتحليل", use_container_width=True):
+            st.session_state.go_store = False
+            st.rerun()
+        st.stop()
+    
+    # ===== فلترة التقارير =====
+    st.markdown("### 🔍 فلترة التقارير")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        cities = sorted(list(set(item.get("city", "غير محدد") for item in inventory)))
+        selected_city = st.selectbox("📍 المدينة", ["الكل"] + cities)
+    
+    with col2:
+        property_types = sorted(list(set(item.get("property_type", "غير محدد") for item in inventory)))
+        selected_property = st.selectbox("🏠 نوع العقار", ["الكل"] + property_types)
+    
+    with col3:
+        product_titles = sorted(list(set(item.get("product_title", "غير محدد") for item in inventory)))
+        selected_product = st.selectbox("📊 نوع التقرير", ["الكل"] + product_titles)
+    
+    # ===== تطبيق الفلترة =====
+    filtered_inventory = []
+    for item in inventory:
+        if selected_city != "الكل" and item.get("city") != selected_city:
+            continue
+        if selected_property != "الكل" and item.get("property_type") != selected_property:
+            continue
+        if selected_product != "الكل" and item.get("product_title") != selected_product:
+            continue
+        filtered_inventory.append(item)
+    
+    st.markdown(f"### 📦 عدد التقارير المتاحة: {len(filtered_inventory)}")
+    
+    if not filtered_inventory:
+        st.info("لا توجد تقارير تطابق معايير البحث")
+        if st.button("🔙 العودة للتحليل", use_container_width=True):
+            st.session_state.go_store = False
+            st.rerun()
+        st.stop()
+    
+    # ===== عرض التقارير في بطاقات =====
+    cols = st.columns(3)
+    
+    for i, item in enumerate(filtered_inventory):
         with cols[i % 3]:
+            # استخراج البيانات
+            city = item.get("city", "غير محدد")
+            district = item.get("district", "غير محدد")
+            property_type = item.get("property_type", "غير محدد")
+            product_title = item.get("product_title", "تقرير عقاري")
+            price = item.get("price", 0)
+            file_path = item.get("file_path", "")
+            
+            # تنسيق السعر
+            if price == 0:
+                price_display = "مجاني"
+                price_color = "#00FFD1"
+            else:
+                price_display = f"${price:,}"
+                price_color = "#FFD700"
+            
             st.markdown(f"""
-            <div style='background: linear-gradient(135deg, #1a1a1a, #2d2d2d); padding: 25px; border-radius: 20px; border: 2px solid gold; margin: 10px; text-align: center;'>
-                <h3 style='color: gold;'>{pkg_name}</h3>
-                <h2 style='color: #00FFD1;'>{pkg_details['price']} $</h2>
-                <p style='color: #EAEAEA;'>📊 تحليل {pkg_details['data_scope']} عقار</p>
-                <hr style='border: 1px solid #333;'>
-                <ul style='list-style: none; padding: 0; text-align: right;'>
+            <div class='store-card'>
+                <h4>{product_title}</h4>
+                <div class='location'>📍 {city} - {district}</div>
+                <div class='type'>🏠 {property_type}</div>
+                <div class='price' style='color: {price_color};'>{price_display}</div>
             """, unsafe_allow_html=True)
             
-            for feature in pkg_details['features'][:5]:
-                st.markdown(f"<li style='color: #EAEAEA; margin: 5px 0;'>✨ {feature}</li>", unsafe_allow_html=True)
+            # زر تحميل التقرير
+            if file_path and os.path.exists(file_path):
+                with open(file_path, "rb") as f:
+                    pdf_data = f.read()
+                    st.download_button(
+                        label="📥 تحميل التقرير",
+                        data=pdf_data,
+                        file_name=os.path.basename(file_path),
+                        mime="application/pdf",
+                        key=f"download_store_{i}_{hash(file_path)}",
+                        use_container_width=True
+                    )
+            else:
+                st.error("❌ الملف غير موجود")
             
-            st.markdown("</ul>", unsafe_allow_html=True)
-            
-            if st.button(f"💎 اختر {pkg_name}", key=f"store_{pkg_name}"):
-                st.session_state.chosen_pkg = pkg_name
-                st.session_state.go_store = False
-                st.success(f"✅ تم اختيار باقة {pkg_name}")
-                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
     
+    # زر العودة
     if st.button("🔙 العودة للتحليل", use_container_width=True):
         st.session_state.go_store = False
         st.rerun()
