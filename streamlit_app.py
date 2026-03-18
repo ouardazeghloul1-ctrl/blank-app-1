@@ -436,6 +436,23 @@ def setup_arabic_support():
         color: #00FFD1 !important;
         font-weight: bold !important;
     }
+    
+    /* ستايل خاص لزر المتجر */
+    div[data-testid="stButton"] button[kind="secondary"] {
+        background: linear-gradient(135deg, #d4af37, #ffd700) !important;
+        border: 2px solid #b8860b !important;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.5) !important;
+        font-size: 20px !important;
+        font-weight: 900 !important;
+        letter-spacing: 1px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    div[data-testid="stButton"] button[kind="secondary"]:hover {
+        transform: scale(1.02) !important;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.8) !important;
+        background: linear-gradient(135deg, #ffd700, #d4af37) !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -743,6 +760,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — انتقل إلى المستشار الذكي")
+
+# ========== زر المتجر الذهبي ==========
+if st.button("🛍️ دخول متجر التقارير الذكية", use_container_width=True, type="secondary"):
+    st.session_state["go_store"] = True
+    st.rerun()
 
 # ========== نظام التنقل ==========
 page = st.radio(
@@ -1500,6 +1522,49 @@ if 'confirm_clear' not in st.session_state:
     st.session_state.confirm_clear = False
 if 'daily_alerts' not in st.session_state:
     st.session_state.daily_alerts = []
+if 'go_store' not in st.session_state:
+    st.session_state.go_store = False
+
+# ========== إذا ضغط المستخدم على زر المتجر ==========
+if st.session_state.go_store:
+    st.markdown("---")
+    st.markdown("## 🛍️ متجر التقارير الذكية")
+    st.markdown("""
+    <div style='text-align: center; padding: 30px; background: linear-gradient(135deg, #1a1a1a, #2d2d2d); border-radius: 20px; border: 3px solid gold; margin: 20px 0;'>
+        <h2 style='color: gold;'>🎯 اختر باقتك الاستثمارية</h2>
+        <p style='color: #EAEAEA; font-size: 18px;'>تحليلات متقدمة • بيانات حقيقية • قرارات ذكية</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # عرض الباقات بشكل جذاب
+    cols = st.columns(3)
+    packages_list = list(PACKAGES.items())
+    
+    for i, (pkg_name, pkg_details) in enumerate(packages_list[:3]):
+        with cols[i % 3]:
+            st.markdown(f"""
+            <div style='background: linear-gradient(135deg, #1a1a1a, #2d2d2d); padding: 25px; border-radius: 20px; border: 2px solid gold; margin: 10px; text-align: center;'>
+                <h3 style='color: gold;'>{pkg_name}</h3>
+                <h2 style='color: #00FFD1;'>{pkg_details['price']} $</h2>
+                <p style='color: #EAEAEA;'>📊 تحليل {pkg_details['data_scope']} عقار</p>
+                <hr style='border: 1px solid #333;'>
+                <ul style='list-style: none; padding: 0; text-align: right;'>
+            """, unsafe_allow_html=True)
+            
+            for feature in pkg_details['features'][:5]:
+                st.markdown(f"<li style='color: #EAEAEA; margin: 5px 0;'>✨ {feature}</li>", unsafe_allow_html=True)
+            
+            st.markdown("</ul>", unsafe_allow_html=True)
+            
+            if st.button(f"💎 اختر {pkg_name}", key=f"store_{pkg_name}"):
+                st.session_state.chosen_pkg = pkg_name
+                st.session_state.go_store = False
+                st.success(f"✅ تم اختيار باقة {pkg_name}")
+                st.rerun()
+    
+    if st.button("🔙 العودة للتحليل", use_container_width=True):
+        st.session_state.go_store = False
+        st.rerun()
 
 st.markdown("---")
 st.markdown("""
