@@ -173,12 +173,12 @@ except ImportError:
         pass
 
 # ===============================
-# 📱 PWA – ربط manifest (معطل مؤقتًا)
+# 📱 PWA – ربط manifest
 # ===============================
-# st.markdown("""
-# <link rel="manifest" href="manifest.json">
-# <meta name="theme-color" content="#FFD700">
-# """, unsafe_allow_html=True)
+st.markdown("""
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FFD700">
+""", unsafe_allow_html=True)
 
 # إعداد الدفع
 load_dotenv()
@@ -822,384 +822,6 @@ def load_store_inventory():
     
     return inventory
 
-# ========== التحقق من الصفحة الحالية - المتجر يأتي أولاً ==========
-if st.session_state.page == "store":
-    # إضافة Header فخم
-    st.markdown("""
-    <div style='text-align: center; padding: 20px; margin-bottom: 30px;'>
-        <h1 style='color: gold; font-size: 48px; margin-bottom: 10px;'>✨ Warda Intelligence ✨</h1>
-        <h2 style='color: #FFD700; font-size: 24px; margin-bottom: 15px;'>منصة تحليل عقاري مبنية على بيانات حكومية دقيقة</h2>
-        <div style='width: 100px; height: 3px; background: linear-gradient(90deg, transparent, gold, transparent); margin: 20px auto;'></div>
-        <p style='color: #aaa; font-size: 18px;'>تقارير استثمارية ذكية | قرارات مبنية على أرقام | فرص حقيقية في السوق</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown("## 🛍️ متجر التقارير الذكية")
-    st.markdown("""
-    <div style='text-align: center; padding: 30px; background: linear-gradient(135deg, #1a1a1a, #2d2d2d); border-radius: 20px; border: 3px solid gold; margin: 20px 0;'>
-        <h2 style='color: gold;'>📊 تصفح آلاف التقارير العقارية الجاهزة</h2>
-        <p style='color: #EAEAEA; font-size: 18px;'>تحليلات متقدمة • بيانات حقيقية • قرارات ذكية</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # ===== قسم المعاينة =====
-    if st.session_state.preview_item:
-        item = st.session_state.preview_item
-        st.markdown("---")
-        st.markdown("## 👁️ معاينة التقرير")
-        
-        # إضافة مرساة للتمرير
-        st.markdown("<div id='preview'></div>", unsafe_allow_html=True)
-        
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            price_value = item.get('price', 0)
-            st.markdown(f"""
-            <div style='background: linear-gradient(135deg, #1a1a1a, #2d2d2d); padding: 25px; border-radius: 15px; border: 2px solid gold; margin: 10px 0;'>
-                <h3 style='color: gold;'>{item.get('product_title', 'تقرير عقاري')}</h3>
-                <p><strong>📍 المدينة:</strong> {item.get('city', 'غير محدد')}</p>
-                <p><strong>📍 الحي:</strong> {item.get('district', 'غير محدد')}</p>
-                <p><strong>🏠 نوع العقار:</strong> {item.get('property_type', 'غير محدد')}</p>
-                <p><strong>💰 السعر:</strong> <span style='color: #00FFD1;'>${price_value:,}</span></p>
-                <hr style='border: 1px solid #333;'>
-                <h4 style='color: gold;'>📊 محتويات التقرير:</h4>
-                <ul style='color: #EAEAEA;'>
-                    <li>تحليل أسعار الأحياء المجاورة</li>
-                    <li>مؤشرات الطلب والعرض</li>
-                    <li>توقعات النمو المستقبلية</li>
-                    <li>مقارنة مع متوسطات المدينة</li>
-                    <li>تحليل فرص الاستثمار</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            price_value = item.get('price', 0)
-            st.markdown(f"""
-            <div style='background: linear-gradient(135deg, #1a3a1a, #0a2a0a); padding: 20px; border-radius: 15px; border: 2px solid #00FFD1; margin: 10px 0; text-align: center;'>
-                <h4 style='color: #00FFD1;'>⚡ معاينة سريعة</h4>
-                <p style='color: #EAEAEA;'>هذا جزء من التقرير فقط</p>
-                <p style='color: gold; font-size: 24px;'>${price_value:,}</p>
-                <p style='color: #888;'>النسخة الكاملة بعد الشراء</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # رسائل الإقناع
-        st.warning("🔥 فرصة استثمارية نشطة — هذا الحي يشهد حركة سعرية")
-        st.warning("⚡ هذا التقرير يُحدث باستمرار — السعر قد يرتفع لاحقاً")
-        st.success("✔️ هذا القرار مبني على بيانات حكومية حقيقية")
-        
-        # أزرار المعاينة
-        col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
-        with col_btn1:
-            if st.button("🚀 احصل على التقرير الكامل", key="buy_from_preview", use_container_width=True):
-                st.session_state.selected_product = st.session_state.preview_item
-                st.session_state.page = "checkout"
-        with col_btn2:
-            if st.button("❌ إغلاق المعاينة", key="close_preview", use_container_width=True):
-                st.session_state.preview_item = None
-        
-        st.markdown("---")
-    
-    # تحميل المخزون من مجلد metadata
-    inventory = load_store_inventory()
-    
-    if not inventory:
-        st.warning("⚠️ لا توجد تقارير في المتجر حالياً. سيتم إضافتها قريباً.")
-        if st.button("🔙 العودة للتحليل", use_container_width=True):
-            st.session_state.page = "home"
-        st.stop()
-    
-    # ===== فلترة التقارير =====
-    st.markdown("### 🔍 فلترة التقارير")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        cities = sorted(list(set(item.get("city", "غير محدد") for item in inventory)))
-        selected_city = st.selectbox("📍 المدينة", ["الكل"] + cities)
-    
-    with col2:
-        property_types = sorted(list(set(item.get("property_type", "غير محدد") for item in inventory)))
-        selected_property = st.selectbox("🏠 نوع العقار", ["الكل"] + property_types)
-    
-    with col3:
-        product_titles = sorted(list(set(item.get("product_title", "غير محدد") for item in inventory)))
-        selected_product = st.selectbox("📊 نوع التقرير", ["الكل"] + product_titles)
-    
-    # ===== تطبيق الفلترة =====
-    filtered_inventory = []
-    for item in inventory:
-        if selected_city != "الكل" and item.get("city") != selected_city:
-            continue
-        if selected_property != "الكل" and item.get("property_type") != selected_property:
-            continue
-        if selected_product != "الكل" and item.get("product_title") != selected_product:
-            continue
-        filtered_inventory.append(item)
-    
-    # إضافة toggle لعرض جميع التقارير
-    st.markdown("### 🔥 عرض التقارير")
-    col_toggle, col_info = st.columns([1, 3])
-    with col_toggle:
-        show_all = st.toggle("📊 عرض جميع التقارير", value=False, help="شغّل لعرض جميع التقارير المتاحة، أو اتركه لعرض أفضل الفرص فقط")
-    with col_info:
-        if show_all:
-            st.info("📋 عرض جميع التقارير المتاحة")
-        else:
-            st.success("🔥 عرض أفضل 10 فرص استثمارية")
-    
-    # ترتيب التقارير حسب القوة
-    sorted_inventory = sorted(
-        filtered_inventory,
-        key=lambda x: (
-            x.get("metrics", {}).get("transactions", 0),
-            x.get("metrics", {}).get("dpi_score", 0)
-        ),
-        reverse=True
-    )
-    
-    # تطبيق الفلترة حسب اختيار المستخدم
-    if show_all:
-        filtered_inventory = sorted_inventory
-        st.markdown(f"### 📦 جميع التقارير المتاحة: {len(filtered_inventory)}")
-    else:
-        filtered_inventory = sorted_inventory[:10]
-        st.markdown(f"### 📦 أفضل الفرص المتاحة: {len(filtered_inventory)}")
-    
-    if not filtered_inventory:
-        st.info("لا توجد تقارير تطابق معايير البحث")
-        if st.button("🔙 العودة للتحليل", use_container_width=True):
-            st.session_state.page = "home"
-        st.stop()
-    
-    # ===== عرض التقارير في بطاقات =====
-    cols = st.columns(3)
-    
-    for i, item in enumerate(filtered_inventory):
-        with cols[i % 3]:
-            # استخراج البيانات
-            city = item.get("city", "غير محدد")
-            district = item.get("district", "غير محدد")
-            property_type = item.get("property_type", "غير محدد")
-            product_title = item.get("product_title", "تقرير عقاري")
-            product_type = item.get("product_type", "")
-            price = item.get("price", 0)
-            file_path = item.get("file_path", "")
-            
-            # استخراج المؤشرات الحقيقية من البيانات
-            metrics = item.get("metrics", {})
-            district_price = metrics.get("avg_price", 0)
-            transactions = metrics.get("transactions", 0)
-            dpi_score = metrics.get("dpi_score", 0)
-            
-            # حساب الفرق عن متوسط المدينة (مع fallback آمن)
-            city_avg = item.get("city_avg_price", None)
-            if not city_avg:
-                city_avg = district_price * 1.1
-            
-            if district_price and city_avg:
-                discount_percent = int((city_avg - district_price) / city_avg * 100)
-            else:
-                discount_percent = 0
-            
-            # حساب مؤشر النمو
-            growth_indicator = min(25, int(transactions / 2)) if transactions else 15
-            
-            # توليد عنوان تسويقي ذكي مع أرقام حقيقية
-            if product_type == "investment":
-                display_title = f"🔥 أقل من متوسط السوق بـ {discount_percent}% في {district}"
-            elif product_type == "cheap":
-                display_title = f"💰 أسعار أقل من المتوسط بـ {discount_percent}% في {district}"
-            elif product_type == "premium":
-                display_title = f"👑 أسعار أعلى من المتوسط بـ {abs(discount_percent)}% في {district}"
-            elif product_type == "growth":
-                display_title = f"🚀 نشاط مرتفع (+{growth_indicator} مؤشر) في {district}"
-            elif product_type == "rental":
-                display_title = f"🏠 نشاط إيجاري مرتفع ({transactions} عملية) في {district}"
-            elif product_type == "new":
-                display_title = f"🆕 مشاريع جديدة في {district}"
-            else:
-                display_title = product_title
-            
-            # تنسيق السعر مع استراتيجية السعر القديم
-            if price == 0:
-                price_display = "مجاني"
-                price_color = "#00FFD1"
-                st.markdown(f"""
-                <div class='store-card'>
-                    <h4>{display_title}</h4>
-                    <div class='location'>📍 {city} - {district}</div>
-                    <div class='type'>🏠 {property_type}</div>
-                    <div class='price' style='color: {price_color};'>{price_display}</div>
-                """, unsafe_allow_html=True)
-            else:
-                old_price = int(price * 2)
-                st.markdown(f"""
-                <div class='store-card'>
-                    <h4>{display_title}</h4>
-                    <div class='location'>📍 {city} - {district}</div>
-                    <div class='type'>🏠 {property_type}</div>
-                    <div class='price'>
-                        <span style='text-decoration: line-through; color: #888; font-size: 16px;'>${old_price}</span><br>
-                        <span style='color: #FFD700; font-size: 24px; font-weight: bold;'>${price}</span>
-                    </div>
-                """, unsafe_allow_html=True)
-            
-            # إضافة جملة "قرار استثماري"
-            st.caption("🎯 هذا التقرير يعطيك قرار شراء واضح")
-            
-            # إضافة فرصة استثمارية مع رقم حقيقي
-            st.markdown(f"🔥 أقل من متوسط السوق بـ {discount_percent}%")
-            st.caption(f"📈 {transactions} عملية في هذا الحي - مؤشر قوي")
-            
-            # إضافة caption
-            st.caption("📊 مبني على بيانات حكومية حقيقية")
-            
-            # إضافة عرض محدود
-            st.caption("⏳ عرض محدود لفترة قصيرة")
-            
-            # صف الأزرار
-            col_btn1, col_btn2 = st.columns(2)
-            
-            with col_btn1:
-                # زر المعاينة
-                if st.button("👁️ معاينة", key=f"preview_{i}", use_container_width=True):
-                    st.session_state.preview_item = item
-            
-            with col_btn2:
-                # منع التحميل المجاني - إظهار زر شراء للمدفوع
-                if price == 0:
-                    if file_path and os.path.exists(file_path):
-                        with open(file_path, "rb") as f:
-                            pdf_data = f.read()
-                            st.download_button(
-                                label="📥 تحميل",
-                                data=pdf_data,
-                                file_name=os.path.basename(file_path),
-                                mime="application/pdf",
-                                key=f"download_store_{i}_{hash(file_path)}",
-                                use_container_width=True
-                            )
-                    else:
-                        st.error("❌")
-                else:
-                    if st.button("💳 احصل على التقرير الآن", key=f"buy_{i}", use_container_width=True):
-                        st.session_state.selected_product = item
-                        st.session_state.page = "checkout"
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    # زر العودة
-    if st.button("🔙 العودة للتحليل", use_container_width=True):
-        st.session_state.page = "home"
-    
-    st.stop()
-
-# ========== صفحة إتمام الشراء ==========
-if st.session_state.page == "checkout":
-    item = st.session_state.get("selected_product", {})
-    
-    st.markdown("---")
-    st.markdown("## 💳 إتمام الشراء")
-    
-    # عرض المنتج
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        price_value = item.get('price', 0)
-        st.markdown(f"""
-        <div style='background: linear-gradient(135deg, #1a1a1a, #2d2d2d); padding: 25px; border-radius: 15px; border: 2px solid gold; margin: 10px 0;'>
-            <h3 style='color: gold;'>{item.get('product_title', 'تقرير عقاري')}</h3>
-            <p><strong>📍 المدينة:</strong> {item.get('city', 'غير محدد')}</p>
-            <p><strong>📍 الحي:</strong> {item.get('district', 'غير محدد')}</p>
-            <p><strong>🏠 نوع العقار:</strong> {item.get('property_type', 'غير محدد')}</p>
-            <p><strong>💰 السعر:</strong> <span style='color: #00FFD1;'>${price_value:,}</span></p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div style='background: linear-gradient(135deg, #4a3a1a, #3a2a0a); padding: 20px; border-radius: 15px; border: 2px solid #ffaa00; margin: 10px 0; text-align: center;'>
-            <h4 style='color: #ffaa00;'>⚡ عرض محدود</h4>
-            <p style='color: #EAEAEA;'>هذا المنتج مطلوب</p>
-            <p style='color: #ffaa00; font-size: 20px;'>قد يتم رفع السعر قريباً</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # إدخال بيانات العميل
-    st.markdown("### 📝 بيانات التواصل")
-    
-    col_email, col_phone = st.columns(2)
-    with col_email:
-        email = st.text_input("📧 البريد الإلكتروني", placeholder="example@email.com")
-    with col_phone:
-        phone = st.text_input("📱 رقم الجوال (اختياري)", placeholder="05xxxxxxxx")
-    
-    col_name, col_city = st.columns(2)
-    with col_name:
-        name = st.text_input("👤 الاسم", placeholder="الاسم الكامل")
-    with col_city:
-        city = st.text_input("🏙️ المدينة", placeholder="الرياض / جدة ...")
-    
-    # ملاحظات إضافية
-    notes = st.text_area("📝 ملاحظات إضافية (اختياري)", placeholder="أي استفسار أو طلب خاص...")
-    
-    st.markdown("---")
-    
-    # أزرار الإجراء
-    col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
-    
-    with col_btn1:
-        if st.button("🚀 تأكيد الطلب", use_container_width=True, type="primary"):
-            if email and name and city:
-                # حفظ الطلب في session_state
-                if 'orders' not in st.session_state:
-                    st.session_state.orders = []
-                
-                order = {
-                    'product': item,
-                    'customer': {
-                        'name': name,
-                        'email': email,
-                        'phone': phone,
-                        'city': city
-                    },
-                    'notes': notes,
-                    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    'status': 'جديد'
-                }
-                st.session_state.orders.append(order)
-                
-                # رسالة نجاح
-                st.success("✅ تم تسجيل طلبك بنجاح! سنتواصل معك خلال 24 ساعة لإتمام عملية الشراء.")
-                st.balloons()
-                
-                # عرض تفاصيل الطلب
-                st.markdown(f"""
-                <div style='background: linear-gradient(135deg, #1a3a1a, #0a2a0a); padding: 20px; border-radius: 15px; border: 2px solid #00FFD1; margin: 20px 0;'>
-                    <h4 style='color: #00FFD1;'>📋 تفاصيل الطلب</h4>
-                    <p><strong>رقم الطلب:</strong> #ORD-{datetime.now().strftime("%Y%m%d%H%M")}</p>
-                    <p><strong>الباقة:</strong> {item.get('product_title', '')}</p>
-                    <p><strong>المبلغ:</strong> ${item.get('price', 0):,}</p>
-                    <p><strong>الحالة:</strong> في انتظار التواصل</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # زر العودة للمتجر
-                if st.button("🔙 العودة للمتجر", use_container_width=True):
-                    st.session_state.page = "store"
-                    st.session_state.selected_product = None
-            else:
-                st.error("❌ الرجاء تعبئة الحقول الإلزامية (البريد الإلكتروني، الاسم، المدينة)")
-    
-    with col_btn2:
-        if st.button("🔙 رجوع", use_container_width=True):
-            st.session_state.page = "store"
-            st.session_state.selected_product = None
-    
-    st.stop()
-
 # ========== الواجهة الرئيسية ==========
 st.markdown("""
     <div class='header-section'>
@@ -1219,7 +841,8 @@ st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — ان
 
 # ========== زر المتجر الذهبي ==========
 if st.button("🛍️ دخول متجر التقارير الذكية", use_container_width=True, type="secondary"):
-    st.session_state.page = "store"
+    st.session_state["go_store"] = True
+    st.rerun()
 
 # ========== نظام التنقل ==========
 page = st.radio(
@@ -1841,6 +1464,7 @@ if page == "📊 التحليل الكامل":
     
     # ===== قسم تقارير الأحياء =====
     if analysis_mode == "📍 تقارير الأحياء":
+        # استدعاء الدالة من الملف المنفصل
         show_district_reports(df_raw)
 
 # ========== صفحة المستشار الذكي ==========
@@ -1935,7 +1559,7 @@ if page == "🧠 المستشار الذكي":
         with st.chat_message("assistant"):
             st.markdown(robo_response)
 
-# ========== تهيئة حالة الجلسة (باقي المتغيرات) ==========
+# ========== تهيئة حالة الجلسة ==========
 if 'report_generated' not in st.session_state:
     st.session_state.report_generated = False
 if 'district_report_generated' not in st.session_state:
@@ -1976,8 +1600,116 @@ if 'confirm_clear' not in st.session_state:
     st.session_state.confirm_clear = False
 if 'daily_alerts' not in st.session_state:
     st.session_state.daily_alerts = []
-if 'orders' not in st.session_state:
-    st.session_state.orders = []
+if 'go_store' not in st.session_state:
+    st.session_state.go_store = False
+
+# ========== إذا ضغط المستخدم على زر المتجر ==========
+if st.session_state.go_store:
+    st.markdown("---")
+    st.markdown("## 🛍️ متجر التقارير الذكية")
+    st.markdown("""
+    <div style='text-align: center; padding: 30px; background: linear-gradient(135deg, #1a1a1a, #2d2d2d); border-radius: 20px; border: 3px solid gold; margin: 20px 0;'>
+        <h2 style='color: gold;'>📊 تصفح آلاف التقارير العقارية الجاهزة</h2>
+        <p style='color: #EAEAEA; font-size: 18px;'>تحليلات متقدمة • بيانات حقيقية • قرارات ذكية</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # تحميل المخزون من مجلد metadata
+    inventory = load_store_inventory()
+    
+    if not inventory:
+        st.warning("⚠️ لا توجد تقارير في المتجر حالياً. سيتم إضافتها قريباً.")
+        if st.button("🔙 العودة للتحليل", use_container_width=True):
+            st.session_state.go_store = False
+            st.rerun()
+        st.stop()
+    
+    # ===== فلترة التقارير =====
+    st.markdown("### 🔍 فلترة التقارير")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        cities = sorted(list(set(item.get("city", "غير محدد") for item in inventory)))
+        selected_city = st.selectbox("📍 المدينة", ["الكل"] + cities)
+    
+    with col2:
+        property_types = sorted(list(set(item.get("property_type", "غير محدد") for item in inventory)))
+        selected_property = st.selectbox("🏠 نوع العقار", ["الكل"] + property_types)
+    
+    with col3:
+        product_titles = sorted(list(set(item.get("product_title", "غير محدد") for item in inventory)))
+        selected_product = st.selectbox("📊 نوع التقرير", ["الكل"] + product_titles)
+    
+    # ===== تطبيق الفلترة =====
+    filtered_inventory = []
+    for item in inventory:
+        if selected_city != "الكل" and item.get("city") != selected_city:
+            continue
+        if selected_property != "الكل" and item.get("property_type") != selected_property:
+            continue
+        if selected_product != "الكل" and item.get("product_title") != selected_product:
+            continue
+        filtered_inventory.append(item)
+    
+    st.markdown(f"### 📦 عدد التقارير المتاحة: {len(filtered_inventory)}")
+    
+    if not filtered_inventory:
+        st.info("لا توجد تقارير تطابق معايير البحث")
+        if st.button("🔙 العودة للتحليل", use_container_width=True):
+            st.session_state.go_store = False
+            st.rerun()
+        st.stop()
+    
+    # ===== عرض التقارير في بطاقات =====
+    cols = st.columns(3)
+    
+    for i, item in enumerate(filtered_inventory):
+        with cols[i % 3]:
+            # استخراج البيانات
+            city = item.get("city", "غير محدد")
+            district = item.get("district", "غير محدد")
+            property_type = item.get("property_type", "غير محدد")
+            product_title = item.get("product_title", "تقرير عقاري")
+            price = item.get("price", 0)
+            file_path = item.get("file_path", "")
+            
+            # تنسيق السعر
+            if price == 0:
+                price_display = "مجاني"
+                price_color = "#00FFD1"
+            else:
+                price_display = f"${price:,}"
+                price_color = "#FFD700"
+            
+            st.markdown(f"""
+            <div class='store-card'>
+                <h4>{product_title}</h4>
+                <div class='location'>📍 {city} - {district}</div>
+                <div class='type'>🏠 {property_type}</div>
+                <div class='price' style='color: {price_color};'>{price_display}</div>
+            """, unsafe_allow_html=True)
+            
+            # زر تحميل التقرير
+            if file_path and os.path.exists(file_path):
+                with open(file_path, "rb") as f:
+                    pdf_data = f.read()
+                    st.download_button(
+                        label="📥 تحميل التقرير",
+                        data=pdf_data,
+                        file_name=os.path.basename(file_path),
+                        mime="application/pdf",
+                        key=f"download_store_{i}_{hash(file_path)}",
+                        use_container_width=True
+                    )
+            else:
+                st.error("❌ الملف غير موجود")
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+    
+    # زر العودة
+    if st.button("🔙 العودة للتحليل", use_container_width=True):
+        st.session_state.go_store = False
+        st.rerun()
 
 st.markdown("---")
 st.markdown("""
