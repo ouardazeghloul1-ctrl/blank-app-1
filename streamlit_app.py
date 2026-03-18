@@ -8,14 +8,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ========== تهيئة حالة الجلسة (مهم جداً - في الأعلى) ==========
-if 'page' not in st.session_state:
-    st.session_state.page = "home"
-if 'preview_item' not in st.session_state:
-    st.session_state.preview_item = None
-if 'selected_product' not in st.session_state:
-    st.session_state.selected_product = None
-
 df_raw = load_government_data(selected_city=None, selected_property_type=None)
 
 # ===== التحقق من أن البيانات تم تحميلها بشكل صحيح =====
@@ -78,6 +70,9 @@ import os
 import streamlit.components.v1 as components
 import io
 import json
+
+# ===== استيراد مصنع التقارير =====
+from district_report_factory import generate_all_district_reports
 
 # ===== Robo Chat System =====
 from robo_advisor import handle_robo_question, RoboGuard, RoboKnowledge
@@ -510,6 +505,19 @@ def setup_arabic_support():
         margin-top: auto !important;
         padding-top: 15px !important;
     }
+    
+    /* ستايل زر المصنع المؤقت */
+    .factory-button {
+        background: linear-gradient(135deg, #4a1a1a, #6a2a2a) !important;
+        border: 3px solid #ffaa00 !important;
+        animation: pulse 2s infinite !important;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(255, 170, 0, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(255, 170, 0, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 170, 0, 0); }
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -838,6 +846,58 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — انتقل إلى المستشار الذكي")
+
+# ========== زر المصنع المؤقت (مرة واحدة فقط) ==========
+st.markdown("### 🏭 [مؤقت] تشغيل مصنع التقارير")
+st.warning("⚠️ هذا زر مؤقت لإنشاء بيانات المتجر - اضغط مرة واحدة فقط وانتظر حتى يكتمل")
+
+if st.button("🚀 تشغيل مصنع التقارير (مرة واحدة فقط)", key="factory_button", use_container_width=True):
+    with st.spinner("🔄 جاري إنشاء التقارير... قد يستغرق هذا دقيقة أو اثنتين"):
+        try:
+            # استخدام أول 200 صف فقط لتجنب التحميل الزائد
+            result = generate_all_district_reports(df_raw.head(200))
+            
+            # التحقق من النتيجة
+            if result and isinstance(result, dict):
+                st.success(f"✅ تم إنشاء {result.get('total', 0)} تقرير بنجاح!")
+                
+                # عرض تفاصيل سريعة
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("📊 إجمالي التقارير", result.get('total', 0))
+                with col2:
+                    st.metric("✅ الناجحة", result.get('successful', 0))
+                with col3:
+                    st.metric("❌ الفاشلة", result.get('failed', 0))
+                
+                # التحقق من وجود الملفات
+                metadata_folder = "reports_store/metadata"
+                if os.path.exists(metadata_folder):
+                    files = os.listdir(metadata_folder)
+                    st.info(f"📁 تم إنشاء {len([f for f in files if f.endswith('.json')])} ملف metadata")
+                    
+                    # معاينة أول 3 تقارير
+                    st.markdown("### 📋 معاينة سريعة للتقارير المنشأة")
+                    json_files = [f for f in files if f.endswith('.json')][:3]
+                    for json_file in json_files:
+                        with open(os.path.join(metadata_folder, json_file), 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                            st.json({
+                                "city": data.get("city"),
+                                "district": data.get("district"),
+                                "property_type": data.get("property_type"),
+                                "product_title": data.get("product_title"),
+                                "price": data.get("price")
+                            })
+            else:
+                st.error("❌ فشل في إنشاء التقارير")
+                
+        except Exception as e:
+            st.error(f"❌ حدث خطأ: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
+
+st.markdown("---")
 
 # ========== زر المتجر الذهبي ==========
 if st.button("🛍️ دخول متجر التقارير الذكية", use_container_width=True, type="secondary"):
@@ -1618,7 +1678,7 @@ if st.session_state.go_store:
     inventory = load_store_inventory()
     
     if not inventory:
-        st.warning("⚠️ لا توجد تقارير في المتجر حالياً. سيتم إضافتها قريباً.")
+        st.warning("⚠️ لا توجد تقارير في المتجر حالياً. استخدم زر 'تشغيل مصنع التقارير' أعلاه لإنشاء التقارير أولاً.")
         if st.button("🔙 العودة للتحليل", use_container_width=True):
             st.session_state.go_store = False
             st.rerun()
