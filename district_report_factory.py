@@ -230,7 +230,7 @@ def generate_single_report(
         # استخدام البحث الدقيق مع حماية إضافية
         district_data = get_district_data(city_data, district)
 
-        # ✅ التعديل: تغيير الشرط من < 5 إلى < 1 لقبول أي عدد من الصفقات
+        # ✅ التعديل الأول: تغيير الشرط من < 5 إلى < 1 لقبول أي عدد من الصفقات
         if len(district_data) < 1:  # كان < 5
             error_msg = f"Insufficient data ({len(district_data)} transactions)"
             print(f"      ⚠️ {district}: {error_msg}")
@@ -243,8 +243,9 @@ def generate_single_report(
             (district_data["area"] > 0)
         ]
 
-        if valid.empty:
-            error_msg = "No valid transactions"
+        # ✅ التعديل الثاني: التأكد من وجود 3 صفقات صالحة على الأقل
+        if len(valid) < 3:
+            error_msg = f"Insufficient valid transactions ({len(valid)} < 3)"
             print(f"      ⚠️ {district}: {error_msg}")
             log_error(city, district, error_msg)
             return None
@@ -285,7 +286,7 @@ def generate_single_report(
             "total_transactions": transactions
         }
 
-        # ✅ التعديل الحاسم: حذف report_type=product_type لأن الدالة لا تقبله
+        # ✅ التعديل الثالث: حذف report_type=product_type (مؤكد)
         report_text = generate_district_narrative(
             user_info=user_info,
             district_metrics={},
@@ -293,7 +294,7 @@ def generate_single_report(
             dpi_score=dpi,
             market_data=city_data,
             real_data=city_data
-            # تم حذف report_type=product_type من هنا
+            # تم حذف report_type=product_type
         )
 
         charts = charts_engine.generate_all_district_charts(
@@ -575,7 +576,7 @@ def generate_all_district_reports(df):
     print("   ✅ Multi-Product Engine: 25 products per district")
     print("   ✅ No duplicate districts across packages (FIXED)")
     print("   ✅ Order preserved using dict.fromkeys() (FIXED)")
-    print("   ✅ Report type passed to narrative engine (FIXED)")  # هذه الجملة تغير معناها الآن
+    print("   ✅ Report type temporarily removed from narrative engine (FIXED)")
     print("   ✅ Product titles in metadata for store (FIXED)")
     print("   ✅ Error logging with empty file handling (FIXED)")
     print("   ✅ Exception handling throughout")
