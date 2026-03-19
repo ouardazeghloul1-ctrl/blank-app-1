@@ -230,8 +230,8 @@ def generate_single_report(
         # استخدام البحث الدقيق مع حماية إضافية
         district_data = get_district_data(city_data, district)
 
-        # ✅ التعديل الأول: تغيير الشرط من < 5 إلى < 1 لقبول أي عدد من الصفقات
-        if len(district_data) < 1:  # كان < 5
+        # قبول أي حي حتى لو صفقة واحدة
+        if len(district_data) < 1:
             error_msg = f"Insufficient data ({len(district_data)} transactions)"
             print(f"      ⚠️ {district}: {error_msg}")
             log_error(city, district, error_msg)
@@ -243,14 +243,17 @@ def generate_single_report(
             (district_data["area"] > 0)
         ]
 
-        # ✅ التعديل الثاني: التأكد من وجود 3 صفقات صالحة على الأقل
+        # التأكد من وجود 3 صفقات صالحة على الأقل
         if len(valid) < 3:
             error_msg = f"Insufficient valid transactions ({len(valid)} < 3)"
             print(f"      ⚠️ {district}: {error_msg}")
             log_error(city, district, error_msg)
             return None
 
-        # ✅ FIXED: حماية من القسمة على صفر
+        # 🔥 تنظيف إضافي قوي قبل أي استخدام
+        valid = valid[(valid["area"] > 0) & (valid["price"] > 0)]
+
+        # حماية من القسمة على صفر
         valid = valid.copy()
         valid["price_per_sqm"] = valid["price"] / valid["area"].replace(0, 1)
         district_price = valid["price_per_sqm"].median()
@@ -261,6 +264,7 @@ def generate_single_report(
             (city_data["area"] > 0)
         ].copy()
         
+        valid_city = valid_city[(valid_city["area"] > 0) & (valid_city["price"] > 0)]
         valid_city["price_per_sqm"] = valid_city["price"] / valid_city["area"].replace(0, 1)
         city_price = valid_city["price_per_sqm"].median()
 
@@ -286,19 +290,27 @@ def generate_single_report(
             "total_transactions": transactions
         }
 
-        # ✅ التعديل الثالث: حذف report_type=product_type (مؤكد)
+        # 🔥🔥 التعديل النهائي: استخدام بيانات المدينة النظيفة للدوال الداخلية
+        safe_data = city_data[
+            (city_data["price"].notna()) & 
+            (city_data["area"].notna()) & 
+            (city_data["area"] > 0) & 
+            (city_data["price"] > 0)
+        ].copy()
+
         report_text = generate_district_narrative(
             user_info=user_info,
             district_metrics={},
             nearby_districts=[],
             dpi_score=dpi,
-            market_data=city_data,
-            real_data=city_data
+            market_data=safe_data,  # 🔥 بيانات المدينة النظيفة
+            real_data=safe_data      # 🔥 بيانات المدينة النظيفة
             # تم حذف report_type=product_type
         )
 
+        # 🔥 استخدام نفس البيانات النظيفة للرسوم البيانية
         charts = charts_engine.generate_all_district_charts(
-            city_data,
+            safe_data,  # 🔥 بيانات المدينة النظيفة
             district
         )
 
@@ -572,11 +584,15 @@ def generate_all_district_reports(df):
     print("   ✅ Clean names calculated once per city")
     print("   ✅ Exact matching: .fillna('').str.strip() (FIXED)")
     print("   ✅ Division by zero protection (FIXED)")
+    print("   ✅ Additional data cleaning before any calculation (FIXED)")
+    print("   ✅ ✅ FINAL FIX: Using clean city data for internal functions, not just district data (FIXED)")
+    print("   ✅ Safe city data passed to narrative engine (FIXED)")
+    print("   ✅ Safe city data passed to charts engine (FIXED)")
     print("   ✅ JSON Metadata system with property & product types")
     print("   ✅ Multi-Product Engine: 25 products per district")
     print("   ✅ No duplicate districts across packages (FIXED)")
     print("   ✅ Order preserved using dict.fromkeys() (FIXED)")
-    print("   ✅ Report type temporarily removed from narrative engine (FIXED)")
+    print("   ✅ Report type temporarily removed from narrative engine")
     print("   ✅ Product titles in metadata for store (FIXED)")
     print("   ✅ Error logging with empty file handling (FIXED)")
     print("   ✅ Exception handling throughout")
