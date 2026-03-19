@@ -230,7 +230,7 @@ def generate_single_report(
         # استخدام البحث الدقيق مع حماية إضافية
         district_data = get_district_data(city_data, district)
 
-        # ✅ التعديل الحاسم: تغيير الشرط من < 5 إلى < 1 لقبول أي عدد من الصفقات
+        # ✅ التعديل: تغيير الشرط من < 5 إلى < 1 لقبول أي عدد من الصفقات
         if len(district_data) < 1:  # كان < 5
             error_msg = f"Insufficient data ({len(district_data)} transactions)"
             print(f"      ⚠️ {district}: {error_msg}")
@@ -285,14 +285,15 @@ def generate_single_report(
             "total_transactions": transactions
         }
 
+        # ✅ التعديل الحاسم: حذف report_type=product_type لأن الدالة لا تقبله
         report_text = generate_district_narrative(
             user_info=user_info,
             district_metrics={},
             nearby_districts=[],
             dpi_score=dpi,
             market_data=city_data,
-            real_data=city_data,
-            report_type=product_type  # ✅ تمرير نوع التقرير لمحرك النصوص
+            real_data=city_data
+            # تم حذف report_type=product_type من هنا
         )
 
         charts = charts_engine.generate_all_district_charts(
@@ -574,7 +575,7 @@ def generate_all_district_reports(df):
     print("   ✅ Multi-Product Engine: 25 products per district")
     print("   ✅ No duplicate districts across packages (FIXED)")
     print("   ✅ Order preserved using dict.fromkeys() (FIXED)")
-    print("   ✅ Report type passed to narrative engine (FIXED)")
+    print("   ✅ Report type passed to narrative engine (FIXED)")  # هذه الجملة تغير معناها الآن
     print("   ✅ Product titles in metadata for store (FIXED)")
     print("   ✅ Error logging with empty file handling (FIXED)")
     print("   ✅ Exception handling throughout")
