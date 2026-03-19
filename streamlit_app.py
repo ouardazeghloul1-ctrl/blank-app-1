@@ -11,7 +11,7 @@ st.set_page_config(
 # ========== تحديد المسار الأساسي ==========
 import os
 import json
-import shutil
+import shutil  # ✅ التأكد من وجود shutil
 from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -867,7 +867,7 @@ st.markdown("""
 
 st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — انتقل إلى المستشار الذكي")
 
-# ========== زر المصنع المبسط (بدون session_state) ==========
+# ========== زر المصنع المبسط (مع التأكد من shulti) ==========
 st.markdown("### 🏭 تشغيل مصنع التقارير (اختبار مباشر)")
 st.warning("⚠️ هذا تشغيل مباشر - انتظر حتى تظهر النتيجة")
 
@@ -880,14 +880,19 @@ if st.button("🚀 تشغيل المصنع الآن", key="factory_simple_btn", 
     st.write("📌 1. تم الضغط على الزر - بدء التنفيذ...")
     
     try:
-        # 2️⃣ تنظيف المتجر قبل البدء (للتجربة فقط)
-        st.write("📌 2. تنظيف المتجر القديم...")
+        # 2️⃣ التأكد من import الدالة
+        st.write("📌 2. جاري استيراد مصنع التقارير...")
+        from district_report_factory import generate_all_district_reports
+        st.success("✅ تم استيراد المصنع بنجاح")
+        
+        # 3️⃣ تنظيف المتجر قبل البدء (للتجربة فقط)
+        st.write("📌 3. تنظيف المتجر القديم...")
         if os.path.exists(REPORTS_STORE):
             shutil.rmtree(REPORTS_STORE)
             st.write("✅ تم حذف المتجر القديم")
         
-        # 3️⃣ إنشاء المجلدات من جديد
-        st.write("📌 3. إنشاء مجلدات جديدة...")
+        # 4️⃣ إنشاء المجلدات من جديد
+        st.write("📌 4. إنشاء مجلدات جديدة...")
         os.makedirs(METADATA_FOLDER, exist_ok=True)
         os.makedirs(BASIC_FOLDER, exist_ok=True)
         os.makedirs(PRO_FOLDER, exist_ok=True)
@@ -896,12 +901,13 @@ if st.button("🚀 تشغيل المصنع الآن", key="factory_simple_btn", 
         
         st.success("✅ تم إنشاء المجلدات بنجاح")
         
-        # 4️⃣ التحقق من البيانات
-        st.write(f"📌 4. حجم البيانات: {len(df_raw)} صفقة")
-        st.write(f"📌 5. أخذ عينة: {sample_size} صفقة")
+        # 5️⃣ التحقق من البيانات
+        st.write(f"📌 5. حجم البيانات: {len(df_raw)} صفقة")
+        st.write(f"📌 6. أخذ عينة: {sample_size} صفقة")
         
-        # 5️⃣ تشغيل المصنع
-        st.write("📌 6. جاري تشغيل المصنع... (قد يستغرق 2-3 دقائق)")
+        # 6️⃣ تشغيل المصنع
+        st.write("📌 7. 🔥 قبل تشغيل المصنع")
+        st.write("📌 8. جاري تشغيل المصنع... (قد يستغرق 2-3 دقائق)")
         
         # استخدام العينة المحددة
         df_sample = df_raw.head(sample_size)
@@ -909,14 +915,16 @@ if st.button("🚀 تشغيل المصنع الآن", key="factory_simple_btn", 
         # استدعاء المصنع
         result = generate_all_district_reports(df_sample)
         
-        # 6️⃣ عرض النتيجة
-        st.write("📌 7. المصنع انتهى - جاري قراءة النتائج...")
+        st.write("📌 9. 🔥 بعد تشغيل المصنع")
+        
+        # 7️⃣ عرض النتيجة
+        st.write("📌 10. المصنع انتهى - جاري قراءة النتائج...")
         
         if result and isinstance(result, tuple) and len(result) >= 1:
             total_reports = result[0]
             st.success(f"✅ تم إنشاء {total_reports} تقرير بنجاح!")
             
-            # 7️⃣ التحقق من مجلد metadata
+            # 8️⃣ التحقق من مجلد metadata
             if os.path.exists(METADATA_FOLDER):
                 files = os.listdir(METADATA_FOLDER)
                 json_files = [f for f in files if f.endswith('.json')]
