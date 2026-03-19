@@ -8,12 +8,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ========== الحل النهائي: إنشاء مجلدات المتجر يدوياً قبل أي شيء ==========
+# ========== تحديد المسار الأساسي ==========
 import os
 import json
 from datetime import datetime
 
-# تحديد المسار الأساسي
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPORTS_STORE = os.path.join(BASE_DIR, "reports_store")
 METADATA_FOLDER = os.path.join(REPORTS_STORE, "metadata")
@@ -22,29 +21,12 @@ PRO_FOLDER = os.path.join(REPORTS_STORE, "pro")
 PREMIUM_FOLDER = os.path.join(REPORTS_STORE, "premium")
 LOGS_FOLDER = os.path.join(REPORTS_STORE, "logs")
 
-# 🔥 إنشاء جميع المجلدات يدوياً (حل 80% من المشاكل)
+# إنشاء المجلدات (تأكيد)
 os.makedirs(METADATA_FOLDER, exist_ok=True)
 os.makedirs(BASIC_FOLDER, exist_ok=True)
 os.makedirs(PRO_FOLDER, exist_ok=True)
 os.makedirs(PREMIUM_FOLDER, exist_ok=True)
 os.makedirs(LOGS_FOLDER, exist_ok=True)
-
-# ✅ التحقق من إنشاء المجلدات
-folders_created = all([
-    os.path.exists(METADATA_FOLDER),
-    os.path.exists(BASIC_FOLDER),
-    os.path.exists(PRO_FOLDER),
-    os.path.exists(PREMIUM_FOLDER)
-])
-
-if folders_created:
-    print("✅ تم إنشاء مجلدات المتجر بنجاح")
-    print(f"📁 METADATA: {METADATA_FOLDER}")
-    print(f"📁 BASIC: {BASIC_FOLDER}")
-    print(f"📁 PRO: {PRO_FOLDER}")
-    print(f"📁 PREMIUM: {PREMIUM_FOLDER}")
-else:
-    print("❌ فشل إنشاء بعض المجلدات")
 
 # ===== تحميل البيانات الحكومية =====
 df_raw = load_government_data(selected_city=None, selected_property_type=None)
@@ -846,54 +828,25 @@ def generate_advanced_market_data(city, property_type, status, real_data):
         "المصدر": "government_data_provider"
     }
 
-# ========== تحميل مخزون المتجر من metadata (معدل مع مسار مطلق) ==========
+# ========== تحميل مخزون المتجر من metadata ==========
 def load_store_inventory():
-    """تحميل جميع التقارير المتاحة من مجلد metadata مع المسار المطلق"""
+    """تحميل جميع التقارير المتاحة من مجلد metadata"""
     inventory = []
     
     if not os.path.exists(METADATA_FOLDER):
-        print(f"⚠️ مجلد metadata غير موجود: {METADATA_FOLDER}")
         return inventory
     
-    # ترتيب الملفات من الأحدث للأقدم وأخذ أول 500 فقط
-    files = sorted([f for f in os.listdir(METADATA_FOLDER) if f.endswith("latest.json")], reverse=True)[:500]
-    print(f"📁 وجدنا {len(files)} ملف metadata")
+    files = [f for f in os.listdir(METADATA_FOLDER) if f.endswith("latest.json")]
     
     for file in files:
         try:
             with open(os.path.join(METADATA_FOLDER, file), 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                
-                # 🔥 تحويل المسار النسبي إلى مسار مطلق
-                file_path = data.get("file_path", "")
-                if file_path:
-                    # إذا كان المسار نسبي، حوله لمطلق
-                    if not os.path.isabs(file_path):
-                        full_path = os.path.join(BASE_DIR, file_path)
-                    else:
-                        full_path = file_path
-                    
-                    # التحقق من وجود الملف
-                    if not os.path.exists(full_path):
-                        print(f"⚠️ الملف غير موجود: {full_path}")
-                        continue
-                    
-                    # تحديث المسار في البيانات للمسار المطلق
-                    data["file_path"] = full_path
-                    
                 inventory.append(data)
         except Exception as e:
             print(f"خطأ في قراءة ملف {file}: {e}")
             continue
     
-    # ترتيب التقارير حسب DPI score (الأفضل أولاً)
-    inventory = sorted(
-        inventory,
-        key=lambda x: x.get("metrics", {}).get("dpi_score", 0),
-        reverse=True
-    )
-    
-    print(f"✅ تم تحميل {len(inventory)} تقرير صالح")
     return inventory
 
 # ========== الواجهة الرئيسية ==========
@@ -913,69 +866,102 @@ st.markdown("""
 
 st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — انتقل إلى المستشار الذكي")
 
-# ========== عرض معلومات المجلدات (للتشخيص) ==========
-with st.expander("📁 معلومات المجلدات (للتشخيص)"):
-    st.write(f"**المسار الأساسي:** {BASE_DIR}")
-    st.write(f"**مجلد metadata:** {METADATA_FOLDER}")
-    st.write(f"**الموجود؟:** {os.path.exists(METADATA_FOLDER)}")
+# ========== زر المصنع المبسط (بدون session_state) ==========
+st.markdown("### 🏭 تشغيل مصنع التقارير (اختبار مباشر)")
+st.warning("⚠️ هذا تشغيل مباشر - انتظر حتى تظهر النتيجة")
+
+# اختيار حجم العينة
+sample_size = st.number_input("عدد الصفقات للتحليل", min_value=50, max_value=500, value=100, step=50)
+
+if st.button("🚀 تشغيل المصنع الآن", key="factory_simple_btn", use_container_width=True):
     
-    if os.path.exists(METADATA_FOLDER):
-        files = os.listdir(METADATA_FOLDER)
-        st.write(f"**عدد الملفات:** {len(files)}")
-        if files:
-            st.write(f"**أول 5 ملفات:** {files[:5]}")
+    # 1️⃣ كتابة أول رسالة للتأكد أن الكود شتغل
+    st.write("📌 1. تم الضغط على الزر - بدء التنفيذ...")
     
-    st.write(f"**مجلد pro:** {PRO_FOLDER}")
-    st.write(f"**الموجود؟:** {os.path.exists(PRO_FOLDER)}")
-
-# ========== زر المصنع المؤقت (مرة واحدة فقط) ==========
-st.markdown("### 🏭 [مؤقت] تشغيل مصنع التقارير")
-st.warning("⚠️ هذا زر مؤقت لإنشاء بيانات المتجر - اضغط مرة واحدة فقط وانتظر حتى يكتمل (قد يستغرق دقيقة)")
-
-col1, col2 = st.columns([1, 1])
-with col1:
-    sample_size = st.number_input("عدد الصفقات للتحليل", min_value=50, max_value=1000, value=200, step=50)
-
-with col2:
-    st.info(f"سيتم تحليل {sample_size} صفقة فقط لتجنب التحميل")
-
-if st.button("🚀 تشغيل مصنع التقارير", key="factory_button", use_container_width=True):
-    with st.spinner(f"🔄 جاري إنشاء التقارير من {sample_size} صفقة... قد يستغرق هذا دقيقة"):
-        try:
-            # استخدام العدد المحدد من الصفوف
-            df_sample = df_raw.head(sample_size)
-            result = generate_all_district_reports(df_sample)
+    try:
+        # 2️⃣ إنشاء المجلدات يدوياً
+        st.write("📌 2. جاري إنشاء المجلدات...")
+        
+        os.makedirs("reports_store/metadata", exist_ok=True)
+        os.makedirs("reports_store/basic", exist_ok=True)
+        os.makedirs("reports_store/pro", exist_ok=True)
+        os.makedirs("reports_store/premium", exist_ok=True)
+        os.makedirs("reports_store/logs", exist_ok=True)
+        
+        st.success("✅ تم إنشاء المجلدات بنجاح")
+        
+        # 3️⃣ التحقق من البيانات
+        st.write(f"📌 3. حجم البيانات: {len(df_raw)} صفقة")
+        st.write(f"📌 4. أخذ عينة: {sample_size} صفقة")
+        
+        # 4️⃣ تشغيل المصنع
+        st.write("📌 5. جاري تشغيل المصنع... (قد يستغرق دقيقة)")
+        
+        # استخدام العينة المحددة
+        df_sample = df_raw.head(sample_size)
+        
+        # استدعاء المصنع
+        result = generate_all_district_reports(df_sample)
+        
+        # 5️⃣ عرض النتيجة
+        st.write("📌 6. المصنع انتهى - جاري قراءة النتائج...")
+        
+        if result and isinstance(result, tuple) and len(result) >= 1:
+            total_reports = result[0]
+            st.success(f"✅ تم إنشاء {total_reports} تقرير بنجاح!")
             
-            # التحقق من النتيجة
-            if result:
-                st.success(f"✅ تم إنشاء التقارير بنجاح!")
+            # 6️⃣ التحقق من مجلد metadata
+            if os.path.exists("reports_store/metadata"):
+                files = os.listdir("reports_store/metadata")
+                json_files = [f for f in files if f.endswith('.json')]
                 
-                # التحقق من وجود الملفات
-                if os.path.exists(METADATA_FOLDER):
-                    files = os.listdir(METADATA_FOLDER)
-                    json_files = [f for f in files if f.endswith('.json')]
-                    st.info(f"📁 تم إنشاء {len(json_files)} ملف metadata")
+                st.write(f"📦 عدد ملفات metadata: {len(json_files)}")
+                
+                if json_files:
+                    st.write("📄 أول 3 ملفات:")
+                    for f in json_files[:3]:
+                        st.code(f)
                     
-                    if json_files:
-                        # معاينة أول 3 تقارير
-                        st.markdown("### 📋 معاينة سريعة للتقارير المنشأة")
-                        for json_file in json_files[:3]:
-                            with open(os.path.join(METADATA_FOLDER, json_file), 'r', encoding='utf-8') as f:
-                                data = json.load(f)
-                                st.json({
-                                    "city": data.get("city"),
-                                    "district": data.get("district"),
-                                    "property_type": data.get("property_type"),
-                                    "product_title": data.get("product_title"),
-                                    "price": data.get("price")
-                                })
+                    # عرض محتوى أول ملف
+                    try:
+                        with open(os.path.join("reports_store/metadata", json_files[0]), 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                            st.json({
+                                "city": data.get("city"),
+                                "district": data.get("district"),
+                                "product": data.get("product_title"),
+                                "price": data.get("price")
+                            })
+                    except Exception as e:
+                        st.write(f"⚠️ لا يمكن قراءة الملف: {e}")
             else:
-                st.error("❌ فشل في إنشاء التقارير")
-                
-        except Exception as e:
-            st.error(f"❌ حدث خطأ: {str(e)}")
-            import traceback
-            st.code(traceback.format_exc())
+                st.error("❌ مجلد metadata غير موجود!")
+        else:
+            st.error("❌ المصنع لم يرجع نتيجة صحيحة")
+            st.write(f"النتيجة: {result}")
+            
+    except Exception as e:
+        st.error("❌ حدث خطأ:")
+        st.exception(e)
+
+# ========== فصل: عرض حالة المجلدات (للتشخيص) ==========
+with st.expander("📁 حالة المجلدات (تشخيص)"):
+    folders = {
+        "reports_store": os.path.exists("reports_store"),
+        "reports_store/metadata": os.path.exists("reports_store/metadata"),
+        "reports_store/basic": os.path.exists("reports_store/basic"),
+        "reports_store/pro": os.path.exists("reports_store/pro"),
+        "reports_store/premium": os.path.exists("reports_store/premium"),
+    }
+    
+    for folder, exists in folders.items():
+        if exists:
+            files = os.listdir(folder) if os.path.exists(folder) else []
+            st.write(f"✅ {folder}: موجود ({len(files)} ملف)")
+            if files and folder == "reports_store/metadata":
+                st.write(f"   📄 {files[:3]}")
+        else:
+            st.write(f"❌ {folder}: غير موجود")
 
 st.markdown("---")
 
@@ -1759,22 +1745,6 @@ if st.session_state.go_store:
     
     if not inventory:
         st.warning("⚠️ لا توجد تقارير في المتجر حالياً. استخدم زر 'تشغيل مصنع التقارير' أعلاه لإنشاء التقارير أولاً.")
-        
-        # إضافة معلومات تشخيصية للمساعدة في حل المشكلة
-        with st.expander("🔍 معلومات التشخيص"):
-            st.write(f"**المسار الأساسي:** {BASE_DIR}")
-            st.write(f"**مجلد metadata:** {METADATA_FOLDER}")
-            st.write(f"**مجلد reports:** {REPORTS_STORE}")
-            st.write(f"**الموجود؟:** {os.path.exists(METADATA_FOLDER)}")
-            if os.path.exists(METADATA_FOLDER):
-                files = os.listdir(METADATA_FOLDER)
-                st.write(f"**عدد الملفات:** {len(files)}")
-                st.write(f"**أول 5 ملفات:** {files[:5]}")
-            if os.path.exists(REPORTS_STORE):
-                pdf_files = [f for f in os.listdir(REPORTS_STORE) if f.endswith('.pdf')]
-                st.write(f"**عدد ملفات PDF:** {len(pdf_files)}")
-                if pdf_files:
-                    st.write(f"**أول 5 PDF:** {pdf_files[:5]}")
         
         if st.button("🔙 العودة للتحليل", use_container_width=True):
             st.session_state.go_store = False
