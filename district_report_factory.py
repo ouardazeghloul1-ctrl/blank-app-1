@@ -230,7 +230,8 @@ def generate_single_report(
         # استخدام البحث الدقيق مع حماية إضافية
         district_data = get_district_data(city_data, district)
 
-        if len(district_data) < 5:
+        # ✅ التعديل الحاسم: تغيير الشرط من < 5 إلى < 1 لقبول أي عدد من الصفقات
+        if len(district_data) < 1:  # كان < 5
             error_msg = f"Insufficient data ({len(district_data)} transactions)"
             print(f"      ⚠️ {district}: {error_msg}")
             log_error(city, district, error_msg)
