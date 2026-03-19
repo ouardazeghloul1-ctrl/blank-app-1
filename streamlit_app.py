@@ -71,6 +71,11 @@ import streamlit.components.v1 as components
 import io
 import json
 
+# ===== تحديد المسار الأساسي (مهم لـ Streamlit Cloud) =====
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+METADATA_FOLDER = os.path.join(BASE_DIR, "reports_store", "metadata")
+REPORTS_FOLDER = os.path.join(BASE_DIR, "reports_store")
+
 # ===== استيراد مصنع التقارير =====
 from district_report_factory import generate_all_district_reports
 
@@ -809,24 +814,49 @@ def generate_advanced_market_data(city, property_type, status, real_data):
         "المصدر": "government_data_provider"
     }
 
-# ========== تحميل مخزون المتجر من metadata ==========
+# ========== تحميل مخزون المتجر من metadata (معدل مع مسار مطلق) ==========
 def load_store_inventory():
-    """تحميل جميع التقارير المتاحة من مجلد metadata"""
+    """تحميل جميع التقارير المتاحة من مجلد metadata مع المسار المطلق"""
     inventory = []
-    metadata_folder = "reports_store/metadata"
     
-    if not os.path.exists(metadata_folder):
+    if not os.path.exists(METADATA_FOLDER):
         return inventory
     
-    for file in os.listdir(metadata_folder):
-        if file.endswith("latest.json"):
-            try:
-                with open(os.path.join(metadata_folder, file), 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    inventory.append(data)
-            except Exception as e:
-                print(f"خطأ في قراءة ملف {file}: {e}")
-                continue
+    # ترتيب الملفات من الأحدث للأقدم وأخذ أول 500 فقط
+    files = sorted([f for f in os.listdir(METADATA_FOLDER) if f.endswith("latest.json")], reverse=True)[:500]
+    
+    for file in files:
+        try:
+            with open(os.path.join(METADATA_FOLDER, file), 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                
+                # 🔥 تحويل المسار النسبي إلى مسار مطلق
+                file_path = data.get("file_path", "")
+                if file_path:
+                    # إذا كان المسار نسبي، حوله لمطلق
+                    if not os.path.isabs(file_path):
+                        full_path = os.path.join(BASE_DIR, file_path)
+                    else:
+                        full_path = file_path
+                    
+                    # التحقق من وجود الملف
+                    if not os.path.exists(full_path):
+                        continue
+                    
+                    # تحديث المسار في البيانات للمسار المطلق
+                    data["file_path"] = full_path
+                    
+                inventory.append(data)
+        except Exception as e:
+            print(f"خطأ في قراءة ملف {file}: {e}")
+            continue
+    
+    # ترتيب التقارير حسب DPI score (الأفضل أولاً)
+    inventory = sorted(
+        inventory,
+        key=lambda x: x.get("metrics", {}).get("dpi_score", 0),
+        reverse=True
+    )
     
     return inventory
 
@@ -849,46 +879,37 @@ st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — ان
 
 # ========== زر المصنع المؤقت (مرة واحدة فقط) ==========
 st.markdown("### 🏭 [مؤقت] تشغيل مصنع التقارير")
-st.warning("⚠️ هذا زر مؤقت لإنشاء بيانات المتجر - اضغط مرة واحدة فقط وانتظر حتى يكتمل")
+st.warning("⚠️ هذا زر مؤقت لإنشاء بيانات المتجر - اضغط مرة واحدة فقط وانتظر حتى يكتمل (قد يستغرق دقيقة)")
 
 if st.button("🚀 تشغيل مصنع التقارير (مرة واحدة فقط)", key="factory_button", use_container_width=True):
-    with st.spinner("🔄 جاري إنشاء التقارير... قد يستغرق هذا دقيقة أو اثنتين"):
+    with st.spinner("🔄 جاري إنشاء التقارير... قد يستغرق هذا دقيقة"):
         try:
             # استخدام أول 200 صف فقط لتجنب التحميل الزائد
             result = generate_all_district_reports(df_raw.head(200))
             
             # التحقق من النتيجة
-            if result and isinstance(result, dict):
-                st.success(f"✅ تم إنشاء {result.get('total', 0)} تقرير بنجاح!")
-                
-                # عرض تفاصيل سريعة
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("📊 إجمالي التقارير", result.get('total', 0))
-                with col2:
-                    st.metric("✅ الناجحة", result.get('successful', 0))
-                with col3:
-                    st.metric("❌ الفاشلة", result.get('failed', 0))
+            if result:
+                st.success(f"✅ تم إنشاء التقارير بنجاح!")
                 
                 # التحقق من وجود الملفات
-                metadata_folder = "reports_store/metadata"
-                if os.path.exists(metadata_folder):
-                    files = os.listdir(metadata_folder)
-                    st.info(f"📁 تم إنشاء {len([f for f in files if f.endswith('.json')])} ملف metadata")
+                if os.path.exists(METADATA_FOLDER):
+                    files = os.listdir(METADATA_FOLDER)
+                    json_files = [f for f in files if f.endswith('.json')]
+                    st.info(f"📁 تم إنشاء {len(json_files)} ملف metadata")
                     
-                    # معاينة أول 3 تقارير
-                    st.markdown("### 📋 معاينة سريعة للتقارير المنشأة")
-                    json_files = [f for f in files if f.endswith('.json')][:3]
-                    for json_file in json_files:
-                        with open(os.path.join(metadata_folder, json_file), 'r', encoding='utf-8') as f:
-                            data = json.load(f)
-                            st.json({
-                                "city": data.get("city"),
-                                "district": data.get("district"),
-                                "property_type": data.get("property_type"),
-                                "product_title": data.get("product_title"),
-                                "price": data.get("price")
-                            })
+                    if json_files:
+                        # معاينة أول 3 تقارير
+                        st.markdown("### 📋 معاينة سريعة للتقارير المنشأة")
+                        for json_file in json_files[:3]:
+                            with open(os.path.join(METADATA_FOLDER, json_file), 'r', encoding='utf-8') as f:
+                                data = json.load(f)
+                                st.json({
+                                    "city": data.get("city"),
+                                    "district": data.get("district"),
+                                    "property_type": data.get("property_type"),
+                                    "product_title": data.get("product_title"),
+                                    "price": data.get("price")
+                                })
             else:
                 st.error("❌ فشل في إنشاء التقارير")
                 
@@ -1679,10 +1700,35 @@ if st.session_state.go_store:
     
     if not inventory:
         st.warning("⚠️ لا توجد تقارير في المتجر حالياً. استخدم زر 'تشغيل مصنع التقارير' أعلاه لإنشاء التقارير أولاً.")
+        
+        # إضافة معلومات تشخيصية للمساعدة في حل المشكلة
+        with st.expander("🔍 معلومات التشخيص"):
+            st.write(f"**المسار الأساسي:** {BASE_DIR}")
+            st.write(f"**مجلد metadata:** {METADATA_FOLDER}")
+            st.write(f"**مجلد reports:** {REPORTS_FOLDER}")
+            st.write(f"**الموجود؟:** {os.path.exists(METADATA_FOLDER)}")
+            if os.path.exists(METADATA_FOLDER):
+                files = os.listdir(METADATA_FOLDER)
+                st.write(f"**عدد الملفات:** {len(files)}")
+                st.write(f"**أول 5 ملفات:** {files[:5]}")
+            if os.path.exists(REPORTS_FOLDER):
+                pdf_files = [f for f in os.listdir(REPORTS_FOLDER) if f.endswith('.pdf')]
+                st.write(f"**عدد ملفات PDF:** {len(pdf_files)}")
+                if pdf_files:
+                    st.write(f"**أول 5 PDF:** {pdf_files[:5]}")
+        
         if st.button("🔙 العودة للتحليل", use_container_width=True):
             st.session_state.go_store = False
             st.rerun()
         st.stop()
+    
+    # عرض إحصائيات سريعة في الـ sidebar
+    if len(inventory) > 50:
+        st.sidebar.success(f"🔥 المتجر: {len(inventory)} تقرير")
+    elif len(inventory) > 0:
+        st.sidebar.info(f"📊 المتجر: {len(inventory)} تقرير")
+    else:
+        st.sidebar.warning("📊 المتجر: 0 تقرير")
     
     # ===== فلترة التقارير =====
     st.markdown("### 🔍 فلترة التقارير")
@@ -1763,6 +1809,7 @@ if st.session_state.go_store:
                     )
             else:
                 st.error("❌ الملف غير موجود")
+                st.caption(f"المسار: {file_path}")
             
             st.markdown("</div>", unsafe_allow_html=True)
     
