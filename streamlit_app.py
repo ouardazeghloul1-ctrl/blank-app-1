@@ -8,6 +8,45 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# ========== الحل النهائي: إنشاء مجلدات المتجر يدوياً قبل أي شيء ==========
+import os
+import json
+from datetime import datetime
+
+# تحديد المسار الأساسي
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+REPORTS_STORE = os.path.join(BASE_DIR, "reports_store")
+METADATA_FOLDER = os.path.join(REPORTS_STORE, "metadata")
+BASIC_FOLDER = os.path.join(REPORTS_STORE, "basic")
+PRO_FOLDER = os.path.join(REPORTS_STORE, "pro")
+PREMIUM_FOLDER = os.path.join(REPORTS_STORE, "premium")
+LOGS_FOLDER = os.path.join(REPORTS_STORE, "logs")
+
+# 🔥 إنشاء جميع المجلدات يدوياً (حل 80% من المشاكل)
+os.makedirs(METADATA_FOLDER, exist_ok=True)
+os.makedirs(BASIC_FOLDER, exist_ok=True)
+os.makedirs(PRO_FOLDER, exist_ok=True)
+os.makedirs(PREMIUM_FOLDER, exist_ok=True)
+os.makedirs(LOGS_FOLDER, exist_ok=True)
+
+# ✅ التحقق من إنشاء المجلدات
+folders_created = all([
+    os.path.exists(METADATA_FOLDER),
+    os.path.exists(BASIC_FOLDER),
+    os.path.exists(PRO_FOLDER),
+    os.path.exists(PREMIUM_FOLDER)
+])
+
+if folders_created:
+    print("✅ تم إنشاء مجلدات المتجر بنجاح")
+    print(f"📁 METADATA: {METADATA_FOLDER}")
+    print(f"📁 BASIC: {BASIC_FOLDER}")
+    print(f"📁 PRO: {PRO_FOLDER}")
+    print(f"📁 PREMIUM: {PREMIUM_FOLDER}")
+else:
+    print("❌ فشل إنشاء بعض المجلدات")
+
+# ===== تحميل البيانات الحكومية =====
 df_raw = load_government_data(selected_city=None, selected_property_type=None)
 
 # ===== التحقق من أن البيانات تم تحميلها بشكل صحيح =====
@@ -66,15 +105,8 @@ import arabic_reshaper
 from bidi.algorithm import get_display
 import paypalrestsdk
 from dotenv import load_dotenv
-import os
 import streamlit.components.v1 as components
 import io
-import json
-
-# ===== تحديد المسار الأساسي (مهم لـ Streamlit Cloud) =====
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-METADATA_FOLDER = os.path.join(BASE_DIR, "reports_store", "metadata")
-REPORTS_FOLDER = os.path.join(BASE_DIR, "reports_store")
 
 # ===== استيراد مصنع التقارير =====
 from district_report_factory import generate_all_district_reports
@@ -182,7 +214,7 @@ st.markdown("""
 
 # إعداد الدفع
 load_dotenv()
-for folder in ["outputs", "logs", "models", "reports_store/metadata"]:
+for folder in ["outputs", "logs", "models"]:
     os.makedirs(folder, exist_ok=True)
 
 paypalrestsdk.configure({
@@ -820,10 +852,12 @@ def load_store_inventory():
     inventory = []
     
     if not os.path.exists(METADATA_FOLDER):
+        print(f"⚠️ مجلد metadata غير موجود: {METADATA_FOLDER}")
         return inventory
     
     # ترتيب الملفات من الأحدث للأقدم وأخذ أول 500 فقط
     files = sorted([f for f in os.listdir(METADATA_FOLDER) if f.endswith("latest.json")], reverse=True)[:500]
+    print(f"📁 وجدنا {len(files)} ملف metadata")
     
     for file in files:
         try:
@@ -841,6 +875,7 @@ def load_store_inventory():
                     
                     # التحقق من وجود الملف
                     if not os.path.exists(full_path):
+                        print(f"⚠️ الملف غير موجود: {full_path}")
                         continue
                     
                     # تحديث المسار في البيانات للمسار المطلق
@@ -858,6 +893,7 @@ def load_store_inventory():
         reverse=True
     )
     
+    print(f"✅ تم تحميل {len(inventory)} تقرير صالح")
     return inventory
 
 # ========== الواجهة الرئيسية ==========
@@ -877,15 +913,38 @@ st.markdown("""
 
 st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — انتقل إلى المستشار الذكي")
 
+# ========== عرض معلومات المجلدات (للتشخيص) ==========
+with st.expander("📁 معلومات المجلدات (للتشخيص)"):
+    st.write(f"**المسار الأساسي:** {BASE_DIR}")
+    st.write(f"**مجلد metadata:** {METADATA_FOLDER}")
+    st.write(f"**الموجود؟:** {os.path.exists(METADATA_FOLDER)}")
+    
+    if os.path.exists(METADATA_FOLDER):
+        files = os.listdir(METADATA_FOLDER)
+        st.write(f"**عدد الملفات:** {len(files)}")
+        if files:
+            st.write(f"**أول 5 ملفات:** {files[:5]}")
+    
+    st.write(f"**مجلد pro:** {PRO_FOLDER}")
+    st.write(f"**الموجود؟:** {os.path.exists(PRO_FOLDER)}")
+
 # ========== زر المصنع المؤقت (مرة واحدة فقط) ==========
 st.markdown("### 🏭 [مؤقت] تشغيل مصنع التقارير")
 st.warning("⚠️ هذا زر مؤقت لإنشاء بيانات المتجر - اضغط مرة واحدة فقط وانتظر حتى يكتمل (قد يستغرق دقيقة)")
 
-if st.button("🚀 تشغيل مصنع التقارير (مرة واحدة فقط)", key="factory_button", use_container_width=True):
-    with st.spinner("🔄 جاري إنشاء التقارير... قد يستغرق هذا دقيقة"):
+col1, col2 = st.columns([1, 1])
+with col1:
+    sample_size = st.number_input("عدد الصفقات للتحليل", min_value=50, max_value=1000, value=200, step=50)
+
+with col2:
+    st.info(f"سيتم تحليل {sample_size} صفقة فقط لتجنب التحميل")
+
+if st.button("🚀 تشغيل مصنع التقارير", key="factory_button", use_container_width=True):
+    with st.spinner(f"🔄 جاري إنشاء التقارير من {sample_size} صفقة... قد يستغرق هذا دقيقة"):
         try:
-            # استخدام أول 200 صف فقط لتجنب التحميل الزائد
-            result = generate_all_district_reports(df_raw.head(200))
+            # استخدام العدد المحدد من الصفوف
+            df_sample = df_raw.head(sample_size)
+            result = generate_all_district_reports(df_sample)
             
             # التحقق من النتيجة
             if result:
@@ -1705,14 +1764,14 @@ if st.session_state.go_store:
         with st.expander("🔍 معلومات التشخيص"):
             st.write(f"**المسار الأساسي:** {BASE_DIR}")
             st.write(f"**مجلد metadata:** {METADATA_FOLDER}")
-            st.write(f"**مجلد reports:** {REPORTS_FOLDER}")
+            st.write(f"**مجلد reports:** {REPORTS_STORE}")
             st.write(f"**الموجود؟:** {os.path.exists(METADATA_FOLDER)}")
             if os.path.exists(METADATA_FOLDER):
                 files = os.listdir(METADATA_FOLDER)
                 st.write(f"**عدد الملفات:** {len(files)}")
                 st.write(f"**أول 5 ملفات:** {files[:5]}")
-            if os.path.exists(REPORTS_FOLDER):
-                pdf_files = [f for f in os.listdir(REPORTS_FOLDER) if f.endswith('.pdf')]
+            if os.path.exists(REPORTS_STORE):
+                pdf_files = [f for f in os.listdir(REPORTS_STORE) if f.endswith('.pdf')]
                 st.write(f"**عدد ملفات PDF:** {len(pdf_files)}")
                 if pdf_files:
                     st.write(f"**أول 5 PDF:** {pdf_files[:5]}")
