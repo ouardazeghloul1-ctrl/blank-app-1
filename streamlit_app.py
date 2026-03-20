@@ -7,7 +7,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
+# تهيئة session_state للمتجر
+if "go_store" not in st.session_state:
+    st.session_state.go_store = False
 # ========== تحديد المسار الأساسي ==========
 import os
 import json
