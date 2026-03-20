@@ -238,6 +238,12 @@ def generate_single_report(
         # استخدام البحث الدقيق مع حماية إضافية
         district_data = get_district_data(city_data, district)
 
+        # 🔥 تنظيف القيم - منع وصول None إلى Narrative Engine
+        if not city:
+            city = "غير محدد"
+        if not district:
+            district = "غير محدد"
+
         # 🔥 التعديل: قبول أي حي حتى لو صفقة واحدة
         if len(district_data) < 1:
             error_msg = f"No data available for this district"
@@ -294,8 +300,8 @@ def generate_single_report(
                 break
 
         user_info = {
-            "city_name": city,
-            "district_name": district,
+            "city_name": city if city else "غير محدد",
+            "district_name": district if district else "غير محدد",
             "property_type": property_type,
             # 🔥 FINAL FIX: تحويل القيم إلى float مع التأكد من عدم وجود None
             "district_avg_price": round(float(district_price or 0), 2),
@@ -639,6 +645,8 @@ def generate_all_district_reports(df):
     print("   ✅ 🛡️ CRITICAL FIX: Try/except protection for charts generation (FIXED)")
     print("   ✅ 🛡️ CRITICAL FIX: Try/except protection for PDF generation (FIXED)")
     print("   ✅ 🛡️ CRITICAL FIX: System never crashes - continues even if components fail (FIXED)")
+    print("   ✅ 🔥 NARRATIVE FIX: City and district names now never None (FIXED)")
+    print("   ✅ 🔥 NARRATIVE FIX: Fallback to 'غير محدد' for missing names (FIXED)")
     print("   ✅ Additional data cleaning before any calculation (FIXED)")
     print("   ✅ Safe city data passed to narrative engine (FIXED)")
     print("   ✅ Safe city data passed to charts engine (FIXED)")
