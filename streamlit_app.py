@@ -92,7 +92,7 @@ import streamlit.components.v1 as components
 import io
 
 # ===== استيراد مصنع التقارير =====
-from district_report_factory import generate_all_district_reports
+from district_report_factory import generate_all_district_reports, get_store_inventory
 
 # ===== Robo Chat System =====
 from robo_advisor import handle_robo_question, RoboGuard, RoboKnowledge
@@ -1699,50 +1699,6 @@ if page == "🧠 المستشار الذكي":
         with st.chat_message("assistant"):
             st.markdown(robo_response)
 
-# ========== تهيئة حالة الجلسة ==========
-if 'report_generated' not in st.session_state:
-    st.session_state.report_generated = False
-if 'district_report_generated' not in st.session_state:
-    st.session_state.district_report_generated = False
-if 'district_pdf_data' not in st.session_state:
-    st.session_state.district_pdf_data = None
-if 'pdf_data' not in st.session_state:
-    st.session_state.pdf_data = None
-if 'real_data' not in st.session_state:
-    st.session_state.real_data = pd.DataFrame()
-if 'market_data' not in st.session_state:
-    st.session_state.market_data = {}
-if 'ai_recommendations' not in st.session_state:
-    st.session_state.ai_recommendations = None
-if 'user_info' not in st.session_state:
-    st.session_state.user_info = {}
-if 'smart_report_content' not in st.session_state:
-    st.session_state.smart_report_content = None
-if 'charts_by_chapter' not in st.session_state:
-    st.session_state.charts_by_chapter = {}
-if 'paid' not in st.session_state:
-    st.session_state.paid = False
-if 'robo_knowledge' not in st.session_state:
-    st.session_state.robo_knowledge = None
-if 'chosen_pkg' not in st.session_state:
-    st.session_state.chosen_pkg = "مجانية"
-if 'last_city' not in st.session_state:
-    st.session_state.last_city = None
-if 'last_property_type' not in st.session_state:
-    st.session_state.last_property_type = None
-if 'last_status' not in st.session_state:
-    st.session_state.last_status = None
-if 'last_chosen_pkg' not in st.session_state:
-    st.session_state.last_chosen_pkg = None
-if 'last_alert_refresh' not in st.session_state:
-    st.session_state.last_alert_refresh = datetime.now()
-if 'confirm_clear' not in st.session_state:
-    st.session_state.confirm_clear = False
-if 'daily_alerts' not in st.session_state:
-    st.session_state.daily_alerts = []
-if 'go_store' not in st.session_state:
-    st.session_state.go_store = False
-
 # ========== إذا ضغط المستخدم على زر المتجر ==========
 if st.session_state.go_store:
     st.markdown("---")
@@ -1754,8 +1710,44 @@ if st.session_state.go_store:
     </div>
     """, unsafe_allow_html=True)
     
-    # تحميل المخزون من مجلد metadata
-    inventory = load_store_inventory()
+    # ===== التعديل الأساسي: استيراد دالة جلب المخزون من المصنع مع حماية =====
+    from district_report_factory import get_store_inventory
+
+    # جلب البيانات من المصنع الذي قام بإنشاء التقارير مع معالجة الأخطاء
+    try:
+        inventory_data = get_store_inventory()
+        
+        # دمج التقارير من جميع المستويات (Basic, Pro, Premium) في قائمة واحدة
+        inventory = (
+            inventory_data.get("basic", []) +
+            inventory_data.get("pro", []) +
+            inventory_data.get("premium", [])
+        )
+        
+        st.sidebar.success(f"✅ تم تحميل {len(inventory)} تقرير بنجاح")
+        
+    except Exception as e:
+        st.error(f"❌ خطأ في قراءة المخزون: {str(e)}")
+        st.info("⚠️ يرجى التأكد من تشغيل مصنع التقارير أولاً باستخدام الزر المخصص")
+        
+        # تهيئة مخزون فارغ لضمان استمرار التطبيق
+        inventory_data = {
+            "basic": [],
+            "pro": [],
+            "premium": []
+        }
+        inventory = []
+        
+        # إضافة زر لتشغيل المصنع مباشرة من المتجر
+        if st.button("🚀 تشغيل مصنع التقارير الآن", use_container_width=True):
+            st.session_state.go_store = False
+            st.rerun()
+        
+        if st.button("🔙 العودة للتحليل", use_container_width=True):
+            st.session_state.go_store = False
+            st.rerun()
+        st.stop()
+    # ===== نهاية التعديل =====
     
     if not inventory:
         st.warning("⚠️ لا توجد تقارير في المتجر حالياً. استخدم زر 'تشغيل مصنع التقارير' أعلاه لإنشاء التقارير أولاً.")
@@ -1838,18 +1830,22 @@ if st.session_state.go_store:
                 <div class='price' style='color: {price_color};'>{price_display}</div>
             """, unsafe_allow_html=True)
             
-            # زر تحميل التقرير
+            # زر تحميل التقرير مع معالجة الأخطاء
             if file_path and os.path.exists(file_path):
-                with open(file_path, "rb") as f:
-                    pdf_data = f.read()
-                    st.download_button(
-                        label="📥 تحميل التقرير",
-                        data=pdf_data,
-                        file_name=os.path.basename(file_path),
-                        mime="application/pdf",
-                        key=f"download_store_{i}_{hash(file_path)}",
-                        use_container_width=True
-                    )
+                try:
+                    with open(file_path, "rb") as f:
+                        pdf_data = f.read()
+                        st.download_button(
+                            label="📥 تحميل التقرير",
+                            data=pdf_data,
+                            file_name=os.path.basename(file_path),
+                            mime="application/pdf",
+                            key=f"download_store_{i}_{hash(file_path)}",
+                            use_container_width=True
+                        )
+                except Exception as e:
+                    st.error(f"❌ خطأ في تحميل الملف: {str(e)[:50]}")
+                    st.caption(f"المسار: {file_path}")
             else:
                 st.error("❌ الملف غير موجود")
                 st.caption(f"المسار: {file_path}")
@@ -1860,6 +1856,50 @@ if st.session_state.go_store:
     if st.button("🔙 العودة للتحليل", use_container_width=True):
         st.session_state.go_store = False
         st.rerun()
+
+# ========== تهيئة حالة الجلسة ==========
+if 'report_generated' not in st.session_state:
+    st.session_state.report_generated = False
+if 'district_report_generated' not in st.session_state:
+    st.session_state.district_report_generated = False
+if 'district_pdf_data' not in st.session_state:
+    st.session_state.district_pdf_data = None
+if 'pdf_data' not in st.session_state:
+    st.session_state.pdf_data = None
+if 'real_data' not in st.session_state:
+    st.session_state.real_data = pd.DataFrame()
+if 'market_data' not in st.session_state:
+    st.session_state.market_data = {}
+if 'ai_recommendations' not in st.session_state:
+    st.session_state.ai_recommendations = None
+if 'user_info' not in st.session_state:
+    st.session_state.user_info = {}
+if 'smart_report_content' not in st.session_state:
+    st.session_state.smart_report_content = None
+if 'charts_by_chapter' not in st.session_state:
+    st.session_state.charts_by_chapter = {}
+if 'paid' not in st.session_state:
+    st.session_state.paid = False
+if 'robo_knowledge' not in st.session_state:
+    st.session_state.robo_knowledge = None
+if 'chosen_pkg' not in st.session_state:
+    st.session_state.chosen_pkg = "مجانية"
+if 'last_city' not in st.session_state:
+    st.session_state.last_city = None
+if 'last_property_type' not in st.session_state:
+    st.session_state.last_property_type = None
+if 'last_status' not in st.session_state:
+    st.session_state.last_status = None
+if 'last_chosen_pkg' not in st.session_state:
+    st.session_state.last_chosen_pkg = None
+if 'last_alert_refresh' not in st.session_state:
+    st.session_state.last_alert_refresh = datetime.now()
+if 'confirm_clear' not in st.session_state:
+    st.session_state.confirm_clear = False
+if 'daily_alerts' not in st.session_state:
+    st.session_state.daily_alerts = []
+if 'go_store' not in st.session_state:
+    st.session_state.go_store = False
 
 st.markdown("---")
 st.markdown("""
