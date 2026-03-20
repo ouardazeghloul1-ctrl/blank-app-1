@@ -90,13 +90,16 @@ def get_district_data(city_data, district_name):
 
 
 # -----------------------------------------
-# حساب سعر المتر
+# حساب سعر المتر (مع حماية كاملة ضد القيم اللانهائية)
 # -----------------------------------------
 
 def prepare_price_per_sqm(df):
     df = df.copy()
     if "price_per_sqm" not in df.columns:
+        # القسمة مع استبدال الصفر بـ 1 لتجنب الخطأ الأولي
         df["price_per_sqm"] = df["price"] / df["area"].replace(0, 1)
+        # 🔒 حماية إضافية: تحويل أي قيم لا نهائية (inf/-inf) إلى NaN
+        df["price_per_sqm"] = df["price_per_sqm"].replace([np.inf, -np.inf], np.nan)
     return df
 
 
@@ -258,11 +261,11 @@ def generate_single_report(
         # 🔥 تنظيف إضافي قوي قبل أي استخدام
         valid = valid[(valid["area"] > 0) & (valid["price"] > 0)]
 
-        # 🔥 الحل النهائي لمشكلة القسمة على صفر
+        # 🔥 الحل النهائي لمشكلة القسمة على صفر والقيم اللانهائية
         valid = valid.copy()
         valid["price_per_sqm"] = valid["price"] / valid["area"].replace(0, 1)
         
-        # 🔥 FINAL FIX: معالجة القيم اللانهائية و NaN
+        # 🔥 FINAL FIX: معالجة القيم اللانهائية و NaN للحي
         district_price_series = valid["price_per_sqm"].replace([np.inf, -np.inf], np.nan).dropna()
         district_price = district_price_series.median() if not district_price_series.empty else 0
 
@@ -624,6 +627,7 @@ def generate_all_district_reports(df):
     print("   ✅ Exact matching: .fillna('').str.strip() (FIXED)")
     print("   ✅ Division by zero protection with .replace(0, 1) (FIXED)")
     print("   ✅ 🔥 FINAL FIX: Safe division for price_per_sqm (FIXED)")
+    print("   ✅ 🔥 FINAL FIX: Infinity values replaced with NaN (FIXED)")
     print("   ✅ 🔥 FINAL FIX: Relaxed transaction threshold to 1 (FIXED)")
     print("   ✅ 🔥 FINAL FIX: UTF-8 encoding error handling in logs (FIXED)")
     print("   ✅ 🔥 FINAL FIX: json.dump with default=str to handle all data types (FIXED)")
