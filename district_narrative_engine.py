@@ -436,8 +436,14 @@ def generate_district_narrative(
     report_sections.append(gap_section)
 
     # =========================================
-    # Market Benchmark
+    # Market Benchmark (🔒 محمي ضد القسمة على صفر)
     # =========================================
+    # 🔥 حساب الفارق بشكل آمن
+    if city_price > 0:
+        price_diff_percent = ((district_price - city_price) / city_price) * 100
+    else:
+        price_diff_percent = 0
+    
     benchmark_section = f"""
 
 مقارنة الحي مع متوسط السوق
@@ -445,14 +451,14 @@ def generate_district_narrative(
 متوسط سعر المتر في الحي: {district_price:,.0f} ريال
 متوسط سعر المتر في المدينة: {city_price:,.0f} ريال
 
-الفارق: {((district_price - city_price)/city_price*100):.1f}%
+الفارق: {price_diff_percent:.1f}%
 
 هذا المؤشر يساعد المستثمر على فهم ما إذا كان الحي يتداول عند خصم سعري أو بعلاوة سعرية مقارنة بالسوق.
 """
     report_sections.append(benchmark_section)
 
     # =========================================
-    # Price Ranking داخل المدينة
+    # Price Ranking داخل المدينة (🔒 محمي ضد القسمة على صفر)
     # =========================================
     price_rank_section = ""
     rank = None
@@ -461,8 +467,11 @@ def generate_district_narrative(
         if not city_price_by_district.empty and clean_district_base in city_price_by_district.index:
             rank = list(city_price_by_district.index).index(clean_district_base) + 1
             total = len(city_price_by_district)
-            # تصحيح percentile: المرتبة 1 = 100%
-            percentile = ((total - rank + 1) / total) * 100
+            # 🔥 تصحيح percentile: المرتبة 1 = 100% - مع حماية من القسمة على صفر
+            if total > 0:
+                percentile = ((total - rank + 1) / total) * 100
+            else:
+                percentile = 0
             
             if percentile >= 80:
                 label = "ضمن أعلى 20% من الأحياء سعراً في المدينة"
@@ -620,8 +629,11 @@ def generate_district_narrative(
                 # بناء نص الجدول
                 lines = ""
                 for i, (name, count) in enumerate(top_districts.items(), start=1):
-                    # استخدام total_city_transactions للدقة
-                    market_share = (count / total_city_transactions) * 100 if total_city_transactions > 0 else 0
+                    # 🔥 حساب حصة السوق بشكل آمن (حماية من القسمة على صفر)
+                    if total_city_transactions > 0:
+                        market_share = (count / total_city_transactions) * 100
+                    else:
+                        market_share = 0
                     lines += f"{i}. {name} — {count:,} صفقة ({market_share:.1f}% من السوق)\n"
                 
                 # إضافة تحليل لموقع الحي الحالي
@@ -717,7 +729,7 @@ def generate_district_narrative(
     report_sections.append(opportunity_section)
 
     # =========================================
-    # مقارنة الحي مع الأحياء القريبة
+    # مقارنة الحي مع الأحياء القريبة (🔒 محمي ضد القسمة على صفر)
     # =========================================
 
     comparison_lines = ""
@@ -731,7 +743,8 @@ def generate_district_narrative(
         for d in nearby_districts:
 
             name = d.get("district_name", "")
-            price = d.get("avg_price", 0)
+            # 🔥 حماية price من None وتحويله إلى float آمن
+            price = float(d.get("avg_price", 0) or 0)
 
             if district_price > 0:
                 diff = ((price - district_price) / district_price) * 100
@@ -1094,13 +1107,17 @@ def generate_district_narrative(
     report_sections.append(grade_section)
 
     # =========================================
-    # Market Position Percentile
+    # Market Position Percentile (🔒 محمي ضد القسمة على صفر)
     # =========================================
     position_section = ""
     try:
         if rank is not None and total is not None:
-            # استخدام الصيغة المحسنة: المرتبة 1 = 100%
-            percentile = ((total - rank + 1) / total) * 100
+            # 🔥 استخدام الصيغة المحسنة: المرتبة 1 = 100% - مع حماية من القسمة على صفر
+            if total > 0:
+                percentile = ((total - rank + 1) / total) * 100
+            else:
+                percentile = 0
+                
             if percentile >= 80:
                 tier = "ضمن أعلى 20% من الأحياء سعراً في المدينة"
             elif percentile >= 60:
