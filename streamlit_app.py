@@ -869,12 +869,13 @@ st.markdown("""
 
 st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — انتقل إلى المستشار الذكي")
 
-# ========== زر المصنع المبسط (مع التأكد من shulti) ==========
+# ========== زر المصنع المبسط (بعد التعديل) ==========
 st.markdown("### 🏭 تشغيل مصنع التقارير (اختبار مباشر)")
 st.warning("⚠️ هذا تشغيل مباشر - انتظر حتى تظهر النتيجة")
 
-# اختيار حجم العينة
-sample_size = st.number_input("عدد الصفقات للتحليل", min_value=100, max_value=5000, value=2000, step=100)
+# تعيين القيمة الافتراضية = كل البيانات (أو 100000 أقصى حد)
+default_sample_size = min(len(df_raw), 100000)
+sample_size = st.number_input("عدد الصفقات للتحليل", min_value=100, max_value=100000, value=default_sample_size, step=100)
 
 if st.button("🚀 تشغيل المصنع الآن", key="factory_simple_btn", use_container_width=True):
     
@@ -904,29 +905,29 @@ if st.button("🚀 تشغيل المصنع الآن", key="factory_simple_btn", 
         st.success("✅ تم إنشاء المجلدات بنجاح")
         
         # 5️⃣ التحقق من البيانات
-        st.write(f"📌 5. حجم البيانات: {len(df_raw)} صفقة")
-        st.write(f"📌 6. أخذ عينة: {sample_size} صفقة")
+        st.write(f"📌 5. حجم البيانات الإجمالي: {len(df_raw)} صفقة")
+        st.write(f"📌 6. العينة المطلوبة: {sample_size} صفقة")
         
-        # 6️⃣ تشغيل المصنع
-        st.write("📌 7. 🔥 قبل تشغيل المصنع")
-        st.write("📌 8. جاري تشغيل المصنع... (قد يستغرق 2-3 دقائق)")
+        # 6️⃣ استخدام العينة المحددة أو كل البيانات إذا كان العدد أكبر من المتاح
+        if sample_size >= len(df_raw):
+            df_sample = df_raw
+            st.write(f"✅ سيتم استخدام كل البيانات ({len(df_sample)} صفقة)")
+        else:
+            df_sample = df_raw.head(sample_size)
+            st.write(f"✅ سيتم استخدام أول {sample_size} صفقة")
         
-        # استخدام العينة المحددة
-        df_sample = df_raw.head(sample_size)
+        # 7️⃣ تشغيل المصنع
+        st.write("📌 7. جاري تشغيل المصنع... (قد يستغرق 5-15 دقيقة حسب حجم البيانات)")
         
         # استدعاء المصنع
         result = generate_all_district_reports(df_sample)
         
-        st.write("📌 9. 🔥 بعد تشغيل المصنع")
-        
-        # 7️⃣ عرض النتيجة
-        st.write("📌 10. المصنع انتهى - جاري قراءة النتائج...")
-        
+        # 8️⃣ عرض النتيجة
         if result and isinstance(result, tuple) and len(result) >= 1:
             total_reports = result[0]
             st.success(f"✅ تم إنشاء {total_reports} تقرير بنجاح!")
             
-            # 8️⃣ التحقق من مجلد metadata
+            # 9️⃣ التحقق من مجلد metadata
             if os.path.exists(METADATA_FOLDER):
                 files = os.listdir(METADATA_FOLDER)
                 json_files = [f for f in files if f.endswith('.json')]
