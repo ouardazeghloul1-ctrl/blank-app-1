@@ -462,6 +462,11 @@ def generate_all_district_reports(df):
             if ranking.empty:
                 print(f"⚠️ No ranking data for {city}")
                 continue
+            
+            # 🔍 للتشخيص: عرض أسماء الأعمدة في ranking
+            print(f"📊 Ranking columns: {ranking.columns.tolist()}")
+            print(f"📊 Ranking sample:\n{ranking.head(3)}")
+            
         except Exception as e:
             print(f"⚠️ Error in ranking for {city}: {e}")
             continue
@@ -470,16 +475,18 @@ def generate_all_district_reports(df):
         top_districts = ranking.head(10)["district_clean"].tolist()
         
         # استخراج أرخص 10 أحياء (مع استبعاد المكرر من top)
+        # ✅ FIXED: استخدام avg_price بدلاً من avg_price_sqm
         cheap_districts = (
-            ranking.sort_values("avg_price_sqm")
+            ranking.sort_values("avg_price")
             .loc[~ranking["district_clean"].isin(top_districts)]
             .head(10)["district_clean"]
             .tolist()
         )
         
         # استخراج أغلى 10 أحياء فاخرة (مع استبعاد المكرر من top + cheap)
+        # ✅ FIXED: استخدام avg_price بدلاً من avg_price_sqm
         expensive_districts = (
-            ranking.sort_values("avg_price_sqm", ascending=False)
+            ranking.sort_values("avg_price", ascending=False)
             .loc[~ranking["district_clean"].isin(top_districts + cheap_districts)]
             .head(10)["district_clean"]
             .tolist()
@@ -649,6 +656,7 @@ def generate_all_district_reports(df):
     print("   ✅ 🔥 NARRATIVE FIX: City and district names now never None (FIXED)")
     print("   ✅ 🔥 NARRATIVE FIX: Fallback to 'غير محدد' for missing names (FIXED)")
     print("   ✅ 🔥 NARRATIVE FIX: district_metrics now receives user_info instead of empty dict (FIXED)")
+    print("   ✅ 🔥 CLASSIFICATION FIX: Changed avg_price_sqm to avg_price in sorting (FIXED)")
     print("   ✅ Additional data cleaning before any calculation (FIXED)")
     print("   ✅ Safe city data passed to narrative engine (FIXED)")
     print("   ✅ Safe city data passed to charts engine (FIXED)")
