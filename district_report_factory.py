@@ -238,11 +238,17 @@ def generate_single_report(
         # استخدام البحث الدقيق مع حماية إضافية
         district_data = get_district_data(city_data, district)
 
-        # 🔥 تنظيف القيم - منع وصول None إلى Narrative Engine
-        if not city:
+        # 🔥 تنظيف اسم المدينة والحي بشكل صحيح - معالجة NaN
+        import pandas as pd
+        
+        if pd.isna(city) or not city:
             city = "غير محدد"
-        if not district:
+        
+        if pd.isna(district) or not district:
             district = "غير محدد"
+        
+        city = str(city).strip()
+        district = str(district).strip()
 
         # 🔥 التعديل: قبول أي حي حتى لو صفقة واحدة
         if len(district_data) < 1:
@@ -435,14 +441,14 @@ def generate_all_district_reports(df):
     }
 
     for city in TARGET_CITIES:
-
+        print(f"\n📍 Processing city: {city}")
+        
         city_data = df[df["city"] == city]
 
         if city_data.empty:
             print(f"\n⚠️ No data for {city}")
             continue
 
-        print(f"\n📍 Processing city: {city}")
         print("-" * 60)
 
         # تحسين الأداء: إضافة clean_name مرة واحدة فقط لكل مدينة
@@ -507,6 +513,22 @@ def generate_all_district_reports(df):
         print(f"   ├─ Top Investment Districts (29$): {len(top_districts)}")
         print(f"   ├─ Cheapest Districts (9$): {len(cheap_districts)}")
         print(f"   └─ Premium Districts (39$): {len(expensive_districts)}")
+        
+        # 🔥 CRITICAL DEBUG: إضافة أسطر التشخيص لمعرفة سبب عدم وجود تقارير basic و premium
+        print(f"\n🔍 DIAGNOSTICS:")
+        print(f"   ├─ Total districts in ranking: {len(ranking)}")
+        print(f"   ├─ Top districts (after dedup): {len(top_districts)}")
+        print(f"   ├─ Cheap districts (after dedup): {len(cheap_districts)}")
+        print(f"   └─ Premium districts (after dedup): {len(expensive_districts)}")
+        
+        # عرض أول 5 أحياء في كل فئة للمساعدة في التشخيص
+        if top_districts:
+            print(f"   ├─ Top districts sample: {top_districts[:5]}")
+        if cheap_districts:
+            print(f"   ├─ Cheap districts sample: {cheap_districts[:5]}")
+        if expensive_districts:
+            print(f"   └─ Premium districts sample: {expensive_districts[:5]}")
+        print()
 
         # 1️⃣ أفضل الأحياء للاستثمار - تقارير Pro (29$)
         if top_districts:
@@ -657,6 +679,10 @@ def generate_all_district_reports(df):
     print("   ✅ 🔥 NARRATIVE FIX: Fallback to 'غير محدد' for missing names (FIXED)")
     print("   ✅ 🔥 NARRATIVE FIX: district_metrics now receives user_info instead of empty dict (FIXED)")
     print("   ✅ 🔥 CLASSIFICATION FIX: Changed avg_price_sqm to avg_price in sorting (FIXED)")
+    print("   ✅ 🔥 CITY NAME FIX: Handle NaN values with pd.isna() (FIXED)")
+    print("   ✅ 🔥 CITY NAME FIX: Convert to string and strip whitespace (FIXED)")
+    print("   ✅ 🔥 CITY NAME FIX: Added processing city print for debugging (FIXED)")
+    print("   ✅ 🔍 DIAGNOSTICS FIX: Added detailed district classification debug output (FIXED)")
     print("   ✅ Additional data cleaning before any calculation (FIXED)")
     print("   ✅ Safe city data passed to narrative engine (FIXED)")
     print("   ✅ Safe city data passed to charts engine (FIXED)")
