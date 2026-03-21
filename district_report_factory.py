@@ -329,10 +329,11 @@ def generate_single_report(
         # حتى لو فشلت، التقرير يكتمل
         
         # توليد النص السردي مع حماية كاملة
+        # ✅ التعديل النهائي: إرسال user_info إلى district_metrics بدلاً من القاموس الفارغ
         try:
             report_text = generate_district_narrative(
                 user_info=user_info,
-                district_metrics={},
+                district_metrics=user_info,  # ✅ FIXED: إرسال البيانات الصحيحة بدلاً من {}
                 nearby_districts=[],
                 dpi_score=dpi,
                 market_data=safe_data,
@@ -647,6 +648,7 @@ def generate_all_district_reports(df):
     print("   ✅ 🛡️ CRITICAL FIX: System never crashes - continues even if components fail (FIXED)")
     print("   ✅ 🔥 NARRATIVE FIX: City and district names now never None (FIXED)")
     print("   ✅ 🔥 NARRATIVE FIX: Fallback to 'غير محدد' for missing names (FIXED)")
+    print("   ✅ 🔥 NARRATIVE FIX: district_metrics now receives user_info instead of empty dict (FIXED)")
     print("   ✅ Additional data cleaning before any calculation (FIXED)")
     print("   ✅ Safe city data passed to narrative engine (FIXED)")
     print("   ✅ Safe city data passed to charts engine (FIXED)")
