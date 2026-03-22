@@ -7,6 +7,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+# تهيئة الصفحة الافتراضية
+if "page" not in st.session_state:
+    st.session_state.page = "home"
 # تهيئة session_state للمتجر
 if "go_store" not in st.session_state:
     st.session_state.go_store = False
