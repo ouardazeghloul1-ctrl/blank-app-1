@@ -28,6 +28,8 @@ PREMIUM_FOLDER = os.path.join(REPORTS_STORE, "premium")
 LOGS_FOLDER = os.path.join(REPORTS_STORE, "logs")
 
 # إنشاء المجلدات (تأكيد)
+# تأكيد إنشاء المجلد الرئيسي
+os.makedirs(REPORTS_STORE, exist_ok=True)
 os.makedirs(METADATA_FOLDER, exist_ok=True)
 os.makedirs(BASIC_FOLDER, exist_ok=True)
 os.makedirs(PRO_FOLDER, exist_ok=True)
