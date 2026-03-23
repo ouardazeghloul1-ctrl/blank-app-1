@@ -483,23 +483,11 @@ def generate_all_district_reports(df):
         # استخراج أفضل 10 أحياء للاستثمار
         top_districts = ranking.head(10)["district_clean"].tolist()
         
-        # استخراج أرخص 10 أحياء (مع استبعاد المكرر من top)
-        # ✅ FIXED: استخدام avg_price بدلاً من avg_price_sqm
-        cheap_districts = (
-            ranking.sort_values("avg_price")
-            .loc[~ranking["district_clean"].isin(top_districts)]
-            .head(10)["district_clean"]
-            .tolist()
-        )
-        
-        # استخراج أغلى 10 أحياء فاخرة (مع استبعاد المكرر من top + cheap)
-        # ✅ FIXED: استخدام avg_price بدلاً من avg_price_sqm
-        expensive_districts = (
-            ranking.sort_values("avg_price", ascending=False)
-            .loc[~ranking["district_clean"].isin(top_districts + cheap_districts)]
-            .head(10)["district_clean"]
-            .tolist()
-        )
+        # 🚀 PHASE 1 - TEMPORARY MODIFICATION:
+        # Only generating reports for top 10 investment districts
+        # Stopping cheap and premium districts temporarily for faster testing
+        cheap_districts = []
+        expensive_districts = []
 
         # حفظ إحصائيات المدينة
         city_stats[city] = {
@@ -512,17 +500,17 @@ def generate_all_district_reports(df):
         performance_metrics["total_cities"] += 1
         performance_metrics["total_districts"] += city_stats[city]["total"]
 
-        print(f"\n📊 District Classification:")
+        print(f"\n📊 District Classification (PHASE 1 - Top 10 Only):")
         print(f"   ├─ Top Investment Districts (29$): {len(top_districts)}")
-        print(f"   ├─ Cheapest Districts (9$): {len(cheap_districts)}")
-        print(f"   └─ Premium Districts (39$): {len(expensive_districts)}")
+        print(f"   ├─ Cheapest Districts (9$): {len(cheap_districts)} (Temporarily Disabled)")
+        print(f"   └─ Premium Districts (39$): {len(expensive_districts)} (Temporarily Disabled)")
         
         # 🔥 CRITICAL DEBUG: إضافة أسطر التشخيص لمعرفة سبب عدم وجود تقارير basic و premium
         print(f"\n🔍 DIAGNOSTICS:")
         print(f"   ├─ Total districts in ranking: {len(ranking)}")
         print(f"   ├─ Top districts (after dedup): {len(top_districts)}")
-        print(f"   ├─ Cheap districts (after dedup): {len(cheap_districts)}")
-        print(f"   └─ Premium districts (after dedup): {len(expensive_districts)}")
+        print(f"   ├─ Cheap districts (after dedup): {len(cheap_districts)} (DISABLED)")
+        print(f"   └─ Premium districts (after dedup): {len(expensive_districts)} (DISABLED)")
         
         # عرض أول 5 أحياء في كل فئة للمساعدة في التشخيص
         if top_districts:
@@ -554,7 +542,7 @@ def generate_all_district_reports(df):
                 else:
                     failed_reports += 1
 
-        # 2️⃣ أرخص الأحياء - تقارير Basic (9$)
+        # 2️⃣ أرخص الأحياء - تقارير Basic (9$) - TEMPORARILY DISABLED
         if cheap_districts:
             print(f"\n💰 Generating Basic Reports (9$) for Cheapest Districts...")
             # ✅ استخدام dict.fromkeys للحفاظ على الترتيب مع إزالة التكرار
@@ -575,7 +563,7 @@ def generate_all_district_reports(df):
                 else:
                     failed_reports += 1
 
-        # 3️⃣ الأحياء الفاخرة - تقارير Premium (39$)
+        # 3️⃣ الأحياء الفاخرة - تقارير Premium (39$) - TEMPORARILY DISABLED
         if expensive_districts:
             print(f"\n👑 Generating Premium Reports (39$) for Luxury Districts...")
             # ✅ استخدام dict.fromkeys للحفاظ على الترتيب مع إزالة التكرار
@@ -626,8 +614,8 @@ def generate_all_district_reports(df):
         total_value += city_value
         print(f"\n📍 {city}:")
         print(f"   ├─ Top Investment: {stats['top']} districts × 25 products = {stats['top'] * 25} reports (29$ each)")
-        print(f"   ├─ Cheapest: {stats['cheap']} districts × 25 products = {stats['cheap'] * 25} reports (9$ each)")
-        print(f"   └─ Premium: {stats['premium']} districts × 25 products = {stats['premium'] * 25} reports (39$ each)")
+        print(f"   ├─ Cheapest: {stats['cheap']} districts × 25 products = {stats['cheap'] * 25} reports (9$ each) [DISABLED]")
+        print(f"   └─ Premium: {stats['premium']} districts × 25 products = {stats['premium'] * 25} reports (39$ each) [DISABLED]")
         print(f"   └─ Total Reports: {stats['total'] * 25}")
         print(f"   └─ Total Value: {city_value}$")
     
@@ -636,9 +624,9 @@ def generate_all_district_reports(df):
     
     print("\n📁 STORE STRUCTURE:")
     print("-" * 60)
-    print("   ├─ reports_store/basic/     - Economic Reports (9$)  - Cheapest Districts")
-    print("   ├─ reports_store/pro/       - Investment Reports (29$) - Top Districts")
-    print("   ├─ reports_store/premium/   - Professional Reports (39$) - Premium Districts")
+    print("   ├─ reports_store/basic/     - Economic Reports (9$)  - Cheapest Districts [DISABLED]")
+    print("   ├─ reports_store/pro/       - Investment Reports (29$) - Top Districts [ACTIVE]")
+    print("   ├─ reports_store/premium/   - Professional Reports (39$) - Premium Districts [DISABLED]")
     print("   ├─ reports_store/metadata/  - JSON Metadata for Store (with property & product types)")
     print("   └─ reports_store/logs/      - Error Logs for Debugging")
     
@@ -656,9 +644,9 @@ def generate_all_district_reports(df):
     
     print("\n💰 BUSINESS MODEL:")
     print("-" * 60)
-    print("   ├─ Basic Tier (9$):  للباحثين عن فرص استثمارية منخفضة التكلفة")
-    print("   ├─ Pro Tier (29$):   للمستثمرين المحترفين")
-    print("   └─ Premium Tier (39$): لكبار المستثمرين")
+    print("   ├─ Basic Tier (9$):  للباحثين عن فرص استثمارية منخفضة التكلفة [DISABLED]")
+    print("   ├─ Pro Tier (29$):   للمستثمرين المحترفين [ACTIVE]")
+    print("   └─ Premium Tier (39$): لكبار المستثمرين [DISABLED]")
     
     print("\n⚡ PERFORMANCE OPTIMIZATIONS & FIXES:")
     print("-" * 60)
@@ -688,6 +676,8 @@ def generate_all_district_reports(df):
     print("   ✅ 🔍 DIAGNOSTICS FIX: Added detailed district classification debug output (FIXED)")
     print("   ✅ 🎯 RIYADH ONLY: Modified TARGET_CITIES to work with Riyadh initially (FIXED)")
     print("   ✅ 🎯 ACTIVE DISTRICTS: get_active_districts filters districts with >5 transactions (FIXED)")
+    print("   ✅ 🚀 PHASE 1: Only top 10 districts for faster testing (FIXED)")
+    print("   ✅ 🚀 PHASE 1: Cheap and premium districts temporarily disabled (FIXED)")
     print("   ✅ Additional data cleaning before any calculation (FIXED)")
     print("   ✅ Safe city data passed to narrative engine (FIXED)")
     print("   ✅ Safe city data passed to charts engine (FIXED)")
@@ -711,6 +701,7 @@ def generate_all_district_reports(df):
     print("💪 FINAL BATTLE WON - EVERY DISTRICT GETS ITS REPORTS!")
     print("🛡️ SYSTEM IS BULLETPROOF - NEVER CRASHES!")
     print("🎯 RIYADH FIRST - WORKING ON RIYADH ONLY INITIALLY!")
+    print("🚀 PHASE 1 MODE: GENERATING REPORTS FOR TOP 10 DISTRICTS ONLY!")
     print("=" * 80)
     
     return total_reports, city_stats, performance_metrics
