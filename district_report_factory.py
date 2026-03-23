@@ -104,15 +104,22 @@ def prepare_price_per_sqm(df):
 
 
 # -----------------------------------------
-# إنشاء مجلد التقارير
+# إنشاء مجلد التقارير (تم التعديل لحفظ التقارير داخل المشروع)
 # -----------------------------------------
 
 def ensure_directories():
-    os.makedirs("reports_store", exist_ok=True)
-    os.makedirs("reports_store/metadata", exist_ok=True)
-    os.makedirs("reports_store/logs", exist_ok=True)
+    """إنشاء مجلدات التقارير داخل المشروع لضمان عدم فقدان الملفات"""
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    REPORTS_STORE = os.path.join(BASE_DIR, "reports_store")
+    METADATA_FOLDER = os.path.join(REPORTS_STORE, "metadata")
+    LOGS_FOLDER = os.path.join(REPORTS_STORE, "logs")
+    
+    os.makedirs(REPORTS_STORE, exist_ok=True)
+    os.makedirs(METADATA_FOLDER, exist_ok=True)
+    os.makedirs(LOGS_FOLDER, exist_ok=True)
+    
     for package in REPORT_PACKAGES:
-        os.makedirs(f"reports_store/{package}", exist_ok=True)
+        os.makedirs(os.path.join(REPORTS_STORE, package), exist_ok=True)
 
 
 # -----------------------------------------
@@ -148,12 +155,13 @@ def save_report_metadata(city, district, package_level, file_name, metrics, prop
     
     # حفظ كملف JSON منفصل مع timestamp
     try:
-        metadata_file = f"reports_store/metadata/{city}_{district}_{property_type}_{product_type}_{package_level}_{timestamp}.json"
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        metadata_file = os.path.join(BASE_DIR, f"reports_store/metadata/{city}_{district}_{property_type}_{product_type}_{package_level}_{timestamp}.json")
         with open(metadata_file, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, ensure_ascii=False, indent=2)
         
         # أيضاً حفظ نسخة بدون timestamp كأحدث إصدار
-        latest_file = f"reports_store/metadata/{city}_{district}_{property_type}_{product_type}_{package_level}_latest.json"
+        latest_file = os.path.join(BASE_DIR, f"reports_store/metadata/{city}_{district}_{property_type}_{product_type}_{package_level}_latest.json")
         with open(latest_file, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, ensure_ascii=False, indent=2)
             
@@ -177,7 +185,8 @@ def log_error(city, district, error_message):
         "error": str(error_message) if error_message else "Unknown error"
     }
     
-    log_file = f"reports_store/logs/errors_{datetime.now().strftime('%Y%m%d')}.json"
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    log_file = os.path.join(BASE_DIR, f"reports_store/logs/errors_{datetime.now().strftime('%Y%m%d')}.json")
     
     try:
         # ✅ FIXED: معالجة الملف الفارغ
@@ -386,7 +395,8 @@ def generate_single_report(
             return None
 
         file_name = f"{city}_{district}_{property_type}_{product_type}_{package_level}.pdf"
-        file_path = f"reports_store/{package_level}/{file_name}"
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(BASE_DIR, f"reports_store/{package_level}/{file_name}")
         
         with open(file_path, "wb") as f:
             f.write(pdf_buffer.getvalue())
@@ -483,11 +493,21 @@ def generate_all_district_reports(df):
         # استخراج أفضل 10 أحياء للاستثمار
         top_districts = ranking.head(10)["district_clean"].tolist()
         
-        # 🚀 PHASE 1 - TEMPORARY MODIFICATION:
-        # Only generating reports for top 10 investment districts
-        # Stopping cheap and premium districts temporarily for faster testing
-        cheap_districts = []
-        expensive_districts = []
+        # استخراج أرخص 10 أحياء (مع استبعاد المكرر من top)
+        cheap_districts = (
+            ranking.sort_values("avg_price")
+            .loc[~ranking["district_clean"].isin(top_districts)]
+            .head(10)["district_clean"]
+            .tolist()
+        )
+        
+        # استخراج أغلى 10 أحياء فاخرة
+        expensive_districts = (
+            ranking.sort_values("avg_price", ascending=False)
+            .loc[~ranking["district_clean"].isin(top_districts + cheap_districts)]
+            .head(10)["district_clean"]
+            .tolist()
+        )
 
         # حفظ إحصائيات المدينة
         city_stats[city] = {
@@ -500,17 +520,17 @@ def generate_all_district_reports(df):
         performance_metrics["total_cities"] += 1
         performance_metrics["total_districts"] += city_stats[city]["total"]
 
-        print(f"\n📊 District Classification (PHASE 1 - Top 10 Only):")
+        print(f"\n📊 District Classification (Full Mode - All 30 Districts):")
         print(f"   ├─ Top Investment Districts (29$): {len(top_districts)}")
-        print(f"   ├─ Cheapest Districts (9$): {len(cheap_districts)} (Temporarily Disabled)")
-        print(f"   └─ Premium Districts (39$): {len(expensive_districts)} (Temporarily Disabled)")
+        print(f"   ├─ Cheapest Districts (9$): {len(cheap_districts)}")
+        print(f"   └─ Premium Districts (39$): {len(expensive_districts)}")
         
-        # 🔥 CRITICAL DEBUG: إضافة أسطر التشخيص لمعرفة سبب عدم وجود تقارير basic و premium
+        # 🔥 CRITICAL DEBUG: إضافة أسطر التشخيص لمعرفة الأحياء
         print(f"\n🔍 DIAGNOSTICS:")
         print(f"   ├─ Total districts in ranking: {len(ranking)}")
-        print(f"   ├─ Top districts (after dedup): {len(top_districts)}")
-        print(f"   ├─ Cheap districts (after dedup): {len(cheap_districts)} (DISABLED)")
-        print(f"   └─ Premium districts (after dedup): {len(expensive_districts)} (DISABLED)")
+        print(f"   ├─ Top districts: {len(top_districts)}")
+        print(f"   ├─ Cheap districts: {len(cheap_districts)}")
+        print(f"   └─ Premium districts: {len(expensive_districts)}")
         
         # عرض أول 5 أحياء في كل فئة للمساعدة في التشخيص
         if top_districts:
@@ -542,7 +562,7 @@ def generate_all_district_reports(df):
                 else:
                     failed_reports += 1
 
-        # 2️⃣ أرخص الأحياء - تقارير Basic (9$) - TEMPORARILY DISABLED
+        # 2️⃣ أرخص الأحياء - تقارير Basic (9$)
         if cheap_districts:
             print(f"\n💰 Generating Basic Reports (9$) for Cheapest Districts...")
             # ✅ استخدام dict.fromkeys للحفاظ على الترتيب مع إزالة التكرار
@@ -563,7 +583,7 @@ def generate_all_district_reports(df):
                 else:
                     failed_reports += 1
 
-        # 3️⃣ الأحياء الفاخرة - تقارير Premium (39$) - TEMPORARILY DISABLED
+        # 3️⃣ الأحياء الفاخرة - تقارير Premium (39$)
         if expensive_districts:
             print(f"\n👑 Generating Premium Reports (39$) for Luxury Districts...")
             # ✅ استخدام dict.fromkeys للحفاظ على الترتيب مع إزالة التكرار
@@ -614,8 +634,8 @@ def generate_all_district_reports(df):
         total_value += city_value
         print(f"\n📍 {city}:")
         print(f"   ├─ Top Investment: {stats['top']} districts × 25 products = {stats['top'] * 25} reports (29$ each)")
-        print(f"   ├─ Cheapest: {stats['cheap']} districts × 25 products = {stats['cheap'] * 25} reports (9$ each) [DISABLED]")
-        print(f"   └─ Premium: {stats['premium']} districts × 25 products = {stats['premium'] * 25} reports (39$ each) [DISABLED]")
+        print(f"   ├─ Cheapest: {stats['cheap']} districts × 25 products = {stats['cheap'] * 25} reports (9$ each)")
+        print(f"   └─ Premium: {stats['premium']} districts × 25 products = {stats['premium'] * 25} reports (39$ each)")
         print(f"   └─ Total Reports: {stats['total'] * 25}")
         print(f"   └─ Total Value: {city_value}$")
     
@@ -624,9 +644,9 @@ def generate_all_district_reports(df):
     
     print("\n📁 STORE STRUCTURE:")
     print("-" * 60)
-    print("   ├─ reports_store/basic/     - Economic Reports (9$)  - Cheapest Districts [DISABLED]")
+    print("   ├─ reports_store/basic/     - Economic Reports (9$)  - Cheapest Districts [ACTIVE]")
     print("   ├─ reports_store/pro/       - Investment Reports (29$) - Top Districts [ACTIVE]")
-    print("   ├─ reports_store/premium/   - Professional Reports (39$) - Premium Districts [DISABLED]")
+    print("   ├─ reports_store/premium/   - Professional Reports (39$) - Premium Districts [ACTIVE]")
     print("   ├─ reports_store/metadata/  - JSON Metadata for Store (with property & product types)")
     print("   └─ reports_store/logs/      - Error Logs for Debugging")
     
@@ -644,9 +664,9 @@ def generate_all_district_reports(df):
     
     print("\n💰 BUSINESS MODEL:")
     print("-" * 60)
-    print("   ├─ Basic Tier (9$):  للباحثين عن فرص استثمارية منخفضة التكلفة [DISABLED]")
+    print("   ├─ Basic Tier (9$):  للباحثين عن فرص استثمارية منخفضة التكلفة [ACTIVE]")
     print("   ├─ Pro Tier (29$):   للمستثمرين المحترفين [ACTIVE]")
-    print("   └─ Premium Tier (39$): لكبار المستثمرين [DISABLED]")
+    print("   └─ Premium Tier (39$): لكبار المستثمرين [ACTIVE]")
     
     print("\n⚡ PERFORMANCE OPTIMIZATIONS & FIXES:")
     print("-" * 60)
@@ -676,8 +696,8 @@ def generate_all_district_reports(df):
     print("   ✅ 🔍 DIAGNOSTICS FIX: Added detailed district classification debug output (FIXED)")
     print("   ✅ 🎯 RIYADH ONLY: Modified TARGET_CITIES to work with Riyadh initially (FIXED)")
     print("   ✅ 🎯 ACTIVE DISTRICTS: get_active_districts filters districts with >5 transactions (FIXED)")
-    print("   ✅ 🚀 PHASE 1: Only top 10 districts for faster testing (FIXED)")
-    print("   ✅ 🚀 PHASE 1: Cheap and premium districts temporarily disabled (FIXED)")
+    print("   ✅ 🚀 FULL MODE: Generating reports for Top, Cheap, and Premium districts (ACTIVE)")
+    print("   ✅ 🚀 FULL MODE: All 30 districts (10 top + 10 cheap + 10 premium) (ACTIVE)")
     print("   ✅ Additional data cleaning before any calculation (FIXED)")
     print("   ✅ Safe city data passed to narrative engine (FIXED)")
     print("   ✅ Safe city data passed to charts engine (FIXED)")
@@ -689,6 +709,9 @@ def generate_all_district_reports(df):
     print("   ✅ Error logging with empty file handling and encoding fixes (FIXED)")
     print("   ✅ Exception handling throughout with fallback for log errors")
     print("   ✅ Scalable to 100,000+ reports")
+    print("   ✅ 🔧 DIRECTORY FIX: Reports saved inside project folder with absolute paths (FIXED)")
+    print("   ✅ 🔧 DIRECTORY FIX: ensure_directories() now uses BASE_DIR for all folders (FIXED)")
+    print("   ✅ 🔧 DIRECTORY FIX: All file operations use os.path.join() with BASE_DIR (FIXED)")
     
     print("\n" + "=" * 80)
     print("🚀 READY FOR STORE FRONT!")
@@ -701,7 +724,8 @@ def generate_all_district_reports(df):
     print("💪 FINAL BATTLE WON - EVERY DISTRICT GETS ITS REPORTS!")
     print("🛡️ SYSTEM IS BULLETPROOF - NEVER CRASHES!")
     print("🎯 RIYADH FIRST - WORKING ON RIYADH ONLY INITIALLY!")
-    print("🚀 PHASE 1 MODE: GENERATING REPORTS FOR TOP 10 DISTRICTS ONLY!")
+    print("🚀 FULL MODE: GENERATING REPORTS FOR TOP, CHEAP, AND PREMIUM DISTRICTS!")
+    print("💾 REPORTS SAVED INSIDE PROJECT FOLDER - WILL NOT BE LOST!")
     print("=" * 80)
     
     return total_reports, city_stats, performance_metrics
@@ -724,12 +748,14 @@ def get_store_inventory():
     total_value = 0
     
     # استخدام metadata بدلاً من parsing أسماء الملفات
-    metadata_folder = "reports_store/metadata"
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    metadata_folder = os.path.join(BASE_DIR, "reports_store/metadata")
+    
     if os.path.exists(metadata_folder):
         for file in os.listdir(metadata_folder):
             if file.endswith(".json") and "latest" in file:  # نأخذ أحدث نسخة فقط
                 try:
-                    with open(f"{metadata_folder}/{file}", 'r', encoding='utf-8', errors='ignore') as f:
+                    with open(os.path.join(metadata_folder, file), 'r', encoding='utf-8', errors='ignore') as f:
                         metadata = json.load(f)
                         package = metadata.get("package")
                         if package and package in inventory:
@@ -799,7 +825,8 @@ def get_store_inventory():
 def get_report_by_district(city, district, package, property_type="شقة", product_type="investment"):
     """الحصول على مسار تقرير معين"""
     
-    metadata_file = f"reports_store/metadata/{city}_{district}_{property_type}_{product_type}_{package}_latest.json"
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    metadata_file = os.path.join(BASE_DIR, f"reports_store/metadata/{city}_{district}_{property_type}_{product_type}_{package}_latest.json")
     
     if os.path.exists(metadata_file):
         try:
@@ -822,11 +849,13 @@ def cleanup_old_reports(days_to_keep=30):
     import time
     now = time.time()
     
-    metadata_folder = "reports_store/metadata"
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    metadata_folder = os.path.join(BASE_DIR, "reports_store/metadata")
+    
     if os.path.exists(metadata_folder):
         for file in os.listdir(metadata_folder):
             if file.endswith(".json") and "latest" not in file:
-                file_path = f"{metadata_folder}/{file}"
+                file_path = os.path.join(metadata_folder, file)
                 if os.path.getctime(file_path) < now - (days_to_keep * 86400):
                     try:
                         os.remove(file_path)
