@@ -18,6 +18,20 @@ import os
 import json
 import shutil  # ✅ التأكد من وجود shutil
 from datetime import datetime
+import os
+
+if st.button("🔍 عرض محتويات مجلد التقارير"):
+    base_dir = os.getcwd()
+    reports_dir = os.path.join(base_dir, "reports_store")
+
+    st.write("المسار:", reports_dir)
+
+    if os.path.exists(reports_dir):
+        files = os.listdir(reports_dir)
+        st.write("المجلدات الموجودة:")
+        st.write(files)
+    else:
+        st.error("المجلد غير موجود")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPORTS_STORE = os.path.join(BASE_DIR, "reports_store")
