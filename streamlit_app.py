@@ -22,30 +22,41 @@ import os
 import streamlit as st
 
 if st.button("🔍 عرض ملفات التقارير"):
-    base_dir = os.getcwd()
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
     reports_dir = os.path.join(base_dir, "reports_store")
 
     st.write("المسار:", reports_dir)
 
-    if os.path.exists(reports_dir):
+    for folder in ["basic", "pro", "premium"]:
 
-        for folder in ["basic", "pro", "premium"]:
-            folder_path = os.path.join(reports_dir, folder)
+        folder_path = os.path.join(reports_dir, folder)
 
-            if os.path.exists(folder_path):
+        st.subheader(folder)
 
-                files = os.listdir(folder_path)
+        if os.path.exists(folder_path):
 
-                st.write("📂", folder)
+            files = os.listdir(folder_path)
 
-                if files:
-                    st.write("عدد الملفات:", len(files))
-                    st.write(files[:10])  # يعرض أول 10 فقط
-                else:
-                    st.write("لا يوجد ملفات")
+            if files:
 
-    else:
-        st.error("المجلد غير موجود")
+                st.write("عدد الملفات:", len(files))
+
+                for file in files[:20]:  # يعرض أول 20 فقط
+
+                    file_path = os.path.join(folder_path, file)
+
+                    with open(file_path, "rb") as f:
+
+                        st.download_button(
+                            label=f"تحميل {file}",
+                            data=f,
+                            file_name=file,
+                            mime="application/pdf"
+                        )
+
+            else:
+                st.write("لا يوجد ملفات")
     
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
