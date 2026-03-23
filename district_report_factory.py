@@ -108,18 +108,24 @@ def prepare_price_per_sqm(df):
 # -----------------------------------------
 
 def ensure_directories():
-    """إنشاء مجلدات التقارير داخل المشروع لضمان عدم فقدان الملفات"""
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    """إنشاء مجلد التقارير بشكل مؤكد ونهائي"""
+    import os
+    BASE_DIR = os.getcwd()  # هذا أهم تغيير
     REPORTS_STORE = os.path.join(BASE_DIR, "reports_store")
+    BASIC_FOLDER = os.path.join(REPORTS_STORE, "basic")
+    PRO_FOLDER = os.path.join(REPORTS_STORE, "pro")
+    PREMIUM_FOLDER = os.path.join(REPORTS_STORE, "premium")
     METADATA_FOLDER = os.path.join(REPORTS_STORE, "metadata")
     LOGS_FOLDER = os.path.join(REPORTS_STORE, "logs")
     
-    os.makedirs(REPORTS_STORE, exist_ok=True)
+    os.makedirs(BASIC_FOLDER, exist_ok=True)
+    os.makedirs(PRO_FOLDER, exist_ok=True)
+    os.makedirs(PREMIUM_FOLDER, exist_ok=True)
     os.makedirs(METADATA_FOLDER, exist_ok=True)
     os.makedirs(LOGS_FOLDER, exist_ok=True)
     
-    for package in REPORT_PACKAGES:
-        os.makedirs(os.path.join(REPORTS_STORE, package), exist_ok=True)
+    print("تم إنشاء مجلد التقارير هنا:")
+    print(REPORTS_STORE)
 
 
 # -----------------------------------------
