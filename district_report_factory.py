@@ -8,6 +8,7 @@ import os
 import pandas as pd
 import json
 import numpy as np
+import time
 from datetime import datetime
 
 from advanced_charts import AdvancedCharts
@@ -109,8 +110,7 @@ def prepare_price_per_sqm(df):
 
 def ensure_directories():
     """إنشاء مجلد التقارير بشكل مؤكد ونهائي"""
-    import os
-    BASE_DIR = os.getcwd()  # هذا أهم تغيير
+    BASE_DIR = os.getcwd()  # موحد: استخدام getcwd في كل مكان
     REPORTS_STORE = os.path.join(BASE_DIR, "reports_store")
     BASIC_FOLDER = os.path.join(REPORTS_STORE, "basic")
     PRO_FOLDER = os.path.join(REPORTS_STORE, "pro")
@@ -124,8 +124,11 @@ def ensure_directories():
     os.makedirs(METADATA_FOLDER, exist_ok=True)
     os.makedirs(LOGS_FOLDER, exist_ok=True)
     
-    print("تم إنشاء مجلد التقارير هنا:")
-    print(REPORTS_STORE)
+    print("=" * 60)
+    print("📁 DIRECTORY SETUP:")
+    print(f"   Current working directory: {BASE_DIR}")
+    print(f"   Reports store path: {REPORTS_STORE}")
+    print("=" * 60)
 
 
 # -----------------------------------------
@@ -161,7 +164,7 @@ def save_report_metadata(city, district, package_level, file_name, metrics, prop
     
     # حفظ كملف JSON منفصل مع timestamp
     try:
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
         metadata_file = os.path.join(BASE_DIR, f"reports_store/metadata/{city}_{district}_{property_type}_{product_type}_{package_level}_{timestamp}.json")
         with open(metadata_file, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, ensure_ascii=False, indent=2)
@@ -191,7 +194,7 @@ def log_error(city, district, error_message):
         "error": str(error_message) if error_message else "Unknown error"
     }
     
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
     log_file = os.path.join(BASE_DIR, f"reports_store/logs/errors_{datetime.now().strftime('%Y%m%d')}.json")
     
     try:
@@ -401,7 +404,7 @@ def generate_single_report(
             return None
 
         file_name = f"{city}_{district}_{property_type}_{product_type}_{package_level}.pdf"
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
         file_path = os.path.join(BASE_DIR, f"reports_store/{package_level}/{file_name}")
         
         with open(file_path, "wb") as f:
@@ -451,6 +454,7 @@ def generate_all_district_reports(df):
 
     total_reports = 0
     failed_reports = 0
+    skipped_reports = 0
     city_stats = {}
     performance_metrics = {
         "total_cities": 0, 
@@ -553,7 +557,26 @@ def generate_all_district_reports(df):
             # ✅ استخدام dict.fromkeys للحفاظ على الترتيب مع إزالة التكرار
             unique_top = list(dict.fromkeys(top_districts))
             products = generate_product_matrix(city, unique_top)
-            for item in products:
+            
+            total_products = len(products)
+            completed = 0
+            
+            for idx, item in enumerate(products, 1):
+                # اسم الملف المتوقع
+                file_name = f"{item['city']}_{item['district']}_{item['property_type']}_{item['product_type']}_pro.pdf"
+                BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
+                file_path = os.path.join(BASE_DIR, f"reports_store/pro/{file_name}")
+                
+                # إذا التقرير موجود بالفعل → تخطيه
+                if os.path.exists(file_path):
+                    print(f"⏭️ [{idx}/{total_products}] Skipping existing report: {file_name}")
+                    skipped_reports += 1
+                    completed += 1
+                    time.sleep(0.5)  # Delay بسيط حتى لو skip
+                    continue
+                
+                print(f"📄 [{idx}/{total_products}] Generating: {item['district']} - {item['property_type']} - {item['product_title']}")
+                
                 result = generate_single_report(
                     city=item["city"],
                     district=item["district"],
@@ -567,6 +590,15 @@ def generate_all_district_reports(df):
                     total_reports += 1
                 else:
                     failed_reports += 1
+                
+                completed += 1
+                
+                # Delay بين التقارير لمنع overload و restart
+                time.sleep(1)
+                
+                # عرض التقدم كل 10 تقارير
+                if completed % 10 == 0:
+                    print(f"   📊 Progress: {completed}/{total_products} reports processed for Top districts")
 
         # 2️⃣ أرخص الأحياء - تقارير Basic (9$)
         if cheap_districts:
@@ -574,7 +606,26 @@ def generate_all_district_reports(df):
             # ✅ استخدام dict.fromkeys للحفاظ على الترتيب مع إزالة التكرار
             unique_cheap = list(dict.fromkeys(cheap_districts))
             products = generate_product_matrix(city, unique_cheap)
-            for item in products:
+            
+            total_products = len(products)
+            completed = 0
+            
+            for idx, item in enumerate(products, 1):
+                # اسم الملف المتوقع
+                file_name = f"{item['city']}_{item['district']}_{item['property_type']}_{item['product_type']}_basic.pdf"
+                BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
+                file_path = os.path.join(BASE_DIR, f"reports_store/basic/{file_name}")
+                
+                # إذا التقرير موجود بالفعل → تخطيه
+                if os.path.exists(file_path):
+                    print(f"⏭️ [{idx}/{total_products}] Skipping existing report: {file_name}")
+                    skipped_reports += 1
+                    completed += 1
+                    time.sleep(0.5)  # Delay بسيط حتى لو skip
+                    continue
+                
+                print(f"📄 [{idx}/{total_products}] Generating: {item['district']} - {item['property_type']} - {item['product_title']}")
+                
                 result = generate_single_report(
                     city=item["city"],
                     district=item["district"],
@@ -588,6 +639,15 @@ def generate_all_district_reports(df):
                     total_reports += 1
                 else:
                     failed_reports += 1
+                
+                completed += 1
+                
+                # Delay بين التقارير لمنع overload و restart
+                time.sleep(1)
+                
+                # عرض التقدم كل 10 تقارير
+                if completed % 10 == 0:
+                    print(f"   📊 Progress: {completed}/{total_products} reports processed for Cheapest districts")
 
         # 3️⃣ الأحياء الفاخرة - تقارير Premium (39$)
         if expensive_districts:
@@ -595,7 +655,26 @@ def generate_all_district_reports(df):
             # ✅ استخدام dict.fromkeys للحفاظ على الترتيب مع إزالة التكرار
             unique_premium = list(dict.fromkeys(expensive_districts))
             products = generate_product_matrix(city, unique_premium)
-            for item in products:
+            
+            total_products = len(products)
+            completed = 0
+            
+            for idx, item in enumerate(products, 1):
+                # اسم الملف المتوقع
+                file_name = f"{item['city']}_{item['district']}_{item['property_type']}_{item['product_type']}_premium.pdf"
+                BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
+                file_path = os.path.join(BASE_DIR, f"reports_store/premium/{file_name}")
+                
+                # إذا التقرير موجود بالفعل → تخطيه
+                if os.path.exists(file_path):
+                    print(f"⏭️ [{idx}/{total_products}] Skipping existing report: {file_name}")
+                    skipped_reports += 1
+                    completed += 1
+                    time.sleep(0.5)  # Delay بسيط حتى لو skip
+                    continue
+                
+                print(f"📄 [{idx}/{total_products}] Generating: {item['district']} - {item['property_type']} - {item['product_title']}")
+                
                 result = generate_single_report(
                     city=item["city"],
                     district=item["district"],
@@ -609,10 +688,20 @@ def generate_all_district_reports(df):
                     total_reports += 1
                 else:
                     failed_reports += 1
+                
+                completed += 1
+                
+                # Delay بين التقارير لمنع overload و restart
+                time.sleep(1)
+                
+                # عرض التقدم كل 10 تقارير
+                if completed % 10 == 0:
+                    print(f"   📊 Progress: {completed}/{total_products} reports processed for Premium districts")
 
     performance_metrics["end_time"] = datetime.now().isoformat()
     performance_metrics["total_reports"] = total_reports
     performance_metrics["failed_reports"] = failed_reports
+    performance_metrics["skipped_reports"] = skipped_reports
 
     print("\n" + "=" * 80)
     print("✅ DISTRICT REPORT FACTORY - MISSION COMPLETE!")
@@ -622,10 +711,11 @@ def generate_all_district_reports(df):
     print("-" * 60)
     print(f"⚡ Cities Processed: {performance_metrics['total_cities']}")
     print(f"📊 Districts Processed: {performance_metrics['total_districts']}")
-    print(f"📁 Reports Generated: {total_reports}")
+    print(f"📁 New Reports Generated: {total_reports}")
+    print(f"⏭️ Existing Reports Skipped: {skipped_reports}")
     print(f"⚠️ Failed Reports: {failed_reports}")
     success_rate = round((total_reports/(total_reports+failed_reports))*100 if total_reports+failed_reports > 0 else 0, 1)
-    print(f"✅ Success Rate: {success_rate}%")
+    print(f"✅ Success Rate (new reports): {success_rate}%")
     
     print("\n📊 CITY-WISE STATISTICS:")
     print("-" * 60)
@@ -718,11 +808,17 @@ def generate_all_district_reports(df):
     print("   ✅ 🔧 DIRECTORY FIX: Reports saved inside project folder with absolute paths (FIXED)")
     print("   ✅ 🔧 DIRECTORY FIX: ensure_directories() now uses BASE_DIR for all folders (FIXED)")
     print("   ✅ 🔧 DIRECTORY FIX: All file operations use os.path.join() with BASE_DIR (FIXED)")
+    print("   ✅ 🔧 UNIFIED PATHS: All paths now use os.getcwd() consistently (FIXED)")
+    print("   ✅ 🔄 RESUME CAPABILITY: Automatic skip of existing reports (NEW!)")
+    print("   ✅ 📊 PROGRESS TRACKING: Detailed progress indicators every 10 reports (NEW!)")
+    print("   ✅ ⏭️ SKIP COUNTER: Shows number of skipped existing reports (NEW!)")
+    print("   ✅ ⏱️ DELAY ADDED: 1 second delay between reports to prevent restart (NEW!)")
+    print("   ✅ 📁 PATH DISPLAY: Shows actual working directory at startup (NEW!)")
     
     print("\n" + "=" * 80)
     print("🚀 READY FOR STORE FRONT!")
     print("💰 MONEY MACHINE ACTIVATED")
-    print(f"📦 {total_reports} DIGITAL PRODUCTS READY FOR SALE")
+    print(f"📦 {total_reports + skipped_reports} DIGITAL PRODUCTS READY FOR SALE")
     print(f"💰 TOTAL VALUE: {total_value}$")
     print("👑 ULTIMATE EDITION - 100% PRODUCTION READY")
     print("🎉 PROJECT COMPLETE - ALL FIXES APPLIED SUCCESSFULLY!")
@@ -732,6 +828,9 @@ def generate_all_district_reports(df):
     print("🎯 RIYADH FIRST - WORKING ON RIYADH ONLY INITIALLY!")
     print("🚀 FULL MODE: GENERATING REPORTS FOR TOP, CHEAP, AND PREMIUM DISTRICTS!")
     print("💾 REPORTS SAVED INSIDE PROJECT FOLDER - WILL NOT BE LOST!")
+    print("🔄 RESUME CAPABILITY: CAN CONTINUE AFTER INTERRUPTION!")
+    print("⏱️ DELAY ADDED: Prevents overload and restarts!")
+    print("📁 WORKING DIRECTORY DISPLAYED AT STARTUP!")
     print("=" * 80)
     
     return total_reports, city_stats, performance_metrics
@@ -754,7 +853,7 @@ def get_store_inventory():
     total_value = 0
     
     # استخدام metadata بدلاً من parsing أسماء الملفات
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
     metadata_folder = os.path.join(BASE_DIR, "reports_store/metadata")
     
     if os.path.exists(metadata_folder):
@@ -831,7 +930,7 @@ def get_store_inventory():
 def get_report_by_district(city, district, package, property_type="شقة", product_type="investment"):
     """الحصول على مسار تقرير معين"""
     
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
     metadata_file = os.path.join(BASE_DIR, f"reports_store/metadata/{city}_{district}_{property_type}_{product_type}_{package}_latest.json")
     
     if os.path.exists(metadata_file):
@@ -855,7 +954,7 @@ def cleanup_old_reports(days_to_keep=30):
     import time
     now = time.time()
     
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
     metadata_folder = os.path.join(BASE_DIR, "reports_store/metadata")
     
     if os.path.exists(metadata_folder):
