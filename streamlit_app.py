@@ -19,19 +19,34 @@ import json
 import shutil  # ✅ التأكد من وجود shutil
 from datetime import datetime
 import os
+import streamlit as st
 
-if st.button("🔍 عرض محتويات مجلد التقارير"):
+if st.button("🔍 عرض ملفات التقارير"):
     base_dir = os.getcwd()
     reports_dir = os.path.join(base_dir, "reports_store")
 
     st.write("المسار:", reports_dir)
 
     if os.path.exists(reports_dir):
-        files = os.listdir(reports_dir)
-        st.write("المجلدات الموجودة:")
-        st.write(files)
+
+        for folder in ["basic", "pro", "premium"]:
+            folder_path = os.path.join(reports_dir, folder)
+
+            if os.path.exists(folder_path):
+
+                files = os.listdir(folder_path)
+
+                st.write("📂", folder)
+
+                if files:
+                    st.write("عدد الملفات:", len(files))
+                    st.write(files[:10])  # يعرض أول 10 فقط
+                else:
+                    st.write("لا يوجد ملفات")
+
     else:
         st.error("المجلد غير موجود")
+    
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPORTS_STORE = os.path.join(BASE_DIR, "reports_store")
