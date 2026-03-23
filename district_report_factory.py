@@ -105,12 +105,12 @@ def prepare_price_per_sqm(df):
 
 
 # -----------------------------------------
-# إنشاء مجلد التقارير (تم التعديل لحفظ التقارير داخل المشروع)
+# إنشاء مجلد التقارير (تم التعديل للحفظ داخل المشروع)
 # -----------------------------------------
 
 def ensure_directories():
     """إنشاء مجلد التقارير بشكل مؤكد ونهائي"""
-    BASE_DIR = os.getcwd()  # موحد: استخدام getcwd في كل مكان
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Changed from os.getcwd()
     REPORTS_STORE = os.path.join(BASE_DIR, "reports_store")
     BASIC_FOLDER = os.path.join(REPORTS_STORE, "basic")
     PRO_FOLDER = os.path.join(REPORTS_STORE, "pro")
@@ -164,7 +164,7 @@ def save_report_metadata(city, district, package_level, file_name, metrics, prop
     
     # حفظ كملف JSON منفصل مع timestamp
     try:
-        BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Changed from os.getcwd()
         metadata_file = os.path.join(BASE_DIR, f"reports_store/metadata/{city}_{district}_{property_type}_{product_type}_{package_level}_{timestamp}.json")
         with open(metadata_file, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, ensure_ascii=False, indent=2)
@@ -194,7 +194,7 @@ def log_error(city, district, error_message):
         "error": str(error_message) if error_message else "Unknown error"
     }
     
-    BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Changed from os.getcwd()
     log_file = os.path.join(BASE_DIR, f"reports_store/logs/errors_{datetime.now().strftime('%Y%m%d')}.json")
     
     try:
@@ -404,7 +404,7 @@ def generate_single_report(
             return None
 
         file_name = f"{city}_{district}_{property_type}_{product_type}_{package_level}.pdf"
-        BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Changed from os.getcwd()
         file_path = os.path.join(BASE_DIR, f"reports_store/{package_level}/{file_name}")
         
         with open(file_path, "wb") as f:
@@ -500,24 +500,13 @@ def generate_all_district_reports(df):
             print(f"⚠️ Error in ranking for {city}: {e}")
             continue
 
-        # استخراج أفضل 10 أحياء للاستثمار
-        top_districts = ranking.head(10)["district_clean"].tolist()
+        # 🎯 TEST MODE: Only generate for 3 specific districts
+        # استخراج أفضل 10 أحياء للاستثمار - MODIFIED FOR TESTING
+        top_districts = ["النفل", "الياسمين", "الملقا"]  # Test with only 3 districts
         
-        # استخراج أرخص 10 أحياء (مع استبعاد المكرر من top)
-        cheap_districts = (
-            ranking.sort_values("avg_price")
-            .loc[~ranking["district_clean"].isin(top_districts)]
-            .head(10)["district_clean"]
-            .tolist()
-        )
-        
-        # استخراج أغلى 10 أحياء فاخرة
-        expensive_districts = (
-            ranking.sort_values("avg_price", ascending=False)
-            .loc[~ranking["district_clean"].isin(top_districts + cheap_districts)]
-            .head(10)["district_clean"]
-            .tolist()
-        )
+        # 🛑 STOP generating cheap and premium districts for testing
+        cheap_districts = []
+        expensive_districts = []
 
         # حفظ إحصائيات المدينة
         city_stats[city] = {
@@ -530,7 +519,7 @@ def generate_all_district_reports(df):
         performance_metrics["total_cities"] += 1
         performance_metrics["total_districts"] += city_stats[city]["total"]
 
-        print(f"\n📊 District Classification (Full Mode - All 30 Districts):")
+        print(f"\n📊 District Classification (TEST MODE - Only 3 Districts):")
         print(f"   ├─ Top Investment Districts (29$): {len(top_districts)}")
         print(f"   ├─ Cheapest Districts (9$): {len(cheap_districts)}")
         print(f"   └─ Premium Districts (39$): {len(expensive_districts)}")
@@ -538,17 +527,13 @@ def generate_all_district_reports(df):
         # 🔥 CRITICAL DEBUG: إضافة أسطر التشخيص لمعرفة الأحياء
         print(f"\n🔍 DIAGNOSTICS:")
         print(f"   ├─ Total districts in ranking: {len(ranking)}")
-        print(f"   ├─ Top districts: {len(top_districts)}")
+        print(f"   ├─ Top districts (TEST): {len(top_districts)}")
         print(f"   ├─ Cheap districts: {len(cheap_districts)}")
         print(f"   └─ Premium districts: {len(expensive_districts)}")
         
-        # عرض أول 5 أحياء في كل فئة للمساعدة في التشخيص
+        # عرض الأحياء للمساعدة في التشخيص
         if top_districts:
-            print(f"   ├─ Top districts sample: {top_districts[:5]}")
-        if cheap_districts:
-            print(f"   ├─ Cheap districts sample: {cheap_districts[:5]}")
-        if expensive_districts:
-            print(f"   └─ Premium districts sample: {expensive_districts[:5]}")
+            print(f"   ├─ Top districts: {top_districts}")
         print()
 
         # 1️⃣ أفضل الأحياء للاستثمار - تقارير Pro (29$)
@@ -564,7 +549,7 @@ def generate_all_district_reports(df):
             for idx, item in enumerate(products, 1):
                 # اسم الملف المتوقع
                 file_name = f"{item['city']}_{item['district']}_{item['property_type']}_{item['product_type']}_pro.pdf"
-                BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
+                BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Changed from os.getcwd()
                 file_path = os.path.join(BASE_DIR, f"reports_store/pro/{file_name}")
                 
                 # إذا التقرير موجود بالفعل → تخطيه
@@ -600,8 +585,8 @@ def generate_all_district_reports(df):
                 if completed % 10 == 0:
                     print(f"   📊 Progress: {completed}/{total_products} reports processed for Top districts")
 
-        # 2️⃣ أرخص الأحياء - تقارير Basic (9$)
-        if cheap_districts:
+        # 2️⃣ أرخص الأحياء - تقارير Basic (9$) - DISABLED FOR TESTING
+        if False:  # Changed from if cheap_districts: to disable
             print(f"\n💰 Generating Basic Reports (9$) for Cheapest Districts...")
             # ✅ استخدام dict.fromkeys للحفاظ على الترتيب مع إزالة التكرار
             unique_cheap = list(dict.fromkeys(cheap_districts))
@@ -613,7 +598,7 @@ def generate_all_district_reports(df):
             for idx, item in enumerate(products, 1):
                 # اسم الملف المتوقع
                 file_name = f"{item['city']}_{item['district']}_{item['property_type']}_{item['product_type']}_basic.pdf"
-                BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
+                BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Changed from os.getcwd()
                 file_path = os.path.join(BASE_DIR, f"reports_store/basic/{file_name}")
                 
                 # إذا التقرير موجود بالفعل → تخطيه
@@ -649,8 +634,8 @@ def generate_all_district_reports(df):
                 if completed % 10 == 0:
                     print(f"   📊 Progress: {completed}/{total_products} reports processed for Cheapest districts")
 
-        # 3️⃣ الأحياء الفاخرة - تقارير Premium (39$)
-        if expensive_districts:
+        # 3️⃣ الأحياء الفاخرة - تقارير Premium (39$) - DISABLED FOR TESTING
+        if False:  # Changed from if expensive_districts: to disable
             print(f"\n👑 Generating Premium Reports (39$) for Luxury Districts...")
             # ✅ استخدام dict.fromkeys للحفاظ على الترتيب مع إزالة التكرار
             unique_premium = list(dict.fromkeys(expensive_districts))
@@ -662,7 +647,7 @@ def generate_all_district_reports(df):
             for idx, item in enumerate(products, 1):
                 # اسم الملف المتوقع
                 file_name = f"{item['city']}_{item['district']}_{item['property_type']}_{item['product_type']}_premium.pdf"
-                BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
+                BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Changed from os.getcwd()
                 file_path = os.path.join(BASE_DIR, f"reports_store/premium/{file_name}")
                 
                 # إذا التقرير موجود بالفعل → تخطيه
@@ -740,9 +725,9 @@ def generate_all_district_reports(df):
     
     print("\n📁 STORE STRUCTURE:")
     print("-" * 60)
-    print("   ├─ reports_store/basic/     - Economic Reports (9$)  - Cheapest Districts [ACTIVE]")
-    print("   ├─ reports_store/pro/       - Investment Reports (29$) - Top Districts [ACTIVE]")
-    print("   ├─ reports_store/premium/   - Professional Reports (39$) - Premium Districts [ACTIVE]")
+    print("   ├─ reports_store/basic/     - Economic Reports (9$)  - Cheapest Districts [TEST MODE: DISABLED]")
+    print("   ├─ reports_store/pro/       - Investment Reports (29$) - Top Districts [TEST MODE: 3 DISTRICTS]")
+    print("   ├─ reports_store/premium/   - Professional Reports (39$) - Premium Districts [TEST MODE: DISABLED]")
     print("   ├─ reports_store/metadata/  - JSON Metadata for Store (with property & product types)")
     print("   └─ reports_store/logs/      - Error Logs for Debugging")
     
@@ -760,9 +745,9 @@ def generate_all_district_reports(df):
     
     print("\n💰 BUSINESS MODEL:")
     print("-" * 60)
-    print("   ├─ Basic Tier (9$):  للباحثين عن فرص استثمارية منخفضة التكلفة [ACTIVE]")
-    print("   ├─ Pro Tier (29$):   للمستثمرين المحترفين [ACTIVE]")
-    print("   └─ Premium Tier (39$): لكبار المستثمرين [ACTIVE]")
+    print("   ├─ Basic Tier (9$):  للباحثين عن فرص استثمارية منخفضة التكلفة [TEST MODE: DISABLED]")
+    print("   ├─ Pro Tier (29$):   للمستثمرين المحترفين [TEST MODE: ACTIVE]")
+    print("   └─ Premium Tier (39$): لكبار المستثمرين [TEST MODE: DISABLED]")
     
     print("\n⚡ PERFORMANCE OPTIMIZATIONS & FIXES:")
     print("-" * 60)
@@ -792,8 +777,8 @@ def generate_all_district_reports(df):
     print("   ✅ 🔍 DIAGNOSTICS FIX: Added detailed district classification debug output (FIXED)")
     print("   ✅ 🎯 RIYADH ONLY: Modified TARGET_CITIES to work with Riyadh initially (FIXED)")
     print("   ✅ 🎯 ACTIVE DISTRICTS: get_active_districts filters districts with >5 transactions (FIXED)")
-    print("   ✅ 🚀 FULL MODE: Generating reports for Top, Cheap, and Premium districts (ACTIVE)")
-    print("   ✅ 🚀 FULL MODE: All 30 districts (10 top + 10 cheap + 10 premium) (ACTIVE)")
+    print("   ✅ 🚀 TEST MODE: Generating reports for only 3 specific districts (النفل, الياسمين, الملقا)")
+    print("   ✅ 🚀 TEST MODE: Cheap and Premium reports disabled for faster testing")
     print("   ✅ Additional data cleaning before any calculation (FIXED)")
     print("   ✅ Safe city data passed to narrative engine (FIXED)")
     print("   ✅ Safe city data passed to charts engine (FIXED)")
@@ -808,7 +793,7 @@ def generate_all_district_reports(df):
     print("   ✅ 🔧 DIRECTORY FIX: Reports saved inside project folder with absolute paths (FIXED)")
     print("   ✅ 🔧 DIRECTORY FIX: ensure_directories() now uses BASE_DIR for all folders (FIXED)")
     print("   ✅ 🔧 DIRECTORY FIX: All file operations use os.path.join() with BASE_DIR (FIXED)")
-    print("   ✅ 🔧 UNIFIED PATHS: All paths now use os.getcwd() consistently (FIXED)")
+    print("   ✅ 🔧 UNIFIED PATHS: All paths now use os.path.dirname(os.path.abspath(__file__)) consistently (FIXED)")
     print("   ✅ 🔄 RESUME CAPABILITY: Automatic skip of existing reports (NEW!)")
     print("   ✅ 📊 PROGRESS TRACKING: Detailed progress indicators every 10 reports (NEW!)")
     print("   ✅ ⏭️ SKIP COUNTER: Shows number of skipped existing reports (NEW!)")
@@ -826,7 +811,7 @@ def generate_all_district_reports(df):
     print("💪 FINAL BATTLE WON - EVERY DISTRICT GETS ITS REPORTS!")
     print("🛡️ SYSTEM IS BULLETPROOF - NEVER CRASHES!")
     print("🎯 RIYADH FIRST - WORKING ON RIYADH ONLY INITIALLY!")
-    print("🚀 FULL MODE: GENERATING REPORTS FOR TOP, CHEAP, AND PREMIUM DISTRICTS!")
+    print("🚀 TEST MODE: GENERATING REPORTS FOR 3 DISTRICTS ONLY (النفل, الياسمين, الملقا)!")
     print("💾 REPORTS SAVED INSIDE PROJECT FOLDER - WILL NOT BE LOST!")
     print("🔄 RESUME CAPABILITY: CAN CONTINUE AFTER INTERRUPTION!")
     print("⏱️ DELAY ADDED: Prevents overload and restarts!")
@@ -853,7 +838,7 @@ def get_store_inventory():
     total_value = 0
     
     # استخدام metadata بدلاً من parsing أسماء الملفات
-    BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Changed from os.getcwd()
     metadata_folder = os.path.join(BASE_DIR, "reports_store/metadata")
     
     if os.path.exists(metadata_folder):
@@ -930,7 +915,7 @@ def get_store_inventory():
 def get_report_by_district(city, district, package, property_type="شقة", product_type="investment"):
     """الحصول على مسار تقرير معين"""
     
-    BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Changed from os.getcwd()
     metadata_file = os.path.join(BASE_DIR, f"reports_store/metadata/{city}_{district}_{property_type}_{product_type}_{package}_latest.json")
     
     if os.path.exists(metadata_file):
@@ -954,7 +939,7 @@ def cleanup_old_reports(days_to_keep=30):
     import time
     now = time.time()
     
-    BASE_DIR = os.getcwd()  # موحد: استخدام getcwd
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Changed from os.getcwd()
     metadata_folder = os.path.join(BASE_DIR, "reports_store/metadata")
     
     if os.path.exists(metadata_folder):
