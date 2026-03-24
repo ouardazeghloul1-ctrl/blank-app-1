@@ -203,6 +203,9 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
+    # ✅ الحل النهائي والمستقر للإنتاج:
+    # 1. wordWrap='CJK' → يمنع الانعكاس الأساسي للأسطر
+    # 2. splitLongWords=False → يمنع ReportLab من كسر الكلمات داخليًا وإعادة ترتيب الأسطر
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -210,7 +213,8 @@ def create_pdf_from_content(
         fontSize=14,
         leading=24,
         alignment=TA_RIGHT,
-        wordWrap='RTL',
+        wordWrap='CJK',           # ← الحل الأساسي لمشكلة انعكاس الأسطر
+        splitLongWords=False,     # ← مهم للاستقرار في الإنتاج
         spaceAfter=12,
         allowWidows=1,
         allowOrphans=1,
