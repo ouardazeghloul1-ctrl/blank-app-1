@@ -25,27 +25,46 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية مع معالجة النسب (تدعم الأرقام السالبة)
+# Arabic helper - النسخة النهائية Production-grade
 # =========================
-def ar(text):
+def ar(text: str) -> str:
+    """
+    دالة آمنة لتنسيق النص العربي في ReportLab.
+    
+    المشكلة الأصلية: استخدام get_display() مع الفقرات متعددة الأسطر
+    يسبب قلب ترتيب الأسطر (يظهر السطر الأخير أولاً).
+    
+    الحل الهندسي الصحيح: الكشف عن وجود newline (\n) أو <br/> في النص
+    - إذا كان النص يحتوي على \n أو <br/> → فقرة متعددة الأسطر → لا نستخدم bidi
+    - إذا كان النص سطر واحد → نستخدم bidi للعناوين والنصوص القصيرة
+    """
     if not text:
         return ""
 
     try:
         text = str(text)
 
-        # إزالة الأقواس لأنها تسبب انقلاب RTL
+        # معالجة الأقواس لأنها تسبب انقلاب RTL
         text = text.replace("(", " - ")
         text = text.replace(")", " - ")
 
-        # ✅ معالجة النسب المئوية بشكل نهائي (تدعم الأرقام السالبة والموجبة)
+        # معالجة النسب المئوية بشكل نهائي (تدعم الأرقام السالبة والموجبة)
         text = text.replace("% ", "%")
         text = text.replace(" %", "%")
-        # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
+        # إعادة تشكيل الأحرف العربية
         reshaped = arabic_reshaper.reshape(text)
+        
+        # ✅ الكشف عن الفقرات متعددة الأسطر
+        # نتحقق من وجود newline أو <br/> (علامة HTML القياسية في ReportLab)
+        if "\n" in text or "<br/>" in text:
+            # فقرة متعددة الأسطر → نعيد التشكيل فقط بدون bidi
+            return reshaped
+        
+        # سطر واحد → نطبق bidi للعناوين والنصوص القصيرة
         return get_display(reshaped)
+        
     except Exception:
         return str(text)
 
@@ -203,6 +222,7 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
+    # ✅ wordWrap='RTL' صحيح ولا يحتاج تغيير
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -210,7 +230,7 @@ def create_pdf_from_content(
         fontSize=14,
         leading=24,
         alignment=TA_RIGHT,
-        wordWrap='RTL',
+        wordWrap='RTL',  # ✅ الإعداد الصحيح للعربية
         spaceAfter=12,
         allowWidows=1,
         allowOrphans=1,
@@ -225,7 +245,8 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#8B0000"),
         spaceBefore=24,
         spaceAfter=12,
-        keepWithNext=1
+        keepWithNext=1,
+        wordWrap='RTL',
     )
 
     ai_sub_title = ParagraphStyle(
@@ -237,6 +258,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#444444"),
         spaceBefore=14,
         spaceAfter=8,
+        wordWrap='RTL',
     )
 
     title = ParagraphStyle(
@@ -246,7 +268,8 @@ def create_pdf_from_content(
         fontSize=22,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
-        spaceAfter=40
+        spaceAfter=40,
+        wordWrap='RTL',
     )
 
     ai_executive_header = ParagraphStyle(
@@ -257,6 +280,7 @@ def create_pdf_from_content(
         fontSize=17,
         spaceBefore=24,
         spaceAfter=12,
+        wordWrap='RTL',
     )
 
     # ✅ نمط خاص للتاريخ في الغلاف (مركز)
@@ -268,6 +292,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#555555"),
         spaceBefore=6,
         spaceAfter=12,
+        wordWrap='RTL',
     )
 
     # ✅ إضافة نمط للإحصائيات الرئيسية
@@ -279,6 +304,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#1B5E20"),
         spaceBefore=16,
         spaceAfter=16,
+        wordWrap='RTL',
     )
 
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
@@ -296,14 +322,14 @@ def create_pdf_from_content(
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
         property_type = user_info.get("property_type", "")
-        subtitle = f"التقرير الاستثماري العقاري\nحي {district} – مدينة {city}\nتحليل سوق {property_type}"
+        subtitle = f"التقرير الاستثماري العقاري<br/>حي {district} – مدينة {city}<br/>تحليل سوق {property_type}"
         story.append(Spacer(1, 0.6 * cm))
         story.append(Paragraph(ar(subtitle), ai_executive_header))
     
     # ✅ 2️⃣ إضافة تاريخ التقرير (باستخدام نمط مركزي)
     date_text = f"تاريخ التقرير: {datetime.now().strftime('%B %Y')}"
     story.append(Spacer(1, 0.3 * cm))
-    story.append(Paragraph(ar(date_text), date_style))  # ✅ استخدام date_style بدلاً من body
+    story.append(Paragraph(ar(date_text), date_style))
     
     # ✅ 3️⃣ إضافة جدول المؤشرات مع تحسينات التنسيق وفاصلة الآلاف
     if user_info:
@@ -350,14 +376,14 @@ def create_pdf_from_content(
         table = Table(table_data, colWidths=[7*cm, 9*cm])
         table.setStyle(TableStyle([
             ('FONTNAME', (0,0), (-1,-1), 'Amiri'),
-            ('FONTSIZE', (0,0), (-1,-1), 12),  # ✅ إضافة حجم خط مناسب
-            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),  # ✅ محاذاة أفقية لليمين
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),  # ✅ محاذاة رأسية في المنتصف
+            ('FONTSIZE', (0,0), (-1,-1), 12),
+            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#8B0000")),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#F9F9F9")),  # ✅ خلفية فاتحة للصفوف
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#F9F9F9"), colors.white]),  # ✅ تناوب الألوان
+            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#F9F9F9")),
+            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#F9F9F9"), colors.white]),
         ]))
         story.append(Spacer(1, 1*cm))
         story.append(table)
@@ -367,7 +393,6 @@ def create_pdf_from_content(
         total = user_info["total_transactions"]
         if total is not None:
             story.append(Spacer(1, 0.8 * cm))
-            # ✅ تنسيق العدد الإجمالي بفاصلة الآلاف أيضاً
             try:
                 total_formatted = f"{int(float(total)):,}" if total else "0"
             except (ValueError, TypeError):
@@ -464,7 +489,6 @@ def create_pdf_from_content(
     story.append(PageBreak())
 
     # ✅ خريطة تحويل الفصول (الفصل النصي ← الفصل الفعلي للرسومات)
-    # الفصول التي تحتوي على رسومات: 4, 7, 11, 16, 21
     CHAPTER_CHART_MAP = {
         4: 4,   # الفصل 4 → chapter_4
         7: 7,   # الفصل 7 → chapter_7
@@ -474,36 +498,55 @@ def create_pdf_from_content(
     }
     
     chapter_index = 0
-    chart_cursor = {}  # المؤشر لكل فصل
+    chart_cursor = {}
     
     first_chapter_processed = False
     
     # قائمة لتتبع الملفات المؤقتة لحذفها لاحقاً
     temp_files = []
 
-    # ✅ تحسين: إزالة iter() غير الضرورية
-    for raw in content_text.split("\n"):
+    # =========================
+    # ✅ التعديل النهائي: تجميع الأسطر في فقرات حقيقية باستخدام <br/>
+    # =========================
+    paragraph_buffer = []
+    
+    def flush_paragraph():
+        """إرسال الفقرة المخزنة إلى القصة"""
+        nonlocal paragraph_buffer
+        if paragraph_buffer:
+            # ✅ استخدام <br/> بدلاً من \n لأن ReportLab يتعرف عليها كفاصل أسطر
+            paragraph_text = "<br/>".join(paragraph_buffer)
+            story.append(Paragraph(ar(paragraph_text), body))
+            story.append(Spacer(1, 0.15 * cm))
+            paragraph_buffer.clear()
+    
+    # المعالجة سطراً سطراً مع تجميع الفقرات
+    for raw in content_text.splitlines():
         raw_stripped = raw.strip()
-
-        # ✅ تعديل مهم: إزالة Spacer للأسطر الفارغة لمنع الصفحات الفارغة
+        
+        # سطر فارغ → نهاية الفقرة الحالية
         if not raw_stripped:
+            flush_paragraph()
             continue
-
+        
+        # تنظيف النص مع الاحتفاظ بالعلامات الخاصة
         clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
-
+        
+        # معالجة العناوين الخاصة (الرموز التعبيرية)
         if clean.startswith(("📊", "💎", "⚠️")):
+            flush_paragraph()
             story.append(Spacer(1, 0.6 * cm))
             story.append(elegant_divider())
             story.append(Paragraph(ar(clean), ai_sub_title))
             story.append(Spacer(1, 0.3 * cm))
             continue
-
+        
+        # معالجة فصول التقرير
         if raw_stripped.startswith("الفصل"):
-            # ✅ شرط PageBreak الصحيح: بعد أول فصل فقط
+            flush_paragraph()
             if first_chapter_processed:
                 story.append(PageBreak())
             chapter_index += 1
-            # تهيئة المؤشر لهذا الفصل
             chart_cursor[chapter_index] = 0
             story.append(Paragraph(ar(clean), chapter))
             story.append(Spacer(1, 0.3 * cm))
@@ -511,18 +554,18 @@ def create_pdf_from_content(
             story.append(Spacer(1, 0.6 * cm))
             first_chapter_processed = True
             continue
-
+        
+        # معالجة علامات الرسم البياني
         if clean == "[[ANCHOR_CHART]]":
-            # الحصول على رقم الفصل الحقيقي للرسومات
+            flush_paragraph()
             real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
             if real_chapter:
                 charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
                 cursor = chart_cursor.get(chapter_index, 0)
-
+                
                 if cursor < len(charts):
                     img = plotly_to_image(charts[cursor], 16.8, 9)
                     if img:
-                        # حفظ مسار الملف المؤقت لحذفه لاحقاً
                         if hasattr(img, '_temp_file'):
                             temp_files.append(img._temp_file)
                         
@@ -531,14 +574,14 @@ def create_pdf_from_content(
                         story.append(Spacer(1, 0.4 * cm))
                     chart_cursor[chapter_index] += 1
             continue
-
+        
         if clean == "[[RHYTHM_CHART]]":
-            # الحصول على رقم الفصل الحقيقي للرسومات
+            flush_paragraph()
             real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
             if real_chapter:
                 charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
                 cursor = chart_cursor.get(chapter_index, 0)
-
+                
                 if cursor < len(charts):
                     fig = charts[cursor]
                     is_indicator = (
@@ -550,7 +593,6 @@ def create_pdf_from_content(
                     img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
                                            9.5 if is_indicator else 9)
                     if img:
-                        # حفظ مسار الملف المؤقت لحذفه لاحقاً
                         if hasattr(img, '_temp_file'):
                             temp_files.append(img._temp_file)
                         
@@ -559,9 +601,12 @@ def create_pdf_from_content(
                         story.append(Spacer(1, 0.4 * cm))
                     chart_cursor[chapter_index] += 1
             continue
-
-        story.append(Paragraph(ar(clean), body))
-        story.append(Spacer(1, 0.15 * cm))
+        
+        # ✅ إضافة السطر إلى الفقرة الحالية
+        paragraph_buffer.append(clean)
+    
+    # ✅ إرسال آخر فقرة إذا كانت موجودة
+    flush_paragraph()
 
     doc.build(
         story, 
