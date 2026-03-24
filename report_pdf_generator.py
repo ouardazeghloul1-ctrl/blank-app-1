@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية مع معالجة النسب (تدعم الأرقام السالبة)
+# Arabic helper - النسخة النهائية المستقرة للإنتاج
 # =========================
 def ar(text):
     if not text:
@@ -34,10 +34,10 @@ def ar(text):
     try:
         text = str(text)
 
-        # إزالة الأقواس لأنها تسبب انقلاب RTL
-        text = text.replace("(", " - ")
-        text = text.replace(")", " - ")
-
+        # ✅ لا نحذف الأقواس — فقط نثبتها (هذا هو المفتاح لحل مشكلة انقلاب النص)
+        text = text.replace("(", " (")
+        text = text.replace(")", ") ")
+        
         # ✅ معالجة النسب المئوية بشكل نهائي (تدعم الأرقام السالبة والموجبة)
         text = text.replace("% ", "%")
         text = text.replace(" %", "%")
@@ -45,8 +45,14 @@ def ar(text):
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
         reshaped = arabic_reshaper.reshape(text)
-        return get_display(reshaped)
-    except Exception:
+        bidi_text = get_display(reshaped)
+        
+        # ✅ نعيد النص المعالج مباشرة بدون إضافة <para>
+        # Paragraph() هو المسؤول عن إنشاء عنصر para المناسب
+        return bidi_text
+        
+    except Exception as e:
+        print("Arabic reshape error:", e)
         return str(text)
 
 
@@ -203,15 +209,19 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
+    # ✅ النمط الرئيسي للفقرات - مع تحسينات RTL النهائية
+    # ✅ نسبة leading مثالية: fontSize * 1.6 = 22.4 (نقرب لـ 22)
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=14,
-        leading=24,
+        leading=22,  # ✅ النسبة المثالية للعربية: 14 * 1.6 = 22.4 ≈ 22
         alignment=TA_RIGHT,
-        wordWrap='RTL',
+        wordWrap='CJK',  # ✅ أفضل لمعالجة النصوص العربية في ReportLab
+        splitLongWords=True,  # ✅ تحسين إضافي للفقرات الطويلة
         spaceAfter=12,
+        spaceBefore=0,  # ✅ منع stacking غريب
         allowWidows=1,
         allowOrphans=1,
     )
