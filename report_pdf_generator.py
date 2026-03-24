@@ -25,27 +25,52 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية مع معالجة النسب (تدعم الأرقام السالبة)
+# Arabic helper - النسخة النهائية المستقرة إنتاجيًا (مع is_paragraph flag)
 # =========================
-def ar(text):
+def ar(text, is_paragraph=False):
+    """
+    دالة آمنة لتنسيق النص العربي في ReportLab.
+    
+    استراتيجية المعالجة النهائية:
+    1. تنظيف النص من الأقواس والنسب المئوية
+    2. إعادة تشكيل الحروف العربية باستخدام arabic_reshaper
+    3. إذا كان is_paragraph=True -> فقرة -> تشكيل فقط (بدون bidi)
+    4. إذا كان is_paragraph=False -> عنوان -> نستخدم bidi (get_display)
+    
+    هذا الحل يعتمد على السياق (context-aware) وليس على تخمينات مثل:
+    - طول النص
+    - وجود newline
+    
+    مما يضمن:
+    - الفقرات تعرض بترتيب أسطر صحيح من الأعلى للأسفل
+    - العناوين تعرض بشكل صحيح مع bidi
+    - عدم وجود edge cases مستقبلية
+    """
     if not text:
         return ""
 
     try:
         text = str(text)
 
-        # إزالة الأقواس لأنها تسبب انقلاب RTL
+        # معالجة الأقواس لأنها تسبب انقلاب RTL
         text = text.replace("(", " - ")
         text = text.replace(")", " - ")
 
-        # ✅ معالجة النسب المئوية بشكل نهائي (تدعم الأرقام السالبة والموجبة)
+        # معالجة النسب المئوية بشكل نهائي (تدعم الأرقام السالبة والموجبة)
         text = text.replace("% ", "%")
         text = text.replace(" %", "%")
-        # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
+        # إعادة تشكيل الأحرف العربية
         reshaped = arabic_reshaper.reshape(text)
+        
+        # ✅ المعالجة حسب السياق: الفقرات لا تستخدم bidi لتجنب انعكاس الأسطر
+        if is_paragraph:
+            return reshaped
+        
+        # العناوين والنصوص القصيرة تستخدم bidi للعرض الصحيح
         return get_display(reshaped)
+        
     except Exception:
         return str(text)
 
@@ -203,6 +228,7 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
+    # ✅ wordWrap='CJK' يحل مشكلة ترتيب الأسطر في الفقرات الطويلة
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -210,12 +236,13 @@ def create_pdf_from_content(
         fontSize=14,
         leading=24,
         alignment=TA_RIGHT,
-        wordWrap='RTL',
+        wordWrap='CJK',  # ✅ يمنع انعكاس ترتيب الأسطر
         spaceAfter=12,
         allowWidows=1,
         allowOrphans=1,
     )
 
+    # ✅ الأنماط الأخرى تبقى بدون wordWrap='CJK' لأنها عناوين قصيرة
     chapter = ParagraphStyle(
         "ArabicChapter",
         parent=styles["Heading2"],
@@ -225,7 +252,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#8B0000"),
         spaceBefore=24,
         spaceAfter=12,
-        keepWithNext=1
+        keepWithNext=1,
     )
 
     ai_sub_title = ParagraphStyle(
@@ -246,7 +273,7 @@ def create_pdf_from_content(
         fontSize=22,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
-        spaceAfter=40
+        spaceAfter=40,
     )
 
     ai_executive_header = ParagraphStyle(
@@ -291,7 +318,7 @@ def create_pdf_from_content(
     story.append(Spacer(1, 4 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     
-    # ✅ 1️⃣ إضافة عنوان التقرير الحقيقي
+    # ✅ 1️⃣ إضافة عنوان التقرير الحقيقي (عنوان متعدد الأسطر لكنه ليس فقرة نصية طويلة)
     if user_info:
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
@@ -303,7 +330,7 @@ def create_pdf_from_content(
     # ✅ 2️⃣ إضافة تاريخ التقرير (باستخدام نمط مركزي)
     date_text = f"تاريخ التقرير: {datetime.now().strftime('%B %Y')}"
     story.append(Spacer(1, 0.3 * cm))
-    story.append(Paragraph(ar(date_text), date_style))  # ✅ استخدام date_style بدلاً من body
+    story.append(Paragraph(ar(date_text), date_style))
     
     # ✅ 3️⃣ إضافة جدول المؤشرات مع تحسينات التنسيق وفاصلة الآلاف
     if user_info:
@@ -350,14 +377,14 @@ def create_pdf_from_content(
         table = Table(table_data, colWidths=[7*cm, 9*cm])
         table.setStyle(TableStyle([
             ('FONTNAME', (0,0), (-1,-1), 'Amiri'),
-            ('FONTSIZE', (0,0), (-1,-1), 12),  # ✅ إضافة حجم خط مناسب
-            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),  # ✅ محاذاة أفقية لليمين
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),  # ✅ محاذاة رأسية في المنتصف
+            ('FONTSIZE', (0,0), (-1,-1), 12),
+            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#8B0000")),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#F9F9F9")),  # ✅ خلفية فاتحة للصفوف
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#F9F9F9"), colors.white]),  # ✅ تناوب الألوان
+            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#F9F9F9")),
+            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#F9F9F9"), colors.white]),
         ]))
         story.append(Spacer(1, 1*cm))
         story.append(table)
@@ -367,7 +394,6 @@ def create_pdf_from_content(
         total = user_info["total_transactions"]
         if total is not None:
             story.append(Spacer(1, 0.8 * cm))
-            # ✅ تنسيق العدد الإجمالي بفاصلة الآلاف أيضاً
             try:
                 total_formatted = f"{int(float(total)):,}" if total else "0"
             except (ValueError, TypeError):
@@ -403,7 +429,7 @@ def create_pdf_from_content(
                 story.append(Spacer(1, 0.2 * cm))
                 continue
 
-            # عناوين الكتل
+            # عناوين الكتل (عناوين وليست فقرات)
             if line.startswith("[DECISION_BLOCK:"):
                 key = line.replace("[DECISION_BLOCK:", "").replace("]", "")
                 title_text = DECISION_BLOCK_TITLES.get(key, "")
@@ -416,8 +442,8 @@ def create_pdf_from_content(
             if line == "[END_DECISION_BLOCK]":
                 continue
 
-            # النص الفعلي
-            story.append(Paragraph(ar(line), body))
+            # ✅ النص الفعلي للقرار التنفيذي (فقرة)
+            story.append(Paragraph(ar(line, is_paragraph=True), body))
             story.append(Spacer(1, 0.2 * cm))
 
         story.append(Spacer(1, 1.0 * cm))
@@ -437,26 +463,31 @@ def create_pdf_from_content(
     story.append(elegant_divider("55%"))
     story.append(Spacer(1, 1.0 * cm))
 
+    # ✅ جميع هذه الفقرات هي نصوص طويلة متعددة الأسطر → is_paragraph=True
     story.append(Paragraph(ar(
         "الخلاصة التنفيذية للقرار تمثل القرار المعتمد لهذا التقرير، "
-        "وقد تم اشتقاقه بناءً على مؤشرات رقمية ومعايير تحليلية محددة."
+        "وقد تم اشتقاقه بناءً على مؤشرات رقمية ومعايير تحليلية محددة.",
+        is_paragraph=True
     ), body))
 
     story.append(Paragraph(ar(
         "الفصول التالية لا تُقرأ كتحليل عام للسوق، ولا كمسار للوصول إلى قرار جديد، "
-        "بل كشرح منهجي للأسس التي بُني عليها القرار الصادر."
+        "بل كشرح منهجي للأسس التي بُني عليها القرار الصادر.",
+        is_paragraph=True
     ), body))
 
     story.append(Paragraph(ar(
         "كل فصل يفسر جانبًا محددًا من القرار، ويبيّن السياق السوقي، "
         "وحدود المخاطر، وطبيعة الفرص، وشروط التوقيت والتنفيذ، "
-        "بهدف توضيح لماذا جاء القرار بهذه الصيغة تحديدًا."
+        "بهدف توضيح لماذا جاء القرار بهذه الصيغة تحديدًا.",
+        is_paragraph=True
     ), body))
 
     story.append(Paragraph(ar(
         "القرار موجود في الأعلى، "
         "وما يلي هو الإطار التحليلي الذي يبرره، "
-        "ويحدّد نطاق صلاحيته، ويضبط تطبيقه."
+        "ويحدّد نطاق صلاحيته، ويضبط تطبيقه.",
+        is_paragraph=True
     ), body))
 
     story.append(Spacer(1, 1.2 * cm))
@@ -464,7 +495,6 @@ def create_pdf_from_content(
     story.append(PageBreak())
 
     # ✅ خريطة تحويل الفصول (الفصل النصي ← الفصل الفعلي للرسومات)
-    # الفصول التي تحتوي على رسومات: 4, 7, 11, 16, 21
     CHAPTER_CHART_MAP = {
         4: 4,   # الفصل 4 → chapter_4
         7: 7,   # الفصل 7 → chapter_7
@@ -481,7 +511,7 @@ def create_pdf_from_content(
     # قائمة لتتبع الملفات المؤقتة لحذفها لاحقاً
     temp_files = []
 
-    # ✅ تحسين: إزالة iter() غير الضرورية
+    # ✅ معالجة النص سطراً بسطر
     for raw in content_text.split("\n"):
         raw_stripped = raw.strip()
 
@@ -560,7 +590,8 @@ def create_pdf_from_content(
                     chart_cursor[chapter_index] += 1
             continue
 
-        story.append(Paragraph(ar(clean), body))
+        # ✅ النص العادي داخل الفصول → فقرة (is_paragraph=True)
+        story.append(Paragraph(ar(clean, is_paragraph=True), body))
         story.append(Spacer(1, 0.15 * cm))
 
     doc.build(
