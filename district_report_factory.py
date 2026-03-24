@@ -260,13 +260,19 @@ def generate_single_report(
         # 🔥 تنظيف اسم المدينة والحي بشكل صحيح - معالجة NaN
         import pandas as pd
         
-        if pd.isna(city) or not city:
-            city = "غير محدد"
+        # ✅ التعديل الصحيح النهائي لاسم المدينة (يعمل مع كل المدن)
+        if pd.isna(city) or not city or len(str(city).strip()) <= 1:
+            # نحاول أخذ اسم المدينة من البيانات نفسها
+            if "city" in city_data.columns and not city_data.empty:
+                city = str(city_data["city"].iloc[0]).strip()
+            else:
+                city = "غير محدد"
+        else:
+            city = str(city).strip()
         
         if pd.isna(district) or not district:
             district = "غير محدد"
         
-        city = str(city).strip()
         district = str(district).strip()
 
         # 🔥 التعديل: قبول أي حي حتى لو صفقة واحدة
@@ -774,6 +780,7 @@ def generate_all_district_reports(df):
     print("   ✅ 🔥 CITY NAME FIX: Handle NaN values with pd.isna() (FIXED)")
     print("   ✅ 🔥 CITY NAME FIX: Convert to string and strip whitespace (FIXED)")
     print("   ✅ 🔥 CITY NAME FIX: Added processing city print for debugging (FIXED)")
+    print("   ✅ 🔥 CITY NAME ULTIMATE FIX: Automatic city name extraction from data if city parameter is incomplete (FIXED)")
     print("   ✅ 🔍 DIAGNOSTICS FIX: Added detailed district classification debug output (FIXED)")
     print("   ✅ 🎯 RIYADH ONLY: Modified TARGET_CITIES to work with Riyadh initially (FIXED)")
     print("   ✅ 🎯 ACTIVE DISTRICTS: get_active_districts filters districts with >5 transactions (FIXED)")
