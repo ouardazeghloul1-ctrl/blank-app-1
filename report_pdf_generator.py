@@ -158,7 +158,7 @@ def add_footer(canvas, doc):
 
 
 # =========================
-# MAIN PDF GENERATOR - النسخة النهائية مع تجميع الفقرات باستخدام \n
+# MAIN PDF GENERATOR - النسخة النهائية Production Ready
 # =========================
 def create_pdf_from_content(
     user_info,
@@ -307,7 +307,7 @@ def create_pdf_from_content(
     # ✅ 2️⃣ إضافة تاريخ التقرير (باستخدام نمط مركزي)
     date_text = f"تاريخ التقرير: {datetime.now().strftime('%B %Y')}"
     story.append(Spacer(1, 0.3 * cm))
-    story.append(Paragraph(ar(date_text), date_style))
+    story.append(Paragraph(ar(date_text), date_style))  # ✅ استخدام date_style بدلاً من body
     
     # ✅ 3️⃣ إضافة جدول المؤشرات مع تحسينات التنسيق وفاصلة الآلاف
     if user_info:
@@ -354,14 +354,14 @@ def create_pdf_from_content(
         table = Table(table_data, colWidths=[7*cm, 9*cm])
         table.setStyle(TableStyle([
             ('FONTNAME', (0,0), (-1,-1), 'Amiri'),
-            ('FONTSIZE', (0,0), (-1,-1), 12),
-            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('FONTSIZE', (0,0), (-1,-1), 12),  # ✅ إضافة حجم خط مناسب
+            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),  # ✅ محاذاة أفقية لليمين
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),  # ✅ محاذاة رأسية في المنتصف
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#8B0000")),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#F9F9F9")),
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#F9F9F9"), colors.white]),
+            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#F9F9F9")),  # ✅ خلفية فاتحة للصفوف
+            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#F9F9F9"), colors.white]),  # ✅ تناوب الألوان
         ]))
         story.append(Spacer(1, 1*cm))
         story.append(table)
@@ -477,131 +477,96 @@ def create_pdf_from_content(
         21: 21  # الفصل 21 → chapter_21
     }
     
-    # =========================
-    # ✅ الحل الرئيسي: تجميع الأسطر في فقرات متكاملة باستخدام \n
-    # =========================
     chapter_index = 0
-    chart_cursor = {}
-    temp_files = []
+    chart_cursor = {}  # المؤشر لكل فصل
+    
     first_chapter_processed = False
     
-    # متغير لتجميع أسطر الفقرة الحالية
-    paragraph_buffer = []
-    
-    # تقسيم النص إلى أسطر ومعالجتها
+    # قائمة لتتبع الملفات المؤقتة لحذفها لاحقاً
+    temp_files = []
+
+    # ✅ تحسين: إزالة iter() غير الضرورية
     for raw in content_text.split("\n"):
         raw_stripped = raw.strip()
-        
-        # إذا كان السطر فارغ -> نهاية الفقرة الحالية
+
+        # ✅ تعديل مهم: إزالة Spacer للأسطر الفارغة لمنع الصفحات الفارغة
         if not raw_stripped:
-            if paragraph_buffer:
-                # ✅ دمج الأسطر مع الحفاظ على فواصل الأسطر باستخدام \n
-                paragraph_text = "\n".join(paragraph_buffer)
-                story.append(Paragraph(ar(paragraph_text), body))
-                story.append(Spacer(1, 0.15 * cm))
-                paragraph_buffer = []
             continue
-        
-        # إذا كان السطر يحتوي على علامة خاصة
-        if raw_stripped in SPECIAL_TAGS:
-            # إذا كان هناك فقرة قيد التجميع، ننهيها أولاً
-            if paragraph_buffer:
-                paragraph_text = "\n".join(paragraph_buffer)
-                story.append(Paragraph(ar(paragraph_text), body))
-                story.append(Spacer(1, 0.15 * cm))
-                paragraph_buffer = []
-            
-            # معالجة العلامة الخاصة
-            if raw_stripped == "[[ANCHOR_CHART]]":
-                real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
-                if real_chapter:
-                    charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
-                    cursor = chart_cursor.get(chapter_index, 0)
-                    
-                    if cursor < len(charts):
-                        img = plotly_to_image(charts[cursor], 16.8, 9)
-                        if img:
-                            if hasattr(img, '_temp_file'):
-                                temp_files.append(img._temp_file)
-                            story.append(Spacer(1, 0.8 * cm))
-                            story.append(img)
-                            story.append(Spacer(1, 0.4 * cm))
-                        chart_cursor[chapter_index] = chart_cursor.get(chapter_index, 0) + 1
-                continue
-            
-            elif raw_stripped == "[[RHYTHM_CHART]]":
-                real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
-                if real_chapter:
-                    charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
-                    cursor = chart_cursor.get(chapter_index, 0)
-                    
-                    if cursor < len(charts):
-                        fig = charts[cursor]
-                        is_indicator = (
-                            fig is not None
-                            and hasattr(fig, 'data')
-                            and len(fig.data) > 0
-                            and isinstance(fig.data[0], go.Indicator)
-                        )
-                        img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
-                                               9.5 if is_indicator else 9)
-                        if img:
-                            if hasattr(img, '_temp_file'):
-                                temp_files.append(img._temp_file)
-                            story.append(Spacer(1, 0.8 * cm if is_indicator else 0.7 * cm))
-                            story.append(img)
-                            story.append(Spacer(1, 0.4 * cm))
-                        chart_cursor[chapter_index] = chart_cursor.get(chapter_index, 0) + 1
-                continue
-        
-        # إذا كان السطر هو بداية فصل جديد
+
+        clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
+
+        if clean.startswith(("📊", "💎", "⚠️")):
+            story.append(Spacer(1, 0.6 * cm))
+            story.append(elegant_divider())
+            story.append(Paragraph(ar(clean), ai_sub_title))
+            story.append(Spacer(1, 0.3 * cm))
+            continue
+
         if raw_stripped.startswith("الفصل"):
-            # إذا كان هناك فقرة قيد التجميع، ننهيها أولاً
-            if paragraph_buffer:
-                paragraph_text = "\n".join(paragraph_buffer)
-                story.append(Paragraph(ar(paragraph_text), body))
-                story.append(Spacer(1, 0.15 * cm))
-                paragraph_buffer = []
-            
-            # إضافة صفحة جديدة بعد الفصل الأول
+            # ✅ شرط PageBreak الصحيح: بعد أول فصل فقط
             if first_chapter_processed:
                 story.append(PageBreak())
-            
             chapter_index += 1
+            # تهيئة المؤشر لهذا الفصل
             chart_cursor[chapter_index] = 0
-            
-            story.append(Paragraph(ar(raw_stripped), chapter))
+            story.append(Paragraph(ar(clean), chapter))
             story.append(Spacer(1, 0.3 * cm))
             story.append(elegant_divider("40%"))
             story.append(Spacer(1, 0.6 * cm))
             first_chapter_processed = True
             continue
-        
-        # إذا كان السطر يحتوي على رموز خاصة (📊, 💎, ⚠️)
-        if raw_stripped.startswith(('📊', '💎', '⚠️')):
-            # إذا كان هناك فقرة قيد التجميع، ننهيها أولاً
-            if paragraph_buffer:
-                paragraph_text = "\n".join(paragraph_buffer)
-                story.append(Paragraph(ar(paragraph_text), body))
-                story.append(Spacer(1, 0.15 * cm))
-                paragraph_buffer = []
-            
-            story.append(Spacer(1, 0.6 * cm))
-            story.append(elegant_divider())
-            story.append(Paragraph(ar(raw_stripped), ai_sub_title))
-            story.append(Spacer(1, 0.3 * cm))
+
+        if clean == "[[ANCHOR_CHART]]":
+            # الحصول على رقم الفصل الحقيقي للرسومات
+            real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
+            if real_chapter:
+                charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
+                cursor = chart_cursor.get(chapter_index, 0)
+
+                if cursor < len(charts):
+                    img = plotly_to_image(charts[cursor], 16.8, 9)
+                    if img:
+                        # حفظ مسار الملف المؤقت لحذفه لاحقاً
+                        if hasattr(img, '_temp_file'):
+                            temp_files.append(img._temp_file)
+                        
+                        story.append(Spacer(1, 0.8 * cm))
+                        story.append(img)
+                        story.append(Spacer(1, 0.4 * cm))
+                    chart_cursor[chapter_index] += 1
             continue
-        
-        # جميع الأسطر الأخرى: نضيفها إلى الفقرة الحالية
-        paragraph_buffer.append(raw_stripped)
-    
-    # معالجة آخر فقرة إذا وجدت
-    if paragraph_buffer:
-        paragraph_text = "\n".join(paragraph_buffer)
-        story.append(Paragraph(ar(paragraph_text), body))
+
+        if clean == "[[RHYTHM_CHART]]":
+            # الحصول على رقم الفصل الحقيقي للرسومات
+            real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
+            if real_chapter:
+                charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
+                cursor = chart_cursor.get(chapter_index, 0)
+
+                if cursor < len(charts):
+                    fig = charts[cursor]
+                    is_indicator = (
+                        fig is not None
+                        and hasattr(fig, 'data')
+                        and len(fig.data) > 0
+                        and isinstance(fig.data[0], go.Indicator)
+                    )
+                    img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
+                                           9.5 if is_indicator else 9)
+                    if img:
+                        # حفظ مسار الملف المؤقت لحذفه لاحقاً
+                        if hasattr(img, '_temp_file'):
+                            temp_files.append(img._temp_file)
+                        
+                        story.append(Spacer(1, 0.8 * cm if is_indicator else 0.7 * cm))
+                        story.append(img)
+                        story.append(Spacer(1, 0.4 * cm))
+                    chart_cursor[chapter_index] += 1
+            continue
+
+        story.append(Paragraph(ar(clean), body))
         story.append(Spacer(1, 0.15 * cm))
-    
-    # بناء المستند
+
     doc.build(
         story, 
         onFirstPage=add_footer, 
@@ -610,7 +575,7 @@ def create_pdf_from_content(
     
     buffer.seek(0)
     
-    # تنظيف الملفات المؤقتة
+    # حذف جميع الملفات المؤقتة بعد بناء PDF
     unique_temp_files = list(set(temp_files))
     for temp_file in unique_temp_files:
         try:
