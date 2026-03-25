@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية للإنتاج
+# Arabic helper - النسخة النهائية للإنتاج (مع إصلاح شامل لعلامات line break)
 # =========================
 def ar(text):
     if not text:
@@ -44,7 +44,12 @@ def ar(text):
         reshaped = arabic_reshaper.reshape(text)
         bidi_text = get_display(reshaped)
         
-        # ✅ إرجاع النص مباشرة بدون RLM - الاتجاه مضبوط بواسطة get_display والأسطر بواسطة <br/>
+        # ✅ الحل الحاسم: إصلاح جميع أشكال علامات line break
+        # get_display قد تحول <br/> إلى </br> أو <br>، وهذا يسبب خطأ في ReportLab
+        bidi_text = (bidi_text
+                     .replace("</br>", "<br/>")
+                     .replace("<br>", "<br/>"))
+        
         return bidi_text
     except Exception:
         return str(text)
