@@ -196,9 +196,7 @@ def create_pdf_from_content(
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
     # -------------------------
-    # DOCUMENT - مع showBoundary=1 للتشخيص
-    # ✅ هذا سيساعد في معرفة سبب الفراغ في أعلى الصفحة
-    # ✅ سيظهر مستطيل حول منطقة الكتابة لتحديد موقع المشكلة
+    # DOCUMENT - مع showBoundary=0 (تم إزالة التشخيص بعد إصلاح المشكلة)
     # -------------------------
     doc = SimpleDocTemplate(
         buffer,
@@ -207,7 +205,7 @@ def create_pdf_from_content(
         leftMargin=2.4 * cm,
         topMargin=2.5 * cm,
         bottomMargin=2.5 * cm,
-        showBoundary=1  # ✅ أداة تشخيصية - تظهر حدود منطقة الكتابة
+        showBoundary=0  # ✅ تم إيقاف التشخيص بعد إصلاح المشكلة
     )
 
     styles = getSampleStyleSheet()
@@ -439,8 +437,12 @@ def create_pdf_from_content(
 
     # =========================
     # TRANSITION PAGE – HOW TO READ THIS REPORT
+    # ✅ تم إصلاح المشكلة: إزالة Spacer الكبير الذي كان يسبب تمركز المحتوى في منتصف الصفحة
     # =========================
-    story.append(Spacer(1, 2.5 * cm))
+    # ✅ تم حذف السطر التالي الذي كان يسبب المشكلة:
+    # story.append(Spacer(1, 2.5 * cm))
+    # ✅ استبدلناها بـ Spacer صغير فقط للحفاظ على مسافة بسيطة (اختياري)
+    story.append(Spacer(1, 0.3 * cm))  # ✅ مسافة صغيرة فقط بدلاً من 2.5 سم
 
     story.append(Paragraph(
         ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"),
