@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
-# ✅ تم حذف get_display - غير مطلوب مع reportlab 3.6.12
+from bidi.algorithm import get_display  # ✅ إعادة get_display
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -25,17 +25,15 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - reshape فقط
+# Arabic helper - النسخة النهائية (تطبيق get_display على كل سطر)
 # =========================
 def ar(text):
     if not text:
         return ""
 
     try:
+        # تحويل النص إلى string
         text = str(text)
-
-        # ✅ الحفاظ على فواصل الأسطر
-        text = text.replace("\n", "<br/>")
 
         # ✅ معالجة النسب المئوية بشكل نهائي (تدعم الأرقام السالبة والموجبة)
         text = text.replace("% ", "%")
@@ -43,10 +41,25 @@ def ar(text):
         # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
-        # ✅ تشكيل الحروف فقط - بدون get_display
-        reshaped = arabic_reshaper.reshape(text)
+        # ✅ تقسيم النص إلى أسطر
+        lines = text.split("\n")
+        processed_lines = []
 
-        return reshaped
+        for line in lines:
+            if not line:
+                processed_lines.append("")
+                continue
+
+            # ✅ تشكيل الحروف العربية
+            reshaped = arabic_reshaper.reshape(line)
+
+            # ✅ تصحيح اتجاه الكلمات (تطبيق get_display على كل سطر على حدة)
+            bidi_line = get_display(reshaped)
+
+            processed_lines.append(bidi_line)
+
+        # ✅ إعادة دمج الأسطر باستخدام <br/> للحفاظ على فواصل الأسطر
+        return "<br/>".join(processed_lines)
 
     except Exception:
         return str(text)
@@ -228,7 +241,7 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    # ✅ التعديل الحاسم: إضافة wordWrap="RTL" لتوجيه النص بشكل صحيح
+    # ✅ الحل النهائي: reshape + get_display على كل سطر + wordWrap="RTL"
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -236,7 +249,7 @@ def create_pdf_from_content(
         fontSize=14,
         leading=22,
         alignment=TA_RIGHT,
-        wordWrap="RTL",          # ⭐ هذا السطر يجعل ReportLab يلف الأسطر من اليمين
+        wordWrap="RTL",          # ✅ يجعل ReportLab يلف الأسطر من اليمين
         splitLongWords=False,
         spaceAfter=8,
         spaceBefore=0,
