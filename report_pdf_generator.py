@@ -190,7 +190,7 @@ def create_pdf_from_content(
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
     # -------------------------
-    # DOCUMENT - ✅ إضافة allowSplitting=1 لتحسين تقسيم الفقرات
+    # DOCUMENT
     # -------------------------
     doc = SimpleDocTemplate(
         buffer,
@@ -199,12 +199,11 @@ def create_pdf_from_content(
         leftMargin=2.4 * cm,
         topMargin=2.5 * cm,
         bottomMargin=2.5 * cm,
-        allowSplitting=1  # ✅ يساعد في تقسيم الفقرات الطويلة بشكل صحيح
+        allowSplitting=1
     )
 
     styles = getSampleStyleSheet()
 
-    # ✅ النمط الأساسي مع spaceAfter بدلاً من Spacer اليدوي
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -212,14 +211,15 @@ def create_pdf_from_content(
         fontSize=14,
         leading=22,
         alignment=TA_RIGHT,
-        wordWrap='RTL',
+        wordWrap='CJK',          # ✅ CJK بدلاً من RTL
         splitLongWords=False,
-        spaceAfter=8,          # ✅ الحل الحاسم: مسافة ثابتة بعد كل فقرة
+        spaceAfter=8,
         spaceBefore=0,
         allowWidows=0,
         allowOrphans=0,
     )
 
+    # ✅ التعديل الحاسم: تغيير keepWithNext من 1 إلى 0
     chapter = ParagraphStyle(
         "ArabicChapter",
         parent=styles["Heading2"],
@@ -229,7 +229,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#8B0000"),
         spaceBefore=24,
         spaceAfter=12,
-        keepWithNext=1
+        keepWithNext=0           # ✅ الحل النهائي: إزالة constraint الـ KeepTogether
     )
 
     ai_sub_title = ParagraphStyle(
@@ -263,7 +263,6 @@ def create_pdf_from_content(
         spaceAfter=12,
     )
 
-    # ✅ نمط خاص للتاريخ في الغلاف (مركز)
     date_style = ParagraphStyle(
         "DateStyle",
         parent=body,
@@ -274,7 +273,6 @@ def create_pdf_from_content(
         spaceAfter=12,
     )
 
-    # ✅ إضافة نمط للإحصائيات الرئيسية
     stats_style = ParagraphStyle(
         "StatsStyle",
         parent=body,
@@ -290,12 +288,11 @@ def create_pdf_from_content(
     story = []
 
     # =========================
-    # COVER - مع العنوان الكامل والتاريخ
+    # COVER
     # =========================
     story.append(Spacer(1, 4 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     
-    # ✅ 1️⃣ إضافة عنوان التقرير الحقيقي
     if user_info:
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
@@ -304,31 +301,25 @@ def create_pdf_from_content(
         story.append(Spacer(1, 0.6 * cm))
         story.append(Paragraph(ar(subtitle), ai_executive_header))
     
-    # ✅ 2️⃣ إضافة تاريخ التقرير (باستخدام نمط مركزي)
     date_text = f"تاريخ التقرير: {datetime.now().strftime('%B %Y')}"
     story.append(Spacer(1, 0.3 * cm))
     story.append(Paragraph(ar(date_text), date_style))
     
-    # ✅ 3️⃣ إضافة جدول المؤشرات مع تحسينات التنسيق وفاصلة الآلاف
     if user_info:
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
         property_type = user_info.get("property_type", "")
         
-        # ✅ استخدام قيم افتراضية آمنة مع شرطة "--" في حالة عدم وجود بيانات
         price = user_info.get("district_avg_price", "—")
         city_price = user_info.get("city_avg_price", "—")
         transactions = user_info.get("transactions_count", "—")
         dpi = user_info.get("dpi_score", "—")
         
-        # ✅ تحويل القيم الرقمية إلى نص مع فاصلة الآلاف (بدون أرقام عشرية للأعداد الصحيحة)
         def format_number_with_commas(value):
             if value == "—":
                 return "—"
             try:
-                # محاولة تحويل القيمة إلى رقم
                 num = float(value)
-                # إذا كان الرقم عدداً صحيحاً (أو قريب جداً من الصحيح)
                 if abs(num - round(num)) < 0.01:
                     return f"{int(round(num)):,}"
                 else:
@@ -366,7 +357,6 @@ def create_pdf_from_content(
         story.append(Spacer(1, 1*cm))
         story.append(table)
     
-    # ✅ إضافة إجمالي عدد الصفقات من user_info إذا كان متوفراً
     if user_info and "total_transactions" in user_info:
         total = user_info["total_transactions"]
         if total is not None:
@@ -383,7 +373,7 @@ def create_pdf_from_content(
     story.append(PageBreak())
 
     # =========================
-    # EXECUTIVE DECISION (INDEPENDENT)
+    # EXECUTIVE DECISION
     # =========================
     DECISION_BLOCK_TITLES = {
         "DECISION_DEFINITION": "تعريف القرار التنبؤي",
@@ -406,7 +396,6 @@ def create_pdf_from_content(
                 story.append(Spacer(1, 0.2 * cm))
                 continue
 
-            # عناوين الكتل
             if line.startswith("[DECISION_BLOCK:"):
                 key = line.replace("[DECISION_BLOCK:", "").replace("]", "")
                 title_text = DECISION_BLOCK_TITLES.get(key, "")
@@ -419,7 +408,6 @@ def create_pdf_from_content(
             if line == "[END_DECISION_BLOCK]":
                 continue
 
-            # النص الفعلي - spaceAfter في body يكفي للمسافات
             story.append(Paragraph(ar(line), body))
 
         story.append(Spacer(1, 1.0 * cm))
@@ -429,7 +417,7 @@ def create_pdf_from_content(
     # =========================
     # TRANSITION PAGE – HOW TO READ THIS REPORT
     # =========================
-    story.append(Spacer(1, 2.5 * cm))
+    story.append(Spacer(1, 0.8 * cm))
 
     story.append(Paragraph(
         ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"),
@@ -465,7 +453,9 @@ def create_pdf_from_content(
     story.append(elegant_divider("30%"))
     story.append(PageBreak())
 
-    # ✅ خريطة تحويل الفصول (الفصل النصي ← الفصل الفعلي للرسومات)
+    # =========================
+    # CHAPTERS PROCESSING
+    # =========================
     CHAPTER_CHART_MAP = {
         4: 4,
         7: 7,
@@ -479,7 +469,6 @@ def create_pdf_from_content(
     first_chapter_processed = False
     temp_files = []
 
-    # ✅ المعالجة الرئيسية - بدون Spacer بعد الفقرات
     for raw in content_text.split("\n"):
         raw_stripped = raw.strip()
 
@@ -551,7 +540,6 @@ def create_pdf_from_content(
                     chart_cursor[chapter_index] += 1
             continue
 
-        # ✅ الفقرة بدون Spacer بعدها - spaceAfter في body يكفي
         story.append(Paragraph(ar(clean), body))
 
     doc.build(
@@ -562,7 +550,6 @@ def create_pdf_from_content(
     
     buffer.seek(0)
     
-    # تنظيف الملفات المؤقتة
     unique_temp_files = list(set(temp_files))
     for temp_file in unique_temp_files:
         try:
