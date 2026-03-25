@@ -11,7 +11,7 @@ from bidi.algorithm import get_display  # ✅ إعادة get_display
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
-    BaseDocTemplate, Frame, PageTemplate,  # ✅ استبدال SimpleDocTemplate
+    BaseDocTemplate, Frame, PageTemplate,
     Paragraph, Spacer, PageBreak, Image, HRFlowable,
     Table, TableStyle
 )
@@ -25,18 +25,15 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية (مع get_display)
+# Arabic helper - النسخة النهائية للإنتاج
 # =========================
 def ar(text):
     if not text:
         return ""
 
     try:
-        text = str(text)
-
-        # ✅ تم حذف السطرين المسببين للمشكلة:
-        # text = text.replace("(", " - ")
-        # text = text.replace(")", " - ")
+        # ✅ تحويل الأسطر الجديدة إلى <br/> لمساعدة ReportLab في حساب الارتفاع
+        text = str(text).replace("\n", "<br/>")
 
         # ✅ معالجة النسب المئوية بشكل نهائي (تدعم الأرقام السالبة والموجبة)
         text = text.replace("% ", "%")
@@ -45,8 +42,9 @@ def ar(text):
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
         reshaped = arabic_reshaper.reshape(text)
-        # ✅ إعادة get_display - النص يصبح مقروءاً
         bidi_text = get_display(reshaped)
+        
+        # ✅ إرجاع النص مباشرة بدون RLM - الاتجاه مضبوط بواسطة get_display والأسطر بواسطة <br/>
         return bidi_text
     except Exception:
         return str(text)
@@ -160,7 +158,7 @@ def add_footer(canvas, doc):
 
 
 # =========================
-# MAIN PDF GENERATOR - النسخة النهائية Production Ready
+# MAIN PDF GENERATOR - النسخة النهائية للإنتاج
 # =========================
 def create_pdf_from_content(
     user_info,
@@ -213,7 +211,8 @@ def create_pdf_from_content(
         leftPadding=0,
         rightPadding=0,
         topPadding=0,
-        bottomPadding=0
+        bottomPadding=0,
+        showBoundary=0,
     )
     
     # إنشاء PageTemplate مع الـ Frame و الـ Footer
@@ -227,7 +226,6 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    # ✅ التعديل الحاسم: splitLongWords=False
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -235,7 +233,7 @@ def create_pdf_from_content(
         fontSize=14,
         leading=22,
         alignment=TA_RIGHT,
-        splitLongWords=False,      # ✅ الحل النهائي - منع تقسيم الكلمات الطويلة
+        splitLongWords=False,
         spaceAfter=8,
         spaceBefore=0,
         keepTogether=False,
