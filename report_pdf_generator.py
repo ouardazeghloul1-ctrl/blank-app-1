@@ -7,12 +7,12 @@ import unicodedata
 from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
-from bidi.algorithm import get_display
+from bidi.algorithm import get_display  # ✅ إعادة get_display
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer,
-    PageBreak, Image, HRFlowable,
+    BaseDocTemplate, Frame, PageTemplate,  # ✅ استبدال SimpleDocTemplate
+    Paragraph, Spacer, PageBreak, Image, HRFlowable,
     Table, TableStyle
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية مع معالجة النسب (تدعم الأرقام السالبة)
+# Arabic helper - النسخة النهائية (مع get_display)
 # =========================
 def ar(text):
     if not text:
@@ -34,9 +34,9 @@ def ar(text):
     try:
         text = str(text)
 
-        # إزالة الأقواس لأنها تسبب انقلاب RTL
-        text = text.replace("(", " - ")
-        text = text.replace(")", " - ")
+        # ✅ تم حذف السطرين المسببين للمشكلة:
+        # text = text.replace("(", " - ")
+        # text = text.replace(")", " - ")
 
         # ✅ معالجة النسب المئوية بشكل نهائي (تدعم الأرقام السالبة والموجبة)
         text = text.replace("% ", "%")
@@ -45,7 +45,9 @@ def ar(text):
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
         reshaped = arabic_reshaper.reshape(text)
-        return get_display(reshaped)
+        # ✅ إعادة get_display - النص يصبح مقروءاً
+        bidi_text = get_display(reshaped)
+        return bidi_text
     except Exception:
         return str(text)
 
@@ -190,30 +192,53 @@ def create_pdf_from_content(
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
     # -------------------------
-    # DOCUMENT
+    # DOCUMENT - BaseDocTemplate مع Frame
     # -------------------------
-    doc = SimpleDocTemplate(
+    doc = BaseDocTemplate(
         buffer,
         pagesize=A4,
         rightMargin=2.4 * cm,
         leftMargin=2.4 * cm,
         topMargin=2.5 * cm,
-        bottomMargin=2.5 * cm
+        bottomMargin=2.5 * cm,
     )
+    
+    # ✅ Frame بدون padding
+    frame = Frame(
+        doc.leftMargin,
+        doc.bottomMargin,
+        doc.width,
+        doc.height,
+        id='normal',
+        leftPadding=0,
+        rightPadding=0,
+        topPadding=0,
+        bottomPadding=0
+    )
+    
+    # إنشاء PageTemplate مع الـ Frame و الـ Footer
+    template = PageTemplate(
+        id='main',
+        frames=[frame],
+        onPage=add_footer
+    )
+    
+    doc.addPageTemplates([template])
 
     styles = getSampleStyleSheet()
 
+    # ✅ التعديل الحاسم: splitLongWords=False
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=14,
-        leading=24,
+        leading=22,
         alignment=TA_RIGHT,
-        wordWrap='RTL',
-        spaceAfter=12,
-        allowWidows=1,
-        allowOrphans=1,
+        splitLongWords=False,      # ✅ الحل النهائي - منع تقسيم الكلمات الطويلة
+        spaceAfter=8,
+        spaceBefore=0,
+        keepTogether=False,
     )
 
     chapter = ParagraphStyle(
@@ -223,9 +248,9 @@ def create_pdf_from_content(
         fontSize=19,
         alignment=TA_RIGHT,
         textColor=colors.HexColor("#8B0000"),
-        spaceBefore=24,
+        spaceBefore=0,
         spaceAfter=12,
-        keepWithNext=1
+        keepWithNext=0
     )
 
     ai_sub_title = ParagraphStyle(
@@ -259,7 +284,6 @@ def create_pdf_from_content(
         spaceAfter=12,
     )
 
-    # ✅ نمط خاص للتاريخ في الغلاف (مركز)
     date_style = ParagraphStyle(
         "DateStyle",
         parent=body,
@@ -270,7 +294,6 @@ def create_pdf_from_content(
         spaceAfter=12,
     )
 
-    # ✅ إضافة نمط للإحصائيات الرئيسية
     stats_style = ParagraphStyle(
         "StatsStyle",
         parent=body,
@@ -286,12 +309,11 @@ def create_pdf_from_content(
     story = []
 
     # =========================
-    # COVER - مع العنوان الكامل والتاريخ
+    # COVER
     # =========================
     story.append(Spacer(1, 4 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     
-    # ✅ 1️⃣ إضافة عنوان التقرير الحقيقي
     if user_info:
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
@@ -300,31 +322,25 @@ def create_pdf_from_content(
         story.append(Spacer(1, 0.6 * cm))
         story.append(Paragraph(ar(subtitle), ai_executive_header))
     
-    # ✅ 2️⃣ إضافة تاريخ التقرير (باستخدام نمط مركزي)
     date_text = f"تاريخ التقرير: {datetime.now().strftime('%B %Y')}"
     story.append(Spacer(1, 0.3 * cm))
-    story.append(Paragraph(ar(date_text), date_style))  # ✅ استخدام date_style بدلاً من body
+    story.append(Paragraph(ar(date_text), date_style))
     
-    # ✅ 3️⃣ إضافة جدول المؤشرات مع تحسينات التنسيق وفاصلة الآلاف
     if user_info:
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
         property_type = user_info.get("property_type", "")
         
-        # ✅ استخدام قيم افتراضية آمنة مع شرطة "--" في حالة عدم وجود بيانات
         price = user_info.get("district_avg_price", "—")
         city_price = user_info.get("city_avg_price", "—")
         transactions = user_info.get("transactions_count", "—")
         dpi = user_info.get("dpi_score", "—")
         
-        # ✅ تحويل القيم الرقمية إلى نص مع فاصلة الآلاف (بدون أرقام عشرية للأعداد الصحيحة)
         def format_number_with_commas(value):
             if value == "—":
                 return "—"
             try:
-                # محاولة تحويل القيمة إلى رقم
                 num = float(value)
-                # إذا كان الرقم عدداً صحيحاً (أو قريب جداً من الصحيح)
                 if abs(num - round(num)) < 0.01:
                     return f"{int(round(num)):,}"
                 else:
@@ -350,24 +366,22 @@ def create_pdf_from_content(
         table = Table(table_data, colWidths=[7*cm, 9*cm])
         table.setStyle(TableStyle([
             ('FONTNAME', (0,0), (-1,-1), 'Amiri'),
-            ('FONTSIZE', (0,0), (-1,-1), 12),  # ✅ إضافة حجم خط مناسب
-            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),  # ✅ محاذاة أفقية لليمين
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),  # ✅ محاذاة رأسية في المنتصف
+            ('FONTSIZE', (0,0), (-1,-1), 12),
+            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#8B0000")),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#F9F9F9")),  # ✅ خلفية فاتحة للصفوف
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#F9F9F9"), colors.white]),  # ✅ تناوب الألوان
+            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#F9F9F9")),
+            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#F9F9F9"), colors.white]),
         ]))
         story.append(Spacer(1, 1*cm))
         story.append(table)
     
-    # ✅ إضافة إجمالي عدد الصفقات من user_info إذا كان متوفراً
     if user_info and "total_transactions" in user_info:
         total = user_info["total_transactions"]
         if total is not None:
             story.append(Spacer(1, 0.8 * cm))
-            # ✅ تنسيق العدد الإجمالي بفاصلة الآلاف أيضاً
             try:
                 total_formatted = f"{int(float(total)):,}" if total else "0"
             except (ValueError, TypeError):
@@ -380,7 +394,7 @@ def create_pdf_from_content(
     story.append(PageBreak())
 
     # =========================
-    # EXECUTIVE DECISION (INDEPENDENT)
+    # EXECUTIVE DECISION
     # =========================
     DECISION_BLOCK_TITLES = {
         "DECISION_DEFINITION": "تعريف القرار التنبؤي",
@@ -403,7 +417,6 @@ def create_pdf_from_content(
                 story.append(Spacer(1, 0.2 * cm))
                 continue
 
-            # عناوين الكتل
             if line.startswith("[DECISION_BLOCK:"):
                 key = line.replace("[DECISION_BLOCK:", "").replace("]", "")
                 title_text = DECISION_BLOCK_TITLES.get(key, "")
@@ -416,19 +429,13 @@ def create_pdf_from_content(
             if line == "[END_DECISION_BLOCK]":
                 continue
 
-            # النص الفعلي
             story.append(Paragraph(ar(line), body))
-            story.append(Spacer(1, 0.2 * cm))
 
-        story.append(Spacer(1, 1.0 * cm))
-        story.append(elegant_divider("30%"))
         story.append(PageBreak())
 
     # =========================
     # TRANSITION PAGE – HOW TO READ THIS REPORT
     # =========================
-    story.append(Spacer(1, 2.5 * cm))
-
     story.append(Paragraph(
         ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"),
         ai_executive_header
@@ -461,31 +468,26 @@ def create_pdf_from_content(
 
     story.append(Spacer(1, 1.2 * cm))
     story.append(elegant_divider("30%"))
-    story.append(PageBreak())
 
-    # ✅ خريطة تحويل الفصول (الفصل النصي ← الفصل الفعلي للرسومات)
-    # الفصول التي تحتوي على رسومات: 4, 7, 11, 16, 21
+    # =========================
+    # CHAPTERS PROCESSING
+    # =========================
     CHAPTER_CHART_MAP = {
-        4: 4,   # الفصل 4 → chapter_4
-        7: 7,   # الفصل 7 → chapter_7
-        11: 11, # الفصل 11 → chapter_11
-        16: 16, # الفصل 16 → chapter_16
-        21: 21  # الفصل 21 → chapter_21
+        4: 4,
+        7: 7,
+        11: 11,
+        16: 16,
+        21: 21
     }
     
     chapter_index = 0
-    chart_cursor = {}  # المؤشر لكل فصل
-    
+    chart_cursor = {}
     first_chapter_processed = False
-    
-    # قائمة لتتبع الملفات المؤقتة لحذفها لاحقاً
     temp_files = []
 
-    # ✅ تحسين: إزالة iter() غير الضرورية
     for raw in content_text.split("\n"):
         raw_stripped = raw.strip()
 
-        # ✅ تعديل مهم: إزالة Spacer للأسطر الفارغة لمنع الصفحات الفارغة
         if not raw_stripped:
             continue
 
@@ -499,11 +501,9 @@ def create_pdf_from_content(
             continue
 
         if raw_stripped.startswith("الفصل"):
-            # ✅ شرط PageBreak الصحيح: بعد أول فصل فقط
             if first_chapter_processed:
                 story.append(PageBreak())
             chapter_index += 1
-            # تهيئة المؤشر لهذا الفصل
             chart_cursor[chapter_index] = 0
             story.append(Paragraph(ar(clean), chapter))
             story.append(Spacer(1, 0.3 * cm))
@@ -513,7 +513,6 @@ def create_pdf_from_content(
             continue
 
         if clean == "[[ANCHOR_CHART]]":
-            # الحصول على رقم الفصل الحقيقي للرسومات
             real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
             if real_chapter:
                 charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
@@ -522,7 +521,6 @@ def create_pdf_from_content(
                 if cursor < len(charts):
                     img = plotly_to_image(charts[cursor], 16.8, 9)
                     if img:
-                        # حفظ مسار الملف المؤقت لحذفه لاحقاً
                         if hasattr(img, '_temp_file'):
                             temp_files.append(img._temp_file)
                         
@@ -533,7 +531,6 @@ def create_pdf_from_content(
             continue
 
         if clean == "[[RHYTHM_CHART]]":
-            # الحصول على رقم الفصل الحقيقي للرسومات
             real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
             if real_chapter:
                 charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
@@ -550,7 +547,6 @@ def create_pdf_from_content(
                     img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
                                            9.5 if is_indicator else 9)
                     if img:
-                        # حفظ مسار الملف المؤقت لحذفه لاحقاً
                         if hasattr(img, '_temp_file'):
                             temp_files.append(img._temp_file)
                         
@@ -561,17 +557,12 @@ def create_pdf_from_content(
             continue
 
         story.append(Paragraph(ar(clean), body))
-        story.append(Spacer(1, 0.15 * cm))
+        story.append(Spacer(1, 0.01 * cm))
 
-    doc.build(
-        story, 
-        onFirstPage=add_footer, 
-        onLaterPages=add_footer
-    )
+    doc.build(story)
     
     buffer.seek(0)
     
-    # حذف جميع الملفات المؤقتة بعد بناء PDF
     unique_temp_files = list(set(temp_files))
     for temp_file in unique_temp_files:
         try:
