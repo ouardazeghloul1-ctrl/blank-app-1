@@ -213,7 +213,7 @@ def create_pdf_from_content(
         leading=22,
         alignment=TA_RIGHT,          # ✅ إرجاع RIGHT
         wordWrap='CJK',
-        splitLongWords=True
+        splitLongWords=True,
         spaceAfter=8,
         spaceBefore=0,
         # ✅ تم حذف allowWidows و allowOrphans - هذا يسمح بتقسيم الفقرات بين الصفحات
