@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
-# ✅ تم حذف get_display - لم نعد بحاجة إليه
+from bidi.algorithm import get_display  # ✅ إعادة get_display
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية (بدون get_display)
+# Arabic helper - النسخة النهائية (مع get_display)
 # =========================
 def ar(text):
     if not text:
@@ -44,9 +44,10 @@ def ar(text):
         # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
-        # ✅ فقط reshape - بدون get_display
         reshaped = arabic_reshaper.reshape(text)
-        return reshaped
+        # ✅ إعادة get_display - النص يصبح مقروءاً
+        bidi_text = get_display(reshaped)
+        return bidi_text
     except Exception:
         return str(text)
 
@@ -191,7 +192,7 @@ def create_pdf_from_content(
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
     # -------------------------
-    # DOCUMENT
+    # DOCUMENT - ✅ التعديل الحاسم: allowSplitting=0
     # -------------------------
     doc = SimpleDocTemplate(
         buffer,
@@ -200,7 +201,7 @@ def create_pdf_from_content(
         leftMargin=2.4 * cm,
         topMargin=2.5 * cm,
         bottomMargin=2.5 * cm,
-        allowSplitting=1
+        allowSplitting=0  # ✅ الحل النهائي - منع تقسيم الفقرات أثناء الرسم
     )
 
     styles = getSampleStyleSheet()
@@ -215,6 +216,7 @@ def create_pdf_from_content(
         splitLongWords=True,
         spaceAfter=8,
         spaceBefore=0,
+        keepTogether=False,
     )
 
     chapter = ParagraphStyle(
