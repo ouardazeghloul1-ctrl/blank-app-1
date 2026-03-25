@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
-from bidi.algorithm import get_display  # ✅ إعادة get_display
+# ✅ تم حذف get_display - لم نعد بحاجة إليه
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية للإنتاج (مع إصلاح شامل لعلامات line break)
+# Arabic helper - النسخة النهائية (بدون get_display)
 # =========================
 def ar(text):
     if not text:
@@ -41,16 +41,10 @@ def ar(text):
         # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
+        # ✅ فقط reshape - بدون get_display
+        # get_display يسبب انقلاب ترتيب الأسطر داخل الفقرة
         reshaped = arabic_reshaper.reshape(text)
-        bidi_text = get_display(reshaped)
-        
-        # ✅ الحل الحاسم: إصلاح جميع أشكال علامات line break
-        # get_display قد تحول <br/> إلى </br> أو <br>، وهذا يسبب خطأ في ReportLab
-        bidi_text = (bidi_text
-                     .replace("</br>", "<br/>")
-                     .replace("<br>", "<br/>"))
-        
-        return bidi_text
+        return reshaped
     except Exception:
         return str(text)
 
