@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
-from bidi.algorithm import get_display  # ✅ إعادة get_display
+# ✅ تم حذف get_display - غير مطلوب مع reportlab 3.6.12
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -25,7 +25,8 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية المستقرة للإنتاج
+# Arabic helper - النسخة النهائية (reshape فقط)
+# مع reportlab 3.6.12، get_display غير مطلوب
 # =========================
 def ar(text):
     if not text:
@@ -34,7 +35,7 @@ def ar(text):
     try:
         text = str(text)
 
-        # ✅ نحافظ على فواصل الأسطر (يترك Paragraph يدير التفاف الأسطر التلقائي)
+        # ✅ الحفاظ على فواصل الأسطر
         text = text.replace("\n", "<br/>")
 
         # ✅ معالجة النسب المئوية بشكل نهائي (تدعم الأرقام السالبة والموجبة)
@@ -43,16 +44,10 @@ def ar(text):
         # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
-        # ✅ إعادة تشكيل الحروف
+        # ✅ تشكيل الحروف فقط - بدون get_display
         reshaped = arabic_reshaper.reshape(text)
 
-        # ✅ تطبيق bidi مرة واحدة فقط (بدون تقسيم يدوي للأسطر)
-        bidi_text = get_display(reshaped)
-
-        # ✅ إصلاح أي انقلاب في علامة <br/> (قد تحدث بسبب get_display)
-        bidi_text = bidi_text.replace("</br>", "<br/>")
-
-        return bidi_text
+        return reshaped
 
     except Exception:
         return str(text)
