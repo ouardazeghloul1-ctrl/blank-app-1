@@ -212,7 +212,6 @@ def create_pdf_from_content(
         fontSize=14,
         leading=22,
         alignment=TA_RIGHT,          # ✅ إرجاع RIGHT
-        wordWrap='CJK',
         splitLongWords=True,
         spaceAfter=8,
         spaceBefore=0,
