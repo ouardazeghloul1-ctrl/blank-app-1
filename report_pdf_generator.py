@@ -18,7 +18,7 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import plotly.graph_objects as go
@@ -204,19 +204,19 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
+    # ✅ التعديل الحاسم: حذف allowWidows و allowOrphans
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=14,
         leading=22,
-        alignment=TA_LEFT,          # ✅ LEFT بدلاً من RIGHT
+        alignment=TA_RIGHT,          # ✅ إرجاع RIGHT
         wordWrap='CJK',
         splitLongWords=False,
         spaceAfter=8,
         spaceBefore=0,
-        allowWidows=0,
-        allowOrphans=0,
+        # ✅ تم حذف allowWidows و allowOrphans - هذا يسمح بتقسيم الفقرات بين الصفحات
     )
 
     chapter = ParagraphStyle(
@@ -415,7 +415,6 @@ def create_pdf_from_content(
 
     # =========================
     # TRANSITION PAGE – HOW TO READ THIS REPORT
-    # ✅ تم حذف Spacer بعد PageBreak
     # =========================
     story.append(Paragraph(
         ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"),
