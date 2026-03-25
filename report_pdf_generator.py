@@ -25,8 +25,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية (reshape فقط)
-# مع reportlab 3.6.12، get_display غير مطلوب
+# Arabic helper - reshape فقط
 # =========================
 def ar(text):
     if not text:
@@ -229,6 +228,7 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
+    # ✅ التعديل الحاسم: إضافة wordWrap="RTL" لتوجيه النص بشكل صحيح
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -236,6 +236,7 @@ def create_pdf_from_content(
         fontSize=14,
         leading=22,
         alignment=TA_RIGHT,
+        wordWrap="RTL",          # ⭐ هذا السطر يجعل ReportLab يلف الأسطر من اليمين
         splitLongWords=False,
         spaceAfter=8,
         spaceBefore=0,
