@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
-from bidi.algorithm import get_display
+# ✅ تم حذف get_display - لم نعد بحاجة إليه
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية (بدون استبدال الأقواس)
+# Arabic helper - النسخة النهائية (بدون get_display)
 # =========================
 def ar(text):
     if not text:
@@ -44,8 +44,9 @@ def ar(text):
         # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
+        # ✅ فقط reshape - بدون get_display
         reshaped = arabic_reshaper.reshape(text)
-        return get_display(reshaped)
+        return reshaped
     except Exception:
         return str(text)
 
@@ -204,18 +205,16 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    # ✅ التعديل الحاسم: حذف allowWidows و allowOrphans
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=14,
         leading=22,
-        alignment=TA_RIGHT,          # ✅ إرجاع RIGHT
+        alignment=TA_RIGHT,
         splitLongWords=True,
         spaceAfter=8,
         spaceBefore=0,
-        # ✅ تم حذف allowWidows و allowOrphans - هذا يسمح بتقسيم الفقرات بين الصفحات
     )
 
     chapter = ParagraphStyle(
