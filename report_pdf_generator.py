@@ -18,7 +18,7 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_RIGHT, TA_CENTER
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import plotly.graph_objects as go
@@ -210,8 +210,8 @@ def create_pdf_from_content(
         fontName="Amiri",
         fontSize=14,
         leading=22,
-        alignment=TA_RIGHT,
-        wordWrap='CJK',          # ✅ CJK بدلاً من RTL
+        alignment=TA_LEFT,          # ✅ LEFT بدلاً من RIGHT
+        wordWrap='CJK',
         splitLongWords=False,
         spaceAfter=8,
         spaceBefore=0,
@@ -219,7 +219,6 @@ def create_pdf_from_content(
         allowOrphans=0,
     )
 
-    # ✅ التعديل الحاسم: تغيير keepWithNext من 1 إلى 0
     chapter = ParagraphStyle(
         "ArabicChapter",
         parent=styles["Heading2"],
@@ -229,7 +228,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#8B0000"),
         spaceBefore=24,
         spaceAfter=12,
-        keepWithNext=0           # ✅ الحل النهائي: إزالة constraint الـ KeepTogether
+        keepWithNext=0
     )
 
     ai_sub_title = ParagraphStyle(
@@ -416,9 +415,8 @@ def create_pdf_from_content(
 
     # =========================
     # TRANSITION PAGE – HOW TO READ THIS REPORT
+    # ✅ تم حذف Spacer بعد PageBreak
     # =========================
-    story.append(Spacer(1, 0.8 * cm))
-
     story.append(Paragraph(
         ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"),
         ai_executive_header
