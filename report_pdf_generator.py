@@ -196,7 +196,9 @@ def create_pdf_from_content(
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
     # -------------------------
-    # DOCUMENT
+    # DOCUMENT - مع showBoundary=1 للتشخيص
+    # ✅ هذا سيساعد في معرفة سبب الفراغ في أعلى الصفحة
+    # ✅ سيظهر مستطيل حول منطقة الكتابة لتحديد موقع المشكلة
     # -------------------------
     doc = SimpleDocTemplate(
         buffer,
@@ -204,7 +206,8 @@ def create_pdf_from_content(
         rightMargin=2.4 * cm,
         leftMargin=2.4 * cm,
         topMargin=2.5 * cm,
-        bottomMargin=2.5 * cm
+        bottomMargin=2.5 * cm,
+        showBoundary=1  # ✅ أداة تشخيصية - تظهر حدود منطقة الكتابة
     )
 
     styles = getSampleStyleSheet()
