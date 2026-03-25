@@ -11,8 +11,8 @@ from bidi.algorithm import get_display  # ✅ إعادة get_display
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer,
-    PageBreak, Image, HRFlowable,
+    BaseDocTemplate, Frame, PageTemplate,  # ✅ استبدال SimpleDocTemplate
+    Paragraph, Spacer, PageBreak, Image, HRFlowable,
     Table, TableStyle
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -160,7 +160,7 @@ def add_footer(canvas, doc):
 
 
 # =========================
-# MAIN PDF GENERATOR - النسخة النهائية Production Ready
+# MAIN PDF GENERATOR - النسخة النهائية مع BaseDocTemplate
 # =========================
 def create_pdf_from_content(
     user_info,
@@ -192,17 +192,34 @@ def create_pdf_from_content(
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
     # -------------------------
-    # DOCUMENT - ✅ التعديل الحاسم: allowSplitting=0
+    # DOCUMENT - ✅ استبدال SimpleDocTemplate بـ BaseDocTemplate + Frame
     # -------------------------
-    doc = SimpleDocTemplate(
+    doc = BaseDocTemplate(
         buffer,
         pagesize=A4,
         rightMargin=2.4 * cm,
         leftMargin=2.4 * cm,
         topMargin=2.5 * cm,
         bottomMargin=2.5 * cm,
-        allowSplitting=0  # ✅ الحل النهائي - منع تقسيم الفقرات أثناء الرسم
     )
+    
+    # إنشاء Frame ثابت
+    frame = Frame(
+        doc.leftMargin,
+        doc.bottomMargin,
+        doc.width,
+        doc.height,
+        id='normal'
+    )
+    
+    # إنشاء PageTemplate مع الـ Frame و الـ Footer
+    template = PageTemplate(
+        id='main',
+        frames=[frame],
+        onPage=add_footer
+    )
+    
+    doc.addPageTemplates([template])
 
     styles = getSampleStyleSheet()
 
@@ -539,11 +556,7 @@ def create_pdf_from_content(
 
         story.append(Paragraph(ar(clean), body))
 
-    doc.build(
-        story, 
-        onFirstPage=add_footer, 
-        onLaterPages=add_footer
-    )
+    doc.build(story)
     
     buffer.seek(0)
     
