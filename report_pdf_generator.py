@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
-from bidi.algorithm import get_display
+# ✅ تم إزالة get_display - ReportLab سيتولى معالجة الاتجاه RTL
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية المستقرة للإنتاج
+# Arabic helper - النسخة النهائية (بدون get_display)
 # =========================
 def ar(text):
     if not text:
@@ -34,7 +34,7 @@ def ar(text):
     try:
         text = str(text)
 
-        # ✅ لا نحذف الأقواس — فقط نثبتها (هذا هو المفتاح لحل مشكلة انقلاب النص)
+        # ✅ معالجة الأقواس
         text = text.replace("(", " (")
         text = text.replace(")", ") ")
         
@@ -44,12 +44,10 @@ def ar(text):
         # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
+        # ✅ فقط arabic_reshaper - ReportLab سيتولى RTL عبر wordWrap='RTL'
         reshaped = arabic_reshaper.reshape(text)
-        bidi_text = get_display(reshaped)
         
-        # ✅ نعيد النص المعالج مباشرة بدون إضافة <para>
-        # Paragraph() هو المسؤول عن إنشاء عنصر para المناسب
-        return bidi_text
+        return reshaped
         
     except Exception as e:
         print("Arabic reshape error:", e)
@@ -210,8 +208,8 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    # ✅ النمط الرئيسي للفقرات - مع تحسينات RTL النهائية
-    # ✅ نسبة leading مثالية: fontSize * 1.6 = 22.4 (نقرب لـ 22)
+    # ✅ النمط الرئيسي للفقرات - الإصلاح النهائي
+    # ✅ wordWrap='RTL' مع إزالة get_display - ReportLab يتولى معالجة RTL
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -219,16 +217,14 @@ def create_pdf_from_content(
         fontSize=14,
         leading=22,  # ✅ النسبة المثالية للعربية: 14 * 1.6 = 22.4 ≈ 22
         alignment=TA_RIGHT,
-        wordWrap='CJK',  # ✅ أفضل لمعالجة النصوص العربية في ReportLab
-        splitLongWords=True,  # ✅ تحسين إضافي للفقرات الطويلة
+        wordWrap='RTL',  # ✅ الإصلاح الجوهري: ReportLab يتولى معالجة RTL
+        splitLongWords=False,  # ✅ تعطيل splitLongWords مع RTL
         spaceAfter=12,
         spaceBefore=0,  # ✅ منع stacking غريب
         allowWidows=1,
         allowOrphans=1,
     )
 
-    # ✅ التعديل الجوهري: تغيير keepWithNext من 1 إلى 0
-    # هذا يمنع ReportLab من تأجيل الكتلة بأكملها للأسفل في الصفحات القصيرة
     chapter = ParagraphStyle(
         "ArabicChapter",
         parent=styles["Heading2"],
@@ -238,7 +234,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#8B0000"),
         spaceBefore=24,
         spaceAfter=12,
-        keepWithNext=0,  # ✅ تم التغيير من 1 إلى 0 - هذا يحل مشكلة التمركز العمودي
+        keepWithNext=0,  # ✅ منع التمركز العمودي في الصفحات القصيرة
     )
 
     ai_sub_title = ParagraphStyle(
@@ -433,8 +429,6 @@ def create_pdf_from_content(
             story.append(Paragraph(ar(line), body))
             story.append(Spacer(1, 0.2 * cm))
 
-        story.append(Spacer(1, 1.0 * cm))
-        story.append(elegant_divider("30%"))
         story.append(PageBreak())
 
     # =========================
@@ -472,8 +466,6 @@ def create_pdf_from_content(
         "ويحدّد نطاق صلاحيته، ويضبط تطبيقه."
     ), body))
 
-    story.append(Spacer(1, 1.2 * cm))
-    story.append(elegant_divider("30%"))
     story.append(PageBreak())
 
     # ✅ خريطة تحويل الفصول (الفصل النصي ← الفصل الفعلي للرسومات)
