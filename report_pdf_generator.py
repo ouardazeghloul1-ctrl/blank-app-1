@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
-# ✅ تم إزالة get_display - ReportLab سيتولى معالجة الاتجاه RTL
+from bidi.algorithm import get_display  # ✅ أعادنا get_display للاتجاه الأفقي الصحيح
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية (بدون get_display)
+# Arabic helper - التركيبة المتوازنة النهائية
 # =========================
 def ar(text):
     if not text:
@@ -44,10 +44,13 @@ def ar(text):
         # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
-        # ✅ فقط arabic_reshaper - ReportLab سيتولى RTL عبر wordWrap='RTL'
+        # ✅ arabic_reshaper لربط الحروف العربية
         reshaped = arabic_reshaper.reshape(text)
         
-        return reshaped
+        # ✅ get_display لمعالجة الاتجاه RTL (Bidi)
+        bidi_text = get_display(reshaped)
+        
+        return bidi_text
         
     except Exception as e:
         print("Arabic reshape error:", e)
@@ -208,8 +211,8 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    # ✅ النمط الرئيسي للفقرات - الإصلاح النهائي
-    # ✅ wordWrap='RTL' مع إزالة get_display - ReportLab يتولى معالجة RTL
+    # ✅ النمط الرئيسي للفقرات - التركيبة المتوازنة النهائية
+    # ✅ get_display + wordWrap='RTL' = اتجاه أفقي صحيح + ترتيب عمودي صحيح
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -217,7 +220,7 @@ def create_pdf_from_content(
         fontSize=14,
         leading=22,  # ✅ النسبة المثالية للعربية: 14 * 1.6 = 22.4 ≈ 22
         alignment=TA_RIGHT,
-        wordWrap='RTL',  # ✅ الإصلاح الجوهري: ReportLab يتولى معالجة RTL
+        wordWrap='RTL',  # ✅ ReportLab يتولى تقسيم الأسطر مع RTL
         splitLongWords=False,  # ✅ تعطيل splitLongWords مع RTL
         spaceAfter=12,
         spaceBefore=0,  # ✅ منع stacking غريب
