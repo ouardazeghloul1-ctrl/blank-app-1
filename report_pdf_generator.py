@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
-from bidi.algorithm import get_display  # ✅ أعادنا get_display للاتجاه الأفقي الصحيح
+from bidi.algorithm import get_display  # ✅ get_display للاتجاه RTL
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - التركيبة المتوازنة النهائية
+# Arabic helper - الحل النهائي الآمن للإنتاج
 # =========================
 def ar(text):
     if not text:
@@ -47,9 +47,11 @@ def ar(text):
         # ✅ arabic_reshaper لربط الحروف العربية
         reshaped = arabic_reshaper.reshape(text)
         
-        # ✅ get_display لمعالجة الاتجاه RTL (Bidi)
+        # ✅ get_display لمعالجة الاتجاه RTL
         bidi_text = get_display(reshaped)
         
+        # ✅ نعيد النص المعالج مباشرة - بدون <para dir="rtl">
+        # Paragraph() هو المسؤول عن إنشاء عنصر para المناسب
         return bidi_text
         
     except Exception as e:
@@ -211,8 +213,8 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    # ✅ النمط الرئيسي للفقرات - التركيبة المتوازنة النهائية
-    # ✅ get_display + wordWrap='RTL' = اتجاه أفقي صحيح + ترتيب عمودي صحيح
+    # ✅ النمط الرئيسي للفقرات - الحل النهائي الآمن للإنتاج
+    # ✅ arabic_reshaper + get_display + wordWrap=None
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -220,8 +222,7 @@ def create_pdf_from_content(
         fontSize=14,
         leading=22,  # ✅ النسبة المثالية للعربية: 14 * 1.6 = 22.4 ≈ 22
         alignment=TA_RIGHT,
-        wordWrap='RTL',  # ✅ ReportLab يتولى تقسيم الأسطر مع RTL
-        splitLongWords=False,  # ✅ تعطيل splitLongWords مع RTL
+        wordWrap=None,  # ✅ ReportLab لا يتعامل مع الاتجاه، get_display هو المسؤول
         spaceAfter=12,
         spaceBefore=0,  # ✅ منع stacking غريب
         allowWidows=1,
