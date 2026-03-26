@@ -196,7 +196,7 @@ def create_pdf_from_content(
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
     # -------------------------
-    # DOCUMENT - مع showBoundary=0 (تم إزالة التشخيص بعد إصلاح المشكلة)
+    # DOCUMENT
     # -------------------------
     doc = SimpleDocTemplate(
         buffer,
@@ -227,6 +227,8 @@ def create_pdf_from_content(
         allowOrphans=1,
     )
 
+    # ✅ التعديل الجوهري: تغيير keepWithNext من 1 إلى 0
+    # هذا يمنع ReportLab من تأجيل الكتلة بأكملها للأسفل في الصفحات القصيرة
     chapter = ParagraphStyle(
         "ArabicChapter",
         parent=styles["Heading2"],
@@ -236,7 +238,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#8B0000"),
         spaceBefore=24,
         spaceAfter=12,
-        keepWithNext=1
+        keepWithNext=0,  # ✅ تم التغيير من 1 إلى 0 - هذا يحل مشكلة التمركز العمودي
     )
 
     ai_sub_title = ParagraphStyle(
@@ -437,12 +439,8 @@ def create_pdf_from_content(
 
     # =========================
     # TRANSITION PAGE – HOW TO READ THIS REPORT
-    # ✅ تم إصلاح المشكلة: إزالة Spacer الكبير الذي كان يسبب تمركز المحتوى في منتصف الصفحة
     # =========================
-    # ✅ تم حذف السطر التالي الذي كان يسبب المشكلة:
-    # story.append(Spacer(1, 2.5 * cm))
-    # ✅ استبدلناها بـ Spacer صغير فقط للحفاظ على مسافة بسيطة (اختياري)
-    story.append(Spacer(1, 0.3 * cm))  # ✅ مسافة صغيرة فقط بدلاً من 2.5 سم
+    story.append(Spacer(1, 0.3 * cm))  # ✅ مسافة صغيرة فقط
 
     story.append(Paragraph(
         ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"),
