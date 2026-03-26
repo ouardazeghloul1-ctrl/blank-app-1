@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
-# ✅ تم إزالة get_display مؤقتًا للاختبار - سيتم إعادته بعد التشخيص
+# ✅ تم إزالة get_display - سنستخدم arabic_reshaper فقط مع wordWrap='RTL'
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -18,36 +18,43 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - مؤقت للاختبار (سيتم إعادة التعديل بعد التشخيص)
+# Arabic helper - مع معالجة <br/> للأسطر الجديدة و wordWrap='RTL'
 # =========================
 def ar(text):
     if not text:
         return ""
-    
-    # ✅ للاختبار: نعيد النص كما هو بدون معالجة
-    # هذا سيساعد في تحديد ما إذا كانت المشكلة في المعالجة أم في Paragraph نفسه
-    return text
-    
-    # سيتم إعادة الكود الأصلي بعد التشخيص:
-    # try:
-    #     text = str(text)
-    #     text = text.replace("(", " (")
-    #     text = text.replace(")", ") ")
-    #     text = text.replace("% ", "%")
-    #     text = text.replace(" %", "%")
-    #     text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
-    #     reshaped = arabic_reshaper.reshape(text)
-    #     return reshaped
-    # except Exception as e:
-    #     print("Arabic reshape error:", e)
-    #     return str(text)
+
+    try:
+        text = str(text)
+
+        # ✅ معالجة الأسطر الجديدة: تحويل \n إلى <br/> ليعمل كسطر جديد في ReportLab
+        text = text.replace("\n", "<br/>")
+        
+        # ✅ معالجة الأقواس
+        text = text.replace("(", " (")
+        text = text.replace(")", ") ")
+        
+        # ✅ معالجة النسب المئوية بشكل نهائي (تدعم الأرقام السالبة والموجبة)
+        text = text.replace("% ", "%")
+        text = text.replace(" %", "%")
+        # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
+        text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
+
+        # ✅ arabic_reshaper لربط الحروف العربية
+        reshaped = arabic_reshaper.reshape(text)
+        
+        return reshaped
+        
+    except Exception as e:
+        print("Arabic reshape error:", e)
+        return str(text)
 
 
 # =========================
@@ -145,20 +152,20 @@ def add_footer(canvas, doc):
     canvas.drawRightString(
         A4[0] - 2.4 * cm, 
         1.5 * cm, 
-        f"Warda Intelligence | منصة الذكاء العقاري | {datetime.now().year}"
+        ar(f"Warda Intelligence | منصة الذكاء العقاري | {datetime.now().year}")
     )
     
     canvas.drawString(
         2.4 * cm, 
         1.5 * cm, 
-        f"الصفحة {page_number}"
+        ar(f"الصفحة {page_number}")
     )
     
     canvas.restoreState()
 
 
 # =========================
-# MAIN PDF GENERATOR - مع إصلاح keepWithNext
+# MAIN PDF GENERATOR - مع wordWrap='RTL'
 # =========================
 def create_pdf_from_content(
     user_info,
@@ -199,40 +206,27 @@ def create_pdf_from_content(
         leftMargin=2.4 * cm,
         topMargin=2.5 * cm,
         bottomMargin=2.5 * cm,
-        showBoundary=1  # ✅ إعادة تفعيل showBoundary للتشخيص
+        showBoundary=0  # ✅ تم إيقاف التشخيص
     )
 
     styles = getSampleStyleSheet()
 
-    # ✅ نمط بسيط للاختبار - محاذاة لليسار لرؤية ترتيب الأسطر بوضوح
-    test_body = ParagraphStyle(
-        "TestBody",
-        parent=styles["Normal"],
-        fontName="Amiri",
-        fontSize=14,
-        leading=22,
-        alignment=TA_LEFT,  # ✅ محاذاة لليسار لرؤية ترتيب الأسطر
-        wordWrap=None,
-        spaceAfter=12,
-        spaceBefore=0,
-    )
-
-    # ✅ النمط الرئيسي - سيتم استخدامه بعد الاختبار
+    # ✅ النمط الرئيسي للفقرات - مع wordWrap='RTL' لتحسين كسر الأسطر
+    # هذا هو التعديل الوحيد المطلوب اختباره
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
         fontName="Amiri",
         fontSize=14,
-        leading=22,
+        leading=22,  # ✅ النسبة المثالية للعربية: 14 * 1.6 = 22.4 ≈ 22
         alignment=TA_RIGHT,
-        wordWrap=None,
+        wordWrap='RTL',  # ⭐ التعديل المهم - من None إلى 'RTL'
         spaceAfter=12,
         spaceBefore=0,
         allowWidows=1,
         allowOrphans=1,
     )
 
-    # ✅ الإصلاح الجوهري: إضافة keepWithNext=0 لمنع دفع الفقرة للأسفل
     chapter = ParagraphStyle(
         "ArabicChapter",
         parent=styles["Heading2"],
@@ -242,7 +236,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#8B0000"),
         spaceBefore=24,
         spaceAfter=12,
-        keepWithNext=0,  # ⭐ التعديل المهم - يمنع العنوان من محاولة البقاء مع الفقرة التالية
+        keepWithNext=0,
     )
 
     ai_sub_title = ParagraphStyle(
@@ -276,6 +270,7 @@ def create_pdf_from_content(
         spaceAfter=12,
     )
 
+    # ✅ نمط خاص للتاريخ في الغلاف (مركز)
     date_style = ParagraphStyle(
         "DateStyle",
         parent=body,
@@ -286,6 +281,7 @@ def create_pdf_from_content(
         spaceAfter=12,
     )
 
+    # ✅ إضافة نمط للإحصائيات الرئيسية
     stats_style = ParagraphStyle(
         "StatsStyle",
         parent=body,
@@ -301,39 +297,45 @@ def create_pdf_from_content(
     story = []
 
     # =========================
-    # COVER
+    # COVER - مع العنوان الكامل والتاريخ
     # =========================
     story.append(Spacer(1, 4 * cm))
-    story.append(Paragraph("Warda Intelligence Report", title))
+    story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     
+    # ✅ 1️⃣ إضافة عنوان التقرير الحقيقي
     if user_info:
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
         property_type = user_info.get("property_type", "")
-        subtitle = f"Real Estate Investment Report\nDistrict: {district} – City: {city}\nMarket Analysis: {property_type}"
+        subtitle = f"التقرير الاستثماري العقاري<br/>حي {district} – مدينة {city}<br/>تحليل سوق {property_type}"
         story.append(Spacer(1, 0.6 * cm))
-        story.append(Paragraph(subtitle, ai_executive_header))
+        story.append(Paragraph(ar(subtitle), ai_executive_header))
     
-    date_text = f"Report Date: {datetime.now().strftime('%B %Y')}"
+    # ✅ 2️⃣ إضافة تاريخ التقرير (باستخدام نمط مركزي)
+    date_text = f"تاريخ التقرير: {datetime.now().strftime('%B %Y')}"
     story.append(Spacer(1, 0.3 * cm))
-    story.append(Paragraph(date_text, date_style))
+    story.append(Paragraph(ar(date_text), date_style))
     
-    # جدول المؤشرات (مبسط للاختبار)
+    # ✅ 3️⃣ إضافة جدول المؤشرات مع تحسينات التنسيق وفاصلة الآلاف
     if user_info:
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
         property_type = user_info.get("property_type", "")
         
+        # ✅ استخدام قيم افتراضية آمنة مع شرطة "--" في حالة عدم وجود بيانات
         price = user_info.get("district_avg_price", "—")
         city_price = user_info.get("city_avg_price", "—")
         transactions = user_info.get("transactions_count", "—")
         dpi = user_info.get("dpi_score", "—")
         
+        # ✅ تحويل القيم الرقمية إلى نص مع فاصلة الآلاف (بدون أرقام عشرية للأعداد الصحيحة)
         def format_number_with_commas(value):
             if value == "—":
                 return "—"
             try:
+                # محاولة تحويل القيمة إلى رقم
                 num = float(value)
+                # إذا كان الرقم عدداً صحيحاً (أو قريب جداً من الصحيح)
                 if abs(num - round(num)) < 0.01:
                     return f"{int(round(num)):,}"
                 else:
@@ -346,21 +348,21 @@ def create_pdf_from_content(
         transactions_formatted = format_number_with_commas(transactions)
         
         table_data = [
-            ["Indicator", "Value"],
-            ["City", city],
-            ["District", district],
-            ["Property Type", property_type],
-            ["Avg Price per m²", f"{price_formatted} SAR" if price != "—" else "—"],
-            ["City Average", f"{city_price_formatted} SAR" if city_price != "—" else "—"],
-            ["Transactions", f"{transactions_formatted}" if transactions != "—" else "—"],
-            ["DPI Score", f"{dpi} / 100" if dpi != "—" else "—"]
+            [ar("المؤشر"), ar("القيمة")],
+            [ar("المدينة"), ar(city)],
+            [ar("الحي"), ar(district)],
+            [ar("نوع العقار"), ar(property_type)],
+            [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
+            [ar("متوسط المدينة"), ar(f"{city_price_formatted} ريال") if city_price != "—" else ar("—")],
+            [ar("عدد الصفقات"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
+            [ar("مؤشر قوة الحي"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
         ]
         
         table = Table(table_data, colWidths=[7*cm, 9*cm])
         table.setStyle(TableStyle([
             ('FONTNAME', (0,0), (-1,-1), 'Amiri'),
             ('FONTSIZE', (0,0), (-1,-1), 12),
-            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#8B0000")),
@@ -371,6 +373,7 @@ def create_pdf_from_content(
         story.append(Spacer(1, 1*cm))
         story.append(table)
     
+    # ✅ إضافة إجمالي عدد الصفقات من user_info إذا كان متوفراً
     if user_info and "total_transactions" in user_info:
         total = user_info["total_transactions"]
         if total is not None:
@@ -380,27 +383,27 @@ def create_pdf_from_content(
             except (ValueError, TypeError):
                 total_formatted = str(total)
             story.append(Paragraph(
-                f"Total transactions used in analysis: {total_formatted}",
+                ar(f"إجمالي الصفقات المستخدمة في التحليل: {total_formatted} صفقة"),
                 stats_style
             ))
     
     story.append(PageBreak())
 
     # =========================
-    # EXECUTIVE DECISION
+    # EXECUTIVE DECISION (INDEPENDENT)
     # =========================
     DECISION_BLOCK_TITLES = {
-        "DECISION_DEFINITION": "Decision Definition",
-        "MARKET_STATUS": "Current Market Status",
-        "PREDICTIVE_SIGNALS": "Predictive Signals",
-        "SCENARIOS": "Possible Scenarios",
-        "OPTIMAL_POSITION": "Executive Decision",
-        "DECISION_GUARANTEE": "Decision Guarantee"
+        "DECISION_DEFINITION": "تعريف القرار التنبؤي",
+        "MARKET_STATUS": "وضع السوق الحالي",
+        "PREDICTIVE_SIGNALS": "الإشارات التنبؤية",
+        "SCENARIOS": "السيناريوهات المحتملة",
+        "OPTIMAL_POSITION": "القرار التنفيذي",
+        "DECISION_GUARANTEE": "ضمان القرار"
     }
 
     if executive_decision and executive_decision.strip():
         story.append(Spacer(1, 1.2 * cm))
-        story.append(Paragraph("Executive Summary", ai_executive_header))
+        story.append(Paragraph(ar("الخلاصة التنفيذية للقرار"), ai_executive_header))
         story.append(elegant_divider("60%"))
         story.append(Spacer(1, 0.6 * cm))
 
@@ -410,60 +413,148 @@ def create_pdf_from_content(
                 story.append(Spacer(1, 0.2 * cm))
                 continue
 
+            # عناوين الكتل
             if line.startswith("[DECISION_BLOCK:"):
                 key = line.replace("[DECISION_BLOCK:", "").replace("]", "")
                 title_text = DECISION_BLOCK_TITLES.get(key, "")
                 if title_text:
                     story.append(Spacer(1, 0.6 * cm))
-                    story.append(Paragraph(title_text, chapter))
+                    story.append(Paragraph(ar(title_text), chapter))
                     story.append(elegant_divider("50%"))
                 continue
 
             if line == "[END_DECISION_BLOCK]":
                 continue
 
-            story.append(Paragraph(line, test_body))  # ✅ استخدام test_body للاختبار
+            # النص الفعلي
+            story.append(Paragraph(ar(line), body))
             story.append(Spacer(1, 0.2 * cm))
 
         story.append(PageBreak())
 
     # =========================
-    # TRANSITION PAGE – ISOLATION TEST
+    # TRANSITION PAGE – HOW TO READ THIS REPORT
     # =========================
     story.append(Spacer(1, 0.3 * cm))
 
     story.append(Paragraph(
-        "ISOLATION TEST - Lines should appear from top to bottom:",
+        ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"),
         ai_executive_header
     ))
 
     story.append(elegant_divider("55%"))
     story.append(Spacer(1, 1.0 * cm))
 
-    # ✅ اختبار العزل الحاسم - 3 أسطر بسيطة بالانجليزية
-    # هذا سيحدد ما إذا كانت المشكلة في Paragraph أم في المعالجة العربية
-    story.append(Paragraph("TEST LINE 1\nTEST LINE 2\nTEST LINE 3", test_body))
-    
-    story.append(Spacer(1, 1.0 * cm))
-    
-    story.append(Paragraph(
-        "If you see:\n1. TEST LINE 1\n2. TEST LINE 2\n3. TEST LINE 3\nin that order from top to bottom, the issue is in Arabic processing.\n\nIf you see them reversed (3,2,1) or stacked from bottom to top, the issue is in ReportLab's paragraph rendering.",
-        test_body
-    ))
+    story.append(Paragraph(ar(
+        "الخلاصة التنفيذية للقرار تمثل القرار المعتمد لهذا التقرير، "
+        "وقد تم اشتقاقه بناءً على مؤشرات رقمية ومعايير تحليلية محددة."
+    ), body))
+
+    story.append(Paragraph(ar(
+        "الفصول التالية لا تُقرأ كتحليل عام للسوق، ولا كمسار للوصول إلى قرار جديد، "
+        "بل كشرح منهجي للأسس التي بُني عليها القرار الصادر."
+    ), body))
+
+    story.append(Paragraph(ar(
+        "كل فصل يفسر جانبًا محددًا من القرار، ويبيّن السياق السوقي، "
+        "وحدود المخاطر، وطبيعة الفرص، وشروط التوقيت والتنفيذ، "
+        "بهدف توضيح لماذا جاء القرار بهذه الصيغة تحديدًا."
+    ), body))
+
+    story.append(Paragraph(ar(
+        "القرار موجود في الأعلى، "
+        "وما يلي هو الإطار التحليلي الذي يبرره، "
+        "ويحدّد نطاق صلاحيته، ويضبط تطبيقه."
+    ), body))
 
     story.append(PageBreak())
 
-    # =========================
-    # REMAINING CONTENT (مبسط للاختبار)
-    # =========================
-    story.append(Paragraph("Additional Content (Test)", chapter))
-    story.append(Spacer(1, 0.3 * cm))
-    story.append(elegant_divider("40%"))
-    story.append(Spacer(1, 0.6 * cm))
+    # ✅ خريطة تحويل الفصول (الفصل النصي ← الفصل الفعلي للرسومات)
+    CHAPTER_CHART_MAP = {
+        4: 4,   # الفصل 4 → chapter_4
+        7: 7,   # الفصل 7 → chapter_7
+        11: 11, # الفصل 11 → chapter_11
+        16: 16, # الفصل 16 → chapter_16
+        21: 21  # الفصل 21 → chapter_21
+    }
     
-    # إضافة بعض أسطر الاختبار الإضافية
-    for i in range(1, 6):
-        story.append(Paragraph(f"This is test line {i} in the additional content section.", test_body))
+    chapter_index = 0
+    chart_cursor = {}
+    first_chapter_processed = False
+    temp_files = []
+
+    for raw in content_text.split("\n"):
+        raw_stripped = raw.strip()
+
+        if not raw_stripped:
+            continue
+
+        clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
+
+        if clean.startswith(("📊", "💎", "⚠️")):
+            story.append(Spacer(1, 0.6 * cm))
+            story.append(elegant_divider())
+            story.append(Paragraph(ar(clean), ai_sub_title))
+            story.append(Spacer(1, 0.3 * cm))
+            continue
+
+        if raw_stripped.startswith("الفصل"):
+            if first_chapter_processed:
+                story.append(PageBreak())
+            chapter_index += 1
+            chart_cursor[chapter_index] = 0
+            story.append(Paragraph(ar(clean), chapter))
+            story.append(Spacer(1, 0.3 * cm))
+            story.append(elegant_divider("40%"))
+            story.append(Spacer(1, 0.6 * cm))
+            first_chapter_processed = True
+            continue
+
+        if clean == "[[ANCHOR_CHART]]":
+            real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
+            if real_chapter:
+                charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
+                cursor = chart_cursor.get(chapter_index, 0)
+
+                if cursor < len(charts):
+                    img = plotly_to_image(charts[cursor], 16.8, 9)
+                    if img:
+                        if hasattr(img, '_temp_file'):
+                            temp_files.append(img._temp_file)
+                        
+                        story.append(Spacer(1, 0.8 * cm))
+                        story.append(img)
+                        story.append(Spacer(1, 0.4 * cm))
+                    chart_cursor[chapter_index] += 1
+            continue
+
+        if clean == "[[RHYTHM_CHART]]":
+            real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
+            if real_chapter:
+                charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
+                cursor = chart_cursor.get(chapter_index, 0)
+
+                if cursor < len(charts):
+                    fig = charts[cursor]
+                    is_indicator = (
+                        fig is not None
+                        and hasattr(fig, 'data')
+                        and len(fig.data) > 0
+                        and isinstance(fig.data[0], go.Indicator)
+                    )
+                    img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
+                                           9.5 if is_indicator else 9)
+                    if img:
+                        if hasattr(img, '_temp_file'):
+                            temp_files.append(img._temp_file)
+                        
+                        story.append(Spacer(1, 0.8 * cm if is_indicator else 0.7 * cm))
+                        story.append(img)
+                        story.append(Spacer(1, 0.4 * cm))
+                    chart_cursor[chapter_index] += 1
+            continue
+
+        story.append(Paragraph(ar(clean), body))
         story.append(Spacer(1, 0.15 * cm))
 
     doc.build(
@@ -473,5 +564,13 @@ def create_pdf_from_content(
     )
     
     buffer.seek(0)
+    
+    unique_temp_files = list(set(temp_files))
+    for temp_file in unique_temp_files:
+        try:
+            if os.path.exists(temp_file):
+                os.unlink(temp_file)
+        except Exception as e:
+            print(f"Error deleting temp file {temp_file}: {e}")
     
     return buffer
