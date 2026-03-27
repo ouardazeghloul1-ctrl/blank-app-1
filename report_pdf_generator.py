@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
-# ✅ تم إزالة get_display نهائياً - ReportLab سيتولى BiDi عبر wordWrap='RTL'
+# ✅ تم إزالة get_display نهائياً - الحل النهائي: arabic_reshaper + wordWrap='RTL'
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - الحل النهائي للإنتاج
+# Arabic helper - الحل النهائي للإنتاج (بدون get_display)
 # =========================
 def ar(text):
     if not text:
@@ -48,7 +48,7 @@ def ar(text):
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
         # ✅ فقط arabic_reshaper لربط الحروف العربية
-        # ✅ ReportLab يتولى BiDI عبر wordWrap='RTL'
+        # ✅ ReportLab يتولى BiDi عبر wordWrap='RTL'
         reshaped = arabic_reshaper.reshape(text)
         
         return reshaped
