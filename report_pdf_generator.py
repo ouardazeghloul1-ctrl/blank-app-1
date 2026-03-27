@@ -216,10 +216,11 @@ def create_pdf_from_content(
         rightPadding=0,
     )
     
-    # إنشاء PageTemplate مع الإطار المخصص
+    # ✅ إنشاء PageTemplate مع الإطار المخصص وربط الفوتر مباشرة
     template = PageTemplate(
         id='main_template',
         frames=[frame],
+        onPage=add_footer  # ✅ ربط الفوتر هنا بدلاً من build()
     )
     
     doc.addPageTemplates([template])
@@ -586,11 +587,8 @@ def create_pdf_from_content(
         story.append(Paragraph(ar(clean), body))
         story.append(Spacer(1, 0.15 * cm))
 
-    doc.build(
-        story, 
-        onFirstPage=add_footer, 
-        onLaterPages=add_footer
-    )
+    # ✅ إزالة onFirstPage و onLaterPages لأن BaseDocTemplate لا يدعمهما
+    doc.build(story)
     
     buffer.seek(0)
     
