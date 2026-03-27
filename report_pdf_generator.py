@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime  # ✅ إضافة التاريخ
 
 import arabic_reshaper
-# ✅ تم إزالة get_display - سنستخدم arabic_reshaper فقط مع wordWrap='RTL'
+# ✅ تم إزالة get_display نهائياً - ReportLab سيتولى BiDi عبر wordWrap='RTL'
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - مع معالجة <br/> للأسطر الجديدة و wordWrap='RTL'
+# Arabic helper - الحل النهائي للإنتاج
 # =========================
 def ar(text):
     if not text:
@@ -47,7 +47,8 @@ def ar(text):
         # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
-        # ✅ arabic_reshaper لربط الحروف العربية
+        # ✅ فقط arabic_reshaper لربط الحروف العربية
+        # ✅ ReportLab يتولى BiDI عبر wordWrap='RTL'
         reshaped = arabic_reshaper.reshape(text)
         
         return reshaped
@@ -165,7 +166,7 @@ def add_footer(canvas, doc):
 
 
 # =========================
-# MAIN PDF GENERATOR - مع wordWrap='RTL'
+# MAIN PDF GENERATOR - الحل النهائي للإنتاج
 # =========================
 def create_pdf_from_content(
     user_info,
@@ -211,8 +212,9 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    # ✅ النمط الرئيسي للفقرات - مع wordWrap='RTL' لتحسين كسر الأسطر
-    # هذا هو التعديل الوحيد المطلوب اختباره
+    # ✅ النمط الرئيسي للفقرات - الحل النهائي للإنتاج
+    # ✅ wordWrap='RTL' يتولى BiDi بشكل صحيح
+    # ✅ بدون get_display لتجنب double reversal
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -220,7 +222,7 @@ def create_pdf_from_content(
         fontSize=14,
         leading=22,  # ✅ النسبة المثالية للعربية: 14 * 1.6 = 22.4 ≈ 22
         alignment=TA_RIGHT,
-        wordWrap='RTL',  # ⭐ التعديل المهم - من None إلى 'RTL'
+        wordWrap='RTL',  # ⭐ المفتاح - ReportLab يتولى BiDi
         spaceAfter=12,
         spaceBefore=0,
         allowWidows=1,
