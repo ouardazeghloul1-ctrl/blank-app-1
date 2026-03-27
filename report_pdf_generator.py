@@ -11,7 +11,8 @@ from bidi.algorithm import get_display
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer,
+    BaseDocTemplate, Frame, PageTemplate,  # ✅ التعديل الأساسي
+    Paragraph, Spacer,
     PageBreak, Image, HRFlowable,
     Table, TableStyle
 )
@@ -158,7 +159,7 @@ def add_footer(canvas, doc):
 
 
 # =========================
-# MAIN PDF GENERATOR - النسخة النهائية Production Ready
+# MAIN PDF GENERATOR - النسخة النهائية مع Frame المخصص
 # =========================
 def create_pdf_from_content(
     user_info,
@@ -190,16 +191,38 @@ def create_pdf_from_content(
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
     # -------------------------
-    # DOCUMENT
+    # DOCUMENT مع Frame مخصص - التعديل الأساسي لحل مشكلة ترتيب الأسطر
     # -------------------------
-    doc = SimpleDocTemplate(
+    doc = BaseDocTemplate(
         buffer,
         pagesize=A4,
         rightMargin=2.4 * cm,
         leftMargin=2.4 * cm,
         topMargin=2.5 * cm,
-        bottomMargin=2.5 * cm
+        bottomMargin=2.5 * cm,
     )
+    
+    # إنشاء Frame مخصص مع التحكم الكامل في التخطيط العمودي
+    frame = Frame(
+        doc.leftMargin,
+        doc.bottomMargin,
+        doc.width,
+        doc.height,
+        id='main_frame',
+        showBoundary=0,  # اجعلها 1 لرؤية حدود الإطار للتصحيح
+        topPadding=0,
+        bottomPadding=0,
+        leftPadding=0,
+        rightPadding=0,
+    )
+    
+    # إنشاء PageTemplate مع الإطار المخصص
+    template = PageTemplate(
+        id='main_template',
+        frames=[frame],
+    )
+    
+    doc.addPageTemplates([template])
 
     styles = getSampleStyleSheet()
 
