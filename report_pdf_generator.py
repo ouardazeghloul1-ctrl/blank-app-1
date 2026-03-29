@@ -1,18 +1,20 @@
 # report_pdf_generator.py
+from reportlab import rl_config
+rl_config.rtlSupport = 1  # ✅ تفعيل دعم RTL على مستوى المحرك
+
 from io import BytesIO
 import os
 import tempfile
 import re
 import unicodedata
-from datetime import datetime  # ✅ إضافة التاريخ
+from datetime import datetime
 
 import arabic_reshaper
 from bidi.algorithm import get_display
 
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
-    BaseDocTemplate, Frame, PageTemplate,  # ✅ التعديل الأساسي
-    Paragraph, Spacer,
+    SimpleDocTemplate, Paragraph, Spacer,
     PageBreak, Image, HRFlowable,
     Table, TableStyle
 )
@@ -159,7 +161,7 @@ def add_footer(canvas, doc):
 
 
 # =========================
-# MAIN PDF GENERATOR - النسخة النهائية مع Frame المخصص
+# MAIN PDF GENERATOR - النسخة النهائية Production Ready
 # =========================
 def create_pdf_from_content(
     user_info,
@@ -191,39 +193,16 @@ def create_pdf_from_content(
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
     # -------------------------
-    # DOCUMENT مع Frame مخصص - التعديل الأساسي لحل مشكلة ترتيب الأسطر
+    # DOCUMENT
     # -------------------------
-    doc = BaseDocTemplate(
+    doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
         rightMargin=2.4 * cm,
         leftMargin=2.4 * cm,
         topMargin=2.5 * cm,
-        bottomMargin=2.5 * cm,
+        bottomMargin=2.5 * cm
     )
-    
-    # إنشاء Frame مخصص مع التحكم الكامل في التخطيط العمودي
-    frame = Frame(
-        doc.leftMargin,
-        doc.bottomMargin,
-        doc.width,
-        doc.height,
-        id='main_frame',
-        showBoundary=0,  # اجعلها 1 لرؤية حدود الإطار للتصحيح
-        topPadding=0,
-        bottomPadding=0,
-        leftPadding=0,
-        rightPadding=0,
-    )
-    
-    # ✅ إنشاء PageTemplate مع الإطار المخصص وربط الفوتر مباشرة
-    template = PageTemplate(
-        id='main_template',
-        frames=[frame],
-        onPage=add_footer  # ✅ ربط الفوتر هنا بدلاً من build()
-    )
-    
-    doc.addPageTemplates([template])
 
     styles = getSampleStyleSheet()
 
@@ -587,8 +566,11 @@ def create_pdf_from_content(
         story.append(Paragraph(ar(clean), body))
         story.append(Spacer(1, 0.15 * cm))
 
-    # ✅ إزالة onFirstPage و onLaterPages لأن BaseDocTemplate لا يدعمهما
-    doc.build(story)
+    doc.build(
+        story, 
+        onFirstPage=add_footer, 
+        onLaterPages=add_footer
+    )
     
     buffer.seek(0)
     
