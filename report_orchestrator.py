@@ -1,6 +1,7 @@
 # report_orchestrator.py
 from report_content_builder import build_complete_report
 from advanced_charts import AdvancedCharts
+from city_charts import CityCharts
 from ai_report_reasoner import AIReportReasoner
 from ai_executive_summary import generate_executive_summary
 from market_data_core import get_market_data
@@ -20,8 +21,6 @@ from district_ranking_engine import rank_districts, get_top_districts
 import pandas as pd
 import numpy as np
 from datetime import datetime
-
-charts_engine = AdvancedCharts()
 
 def normalize_dataframe(df):
     if df is None or not isinstance(df, pd.DataFrame) or df.empty:
@@ -150,9 +149,14 @@ def inject_ai_by_anchor(content_text, anchor, title, ai_content):
         f"{ai_content}\n\n"
     )
 
-def build_report_story(user_info, provided_dataframe=None):
+def build_report_story(user_info, provided_dataframe=None, report_kind="district"):
     """
     بناء قصة التقرير الكاملة
+    
+    Args:
+        user_info: معلومات المستخدم والمدينة والحي
+        provided_dataframe: DataFrame مقدم خارجياً (اختياري)
+        report_kind: نوع التقرير - "city" للمدن، "district" للأحياء (افتراضي)
     """
     prepared = {
         "المدينة": user_info.get("city", ""),
@@ -453,23 +457,35 @@ def build_report_story(user_info, provided_dataframe=None):
         df["price_per_sqm"] = df["price"] / df["area"].replace(0, 1)
         print("🛠️ تم إصلاح المساحة الصفرية قبل الرسومات وتحديث price_per_sqm")
 
+    # ✅ التعديل الأساسي: اختيار محرك الرسومات حسب نوع التقرير
     # توليد الرسومات
-    print("🚀 بدء توليد الرسومات...")
+    print(f"🚀 بدء توليد الرسومات لنوع التقرير: {report_kind}")
+    
+    # اختيار محرك الرسومات المناسب
+    if report_kind == "city":
+        charts_engine = CityCharts()
+        print("🏙️ استخدام CityCharts لتوليد رسومات المدن")
+    else:
+        charts_engine = AdvancedCharts()
+        print("🏘️ استخدام AdvancedCharts لتوليد رسومات الأحياء")
+    
     if df is not None and not df.empty:
         charts = charts_engine.generate_all_charts(df)
         print(f"📊 عدد الرسومات المولدة: {len(charts)}")
         
-        try:
-            selected_district = user_info.get("district")
-            if selected_district:
-                district_charts = charts_engine.generate_all_district_charts(
-                    df, 
-                    selected_district
-                )
-                charts["district_analysis"] = district_charts
-                print(f"📊 رسومات الحي المولدة: {len(district_charts)}")
-        except Exception as e:
-            print("⚠️ فشل توليد رسومات الحي:", e)
+        # توليد رسومات الحي فقط إذا كان التقرير عن حي وتم تحديد حي
+        if report_kind == "district":
+            try:
+                selected_district = user_info.get("district")
+                if selected_district:
+                    district_charts = charts_engine.generate_all_district_charts(
+                        df, 
+                        selected_district
+                    )
+                    charts["district_analysis"] = district_charts
+                    print(f"📊 رسومات الحي المولدة: {len(district_charts)}")
+            except Exception as e:
+                print("⚠️ فشل توليد رسومات الحي:", e)
     else:
         charts = {}
 
@@ -493,7 +509,8 @@ def build_report_story(user_info, provided_dataframe=None):
     return {
         "meta": {
             "package": prepared["package"],
-            "generated_at": datetime.now().isoformat()
+            "generated_at": datetime.now().isoformat(),
+            "report_kind": report_kind
         },
         "content_text": content_text,
         "executive_decision": executive_decision,
