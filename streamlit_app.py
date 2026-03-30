@@ -1562,9 +1562,11 @@ if page == "📊 التحليل الكامل":
                     try:
                         from report_orchestrator import build_report_story
 
+                        # ✅ التعديل هنا: إضافة report_kind="city" لتحديد نوع التقرير كمدينة
                         story = build_report_story(
                             user_info,
-                            provided_dataframe=real_data
+                            provided_dataframe=real_data,
+                            report_kind="city"  # <-- هذا هو السطر المطلوب
                         )
                         
                         final_content_text = story.get("content_text", "")
