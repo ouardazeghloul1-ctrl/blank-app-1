@@ -1587,6 +1587,9 @@ if page == "📊 التحليل الكامل":
                         
                         st.session_state["charts_by_chapter"] = charts_by_chapter
                         
+                        # ✅ التعديل الجديد: تمرير report_kind إلى user_info قبل إنشاء PDF
+                        user_info["report_kind"] = "city"
+                        
                         pdf_buffer = create_pdf_from_content(
                             user_info=user_info,
                             content_text=final_content_text,
