@@ -27,7 +27,7 @@ import plotly.graph_objects as go
 
 # =========================
 # الحل النهائي: تقسيم الفقرة العربية إلى أسطر متعددة
-# كل سطر يصبح Paragraph مستقل - يمنع Bug ترتيب الأسطر من الأسفل
+# كل سطر يصبح Paragraph مستقل - مع Spacer لتثبيت ترتيب الأسطر
 # =========================
 def arabic_paragraph_flowables(text, style, available_width):
     """
@@ -71,10 +71,13 @@ def arabic_paragraph_flowables(text, style, available_width):
         lines.append(" ".join(current_line))
     
     # إنشاء Paragraph لكل سطر على حدة مع تطبيق reshape و bidi
+    # ✅ التعديل النهائي: إضافة Spacer صغير جداً قبل كل Paragraph لتثبيت ترتيب الأسطر
     flowables = []
     for line in lines:
         reshaped = arabic_reshaper.reshape(line)
         bidi_line = get_display(reshaped)
+        # spacer صغير جداً غير مرئي - يثبت ترتيب الأسطر
+        flowables.append(Spacer(1, 0.001 * cm))
         flowables.append(Paragraph(bidi_line, style))
     
     return flowables
