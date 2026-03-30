@@ -1,7 +1,4 @@
 # report_pdf_generator.py
-from reportlab import rl_config
-rl_config.rtlSupport = 1  # ✅ تفعيل دعم RTL على مستوى المحرك
-
 from io import BytesIO
 import os
 import tempfile
@@ -24,11 +21,67 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase.pdfmetrics import stringWidth
 import plotly.graph_objects as go
 
 
 # =========================
-# Arabic helper - النسخة النهائية مع معالجة النسب (تدعم الأرقام السالبة)
+# الحل النهائي: تقسيم الفقرة العربية إلى أسطر متعددة
+# كل سطر يصبح Paragraph مستقل - يمنع Bug ترتيب الأسطر من الأسفل
+# =========================
+def arabic_paragraph_flowables(text, style, available_width):
+    """
+    تقسيم الفقرة العربية إلى أسطر متعددة وكل سطر يصبح Paragraph مستقل
+    هذا يمنع Bug ترتيب الأسطر من الأسفل في ReportLab مع RTL
+    تقوم هذه الدالة بعملية reshape و bidi مرة واحدة فقط لكل سطر
+    """
+    if not text:
+        return []
+    
+    text = str(text)
+    words = text.split()
+    
+    if not words:
+        return []
+    
+    lines = []
+    current_line = []
+    
+    for word in words:
+        # اختبار إضافة الكلمة للسطر الحالي
+        test_line = " ".join(current_line + [word])
+        
+        # تحويل النص للعرض الصحيح (مرة واحدة فقط لكل اختبار)
+        reshaped = arabic_reshaper.reshape(test_line)
+        bidi_text = get_display(reshaped)
+        
+        # حساب عرض النص
+        width = stringWidth(bidi_text, style.fontName, style.fontSize)
+        
+        if width <= available_width:
+            current_line.append(word)
+        else:
+            # السطر اكتمل - نضيفه كسطر منفصل
+            if current_line:
+                lines.append(" ".join(current_line))
+            current_line = [word]
+    
+    # إضافة آخر سطر
+    if current_line:
+        lines.append(" ".join(current_line))
+    
+    # إنشاء Paragraph لكل سطر على حدة مع تطبيق reshape و bidi
+    flowables = []
+    for line in lines:
+        reshaped = arabic_reshaper.reshape(line)
+        bidi_line = get_display(reshaped)
+        flowables.append(Paragraph(bidi_line, style))
+    
+    return flowables
+
+
+# =========================
+# Arabic helper - للعناوين والنصوص القصيرة فقط
 # =========================
 def ar(text):
     if not text:
@@ -90,7 +143,7 @@ def plotly_to_image(fig, width_cm, height_cm):
             format="png",
             width=1200,
             height=700,
-            scale=2,  # ✅ إضافة scale لتحسين جودة الصور في PDF
+            scale=2,
             engine="kaleido"
         )
 
@@ -161,7 +214,7 @@ def add_footer(canvas, doc):
 
 
 # =========================
-# MAIN PDF GENERATOR - النسخة النهائية Production Ready
+# MAIN PDF GENERATOR - النسخة النهائية مع حل مشكلة النص العربي
 # =========================
 def create_pdf_from_content(
     user_info,
@@ -287,6 +340,10 @@ def create_pdf_from_content(
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
 
     story = []
+    
+    # حساب العرض المتاح للنص (هامش أيمن + أيسر = 4.8 سم، عرض A4 = 21 سم)
+    # العرض الصافي = 21 - 4.8 = 16.2 سم
+    AVAILABLE_WIDTH = A4[0] - (2.4 * cm) - (2.4 * cm)
 
     # =========================
     # COVER - مع العنوان الكامل والتاريخ
@@ -306,7 +363,7 @@ def create_pdf_from_content(
     # ✅ 2️⃣ إضافة تاريخ التقرير (باستخدام نمط مركزي)
     date_text = f"تاريخ التقرير: {datetime.now().strftime('%B %Y')}"
     story.append(Spacer(1, 0.3 * cm))
-    story.append(Paragraph(ar(date_text), date_style))  # ✅ استخدام date_style بدلاً من body
+    story.append(Paragraph(ar(date_text), date_style))
     
     # ✅ 3️⃣ إضافة جدول المؤشرات مع تحسينات التنسيق وفاصلة الآلاف
     if user_info:
@@ -353,14 +410,14 @@ def create_pdf_from_content(
         table = Table(table_data, colWidths=[7*cm, 9*cm])
         table.setStyle(TableStyle([
             ('FONTNAME', (0,0), (-1,-1), 'Amiri'),
-            ('FONTSIZE', (0,0), (-1,-1), 12),  # ✅ إضافة حجم خط مناسب
-            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),  # ✅ محاذاة أفقية لليمين
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),  # ✅ محاذاة رأسية في المنتصف
+            ('FONTSIZE', (0,0), (-1,-1), 12),
+            ('ALIGN', (0,0), (-1,-1), 'RIGHT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#8B0000")),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#F9F9F9")),  # ✅ خلفية فاتحة للصفوف
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#F9F9F9"), colors.white]),  # ✅ تناوب الألوان
+            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#F9F9F9")),
+            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#F9F9F9"), colors.white]),
         ]))
         story.append(Spacer(1, 1*cm))
         story.append(table)
@@ -370,7 +427,6 @@ def create_pdf_from_content(
         total = user_info["total_transactions"]
         if total is not None:
             story.append(Spacer(1, 0.8 * cm))
-            # ✅ تنسيق العدد الإجمالي بفاصلة الآلاف أيضاً
             try:
                 total_formatted = f"{int(float(total)):,}" if total else "0"
             except (ValueError, TypeError):
@@ -419,8 +475,8 @@ def create_pdf_from_content(
             if line == "[END_DECISION_BLOCK]":
                 continue
 
-            # النص الفعلي
-            story.append(Paragraph(ar(line), body))
+            # ✅ التعديل: إزالة ar() المزدوج - تمرير النص الخام مباشرة
+            story.extend(arabic_paragraph_flowables(line, body, AVAILABLE_WIDTH))
             story.append(Spacer(1, 0.2 * cm))
 
         story.append(Spacer(1, 1.0 * cm))
@@ -440,34 +496,32 @@ def create_pdf_from_content(
     story.append(elegant_divider("55%"))
     story.append(Spacer(1, 1.0 * cm))
 
-    story.append(Paragraph(ar(
+    # ✅ التعديل: إزالة ar() المزدوج - تمرير النص الخام مباشرة
+    transition_texts = [
         "الخلاصة التنفيذية للقرار تمثل القرار المعتمد لهذا التقرير، "
-        "وقد تم اشتقاقه بناءً على مؤشرات رقمية ومعايير تحليلية محددة."
-    ), body))
-
-    story.append(Paragraph(ar(
+        "وقد تم اشتقاقه بناءً على مؤشرات رقمية ومعايير تحليلية محددة.",
+        
         "الفصول التالية لا تُقرأ كتحليل عام للسوق، ولا كمسار للوصول إلى قرار جديد، "
-        "بل كشرح منهجي للأسس التي بُني عليها القرار الصادر."
-    ), body))
-
-    story.append(Paragraph(ar(
+        "بل كشرح منهجي للأسس التي بُني عليها القرار الصادر.",
+        
         "كل فصل يفسر جانبًا محددًا من القرار، ويبيّن السياق السوقي، "
         "وحدود المخاطر، وطبيعة الفرص، وشروط التوقيت والتنفيذ، "
-        "بهدف توضيح لماذا جاء القرار بهذه الصيغة تحديدًا."
-    ), body))
-
-    story.append(Paragraph(ar(
+        "بهدف توضيح لماذا جاء القرار بهذه الصيغة تحديدًا.",
+        
         "القرار موجود في الأعلى، "
         "وما يلي هو الإطار التحليلي الذي يبرره، "
         "ويحدّد نطاق صلاحيته، ويضبط تطبيقه."
-    ), body))
+    ]
+    
+    for text in transition_texts:
+        story.extend(arabic_paragraph_flowables(text, body, AVAILABLE_WIDTH))
+        story.append(Spacer(1, 0.15 * cm))
 
     story.append(Spacer(1, 1.2 * cm))
     story.append(elegant_divider("30%"))
     story.append(PageBreak())
 
     # ✅ خريطة تحويل الفصول (الفصل النصي ← الفصل الفعلي للرسومات)
-    # الفصول التي تحتوي على رسومات: 4, 7, 11, 16, 21
     CHAPTER_CHART_MAP = {
         4: 4,   # الفصل 4 → chapter_4
         7: 7,   # الفصل 7 → chapter_7
@@ -477,18 +531,17 @@ def create_pdf_from_content(
     }
     
     chapter_index = 0
-    chart_cursor = {}  # المؤشر لكل فصل
+    chart_cursor = {}
     
     first_chapter_processed = False
     
     # قائمة لتتبع الملفات المؤقتة لحذفها لاحقاً
     temp_files = []
 
-    # ✅ تحسين: إزالة iter() غير الضرورية
     for raw in content_text.split("\n"):
         raw_stripped = raw.strip()
 
-        # ✅ تعديل مهم: إزالة Spacer للأسطر الفارغة لمنع الصفحات الفارغة
+        # ✅ إزالة Spacer للأسطر الفارغة لمنع الصفحات الفارغة
         if not raw_stripped:
             continue
 
@@ -502,11 +555,9 @@ def create_pdf_from_content(
             continue
 
         if raw_stripped.startswith("الفصل"):
-            # ✅ شرط PageBreak الصحيح: بعد أول فصل فقط
             if first_chapter_processed:
                 story.append(PageBreak())
             chapter_index += 1
-            # تهيئة المؤشر لهذا الفصل
             chart_cursor[chapter_index] = 0
             story.append(Paragraph(ar(clean), chapter))
             story.append(Spacer(1, 0.3 * cm))
@@ -516,7 +567,6 @@ def create_pdf_from_content(
             continue
 
         if clean == "[[ANCHOR_CHART]]":
-            # الحصول على رقم الفصل الحقيقي للرسومات
             real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
             if real_chapter:
                 charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
@@ -525,7 +575,6 @@ def create_pdf_from_content(
                 if cursor < len(charts):
                     img = plotly_to_image(charts[cursor], 16.8, 9)
                     if img:
-                        # حفظ مسار الملف المؤقت لحذفه لاحقاً
                         if hasattr(img, '_temp_file'):
                             temp_files.append(img._temp_file)
                         
@@ -536,7 +585,6 @@ def create_pdf_from_content(
             continue
 
         if clean == "[[RHYTHM_CHART]]":
-            # الحصول على رقم الفصل الحقيقي للرسومات
             real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
             if real_chapter:
                 charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
@@ -553,7 +601,6 @@ def create_pdf_from_content(
                     img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
                                            9.5 if is_indicator else 9)
                     if img:
-                        # حفظ مسار الملف المؤقت لحذفه لاحقاً
                         if hasattr(img, '_temp_file'):
                             temp_files.append(img._temp_file)
                         
@@ -563,8 +610,14 @@ def create_pdf_from_content(
                     chart_cursor[chapter_index] += 1
             continue
 
-        story.append(Paragraph(ar(clean), body))
-        story.append(Spacer(1, 0.15 * cm))
+        # ✅ التعديل الأساسي: إزالة ar() المزدوج - تمرير النص الخام مباشرة
+        # هذا هو الحل النهائي لمشكلة انقلاب النص من الأسفل إلى الأعلى
+        if clean and clean not in SPECIAL_TAGS:
+            story.extend(arabic_paragraph_flowables(clean, body, AVAILABLE_WIDTH))
+            story.append(Spacer(1, 0.15 * cm))
+        elif clean not in SPECIAL_TAGS:
+            story.extend(arabic_paragraph_flowables(clean, body, AVAILABLE_WIDTH))
+            story.append(Spacer(1, 0.15 * cm))
 
     doc.build(
         story, 
