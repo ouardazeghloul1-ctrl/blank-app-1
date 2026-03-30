@@ -344,6 +344,23 @@ def create_pdf_from_content(
     # حساب العرض المتاح للنص (هامش أيمن + أيسر = 4.8 سم، عرض A4 = 21 سم)
     # العرض الصافي = 21 - 4.8 = 16.2 سم
     AVAILABLE_WIDTH = A4[0] - (2.4 * cm) - (2.4 * cm)
+    
+    # =========================
+    # ✅ DYNAMIC CHAPTER CHART MAP - حسب نوع التقرير
+    # =========================
+    report_kind = user_info.get("report_kind", "district") if user_info else "district"
+    
+    if report_kind == "city":
+        # خريطة رسومات المدن - كل الفصول من 1 إلى 8
+        CHAPTER_CHART_MAP = {
+            1: 1, 2: 2, 3: 3, 4: 4,
+            5: 5, 6: 6, 7: 7, 8: 8
+        }
+    else:
+        # خريطة رسومات الأحياء (كما كانت من قبل)
+        CHAPTER_CHART_MAP = {
+            4: 4, 7: 7, 11: 11, 16: 16, 21: 21
+        }
 
     # =========================
     # COVER - مع العنوان الكامل والتاريخ
@@ -356,7 +373,13 @@ def create_pdf_from_content(
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
         property_type = user_info.get("property_type", "")
-        subtitle = f"التقرير الاستثماري العقاري\nحي {district} – مدينة {city}\nتحليل سوق {property_type}"
+        
+        # تخصيص العنوان حسب نوع التقرير
+        if report_kind == "city":
+            subtitle = f"التقرير الاستثماري العقاري\nمدينة {city}\nتحليل سوق {property_type}"
+        else:
+            subtitle = f"التقرير الاستثماري العقاري\nحي {district} – مدينة {city}\nتحليل سوق {property_type}"
+        
         story.append(Spacer(1, 0.6 * cm))
         story.append(Paragraph(ar(subtitle), ai_executive_header))
     
@@ -396,16 +419,27 @@ def create_pdf_from_content(
         city_price_formatted = format_number_with_commas(city_price)
         transactions_formatted = format_number_with_commas(transactions)
         
-        table_data = [
-            [ar("المؤشر"), ar("القيمة")],
-            [ar("المدينة"), ar(city)],
-            [ar("الحي"), ar(district)],
-            [ar("نوع العقار"), ar(property_type)],
-            [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
-            [ar("متوسط المدينة"), ar(f"{city_price_formatted} ريال") if city_price != "—" else ar("—")],
-            [ar("عدد الصفقات"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
-            [ar("مؤشر قوة الحي"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
-        ]
+        # تخصيص جدول المؤشرات حسب نوع التقرير
+        if report_kind == "city":
+            table_data = [
+                [ar("المؤشر"), ar("القيمة")],
+                [ar("المدينة"), ar(city)],
+                [ar("نوع العقار"), ar(property_type)],
+                [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
+                [ar("عدد الصفقات"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
+                [ar("مؤشر قوة السوق"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
+            ]
+        else:
+            table_data = [
+                [ar("المؤشر"), ar("القيمة")],
+                [ar("المدينة"), ar(city)],
+                [ar("الحي"), ar(district)],
+                [ar("نوع العقار"), ar(property_type)],
+                [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
+                [ar("متوسط المدينة"), ar(f"{city_price_formatted} ريال") if city_price != "—" else ar("—")],
+                [ar("عدد الصفقات"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
+                [ar("مؤشر قوة الحي"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
+            ]
         
         table = Table(table_data, colWidths=[7*cm, 9*cm])
         table.setStyle(TableStyle([
@@ -521,15 +555,9 @@ def create_pdf_from_content(
     story.append(elegant_divider("30%"))
     story.append(PageBreak())
 
-    # ✅ خريطة تحويل الفصول (الفصل النصي ← الفصل الفعلي للرسومات)
-    CHAPTER_CHART_MAP = {
-        4: 4,   # الفصل 4 → chapter_4
-        7: 7,   # الفصل 7 → chapter_7
-        11: 11, # الفصل 11 → chapter_11
-        16: 16, # الفصل 16 → chapter_16
-        21: 21  # الفصل 21 → chapter_21
-    }
-    
+    # =========================
+    # PROCESS CONTENT WITH DYNAMIC CHART MAPPING
+    # =========================
     chapter_index = 0
     chart_cursor = {}
     
