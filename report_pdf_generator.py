@@ -27,7 +27,7 @@ import plotly.graph_objects as go
 
 # =========================
 # الحل النهائي: تقسيم الفقرة العربية إلى أسطر متعددة
-# مع KeepTogether للفقرات متعددة الأسطر فقط
+# مع دمج الأسطر القصيرة فعليًا (حسب العرض) لمنع انفرادها في الصفحة
 # =========================
 def arabic_paragraph_flowables(text, style, available_width):
     """
@@ -66,6 +66,25 @@ def arabic_paragraph_flowables(text, style, available_width):
     # إضافة آخر سطر
     if current_line:
         lines.append(" ".join(current_line))
+    
+    # ✅ دمج الأسطر القصيرة فعليًا (حسب العرض الحقيقي) مع السطر السابق
+    # هذا يمنع ظهور سطر قصير مثل "شقة." منفردًا في أسفل الصفحة
+    MIN_WIDTH_RATIO = 0.35  # السطر الذي يقل عرضه عن 35% من العرض المتاح يعتبر قصيرًا
+    fixed_lines = []
+    for line in lines:
+        # حساب العرض الحقيقي للسطر
+        reshaped = arabic_reshaper.reshape(line)
+        line_width = stringWidth(reshaped, style.fontName, style.fontSize)
+        
+        # ✅ الشرط النهائي: ادمج فقط إذا كان السطر قصيرًا فعليًا،
+        # وليس أول سطر، والفقرة تحتوي على أكثر من سطر واحد
+        if (line_width < available_width * MIN_WIDTH_RATIO and 
+            fixed_lines and 
+            len(lines) > 1):
+            fixed_lines[-1] += " " + line
+        else:
+            fixed_lines.append(line)
+    lines = fixed_lines
     
     # إنشاء Paragraph لكل سطر على حدة مع تطبيق reshape و bidi
     flowables = []
@@ -272,7 +291,7 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    # ✅ التعديل: منع Widow و Orphan lines بجعل allowWidows و allowOrphans = 0
+    # ✅ منع Widow و Orphan lines
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
