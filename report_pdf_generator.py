@@ -272,6 +272,7 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
+    # ✅ التعديل: منع Widow و Orphan lines بجعل allowWidows و allowOrphans = 0
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -281,8 +282,8 @@ def create_pdf_from_content(
         alignment=TA_RIGHT,
         wordWrap='RTL',
         spaceAfter=12,
-        allowWidows=1,
-        allowOrphans=1,
+        allowWidows=0,
+        allowOrphans=0,
     )
 
     chapter = ParagraphStyle(
