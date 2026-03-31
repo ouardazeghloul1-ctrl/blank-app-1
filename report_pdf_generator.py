@@ -13,7 +13,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer,
     PageBreak, Image, HRFlowable,
-    Table, TableStyle, KeepTogether
+    Table, TableStyle
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
@@ -27,7 +27,7 @@ import plotly.graph_objects as go
 
 # =========================
 # الحل النهائي: تقسيم الفقرة العربية إلى أسطر متعددة
-# مع دمج الأسطر القصيرة فعليًا (حسب العرض) لمنع انفرادها في الصفحة
+# كل سطر يصبح Paragraph مستقل - مع Spacer منطقي لتثبيت ترتيب الأسطر
 # =========================
 def arabic_paragraph_flowables(text, style, available_width):
     """
@@ -51,9 +51,12 @@ def arabic_paragraph_flowables(text, style, available_width):
         # اختبار إضافة الكلمة للسطر الحالي
         test_line = " ".join(current_line + [word])
         
-        # حساب العرض قبل bidi للحصول على عرض دقيق
+        # تحويل النص للعرض الصحيح (مرة واحدة فقط لكل اختبار)
         reshaped = arabic_reshaper.reshape(test_line)
-        width = stringWidth(reshaped, style.fontName, style.fontSize)
+        bidi_text = get_display(reshaped)
+        
+        # حساب عرض النص
+        width = stringWidth(bidi_text, style.fontName, style.fontSize)
         
         if width <= available_width:
             current_line.append(word)
@@ -67,49 +70,17 @@ def arabic_paragraph_flowables(text, style, available_width):
     if current_line:
         lines.append(" ".join(current_line))
     
-    # ✅ دمج الأسطر القصيرة فعليًا (حسب العرض الحقيقي) مع السطر السابق
-    # هذا يمنع ظهور سطر قصير مثل "شقة." منفردًا في أسفل الصفحة
-    MIN_WIDTH_RATIO = 0.35  # السطر الذي يقل عرضه عن 35% من العرض المتاح يعتبر قصيرًا
-    fixed_lines = []
-    for line in lines:
-        # حساب العرض الحقيقي للسطر
-        reshaped = arabic_reshaper.reshape(line)
-        line_width = stringWidth(reshaped, style.fontName, style.fontSize)
-        
-        # ✅ الشرط النهائي: ادمج فقط إذا كان السطر قصيرًا فعليًا،
-        # وليس أول سطر، والفقرة تحتوي على أكثر من سطر واحد
-        if (line_width < available_width * MIN_WIDTH_RATIO and 
-            fixed_lines and 
-            len(lines) > 1):
-            fixed_lines[-1] += " " + line
-        else:
-            fixed_lines.append(line)
-    lines = fixed_lines
-    
     # إنشاء Paragraph لكل سطر على حدة مع تطبيق reshape و bidi
+    # ✅ التعديل النهائي: Spacer بحجم منطقي 0.15 cm لمنع إعادة ترتيب الأسطر في RTL
     flowables = []
-    for i, line in enumerate(lines):
+    for line in lines:
         reshaped = arabic_reshaper.reshape(line)
         bidi_line = get_display(reshaped)
-        
-        # إضافة Spacer بين الأسطر مع keepWithNext
-        if i > 0:
-            s = Spacer(1, 0.15 * cm)
-            s.keepWithNext = True
-            flowables.append(s)
-        
-        p = Paragraph(bidi_line, style)
-        # ضع keepWithNext على كل سطر ما عدا الأخير
-        if i < len(lines) - 1:
-            p.keepWithNext = True
-        flowables.append(p)
+        # spacer بحجم منطقي يمنع ReportLab من إعادة ترتيب الأسطر عمودياً
+        flowables.append(Spacer(1, 0.15 * cm))
+        flowables.append(Paragraph(bidi_line, style))
     
-    # ✅ التعديل النهائي الآمن: استخدام KeepTogether فقط للفقرات متعددة الأسطر
-    # لتجنب انتقال الفقرة ذات السطر الواحد إلى الصفحة التالية
-    if len(flowables) > 1:
-        return [KeepTogether(flowables)]
-    else:
-        return flowables
+    return flowables
 
 
 # =========================
@@ -291,7 +262,6 @@ def create_pdf_from_content(
 
     styles = getSampleStyleSheet()
 
-    # ✅ منع Widow و Orphan lines
     body = ParagraphStyle(
         "ArabicBody",
         parent=styles["Normal"],
@@ -301,8 +271,8 @@ def create_pdf_from_content(
         alignment=TA_RIGHT,
         wordWrap='RTL',
         spaceAfter=12,
-        allowWidows=0,
-        allowOrphans=0,
+        allowWidows=1,
+        allowOrphans=1,
     )
 
     chapter = ParagraphStyle(
