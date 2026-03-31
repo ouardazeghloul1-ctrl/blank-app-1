@@ -27,7 +27,7 @@ import plotly.graph_objects as go
 
 # =========================
 # الحل النهائي: تقسيم الفقرة العربية إلى أسطر متعددة
-# كل سطر يصبح Paragraph مستقل - مع Spacer منطقي لتثبيت ترتيب الأسطر
+# مع keepWithNext وربط Spacer بالسطر
 # =========================
 def arabic_paragraph_flowables(text, style, available_width):
     """
@@ -51,12 +51,9 @@ def arabic_paragraph_flowables(text, style, available_width):
         # اختبار إضافة الكلمة للسطر الحالي
         test_line = " ".join(current_line + [word])
         
-        # تحويل النص للعرض الصحيح (مرة واحدة فقط لكل اختبار)
+        # حساب العرض قبل bidi للحصول على عرض دقيق
         reshaped = arabic_reshaper.reshape(test_line)
-        bidi_text = get_display(reshaped)
-        
-        # حساب عرض النص
-        width = stringWidth(bidi_text, style.fontName, style.fontSize)
+        width = stringWidth(reshaped, style.fontName, style.fontSize)
         
         if width <= available_width:
             current_line.append(word)
@@ -71,14 +68,22 @@ def arabic_paragraph_flowables(text, style, available_width):
         lines.append(" ".join(current_line))
     
     # إنشاء Paragraph لكل سطر على حدة مع تطبيق reshape و bidi
-    # ✅ التعديل النهائي: Spacer بحجم منطقي 0.15 cm لمنع إعادة ترتيب الأسطر في RTL
+    # ✅ التعديل النهائي الاحترافي: ربط Spacer بالسطر الذي يليه
     flowables = []
-    for line in lines:
+    for i, line in enumerate(lines):
         reshaped = arabic_reshaper.reshape(line)
         bidi_line = get_display(reshaped)
-        # spacer بحجم منطقي يمنع ReportLab من إعادة ترتيب الأسطر عمودياً
-        flowables.append(Spacer(1, 0.15 * cm))
-        flowables.append(Paragraph(bidi_line, style))
+        
+        # اجعل Spacer مرتبطًا بالسطر لمنع انفصاله في نهاية الصفحة
+        s = Spacer(1, 0.15 * cm)
+        s.keepWithNext = True
+        flowables.append(s)
+        
+        p = Paragraph(bidi_line, style)
+        # ضع keepWithNext على كل سطر ما عدا الأخير
+        if i < len(lines) - 1:
+            p.keepWithNext = True
+        flowables.append(p)
     
     return flowables
 
