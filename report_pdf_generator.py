@@ -13,7 +13,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer,
     PageBreak, Image, HRFlowable,
-    Table, TableStyle
+    Table, TableStyle, KeepTogether
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
@@ -27,7 +27,7 @@ import plotly.graph_objects as go
 
 # =========================
 # الحل النهائي: تقسيم الفقرة العربية إلى أسطر متعددة
-# مع keepWithNext وربط Spacer بالسطر
+# مع KeepTogether للفقرات متعددة الأسطر فقط
 # =========================
 def arabic_paragraph_flowables(text, style, available_width):
     """
@@ -68,16 +68,16 @@ def arabic_paragraph_flowables(text, style, available_width):
         lines.append(" ".join(current_line))
     
     # إنشاء Paragraph لكل سطر على حدة مع تطبيق reshape و bidi
-    # ✅ التعديل النهائي الاحترافي: ربط Spacer بالسطر الذي يليه
     flowables = []
     for i, line in enumerate(lines):
         reshaped = arabic_reshaper.reshape(line)
         bidi_line = get_display(reshaped)
         
-        # اجعل Spacer مرتبطًا بالسطر لمنع انفصاله في نهاية الصفحة
-        s = Spacer(1, 0.15 * cm)
-        s.keepWithNext = True
-        flowables.append(s)
+        # إضافة Spacer بين الأسطر مع keepWithNext
+        if i > 0:
+            s = Spacer(1, 0.15 * cm)
+            s.keepWithNext = True
+            flowables.append(s)
         
         p = Paragraph(bidi_line, style)
         # ضع keepWithNext على كل سطر ما عدا الأخير
@@ -85,7 +85,12 @@ def arabic_paragraph_flowables(text, style, available_width):
             p.keepWithNext = True
         flowables.append(p)
     
-    return flowables
+    # ✅ التعديل النهائي الآمن: استخدام KeepTogether فقط للفقرات متعددة الأسطر
+    # لتجنب انتقال الفقرة ذات السطر الواحد إلى الصفحة التالية
+    if len(flowables) > 1:
+        return [KeepTogether(flowables)]
+    else:
+        return flowables
 
 
 # =========================
