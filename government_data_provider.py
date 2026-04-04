@@ -501,6 +501,46 @@ def load_government_data(selected_city: Optional[str] = None,
 
 
 # =========================================
+# ✅ الدالة الجديدة لقراءة ملف المشاريع - الخطوة 1
+# =========================================
+
+def load_projects_data():
+    """
+    📁 قراءة ملف المشاريع (projects.xlsx)
+    هذه هي الخطوة الأولى فقط - لا رسم خرائط ولا حسابات مسافات بعد
+    
+    المخرجات: DataFrame يحتوي على:
+    - المدينة
+    - النوع
+    - الحالة
+    - خط_العرض
+    - خط_الطول
+    - نطاق_التأثير
+    """
+    import pandas as pd
+    
+    try:
+        projects = pd.read_excel("projects.xlsx")
+        
+        # تنظيف أسماء الأعمدة من الفراغات
+        projects.columns = projects.columns.str.strip()
+        
+        print(f"✅ تم قراءة ملف المشاريع بنجاح")
+        print(f"📊 عدد المشاريع: {len(projects)}")
+        print(f"📋 الأعمدة: {list(projects.columns)}")
+        
+        return projects
+    
+    except FileNotFoundError:
+        print("❌ خطأ: ملف projects.xlsx غير موجود")
+        print("📌 يرجى التأكد من وجود الملف في نفس المجلد")
+        return None
+    except Exception as e:
+        print("❌ خطأ في قراءة ملف المشاريع:", e)
+        return None
+
+
+# =========================================
 # اختبار شامل للتأكد من جاهزية النظام
 # =========================================
 if __name__ == "__main__":
@@ -514,70 +554,22 @@ if __name__ == "__main__":
     
     if not df.empty:
         print("\n🔍 عينة من البيانات النهائية:")
-        display_cols = ['price', 'price_raw', 'area', 'price_per_sqm', 'district', 'property_type', 'property_subtype', 'price_source', 'price_validity', 'date']
-        print(df[display_cols].head(10).to_string())
+        display_cols = ['price', 'price_raw', 'area', 'price_per_sqm', 'district', 'property_type', 'property_subtype']
+        available_cols = [col for col in display_cols if col in df.columns]
+        print(df[available_cols].head(10))
+    
+    # اختبار 2: قراءة ملف المشاريع
+    print("\n" + "=" * 60)
+    print("📁 اختبار 2: قراءة ملف المشاريع (الخطوة 1)")
+    print("=" * 60)
+    
+    projects_df = load_projects_data()
+    
+    if projects_df is not None and not projects_df.empty:
+        print("\n🔍 أول 5 صفوف من ملف المشاريع:")
+        print(projects_df.head())
         
-        # ✅ التحقق من أن سعر المتر أصبح عدداً صحيحاً
-        print("\n🔍 التحقق من نوع بيانات price_per_sqm:")
-        print(f"   نوع البيانات: {df['price_per_sqm'].dtype}")
-        print(f"   عينة من القيم: {df['price_per_sqm'].head(5).tolist()}")
-        
-        # التحقق من الاحتفاظ بجميع الصفقات
-        print(f"\n✅ عدد الصفقات المحتفظ بها: {len(df):,}")
-        
-        # التحقق من عدم وجود مساحات صفرية
-        zero_areas = df[df['area'] == 0]
-        print(f"✅ عدد الصفقات بمساحة صفرية: {len(zero_areas)} (تم استبدالها بالمتوسط)")
-        
-        # التحقق من عدم وجود أسعار فارغة
-        null_prices = df[df['price'].isna()]
-        print(f"✅ عدد الصفقات بسعر فارغ: {len(null_prices)} (تم استبدالها بالمتوسط)")
-        
-        # التحقق من وجود price_per_sqm
-        print(f"✅ تم إنشاء عمود price_per_sqm بنجاح")
-        print(f"   عدد القيم الصالحة: {df['price_per_sqm'].notna().sum():,}")
-        
-        # ✅ إحصائيات سعر المتر (يجب أن تكون min=500, max~18000)
-        print(f"\n📊 إحصائيات price_per_sqm:")
-        price_stats = df["price_per_sqm"].describe()
-        print(f"   min:  {price_stats['min']:.0f}")
-        print(f"   25%:  {price_stats['25%']:.0f}")
-        print(f"   50%:  {price_stats['50%']:.0f}")
-        print(f"   75%:  {price_stats['75%']:.0f}")
-        print(f"   max:  {price_stats['max']:.0f}")
-        
-        # التحقق من التواريخ
-        print(f"✅ عدد التواريخ الصالحة: {df['date'].notna().sum():,}")
-        
-        # التحقق من تصنيف العقار الفرعي
-        print(f"\n✅ توزيع أنواع العقارات الفرعية:")
-        subtype_counts = df['property_subtype'].value_counts()
-        for subtype, count in subtype_counts.items():
-            print(f"   - {subtype}: {count:,} صفقة ({count/len(df)*100:.1f}%)")
-        
-        # التحقق من جودة البيانات (ثلاثي المستويات)
-        print(f"\n✅ جودة البيانات (تصنيف ثلاثي):")
-        validity_counts = df['price_validity'].value_counts()
-        for validity, count in validity_counts.items():
-            print(f"   - {validity}: {count:,} صفقة ({count/len(df)*100:.1f}%)")
-        
-        # اختبار فلترة الرياض
-        print("\n🏙️  اختبار 2: فلترة مدينة الرياض")
-        riyadh_df = load_government_data(selected_city='الرياض')
-        if not riyadh_df.empty:
-            print(f"   ✅ عدد صفقات الرياض: {len(riyadh_df):,}")
-            print(f"   📊 متوسط سعر المتر في الرياض: {riyadh_df['price_per_sqm'].mean():,.0f} ريال")
-        
-        # اختبار فلترة العقارات السكنية
-        print("\n🏠 اختبار 3: فلترة العقارات السكنية")
-        residential_df = load_government_data(selected_property_type='سكني')
-        if not residential_df.empty:
-            print(f"   ✅ عدد الصفقات السكنية: {len(residential_df):,}")
-            print(f"   📊 توزيع أنواع العقارات السكنية:")
-            subtype_counts = residential_df['property_subtype'].value_counts()
-            for subtype, count in subtype_counts.items():
-                print(f"      - {subtype}: {count:,} صفقة")
-        
-        print("\n" + "=" * 60)
-        print("✅✅✅ النظام جاهز بالكامل - Enterprise Grade 100%")
-        print("=" * 60)
+        print("\n📊 إحصائيات سريعة:")
+        print(f"   عدد المشاريع: {len(projects_df)}")
+        print(f"   المدن: {projects_df['المدينة'].unique().tolist() if 'المدينة' in projects_df.columns else 'غير موجود'}")
+        print(f"   أنواع المشاريع: {projects_df['النوع'].unique().tolist() if 'النوع' in projects_df.columns else 'غير موجود'}")
