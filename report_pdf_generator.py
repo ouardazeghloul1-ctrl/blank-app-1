@@ -27,13 +27,11 @@ import plotly.graph_objects as go
 
 # =========================
 # الحل النهائي: تقسيم الفقرة العربية إلى أسطر متعددة
-# كل سطر يصبح Paragraph مستقل - مع Spacer منطقي لتثبيت ترتيب الأسطر
 # =========================
 def arabic_paragraph_flowables(text, style, available_width):
     """
     تقسيم الفقرة العربية إلى أسطر متعددة وكل سطر يصبح Paragraph مستقل
     هذا يمنع Bug ترتيب الأسطر من الأسفل في ReportLab مع RTL
-    تقوم هذه الدالة بعملية reshape و bidi مرة واحدة فقط لكل سطر
     """
     if not text:
         return []
@@ -48,35 +46,25 @@ def arabic_paragraph_flowables(text, style, available_width):
     current_line = []
     
     for word in words:
-        # اختبار إضافة الكلمة للسطر الحالي
         test_line = " ".join(current_line + [word])
-        
-        # تحويل النص للعرض الصحيح (مرة واحدة فقط لكل اختبار)
         reshaped = arabic_reshaper.reshape(test_line)
         bidi_text = get_display(reshaped)
-        
-        # حساب عرض النص
         width = stringWidth(bidi_text, style.fontName, style.fontSize)
         
         if width <= available_width:
             current_line.append(word)
         else:
-            # السطر اكتمل - نضيفه كسطر منفصل
             if current_line:
                 lines.append(" ".join(current_line))
             current_line = [word]
     
-    # إضافة آخر سطر
     if current_line:
         lines.append(" ".join(current_line))
     
-    # إنشاء Paragraph لكل سطر على حدة مع تطبيق reshape و bidi
-    # ✅ التعديل النهائي: Spacer بحجم منطقي 0.15 cm لمنع إعادة ترتيب الأسطر في RTL
     flowables = []
     for line in lines:
         reshaped = arabic_reshaper.reshape(line)
         bidi_line = get_display(reshaped)
-        # spacer بحجم منطقي يمنع ReportLab من إعادة ترتيب الأسطر عمودياً
         flowables.append(Spacer(1, 0.15 * cm))
         flowables.append(Paragraph(bidi_line, style))
     
@@ -84,7 +72,7 @@ def arabic_paragraph_flowables(text, style, available_width):
 
 
 # =========================
-# Arabic helper - للعناوين والنصوص القصيرة فقط
+# Arabic helper
 # =========================
 def ar(text):
     if not text:
@@ -92,15 +80,10 @@ def ar(text):
 
     try:
         text = str(text)
-
-        # إزالة الأقواس لأنها تسبب انقلاب RTL
         text = text.replace("(", " - ")
         text = text.replace(")", " - ")
-
-        # ✅ معالجة النسب المئوية بشكل نهائي (تدعم الأرقام السالبة والموجبة)
         text = text.replace("% ", "%")
         text = text.replace(" %", "%")
-        # ✅ تثبيت النسب المئوية مع دعم الإشارات السالبة والموجبة
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
         reshaped = arabic_reshaper.reshape(text)
@@ -110,7 +93,7 @@ def ar(text):
 
 
 # =========================
-# Clean bullets & junk - معدلة لدعم الرموز المالية بشكل آمن
+# Clean bullets & junk
 # =========================
 def clean_text(text: str) -> str:
     if not text:
@@ -120,7 +103,6 @@ def clean_text(text: str) -> str:
     cleaned = []
     for ch in text:
         cat = unicodedata.category(ch)
-        # ✅ السماح بالحروف والأرقام وعلامات الترقيم والرموز المالية المحددة
         if cat.startswith(("L", "N", "P", "Z")) or ch in "%$▲▼":
             cleaned.append(ch)
 
@@ -134,7 +116,7 @@ def clean_text(text: str) -> str:
 
 
 # =========================
-# Plotly → Image - النسخة النهائية مع scale=2 لجودة عالية
+# Plotly → Image
 # =========================
 def plotly_to_image(fig, width_cm, height_cm):
     if fig is None:
@@ -155,8 +137,6 @@ def plotly_to_image(fig, width_cm, height_cm):
         tmp.close()
 
         img_obj = Image(tmp.name, width=width_cm * cm, height=height_cm * cm)
-        
-        # ✅ إضافة معلومات الملف المؤقت للكائن ليتم حذفه لاحقاً
         img_obj._temp_file = tmp.name
         
         return img_obj
@@ -172,7 +152,130 @@ def plotly_to_image(fig, width_cm, height_cm):
 
 
 # =========================
-# Elegant divider - نسخة نهائية بمسافات مثالية
+# MAP: District & Projects Map
+# =========================
+import pandas as pd
+
+def create_district_projects_map(
+    district_lat,
+    district_lon,
+    district_name,
+    projects_df,
+    impact_radius_km=5
+):
+    """
+    إنشاء خريطة الحي والمشاريع القريبة
+    الأعمدة المطلوبة في projects_df: خط_العرض, خط_الطول, اسم_المشروع
+    """
+    try:
+        if district_lat is None or district_lon is None:
+            print("Map: missing district coordinates")
+            return None
+        
+        if projects_df is None or projects_df.empty:
+            print("Map: no projects data")
+            return None
+        
+        required_columns = ["خط_العرض", "خط_الطول", "اسم_المشروع"]
+        for col in required_columns:
+            if col not in projects_df.columns:
+                print(f"Map: missing column '{col}' in projects_df")
+                return None
+        
+        # =========================
+        # ✅ تحويل الإحداثيات إلى أرقام (حل نهائي)
+        # =========================
+        projects_df["خط_العرض"] = pd.to_numeric(projects_df["خط_العرض"], errors="coerce")
+        projects_df["خط_الطول"] = pd.to_numeric(projects_df["خط_الطول"], errors="coerce")
+        
+        # إزالة الصفوف غير الصالحة
+        projects_df = projects_df.dropna(subset=["خط_العرض", "خط_الطول"])
+        
+        print("DEBUG dtype latitude:", projects_df["خط_العرض"].dtype)
+        print("DEBUG dtype longitude:", projects_df["خط_الطول"].dtype)
+        print(f"DEBUG district_lat type: {type(district_lat)}, value: {district_lat}")
+        print(f"DEBUG district_lon type: {type(district_lon)}, value: {district_lon}")
+        
+        # تحويل إحداثيات الحي إلى float أيضاً
+        district_lat = float(district_lat)
+        district_lon = float(district_lon)
+        
+        # تحويل المسافة التقريبية - الحد الأدنى 5 كم
+        radius_deg = max(impact_radius_km, 5) / 111
+        
+        print(f"DEBUG radius_deg: {radius_deg}")
+        print(f"DEBUG district_lat: {district_lat}, district_lon: {district_lon}")
+        
+        # فلترة المشاريع القريبة
+        nearby_projects = projects_df[
+            (
+                (projects_df["خط_العرض"] - district_lat).abs() <= radius_deg
+            ) &
+            (
+                (projects_df["خط_الطول"] - district_lon).abs() <= radius_deg
+            )
+        ]
+        
+        print(f"Map: found {len(nearby_projects)} nearby projects within {max(impact_radius_km, 5)} km")
+        
+        if nearby_projects.empty:
+            print("Map: No projects found in the specified radius")
+            return None
+        
+        fig = go.Figure()
+        
+        # دبوس الحي
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=[district_lat],
+                lon=[district_lon],
+                mode="markers",
+                marker=dict(size=14, color="red"),
+                text=[district_name],
+                name="الحي"
+            )
+        )
+        
+        # دبابيس المشاريع
+        if not nearby_projects.empty:
+            fig.add_trace(
+                go.Scattermapbox(
+                    lat=nearby_projects["خط_العرض"],
+                    lon=nearby_projects["خط_الطول"],
+                    mode="markers",
+                    marker=dict(size=10, color="blue"),
+                    text=nearby_projects["اسم_المشروع"],
+                    name="المشاريع القريبة"
+                )
+            )
+        
+        fig.update_layout(
+            mapbox_style="open-street-map",
+            mapbox=dict(
+                center=dict(lat=district_lat, lon=district_lon),
+                zoom=11
+            ),
+            margin=dict(l=0, r=0, t=0, b=0),
+            height=450,
+            title=dict(
+                text=f"موقع حي {district_name} والمشاريع القريبة (نطاق {max(impact_radius_km, 5)} كم)",
+                x=0.5,
+                xanchor='center',
+                font=dict(size=16)
+            )
+        )
+        
+        return fig
+        
+    except Exception as e:
+        print(f"Map error: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+# =========================
+# Elegant divider
 # =========================
 def elegant_divider(width="80%", thickness=0.6, color=colors.HexColor("#C8C8C8")):
     return HRFlowable(
@@ -191,7 +294,6 @@ def elegant_divider(width="80%", thickness=0.6, color=colors.HexColor("#C8C8C8")
 def add_footer(canvas, doc):
     canvas.saveState()
     
-    # رسم خط خفيف فوق الفوتر
     canvas.setStrokeColor(colors.HexColor("#DDDDDD"))
     canvas.line(2.4 * cm, 2 * cm, A4[0] - 2.4 * cm, 2 * cm)
     
@@ -200,7 +302,6 @@ def add_footer(canvas, doc):
     
     page_number = canvas.getPageNumber()
     
-    # ✅ تعديل الفوتر لإضافة السنة
     canvas.drawRightString(
         A4[0] - 2.4 * cm, 
         1.5 * cm, 
@@ -217,7 +318,7 @@ def add_footer(canvas, doc):
 
 
 # =========================
-# MAIN PDF GENERATOR - النسخة النهائية مع حل مشكلة النص العربي
+# MAIN PDF GENERATOR
 # =========================
 def create_pdf_from_content(
     user_info,
@@ -318,7 +419,6 @@ def create_pdf_from_content(
         spaceAfter=12,
     )
 
-    # ✅ نمط خاص للتاريخ في الغلاف (مركز)
     date_style = ParagraphStyle(
         "DateStyle",
         parent=body,
@@ -329,7 +429,6 @@ def create_pdf_from_content(
         spaceAfter=12,
     )
 
-    # ✅ إضافة نمط للإحصائيات الرئيسية
     stats_style = ParagraphStyle(
         "StatsStyle",
         parent=body,
@@ -344,40 +443,34 @@ def create_pdf_from_content(
 
     story = []
     
-    # حساب العرض المتاح للنص (هامش أيمن + أيسر = 4.8 سم، عرض A4 = 21 سم)
-    # العرض الصافي = 21 - 4.8 = 16.2 سم
     AVAILABLE_WIDTH = A4[0] - (2.4 * cm) - (2.4 * cm)
     
     # =========================
-    # ✅ DYNAMIC CHAPTER CHART MAP - حسب نوع التقرير
+    # DYNAMIC CHAPTER CHART MAP
     # =========================
     report_kind = user_info.get("report_kind", "district") if user_info else "district"
     
     if report_kind == "city":
-        # خريطة رسومات المدن - كل الفصول من 1 إلى 8
         CHAPTER_CHART_MAP = {
             1: 1, 2: 2, 3: 3, 4: 4,
             5: 5, 6: 6, 7: 7, 8: 8
         }
     else:
-        # خريطة رسومات الأحياء (كما كانت من قبل)
         CHAPTER_CHART_MAP = {
             4: 4, 7: 7, 11: 11, 16: 16, 21: 21
         }
 
     # =========================
-    # COVER - مع العنوان الكامل والتاريخ
+    # COVER
     # =========================
     story.append(Spacer(1, 4 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     
-    # ✅ 1️⃣ إضافة عنوان التقرير الحقيقي
     if user_info:
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
         property_type = user_info.get("property_type", "")
         
-        # تخصيص العنوان حسب نوع التقرير
         if report_kind == "city":
             subtitle = f"التقرير الاستثماري العقاري\nمدينة {city}\nتحليل سوق {property_type}"
         else:
@@ -386,31 +479,25 @@ def create_pdf_from_content(
         story.append(Spacer(1, 0.6 * cm))
         story.append(Paragraph(ar(subtitle), ai_executive_header))
     
-    # ✅ 2️⃣ إضافة تاريخ التقرير (باستخدام نمط مركزي)
     date_text = f"تاريخ التقرير: {datetime.now().strftime('%B %Y')}"
     story.append(Spacer(1, 0.3 * cm))
     story.append(Paragraph(ar(date_text), date_style))
     
-    # ✅ 3️⃣ إضافة جدول المؤشرات مع تحسينات التنسيق وفاصلة الآلاف
     if user_info:
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
         property_type = user_info.get("property_type", "")
         
-        # ✅ استخدام قيم افتراضية آمنة مع شرطة "--" في حالة عدم وجود بيانات
         price = user_info.get("district_avg_price", "—")
         city_price = user_info.get("city_avg_price", "—")
         transactions = user_info.get("transactions_count", "—")
         dpi = user_info.get("dpi_score", "—")
         
-        # ✅ تحويل القيم الرقمية إلى نص مع فاصلة الآلاف (بدون أرقام عشرية للأعداد الصحيحة)
         def format_number_with_commas(value):
             if value == "—":
                 return "—"
             try:
-                # محاولة تحويل القيمة إلى رقم
                 num = float(value)
-                # إذا كان الرقم عدداً صحيحاً (أو قريب جداً من الصحيح)
                 if abs(num - round(num)) < 0.01:
                     return f"{int(round(num)):,}"
                 else:
@@ -422,7 +509,6 @@ def create_pdf_from_content(
         city_price_formatted = format_number_with_commas(city_price)
         transactions_formatted = format_number_with_commas(transactions)
         
-        # تخصيص جدول المؤشرات حسب نوع التقرير
         if report_kind == "city":
             table_data = [
                 [ar("المؤشر"), ar("القيمة")],
@@ -459,7 +545,6 @@ def create_pdf_from_content(
         story.append(Spacer(1, 1*cm))
         story.append(table)
     
-    # ✅ إضافة إجمالي عدد الصفقات من user_info إذا كان متوفراً
     if user_info and "total_transactions" in user_info:
         total = user_info["total_transactions"]
         if total is not None:
@@ -476,7 +561,7 @@ def create_pdf_from_content(
     story.append(PageBreak())
 
     # =========================
-    # EXECUTIVE DECISION (INDEPENDENT)
+    # EXECUTIVE DECISION
     # =========================
     DECISION_BLOCK_TITLES = {
         "DECISION_DEFINITION": "تعريف القرار التنبؤي",
@@ -499,7 +584,6 @@ def create_pdf_from_content(
                 story.append(Spacer(1, 0.2 * cm))
                 continue
 
-            # عناوين الكتل
             if line.startswith("[DECISION_BLOCK:"):
                 key = line.replace("[DECISION_BLOCK:", "").replace("]", "")
                 title_text = DECISION_BLOCK_TITLES.get(key, "")
@@ -512,7 +596,6 @@ def create_pdf_from_content(
             if line == "[END_DECISION_BLOCK]":
                 continue
 
-            # ✅ التعديل: إزالة ar() المزدوج - تمرير النص الخام مباشرة
             story.extend(arabic_paragraph_flowables(line, body, AVAILABLE_WIDTH))
             story.append(Spacer(1, 0.2 * cm))
 
@@ -521,19 +604,13 @@ def create_pdf_from_content(
         story.append(PageBreak())
 
     # =========================
-    # TRANSITION PAGE – HOW TO READ THIS REPORT
+    # TRANSITION PAGE
     # =========================
     story.append(Spacer(1, 2.5 * cm))
-
-    story.append(Paragraph(
-        ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"),
-        ai_executive_header
-    ))
-
+    story.append(Paragraph(ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"), ai_executive_header))
     story.append(elegant_divider("55%"))
     story.append(Spacer(1, 1.0 * cm))
 
-    # ✅ التعديل: إزالة ar() المزدوج - تمرير النص الخام مباشرة
     transition_texts = [
         "الخلاصة التنفيذية للقرار تمثل القرار المعتمد لهذا التقرير، "
         "وقد تم اشتقاقه بناءً على مؤشرات رقمية ومعايير تحليلية محددة.",
@@ -559,20 +636,54 @@ def create_pdf_from_content(
     story.append(PageBreak())
 
     # =========================
-    # PROCESS CONTENT WITH DYNAMIC CHART MAPPING
+    # PROCESS CONTENT WITH MAP
     # =========================
     chapter_index = 0
     chart_cursor = {}
-    
     first_chapter_processed = False
-    
-    # قائمة لتتبع الملفات المؤقتة لحذفها لاحقاً
     temp_files = []
 
+    # =========================
+    # INSERT MAP BEFORE CONTENT
+    # =========================
+    if user_info:
+        district_lat = user_info.get("خط_العرض") or user_info.get("district_latitude") or user_info.get("district_lat")
+        district_lon = user_info.get("خط_الطول") or user_info.get("district_longitude") or user_info.get("district_lon")
+        district_name = user_info.get("district_name")
+        projects_df = user_info.get("projects_data")
+        
+        district_impact = user_info.get("نطاق_التأثير") or user_info.get("impact_radius") or 5
+        try:
+            impact_radius = max(float(district_impact or 0), 5)
+        except (ValueError, TypeError):
+            impact_radius = 5
+        
+        print(f"DEBUG: district_lat={district_lat}, district_lon={district_lon}")
+        print(f"DEBUG: impact_radius={impact_radius}")
+        
+        map_fig = create_district_projects_map(
+            district_lat,
+            district_lon,
+            district_name,
+            projects_df,
+            impact_radius_km=impact_radius
+        )
+        
+        if map_fig:
+            map_img = plotly_to_image(map_fig, 16.8, 9)
+            if map_img:
+                if hasattr(map_img, '_temp_file'):
+                    temp_files.append(map_img._temp_file)
+                story.append(Spacer(1, 0.8 * cm))
+                story.append(map_img)
+                story.append(Spacer(1, 0.8 * cm))
+
+    # =========================
+    # MAIN CONTENT LOOP
+    # =========================
     for raw in content_text.split("\n"):
         raw_stripped = raw.strip()
 
-        # ✅ إزالة Spacer للأسطر الفارغة لمنع الصفحات الفارغة
         if not raw_stripped:
             continue
 
@@ -608,7 +719,6 @@ def create_pdf_from_content(
                     if img:
                         if hasattr(img, '_temp_file'):
                             temp_files.append(img._temp_file)
-                        
                         story.append(Spacer(1, 0.8 * cm))
                         story.append(img)
                         story.append(Spacer(1, 0.4 * cm))
@@ -634,31 +744,20 @@ def create_pdf_from_content(
                     if img:
                         if hasattr(img, '_temp_file'):
                             temp_files.append(img._temp_file)
-                        
                         story.append(Spacer(1, 0.8 * cm if is_indicator else 0.7 * cm))
                         story.append(img)
                         story.append(Spacer(1, 0.4 * cm))
                     chart_cursor[chapter_index] += 1
             continue
 
-        # ✅ التعديل الأساسي: إزالة ar() المزدوج - تمرير النص الخام مباشرة
-        # هذا هو الحل النهائي لمشكلة انقلاب النص من الأسفل إلى الأعلى
         if clean and clean not in SPECIAL_TAGS:
             story.extend(arabic_paragraph_flowables(clean, body, AVAILABLE_WIDTH))
             story.append(Spacer(1, 0.15 * cm))
-        elif clean not in SPECIAL_TAGS:
-            story.extend(arabic_paragraph_flowables(clean, body, AVAILABLE_WIDTH))
-            story.append(Spacer(1, 0.15 * cm))
 
-    doc.build(
-        story, 
-        onFirstPage=add_footer, 
-        onLaterPages=add_footer
-    )
+    doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
     
     buffer.seek(0)
     
-    # حذف جميع الملفات المؤقتة بعد بناء PDF
     unique_temp_files = list(set(temp_files))
     for temp_file in unique_temp_files:
         try:
