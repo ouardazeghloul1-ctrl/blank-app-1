@@ -501,13 +501,12 @@ def load_government_data(selected_city: Optional[str] = None,
 
 
 # =========================================
-# ✅ الدالة الجديدة لقراءة ملف المشاريع - الخطوة 1
+# ✅ الدالة لقراءة ملف المشاريع (مع توحيد اسم العمود)
 # =========================================
 
 def load_projects_data():
     """
     📁 قراءة ملف المشاريع (projects.xlsx)
-    هذه هي الخطوة الأولى فقط - لا رسم خرائط ولا حسابات مسافات بعد
     
     المخرجات: DataFrame يحتوي على:
     - المدينة
@@ -515,7 +514,7 @@ def load_projects_data():
     - الحالة
     - خط_العرض
     - خط_الطول
-    - نطاق_التأثير
+    - نطاق_التأثير (تم توحيد الاسم)
     """
     import pandas as pd
     
@@ -524,6 +523,12 @@ def load_projects_data():
         
         # تنظيف أسماء الأعمدة من الفراغات
         projects.columns = projects.columns.str.strip()
+        
+        # ✅ توحيد اسم عمود نطاق التأثير
+        if "نطاق التأثير (كم)" in projects.columns:
+            projects = projects.rename(columns={"نطاق التأثير (كم)": "نطاق_التأثير"})
+        elif "نطاق التأثير" in projects.columns:
+            projects = projects.rename(columns={"نطاق التأثير": "نطاق_التأثير"})
         
         print(f"✅ تم قراءة ملف المشاريع بنجاح")
         print(f"📊 عدد المشاريع: {len(projects)}")
@@ -537,6 +542,50 @@ def load_projects_data():
         return None
     except Exception as e:
         print("❌ خطأ في قراءة ملف المشاريع:", e)
+        return None
+
+
+# =========================================
+# ✅ الدالة لقراءة ملف الأحياء (مع توحيد اسم العمود)
+# =========================================
+
+def load_districts_data():
+    """
+    📁 قراءة ملف الأحياء (districts.xlsx)
+    
+    المخرجات: DataFrame يحتوي على:
+    - المدينة
+    - الحي
+    - خط_العرض
+    - خط_الطول
+    - نطاق_التأثير (تم توحيد الاسم)
+    """
+    import pandas as pd
+    
+    try:
+        districts = pd.read_excel("districts.xlsx")
+        
+        # تنظيف أسماء الأعمدة من الفراغات
+        districts.columns = districts.columns.str.strip()
+        
+        # ✅ توحيد اسم عمود نطاق التأثير
+        if "نطاق التأثير (كم)" in districts.columns:
+            districts = districts.rename(columns={"نطاق التأثير (كم)": "نطاق_التأثير"})
+        elif "نطاق التأثير" in districts.columns:
+            districts = districts.rename(columns={"نطاق التأثير": "نطاق_التأثير"})
+        
+        print(f"✅ تم قراءة ملف الأحياء بنجاح")
+        print(f"📊 عدد الأحياء: {len(districts)}")
+        print(f"📋 الأعمدة: {list(districts.columns)}")
+        
+        return districts
+    
+    except FileNotFoundError:
+        print("❌ خطأ: ملف districts.xlsx غير موجود")
+        print("📌 يرجى التأكد من وجود الملف في نفس المجلد")
+        return None
+    except Exception as e:
+        print("❌ خطأ في قراءة ملف الأحياء:", e)
         return None
 
 
@@ -560,7 +609,7 @@ if __name__ == "__main__":
     
     # اختبار 2: قراءة ملف المشاريع
     print("\n" + "=" * 60)
-    print("📁 اختبار 2: قراءة ملف المشاريع (الخطوة 1)")
+    print("📁 اختبار 2: قراءة ملف المشاريع")
     print("=" * 60)
     
     projects_df = load_projects_data()
@@ -573,3 +622,19 @@ if __name__ == "__main__":
         print(f"   عدد المشاريع: {len(projects_df)}")
         print(f"   المدن: {projects_df['المدينة'].unique().tolist() if 'المدينة' in projects_df.columns else 'غير موجود'}")
         print(f"   أنواع المشاريع: {projects_df['النوع'].unique().tolist() if 'النوع' in projects_df.columns else 'غير موجود'}")
+    
+    # اختبار 3: قراءة ملف الأحياء
+    print("\n" + "=" * 60)
+    print("🏘️  اختبار 3: قراءة ملف الأحياء")
+    print("=" * 60)
+    
+    districts_df = load_districts_data()
+    
+    if districts_df is not None and not districts_df.empty:
+        print("\n🔍 أول 5 صفوف من ملف الأحياء:")
+        print(districts_df.head())
+        
+        print("\n📊 إحصائيات سريعة:")
+        print(f"   عدد الأحياء: {len(districts_df)}")
+        print(f"   المدن: {districts_df['المدينة'].unique().tolist() if 'المدينة' in districts_df.columns else 'غير موجود'}")
+        print(f"   الأعمدة المتاحة: {list(districts_df.columns)}")
