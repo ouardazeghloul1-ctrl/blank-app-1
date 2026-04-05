@@ -1,9 +1,14 @@
-# report_content_builder.py - النسخة المعدلة
+# report_content_builder.py - النسخة النهائية (جاهزة للإنتاج)
 """
 Advanced Real Estate Investment Report Builder
-Version: 3.0.1 (Content-Rich - Corrected)
-المحتوى الفعلي للتقرير العقاري - جميع الفصول مكتوبة بالكامل مع التصحيحات الدقيقة
+Version: 3.0.4 (Production Ready - Final)
+المحتوى الفعلي للتقرير العقاري - جميع الفصول مكتوبة بالكامل مع عرض المشاريع
 """
+
+# =========================
+# ✅ IMPORT PROJECTS LOADER
+# =========================
+from government_data_provider import load_projects_data
 
 # =========================
 # PACKAGES DEFINITION
@@ -51,16 +56,45 @@ PACKAGE_RULES = {
 }
 
 # =========================
-# CHAPTER 1 – REALISTIC SCENARIO
+# CHAPTER 1 – REALISTIC SCENARIO (مع إضافة المشاريع والتحسينات)
 # =========================
 def chapter_1_blocks(user_info):
     city = user_info.get("المدينة", "المدينة")
     prop = user_info.get("نوع_العقار", "العقار")
     
+    # ✅ الحصول على بيانات المشاريع من user_info
+    projects_count = user_info.get("city_projects_count", 0)
+    project_types = user_info.get("city_project_types", {})
+    
+    # ✅ التحسين 3: ترتيب أنواع المشاريع من الأكبر إلى الأصغر
+    project_types_text = ""
+    if project_types:
+        project_types_text = "أنواع المشاريع:\n"
+        for ptype, count in sorted(project_types.items(), key=lambda x: x[1], reverse=True):
+            project_types_text += f"• {ptype}: {count} مشروع\n"
+    
     return [
         {
             "type": "chapter_title",
             "content": f"الفصل الأول – السيناريو الواقعي لمستقبل {prop} في {city}",
+        },
+        # ✅ عرض المشاريع التنموية
+        {
+            "type": "rich_text",
+            "content": f"""
+📊 المشاريع التنموية في {city}
+
+تشهد مدينة {city} حاليًا نشاطًا تطويريًا ملحوظًا، حيث يبلغ عدد المشاريع المسجلة ضمن قاعدة البيانات {projects_count} مشروعًا.
+
+وجود هذا العدد من المشاريع يعكس توجهًا واضحًا نحو تطوير البنية التحتية والخدمات، وهو عامل يرتبط عادةً بزيادة الطلب العقاري وتحسن جاذبية المدينة على المدى المتوسط والطويل.
+
+لا يعني ذلك ارتفاعًا فوريًا في الأسعار، لكنه مؤشر على:
+• توسع عمراني منظم
+• تحسين مستوى الخدمات
+• زيادة جاذبية الاستثمار
+
+{project_types_text if project_types_text else ''}
+"""
         },
         {
             "type": "rich_text",
@@ -225,12 +259,12 @@ def chapter_1_blocks(user_info):
 بل بداية طريقة تفكير.
 """
         },
-        # ✅ هنا أضفنا علامة الذكاء الاصطناعي في نهاية الفصل الأول
         {
             "type": "text",
             "content": "[[AI_SLOT_CH1]]"
         }
     ]
+
 
 # =========================
 # CHAPTER 2 – HIDDEN RISKS
@@ -370,14 +404,14 @@ def chapter_2_blocks(user_info):
 • وبمواصفات جيدة
 • وفي موقع يبدو منطقيًا
 
-ثن تكتشف لاحقًا أن:
+ثم تكتشف لاحقًا أن:
 • السوق الثانوي له ضعيف
 • أو أن المشترين أصبحوا أكثر انتقائية
 • أو أن "الجديد" خطف الاهتمام
 
 الخروج هو الاختبار الحقيقي لأي قرار.
 والخطر الحقيقي هو:
-أن تمتلك أصلًا لا تعرف كيف، ولا متتى، ولا لمن ستبيعه.
+أن تمتلك أصلًا لا تعرف كيف، ولا متى، ولا لمن ستبيعه.
 """
         },
         {
@@ -432,12 +466,12 @@ def chapter_2_blocks(user_info):
 حان وقت النظر إلى الجهة الأخرى من الصورة.
 """
         },
-        # ✅ هنا أضفنا علامة الذكاء الاصطناعي في نهاية الفصل الثاني
         {
             "type": "text",
             "content": "[[AI_SLOT_CH2]]"
         }
     ]
+
 
 # =========================
 # CHAPTER 3 – INVISIBLE OPPORTUNITIES
@@ -633,12 +667,12 @@ def chapter_3_blocks(user_info):
 تحتاج نظامًا يحميها ويُنمّيها.
 """
         },
-        # ✅ هنا أضفنا علامة الذكاء الاصطناعي في نهاية الفصل الثالث
         {
             "type": "text",
             "content": "[[AI_SLOT_CH3]]"
         }
     ]
+
 
 # =========================
 # CHAPTER 4 – SMART STRATEGY
@@ -846,6 +880,7 @@ def chapter_4_blocks(user_info):
         },
     ]
 
+
 # =========================
 # CHAPTER 5 – TIMING
 # =========================
@@ -1035,6 +1070,7 @@ def chapter_5_blocks(user_info):
         },
     ]
 
+
 # =========================
 # CHAPTER 6 – CAPITAL DISTRIBUTION
 # =========================
@@ -1222,6 +1258,7 @@ def chapter_6_blocks(user_info):
         },
     ]
 
+
 # =========================
 # CHAPTER 7 – EXIT VS HOLD
 # =========================
@@ -1294,7 +1331,7 @@ def chapter_7_blocks(user_info):
 بسعر جيد
 وعائد مقبول
 
-ثن تكتشف بعد سنوات:
+ثم تكتشف بعد سنوات:
 • السوق الثانوي له ضعيف
 • الجميع يبيع نفس الشيء
 • الخروج أصعب مما توقعت
@@ -1406,6 +1443,7 @@ def chapter_7_blocks(user_info):
 """
         },
     ]
+
 
 # =========================
 # CHAPTER 8 – EARLY SIGNALS
@@ -1611,6 +1649,7 @@ def chapter_8_blocks(user_info):
         },
     ]
 
+
 # =========================
 # CHAPTER 9 – DATA TO DECISION
 # =========================
@@ -1759,20 +1798,6 @@ def chapter_9_blocks(user_info):
 هذا السؤال
 ينقذك من أخطر تحيز:
 تحيز الرغبة.
-
-سابعًا: كيف تطبق هذا عمليًا؟
-
-قبل أي قرار:
-1. اكتب الأرقام الثلاثة
-2. حدّد الاتجاهين
-3. أجب عن السؤال الواحد
-
-إذا شعرت بعدها بـ:
-• هدوء ذهني
-• وضوح منطقي
-• تقبّل لاحتمال الخطأ
-
-فأنت أقرب لقرار ناضج.
 """
         },
         {
@@ -1823,6 +1848,7 @@ def chapter_9_blocks(user_info):
 """
         },
     ]
+
 
 # =========================
 # CHAPTER 10 – FINAL DECISION
@@ -2033,13 +2059,74 @@ def chapter_10_blocks(user_info):
         },
     ]
 
+
 # =========================
-# BUILD COMPLETE REPORT
+# BUILD COMPLETE REPORT (النسخة النهائية - مع جميع التحسينات)
 # =========================
 def build_complete_report(user_info):
+    """
+    بناء التقرير الكامل مع إضافة بيانات المشاريع
+    """
     raw_pkg = user_info.get("package", "free")
     package = PACKAGE_ALIASES.get(raw_pkg, "free")
     user_info["package"] = package
+
+    # ✅ تحميل بيانات المشاريع
+    projects_data = load_projects_data()
+    
+    # ✅ إضافة بيانات المشاريع إلى user_info لاستخدامها في الفصول
+    if projects_data is not None and not projects_data.empty:
+        user_info["projects_data"] = projects_data
+        city = user_info.get("المدينة", "")
+        
+        # ✅ التحسين 1: تنظيف اسم المدينة قبل الفلترة
+        city_clean = str(city).strip()
+        
+        # فلترة مشاريع المدينة المحددة مع تنظيف الأسماء
+        if city_clean and 'المدينة' in projects_data.columns:
+            city_projects = projects_data[
+                projects_data['المدينة']
+                .astype(str)
+                .str.strip() == city_clean
+            ]
+            user_info["city_projects_count"] = len(city_projects)
+            
+            # ✅ التحسين 2: منع الخطأ إذا العمود غير موجود
+            # إحصائيات إضافية للمشاريع - أنواعها
+            if 'النوع' in city_projects.columns:
+                project_types = city_projects['النوع'].value_counts().to_dict()
+                user_info["city_project_types"] = project_types
+            else:
+                user_info["city_project_types"] = {}
+            
+            # إحصائيات إضافية للمشاريع - حالتها
+            if 'الحالة' in city_projects.columns:
+                project_status = city_projects['الحالة'].value_counts().to_dict()
+                user_info["city_project_status"] = project_status
+            else:
+                user_info["city_project_status"] = {}
+            
+            # إحصائيات نطاق التأثير
+            if 'نطاق_التأثير' in city_projects.columns:
+                impact_zones = city_projects['نطاق_التأثير'].value_counts().to_dict()
+                user_info["city_impact_zones"] = impact_zones
+            else:
+                user_info["city_impact_zones"] = {}
+            
+            print(f"✅ تم تحميل {user_info['city_projects_count']} مشروع لمدينة {city_clean}")
+        else:
+            user_info["city_projects_count"] = 0
+            user_info["city_project_types"] = {}
+            user_info["city_project_status"] = {}
+            user_info["city_impact_zones"] = {}
+            print(f"⚠️ لا توجد مشاريع مخصصة لمدينة {city_clean}")
+    else:
+        user_info["projects_data"] = None
+        user_info["city_projects_count"] = 0
+        user_info["city_project_types"] = {}
+        user_info["city_project_status"] = {}
+        user_info["city_impact_zones"] = {}
+        print("⚠️ لا توجد بيانات مشاريع متاحة للتقرير")
 
     chapters_funcs = [
         chapter_1_blocks,
@@ -2058,6 +2145,11 @@ def build_complete_report(user_info):
         "package": package,
         "package_name": PACKAGES[package]["name"],
         "chapters": [],
+        "projects_summary": {
+            "total_projects": len(projects_data) if projects_data is not None else 0,
+            "has_projects": projects_data is not None and not projects_data.empty,
+            "city_projects_count": user_info.get("city_projects_count", 0)
+        }
     }
 
     allowed_chapters = PACKAGE_RULES[package]["chapters"]
@@ -2066,7 +2158,7 @@ def build_complete_report(user_info):
         if idx not in allowed_chapters:
             continue
 
-        blocks = fn(user_info)  # الحصول على كل الـ blocks
+        blocks = fn(user_info)
         if blocks:
             report["chapters"].append(
                 {
@@ -2076,6 +2168,7 @@ def build_complete_report(user_info):
             )
 
     return report
+
 
 # =========================
 # DECISION STRESS TEST BLOCK
