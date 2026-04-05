@@ -1,27 +1,57 @@
 # =========================================
 # Warda Intelligence
-# District Narrative Engine (الإصدار النهائي للإنتاج)
+# District Narrative Engine (الإصدار النهائي للإنتاج مع المشاريع القريبة)
 # محرك التقرير الاستثماري للأحياء
 # =========================================
 
 import pandas as pd
 from ai_executive_summary import generate_executive_summary
 
+# ✅ استيراد دوال تحميل البيانات
+from government_data_provider import (
+    load_districts_data,
+    load_projects_data
+)
+import math
+
 # =========================================
-# Data Schema (أسماء الأعمدة القياسية)
+# ✅ تحميل البيانات مرة واحدة فقط عند تشغيل الملف (تحسين الأداء)
 # =========================================
-# تعتمد المنصة على الأعمدة التالية في بيانات الصفقات:
-#
-# city     : اسم المدينة
-# district : اسم الحي (قد يكون "المدينة/الحي" أو "الحي" فقط)
-# price    : سعر الصفقة
-# area     : مساحة العقار بالمتر
-# property_type : نوع العقار (شقة / فيلا / أرض ...)
-# date     : تاريخ الصفقة بصيغة YYYY-MM-DD
-#
-# مثال:
-# city = الرياض
-# district = الرياض/الصفاء أو الصفاء
+DISTRICTS_DATA = load_districts_data()
+PROJECTS_DATA = load_projects_data()
+
+# =========================================
+# ✅ الحد الأقصى لعدد المشاريع المعروضة في التقرير
+# =========================================
+MAX_PROJECTS = 10
+
+
+# =========================================
+# دالة حساب المسافة بين نقطتين (Haversine) - مع تحسين معالجة الأخطاء
+# =========================================
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """
+    حساب المسافة بالكيلومتر بين نقطتين جغرافيتين
+    """
+    try:
+        R = 6371  # نصف قطر الأرض بالكيلومتر
+        lat1 = math.radians(float(lat1))
+        lon1 = math.radians(float(lon1))
+        lat2 = math.radians(float(lat2))
+        lon2 = math.radians(float(lon2))
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = (
+            math.sin(dlat / 2) ** 2 +
+            math.cos(lat1) * math.cos(lat2) *
+            math.sin(dlon / 2) ** 2
+        )
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        distance = R * c
+        return round(distance, 2)
+    except Exception as e:
+        print(f"⚠️ خطأ في حساب المسافة: {e}")
+        return None
 
 
 def generate_district_narrative(
@@ -91,6 +121,89 @@ def generate_district_narrative(
         price_ratio = 1
 
     # =========================================
+    # استخدام البيانات المحملة مرة واحدة (بدون إعادة تحميل)
+    # =========================================
+    districts_df = DISTRICTS_DATA
+    projects_df = PROJECTS_DATA
+
+    # =========================================
+    # جلب إحداثيات الحي الحالي
+    # =========================================
+    district_lat = None
+    district_lon = None
+    try:
+        if districts_df is not None and not districts_df.empty:
+            match = districts_df[
+                (districts_df["المدينة"] == city) &
+                (districts_df["الحي"].str.strip() == clean_district_base)
+            ]
+            if not match.empty:
+                district_lat = match.iloc[0]["خط_العرض"]
+                district_lon = match.iloc[0]["خط_الطول"]
+                print(f"📍 تم العثور على إحداثيات الحي {clean_district_base}: {district_lat}, {district_lon}")
+            else:
+                print(f"⚠️ لم يتم العثور على إحداثيات للحي {clean_district_base}")
+    except Exception as e:
+        print("خطأ في جلب إحداثيات الحي:", e)
+
+    # =========================================
+    # حساب المشاريع القريبة (مع تحسين الأداء باستخدام itertuples)
+    # =========================================
+    nearby_projects = []
+    try:
+        if (district_lat is not None and district_lon is not None and
+            projects_df is not None and not projects_df.empty):
+            
+            print(f"🔍 جاري البحث عن مشاريع قريبة من {clean_district_base}...")
+            
+            # ✅ استخدام itertuples بدلاً من iterrows لتحسين الأداء
+            for row in projects_df.itertuples(index=False):
+                # الوصول للحقول باستخدام النقطة (أسرع)
+                project_city = getattr(row, "المدينة", None)
+                if project_city != city:
+                    continue
+                
+                project_lat = getattr(row, "خط_العرض", None)
+                project_lon = getattr(row, "خط_الطول", None)
+                
+                if project_lat is None or project_lon is None:
+                    continue
+                
+                # تحويل الإحداثيات إلى float لضمان الحساب الصحيح
+                distance = calculate_distance(
+                    float(district_lat),
+                    float(district_lon),
+                    float(project_lat),
+                    float(project_lon)
+                )
+                
+                if distance is None:
+                    continue
+                
+                # ✅ استخدام اسم العمود الموحد "نطاق_التأثير" (تم توحيده في load_projects_data)
+                impact_radius = float(getattr(row, "نطاق_التأثير", 2) or 2)
+                
+                if distance <= impact_radius:
+                    nearby_projects.append({
+                        "type": getattr(row, "النوع", "غير محدد"),
+                        "status": getattr(row, "الحالة", "غير محدد"),
+                        "distance": distance,
+                        "lat": float(project_lat),
+                        "lon": float(project_lon)
+                    })
+            
+            # ترتيب المشاريع حسب الأقرب
+            nearby_projects.sort(key=lambda x: x["distance"])
+            
+            # ✅ تطبيق الحد الأقصى لعدد المشاريع المعروضة
+            nearby_projects = nearby_projects[:MAX_PROJECTS]
+            
+            print(f"✅ تم العثور على {len(nearby_projects)} مشروع قريب (بحد أقصى {MAX_PROJECTS})")
+            
+    except Exception as e:
+        print("خطأ في حساب المشاريع القريبة:", e)
+
+    # =========================================
     # تحسين الأداء: إنشاء df_city مرة واحدة
     # وتخزين جميع التحليلات المطلوبة
     # =========================================
@@ -106,7 +219,7 @@ def generate_district_narrative(
     debug_info = []
     
     try:
-        # ✅ التحسين 4: التأكد من أن real_data هو DataFrame
+        # ✅ التأكد من أن real_data هو DataFrame
         if isinstance(real_data, pd.DataFrame) and not real_data.empty and "district" in real_data.columns:
             print("="*50)
             print(f"تحليل مدينة: {city}")
@@ -132,7 +245,7 @@ def generate_district_narrative(
                 df_city["price"] = pd.to_numeric(df_city["price"], errors="coerce")
                 df_city["area"] = pd.to_numeric(df_city["area"], errors="coerce")
                 
-                # ✅ إزالة المساحات الصفرية قبل حساب سعر المتر
+                # إزالة المساحات الصفرية قبل حساب سعر المتر
                 before_area_filter = len(df_city)
                 df_city = df_city[df_city["area"] > 0]
                 print(f"بعد إزالة المساحات الصفرية: {len(df_city):,} (تم حذف {before_area_filter - len(df_city)})")
@@ -150,14 +263,14 @@ def generate_district_narrative(
                 df_city = df_city[(df_city["price_sqm"] >= 50) & (df_city["price_sqm"] <= 200000)]
                 print(f"بعد فلترة الأسعار (50-200,000): {len(df_city):,} (تم حذف {before_price_filter - len(df_city)})")
                 
-                # ✅ تخزين إجمالي الصفقات
+                # تخزين إجمالي الصفقات
                 total_city_transactions = len(df_city)
                 
-                # ✅ تخزين التحليلات المطلوبة مرة واحدة (مع ترتيب تنازلي)
+                # تخزين التحليلات المطلوبة مرة واحدة (مع ترتيب تنازلي)
                 city_transactions_by_district = df_city["district_clean"].value_counts(sort=True)
                 city_districts_list = city_transactions_by_district.index.tolist()
                 
-                # ✅ متوسط سعر المتر لكل حي - مرتب من الأعلى إلى الأقل
+                # متوسط سعر المتر لكل حي - مرتب من الأعلى إلى الأقل
                 city_price_by_district = df_city.groupby("district_clean")["price_sqm"].median()
                 city_price_by_district = city_price_by_district.dropna().sort_values(ascending=False)
                 
@@ -204,9 +317,7 @@ def generate_district_narrative(
     # Investment Intelligence Score (محسوب مسبقاً للاستخدام)
     # =========================================
     try:
-        # ------------------------------
         # حساب نقاط السعر
-        # ------------------------------
         price_score = 50
         if price_ratio < 0.85:
             price_score = 85
@@ -219,9 +330,7 @@ def generate_district_narrative(
         else:
             price_score = 40
 
-        # ------------------------------
         # حساب نقاط السيولة
-        # ------------------------------
         if transactions >= 40:
             liquidity_score = 90
         elif transactions >= 25:
@@ -233,9 +342,7 @@ def generate_district_narrative(
         else:
             liquidity_score = 30
 
-        # ------------------------------
         # حساب النتيجة النهائية
-        # ------------------------------
         investment_score = (
             price_score * 0.30 +
             liquidity_score * 0.30 +
@@ -243,7 +350,7 @@ def generate_district_narrative(
         )
         investment_score = round(investment_score, 1)
         
-        # ✅ Confidence محسّن
+        # Confidence محسّن
         confidence = int(0.7 * dpi_score + 0.3 * min(transactions, 60))
         confidence = min(95, max(30, confidence))
         
@@ -271,6 +378,92 @@ def generate_district_narrative(
 
 """
     report_sections.append(snapshot_section)
+    
+    # =========================================
+    # المشاريع القريبة من الحي (مع الإحداثيات للخرائط)
+    # =========================================
+    projects_section = ""
+    if nearby_projects:
+        lines = ""
+        # تخزين المشاريع والإحداثيات لاستخدامها في الخريطة لاحقاً
+        user_info["nearby_projects"] = nearby_projects
+        # التحقق الاحترافي من الإحداثيات (باستثناء None)
+        if district_lat is not None:
+            user_info["district_lat"] = float(district_lat)
+        else:
+            user_info["district_lat"] = None
+            
+        if district_lon is not None:
+            user_info["district_lon"] = float(district_lon)
+        else:
+            user_info["district_lon"] = None
+        
+        for p in nearby_projects:
+            lines += (
+                f"• {p['type']} "
+                f"({p['status']}) "
+                f"على بعد {p['distance']} كم\n"
+            )
+        projects_section = f"""
+
+المشاريع التنموية القريبة من الحي
+
+تشير البيانات إلى وجود عدد من المشاريع التنموية المؤثرة بالقرب من حي {district}.
+
+{lines}
+
+وجود هذه المشاريع قد يساهم في رفع الطلب العقاري وتحسين جاذبية الحي للمستثمرين خلال السنوات القادمة.
+"""
+    else:
+        projects_section = f"""
+
+المشاريع التنموية القريبة من الحي
+
+لا توجد حالياً مشاريع مؤثرة ضمن نطاق التأثير المحدد حول حي {district}.
+"""
+    report_sections.append(projects_section)
+
+    # =========================================
+    # ✅ جدول المشاريع القريبة من الحي (تمت الإضافة هنا)
+    # =========================================
+    projects_table_section = ""
+    if nearby_projects:
+        table_lines = ""
+        for i, p in enumerate(nearby_projects, start=1):
+            # تحديد مستوى التأثير حسب المسافة
+            distance = p.get("distance", 0)
+            if distance <= 1:
+                impact_level = "تأثير عالي"
+            elif distance <= 2:
+                impact_level = "تأثير متوسط"
+            else:
+                impact_level = "تأثير محدود"
+            
+            table_lines += (
+                f"{i}. "
+                f"{p.get('type', 'غير محدد')} — "
+                f"{p.get('status', 'غير محدد')} — "
+                f"{distance} كم — "
+                f"{impact_level}\n"
+            )
+        projects_table_section = f"""
+
+جدول المشاريع التنموية القريبة من الحي
+
+عدد المشاريع المؤثرة: {len(nearby_projects)}
+
+{table_lines}
+
+يعرض هذا الجدول المشاريع الواقعة ضمن نطاق التأثير الجغرافي للحي مرتبة حسب القرب من الموقع.
+"""
+    else:
+        projects_table_section = f"""
+
+جدول المشاريع التنموية القريبة من الحي
+
+لا توجد حالياً مشاريع ضمن نطاق التأثير المحدد حول الحي.
+"""
+    report_sections.append(projects_table_section)
     
     # ملخص تنفيذي محسن
     summary_section = f"""
@@ -436,9 +629,8 @@ def generate_district_narrative(
     report_sections.append(gap_section)
 
     # =========================================
-    # Market Benchmark (🔒 محمي ضد القسمة على صفر)
+    # Market Benchmark
     # =========================================
-    # 🔥 حساب الفارق بشكل آمن
     if city_price > 0:
         price_diff_percent = ((district_price - city_price) / city_price) * 100
     else:
@@ -458,7 +650,7 @@ def generate_district_narrative(
     report_sections.append(benchmark_section)
 
     # =========================================
-    # Price Ranking داخل المدينة (🔒 محمي ضد القسمة على صفر)
+    # Price Ranking داخل المدينة
     # =========================================
     price_rank_section = ""
     rank = None
@@ -467,7 +659,6 @@ def generate_district_narrative(
         if not city_price_by_district.empty and clean_district_base in city_price_by_district.index:
             rank = list(city_price_by_district.index).index(clean_district_base) + 1
             total = len(city_price_by_district)
-            # 🔥 تصحيح percentile: المرتبة 1 = 100% - مع حماية من القسمة على صفر
             if total > 0:
                 percentile = ((total - rank + 1) / total) * 100
             else:
@@ -613,7 +804,6 @@ def generate_district_narrative(
         print("Narrative Engine Error (Ranking):", e)
         ranking_section = ""
 
-    # إضافة القسم
     report_sections.append(ranking_section)
 
     # =========================================
@@ -626,17 +816,14 @@ def generate_district_narrative(
             top_districts = city_transactions_by_district.sort_values(ascending=False).head(5)
             
             if not top_districts.empty:
-                # بناء نص الجدول
                 lines = ""
                 for i, (name, count) in enumerate(top_districts.items(), start=1):
-                    # 🔥 حساب حصة السوق بشكل آمن (حماية من القسمة على صفر)
                     if total_city_transactions > 0:
                         market_share = (count / total_city_transactions) * 100
                     else:
                         market_share = 0
                     lines += f"{i}. {name} — {count:,} صفقة ({market_share:.1f}% من السوق)\n"
                 
-                # إضافة تحليل لموقع الحي الحالي
                 if clean_district_base in city_transactions_by_district.index:
                     current_rank = list(city_transactions_by_district.index).index(clean_district_base) + 1
                     if current_rank <= 5:
@@ -660,7 +847,6 @@ def generate_district_narrative(
         print("Top Districts Error:", e)
         top_districts_section = ""
 
-    # إضافة القسم
     report_sections.append(top_districts_section)
 
     # =========================================
@@ -729,21 +915,16 @@ def generate_district_narrative(
     report_sections.append(opportunity_section)
 
     # =========================================
-    # مقارنة الحي مع الأحياء القريبة (🔒 محمي ضد القسمة على صفر)
+    # مقارنة الحي مع الأحياء القريبة
     # =========================================
 
     comparison_lines = ""
 
     if not nearby_districts:
-
         comparison_lines = "لا توجد بيانات كافية لإجراء مقارنة مع الأحياء المجاورة."
-
     else:
-
         for d in nearby_districts:
-
             name = d.get("district_name", "")
-            # 🔥 حماية price من None وتحويله إلى float آمن
             price = float(d.get("avg_price", 0) or 0)
 
             if district_price > 0:
@@ -857,25 +1038,22 @@ def generate_district_narrative(
     report_sections.append(risk_section)
 
     # =========================================
-    # تحليل اتجاه السعر داخل الفترة المتاحة (محسّن - تقسيم حسب الترتيب)
+    # تحليل اتجاه السعر داخل الفترة المتاحة
     # =========================================
 
     trend_section = ""
     try:
         if not df_city.empty and "date" in df_city.columns:
-            # ✅ استخدام df_city بدلاً من real_data (أسرع)
             df_trend = df_city[
                 df_city["district_clean"].str.lower() == clean_district_base.lower()
             ].copy()
             
             if not df_trend.empty:
-                # تحسين معالجة التاريخ
                 df_trend["date"] = pd.to_datetime(df_trend["date"], errors="coerce")
                 df_trend = df_trend[df_trend["date"].notna()]
                 df_trend = df_trend.sort_values("date")
                 
-                # ✅ التعديل الرئيسي: تقسيم الصفقات إلى نصفين حسب الترتيب الزمني
-                if len(df_trend) >= 4:  # نحتاج 4 صفقات على الأقل لتقسيم منطقي
+                if len(df_trend) >= 4:
                     midpoint = len(df_trend) // 2
                     first_period = df_trend.iloc[:midpoint]
                     last_period = df_trend.iloc[midpoint:]
@@ -883,7 +1061,6 @@ def generate_district_narrative(
                     first_price = first_period["price_sqm"].median()
                     last_price = last_period["price_sqm"].median()
                     
-                    # منع القسمة على صفر
                     if first_price > 0:
                         change = ((last_price - first_price) / first_price) * 100
                     else:
@@ -918,11 +1095,10 @@ def generate_district_narrative(
         print("Narrative Engine Error (Trend):", e)
         trend_section = ""
 
-    # إضافة القسم
     report_sections.append(trend_section)
 
     # =========================================
-    # Market Momentum Analysis (بدلاً من Market Cycle)
+    # Market Momentum Analysis
     # =========================================
     cycle_section = ""
     try:
@@ -932,13 +1108,11 @@ def generate_district_narrative(
             ].copy()
             
             if not df_cycle.empty:
-                # تحويل التاريخ
                 df_cycle["date"] = pd.to_datetime(df_cycle["date"], errors="coerce")
                 df_cycle = df_cycle[df_cycle["date"].notna()]
                 df_cycle = df_cycle.sort_values("date")
                 
                 if len(df_cycle) >= 10:
-                    # تقسيم البيانات لنصفين زمنيًا
                     midpoint = len(df_cycle) // 2
                     first_period = df_cycle.iloc[:midpoint]
                     last_period = df_cycle.iloc[midpoint:]
@@ -951,7 +1125,6 @@ def generate_district_narrative(
                     else:
                         change = 0
                     
-                    # تحديد الاتجاه
                     if change > 5:
                         trend = "اتجاه صعودي واضح"
                         interpretation = "يشير هذا إلى زيادة الطلب أو تحسن في مستويات التسعير داخل الحي."
@@ -1017,11 +1190,10 @@ def generate_district_narrative(
     report_sections.append(strategy_section)
 
     # =========================================
-    # ✅ Capital Growth Potential محسّن
+    # Capital Growth Potential
     # =========================================
     growth_section = ""
     
-    # ✅ النسخة الأفضل للنمو
     if price_ratio < 0.9 and transactions >= 20:
         growth = "مرتفعة"
         range_text = "12% إلى 20% خلال 3 إلى 5 سنوات"
@@ -1107,12 +1279,11 @@ def generate_district_narrative(
     report_sections.append(grade_section)
 
     # =========================================
-    # Market Position Percentile (🔒 محمي ضد القسمة على صفر)
+    # Market Position Percentile
     # =========================================
     position_section = ""
     try:
         if rank is not None and total is not None:
-            # 🔥 استخدام الصيغة المحسنة: المرتبة 1 = 100% - مع حماية من القسمة على صفر
             if total > 0:
                 percentile = ((total - rank + 1) / total) * 100
             else:
@@ -1173,12 +1344,11 @@ def generate_district_narrative(
     report_sections.append(speed_section)
 
     # =========================================
-    # ✅ Market Heat Index محسّن
+    # Market Heat Index
     # =========================================
 
     heat_section = ""
     try:
-        # ✅ 0.6 * dpi_score + 0.4 * min(transactions, 100)
         heat_score = int(0.6 * dpi_score + 0.4 * min(transactions, 100))
         heat_score = min(100, heat_score)
         
@@ -1404,7 +1574,7 @@ def generate_district_narrative(
     report_sections.append(decision_section)
 
     # =========================================
-    # Executive Decision Engine (التعديل الجديد)
+    # Executive Decision Engine
     # =========================================
     try:
         executive_summary = generate_executive_summary(
@@ -1429,9 +1599,7 @@ def generate_district_narrative(
     # =========================================
 
     if price_ratio < 0.9 and transactions >= 20 and dpi_score >= 70:
-
         verdict = "حي يتمتع بجاذبية استثمارية قوية"
-
         verdict_text = f"""
 تشير المؤشرات العقارية إلى أن حي {district}
 يتمتع بمقومات استثمارية قوية داخل سوق
@@ -1445,11 +1613,8 @@ def generate_district_narrative(
 مناسباً للمستثمرين الباحثين عن فرص
 نمو رأسمالي في السوق العقاري.
 """
-
     elif dpi_score >= 60:
-
         verdict = "حي مستقر استثمارياً"
-
         verdict_text = f"""
 يظهر حي {district} مستوى جيداً من
 الاستقرار في السوق العقاري.
@@ -1459,11 +1624,8 @@ def generate_district_narrative(
 مما يجعله خياراً مناسباً للمستثمرين
 الباحثين عن استثمار مستقر نسبياً.
 """
-
     elif dpi_score >= 45:
-
         verdict = "حي استثماري متوسط"
-
         verdict_text = f"""
 البيانات تشير إلى أن حي {district}
 يقع ضمن الفئة المتوسطة من حيث
@@ -1473,11 +1635,8 @@ def generate_district_narrative(
 بشكل كبير على اختيار العقار المناسب
 وموقعه داخل الحي.
 """
-
     else:
-
         verdict = "حي يحتاج إلى دراسة إضافية"
-
         verdict_text = f"""
 تشير المؤشرات الحالية إلى أن
 السوق العقاري في حي {district}
@@ -1502,7 +1661,7 @@ def generate_district_narrative(
     report_sections.append(verdict_section)
 
     # =========================================
-    # ✅ تجميع التقرير مع عناوين الفصول بالكلمات العربية وإدراج الرسومات
+    # تجميع التقرير مع عناوين الفصول
     # =========================================
 
     chapter_names = [
@@ -1523,7 +1682,6 @@ def generate_district_narrative(
         chapter_title = chapter_names[i-1] if i <= len(chapter_names) else str(i)
         final_report += f"الفصل {chapter_title}\n"
         
-        # إدراج الرسم في الفصول المحددة مع سطر فارغ بعده
         if i in chart_chapters:
             final_report += "[[ANCHOR_CHART]]\n\n"
         
