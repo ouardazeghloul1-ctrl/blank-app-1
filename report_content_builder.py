@@ -1,8 +1,8 @@
-# report_content_builder.py - النسخة النهائية (جاهزة للإنتاج)
+# report_content_builder.py - النسخة المعدلة بالكامل مع جدول المشاريع الاحترافي (النسخة النهائية)
 """
 Advanced Real Estate Investment Report Builder
-Version: 3.0.4 (Production Ready - Final)
-المحتوى الفعلي للتقرير العقاري - جميع الفصول مكتوبة بالكامل مع عرض المشاريع
+Version: 3.0.6 (City Projects Table - Professional Final)
+المحتوى الفعلي للتقرير العقاري - جميع الفصول مكتوبة بالكامل مع جدول مشاريع احترافي للمدن
 """
 
 # =========================
@@ -56,29 +56,101 @@ PACKAGE_RULES = {
 }
 
 # =========================
-# CHAPTER 1 – REALISTIC SCENARIO (مع إضافة المشاريع والتحسينات)
+# CHAPTER 1 – REALISTIC SCENARIO (مع إضافة المشاريع والجدول الاحترافي - النسخة النهائية)
 # =========================
 def chapter_1_blocks(user_info):
     city = user_info.get("المدينة", "المدينة")
     prop = user_info.get("نوع_العقار", "العقار")
     
-    # ✅ الحصول على بيانات المشاريع من user_info
+    # ✅ الحصول على بيانات المشاريع من user_info (بدون إعادة تحميل)
     projects_count = user_info.get("city_projects_count", 0)
     project_types = user_info.get("city_project_types", {})
     
-    # ✅ التحسين 3: ترتيب أنواع المشاريع من الأكبر إلى الأصغر
+    # ✅ ترتيب أنواع المشاريع من الأكبر إلى الأصغر
     project_types_text = ""
     if project_types:
         project_types_text = "أنواع المشاريع:\n"
         for ptype, count in sorted(project_types.items(), key=lambda x: x[1], reverse=True):
             project_types_text += f"• {ptype}: {count} مشروع\n"
     
+    # ✅ بناء جدول المشاريع الاحترافي للمدينة (مع التحسينات)
+    projects_table_html = ""
+    try:
+        # ✅ التعديل 1: استخدام البيانات من user_info بدلاً من إعادة التحميل
+        projects_df = user_info.get("projects_data")
+        
+        if projects_df is not None and not projects_df.empty:
+            # فلترة المشاريع حسب المدينة
+            city_clean = str(city).strip()
+            if 'المدينة' in projects_df.columns:
+                city_projects = projects_df[
+                    projects_df['المدينة'].astype(str).str.strip() == city_clean
+                ]
+                
+                if not city_projects.empty:
+                    # ✅ التعديل 2: ترتيب المشاريع حسب الأهمية (نطاق التأثير من الأكبر إلى الأصغر)
+                    city_projects = city_projects.sort_values(
+                        by="نطاق_التأثير",
+                        ascending=False
+                    )
+                    
+                    # ✅ التعديل 3: تحديد حد أقصى لعدد المشاريع المعروضة
+                    MAX_PROJECTS = 10
+                    city_projects_display = city_projects.head(MAX_PROJECTS)
+                    
+                    table_lines = ""
+                    for i, row in enumerate(city_projects_display.itertuples(index=False), start=1):
+                        project_type = getattr(row, "النوع", "غير محدد")
+                        status = getattr(row, "الحالة", "غير محدد")
+                        impact_radius = float(getattr(row, "نطاق_التأثير", 0) or 0)
+                        
+                        # تحديد مستوى التأثير حسب نطاق التأثير
+                        if impact_radius >= 5:
+                            impact_level = "تأثير عالي"
+                            strategic_label = "مشروع استراتيجي"
+                        elif impact_radius >= 3:
+                            impact_level = "تأثير متوسط"
+                            strategic_label = "تعزيز البنية التحتية"
+                        else:
+                            impact_level = "تأثير محدود"
+                            strategic_label = "تحسين الخدمات"
+                        
+                        table_lines += (
+                            f"{i}. "
+                            f"{project_type} — "
+                            f"{status} — "
+                            f"{impact_radius} كم — "
+                            f"{impact_level} — "
+                            f"{strategic_label}\n"
+                        )
+                    
+                    # ✅ التحسين التجميلي: نص دقيق
+                    projects_table_html = f"""
+📊 جدول المشاريع التنموية في مدينة {city}
+
+عدد المشاريع في المدينة: {projects_count}
+يعرض هذا الجدول أهم {len(city_projects_display)} مشروع مرتبة حسب نطاق التأثير:
+
+{table_lines}
+
+يعرض هذا الجدول أبرز المشاريع التنموية داخل مدينة {city} مرتبة حسب نطاق التأثير، مع تقييم تأثيرها المحتمل على النشاط الاقتصادي والعقاري في المدينة خلال السنوات القادمة.
+"""
+                else:
+                    projects_table_html = f"""
+📊 المشاريع التنموية في مدينة {city}
+
+لا توجد حالياً مشاريع مسجلة في قاعدة البيانات لمدينة {city}.
+"""
+    except Exception as e:
+        print(f"خطأ في إنشاء جدول مشاريع المدينة: {e}")
+        projects_table_html = ""
+    
     return [
         {
             "type": "chapter_title",
             "content": f"الفصل الأول – السيناريو الواقعي لمستقبل {prop} في {city}",
         },
-        # ✅ عرض المشاريع التنموية
+        # ✅ عرض ملخص المشاريع التنموية
         {
             "type": "rich_text",
             "content": f"""
@@ -95,6 +167,11 @@ def chapter_1_blocks(user_info):
 
 {project_types_text if project_types_text else ''}
 """
+        },
+        # ✅ إضافة جدول المشاريع الاحترافي
+        {
+            "type": "rich_text",
+            "content": projects_table_html if projects_table_html else ""
         },
         {
             "type": "rich_text",
@@ -2061,7 +2138,7 @@ def chapter_10_blocks(user_info):
 
 
 # =========================
-# BUILD COMPLETE REPORT (النسخة النهائية - مع جميع التحسينات)
+# BUILD COMPLETE REPORT (النسخة النهائية)
 # =========================
 def build_complete_report(user_info):
     """
@@ -2079,7 +2156,7 @@ def build_complete_report(user_info):
         user_info["projects_data"] = projects_data
         city = user_info.get("المدينة", "")
         
-        # ✅ التحسين 1: تنظيف اسم المدينة قبل الفلترة
+        # تنظيف اسم المدينة قبل الفلترة
         city_clean = str(city).strip()
         
         # فلترة مشاريع المدينة المحددة مع تنظيف الأسماء
@@ -2091,7 +2168,6 @@ def build_complete_report(user_info):
             ]
             user_info["city_projects_count"] = len(city_projects)
             
-            # ✅ التحسين 2: منع الخطأ إذا العمود غير موجود
             # إحصائيات إضافية للمشاريع - أنواعها
             if 'النوع' in city_projects.columns:
                 project_types = city_projects['النوع'].value_counts().to_dict()
