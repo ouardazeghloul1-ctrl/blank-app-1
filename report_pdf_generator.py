@@ -218,13 +218,16 @@ def create_district_projects_map(
         
         print(f"Map: found {len(nearby_projects)} nearby projects within {max(impact_radius_km, 5)} km")
         
+        # =========================================================
+        # ✅ التعديل المطلوب: لا نرجع None حتى لو لا توجد مشاريع
+        # =========================================================
         if nearby_projects.empty:
             print("Map: No projects found in the specified radius")
-            return None
+            # لا نرجع None - نستمر لرسم الخريطة بدبوس الحي فقط
         
         fig = go.Figure()
         
-        # دبوس الحي
+        # دبوس الحي (يتم رسمه دائماً)
         fig.add_trace(
             go.Scattermapbox(
                 lat=[district_lat],
@@ -236,7 +239,7 @@ def create_district_projects_map(
             )
         )
         
-        # دبابيس المشاريع
+        # دبابيس المشاريع (إذا وجدت)
         if not nearby_projects.empty:
             fig.add_trace(
                 go.Scattermapbox(
