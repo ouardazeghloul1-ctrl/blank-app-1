@@ -672,6 +672,9 @@ def create_pdf_from_content(
             impact_radius_km=impact_radius
         )
         
+        # =========================================================
+        # ✅ الاختبار البصري داخل التقرير نفسه
+        # =========================================================
         if map_fig:
             map_img = plotly_to_image(map_fig, 16.8, 9)
             if map_img:
@@ -680,6 +683,27 @@ def create_pdf_from_content(
                 story.append(Spacer(1, 0.8 * cm))
                 story.append(map_img)
                 story.append(Spacer(1, 0.8 * cm))
+            else:
+                # فشل تحويل الخريطة إلى صورة
+                story.append(Spacer(1, 0.8 * cm))
+                story.append(Paragraph(
+                    ar("⚠️ فشل تحويل الخريطة إلى صورة - مشكلة في Plotly أو Kaleido"),
+                    body
+                ))
+                story.append(Spacer(1, 0.8 * cm))
+        else:
+            # الخريطة نفسها لم تنشأ (map_fig = None)
+            story.append(Spacer(1, 0.8 * cm))
+            story.append(Paragraph(
+                ar("⚠️ لم يتم إنشاء الخريطة - تحقق من الإحداثيات أو البيانات (map_fig = None)"),
+                body
+            ))
+            story.append(Spacer(1, 0.8 * cm))
+            
+            # معلومات تشخيصية إضافية
+            diag_text = f"الإحداثيات المستلمة: خط العرض = {district_lat}, خط الطول = {district_lon}"
+            story.append(Paragraph(ar(diag_text), body))
+            story.append(Spacer(1, 0.4 * cm))
 
     # =========================
     # MAIN CONTENT LOOP
