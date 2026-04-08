@@ -4,6 +4,7 @@ import io
 from advanced_charts import AdvancedCharts
 from report_pdf_generator import create_pdf_from_content
 from district_narrative_engine import generate_district_narrative
+from government_data_provider import load_projects_data, load_districts_data  # ✅ إضافة جديدة
 
 
 def show_district_reports(df_raw):
@@ -197,7 +198,35 @@ def show_district_reports(df_raw):
                             dpi_score = max(30, dpi_score - 5)
                         
                         # =========================================
-                        # ✅ التعديل الأساسي: إعداد user_info بالمفاتيح الصحيحة
+                        # ✅ التعديل الأساسي: جلب إحداثيات الحي وبيانات المشاريع
+                        # =========================================
+                        projects_df = load_projects_data()
+                        districts_df = load_districts_data()
+                        
+                        district_lat = None
+                        district_lon = None
+                        district_impact = None
+                        
+                        if districts_df is not None and not districts_df.empty:
+                            district_row = districts_df[
+                                districts_df["اسم الحي"]
+                                .astype(str)
+                                .str.strip()
+                                .str.contains(str(district).strip(), case=False, na=False)
+                            ].head(1)
+                            if not district_row.empty:
+                                district_lat = district_row.iloc[0].get("خط_العرض", None)
+                                district_lon = district_row.iloc[0].get("خط_الطول", None)
+                                district_impact = district_row.iloc[0].get("نطاق_التأثير", 5)
+                                
+                                # ✅ التعديل الحاسم: تحويل نطاق التأثير إلى رقم بشكل آمن
+                                try:
+                                    district_impact = float(district_impact)
+                                except (ValueError, TypeError):
+                                    district_impact = 5  # قيمة افتراضية آمنة
+                        
+                        # =========================================
+                        # ✅ التعديل الأساسي: إعداد user_info بجميع المفاتيح المطلوبة
                         # =========================================
                         user_info = {
                             # المفاتيح المطلوبة من report_pdf_generator.py
@@ -213,7 +242,13 @@ def show_district_reports(df_raw):
                             # مفاتيح إضافية للاستخدام الداخلي
                             "package": "ذهبية",
                             "user_type": "مستثمر",
-                            "analysis_mode": "district"
+                            "analysis_mode": "district",
+                            
+                            # ✅ المفاتيح الجديدة للخريطة والمشاريع
+                            "خط_العرض": district_lat,
+                            "خط_الطول": district_lon,  # ✅ تم التصحيح: خط_الطول (مع الـ "ال")
+                            "نطاق_التأثير": district_impact,
+                            "projects_data": projects_df
                         }
                         
                         # =========================================
@@ -300,6 +335,9 @@ def show_district_reports(df_raw):
                         print(f"📊 DEBUG: عدد الأحياء المجاورة: {len(nearby_districts)}")
                         print(f"📊 DEBUG: نوع العقار المحدد: {property_type}")
                         print(f"📊 DEBUG: عدد الصفقات للحي {district}: {len(district_data)}")
+                        print(f"📍 DEBUG: إحداثيات الحي - خط العرض: {district_lat}, خط الطول: {district_lon}")
+                        print(f"🎯 DEBUG: نطاق التأثير: {district_impact} (النوع: {type(district_impact).__name__})")
+                        print(f"🔑 DEBUG: مفاتيح user_info: {list(user_info.keys())}")
                         
                         st.success("✅ تم إنشاء تقرير الحي بنجاح!")
                         st.balloons()
