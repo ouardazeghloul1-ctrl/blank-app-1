@@ -252,8 +252,9 @@ def create_district_projects_map(
                 )
             )
         
+        # ✅ التعديل الجوهري: تغيير mapbox_style من open-street-map إلى carto-positron
         fig.update_layout(
-            mapbox_style="open-street-map",
+            mapbox_style="carto-positron",  # حل مشكلة Access blocked – Referrer is required
             mapbox=dict(
                 center=dict(lat=district_lat, lon=district_lon),
                 zoom=11
