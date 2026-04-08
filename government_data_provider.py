@@ -311,6 +311,7 @@ def load_projects_data():
         
         print(f"✅ تم قراءة ملف المشاريع بنجاح")
         print(f"📊 عدد المشاريع: {len(projects)}")
+        print(f"📋 أعمدة المشاريع: {list(projects.columns)}")
         
         return projects
     
@@ -336,7 +337,21 @@ def load_districts_data():
         # تنظيف أسماء الأعمدة من الفراغات
         districts.columns = districts.columns.str.strip()
         
-        # تنظيف اسم الحي (وقائي)
+        # DEBUG: طباعة أسماء الأعمدة للتشخيص
+        print("DEBUG: أعمدة ملف الأحياء:", list(districts.columns))
+        
+        # تنظيف اسم الحي (وقائي) - البحث عن أي عمود يحتوي على كلمة "حي"
+        district_name_column = None
+        for col in districts.columns:
+            if "حي" in col:
+                district_name_column = col
+                break
+        
+        if district_name_column and district_name_column != "اسم الحي":
+            print(f"DEBUG: تم العثور على عمود الأحياء باسم: {district_name_column}")
+            districts = districts.rename(columns={district_name_column: "اسم الحي"})
+        
+        # تنظيف اسم الحي
         if "اسم الحي" in districts.columns:
             districts["اسم الحي"] = districts["اسم الحي"].astype(str).str.strip()
         
@@ -350,6 +365,7 @@ def load_districts_data():
         
         print(f"✅ تم قراءة ملف الأحياء بنجاح")
         print(f"📊 عدد الأحياء: {len(districts)}")
+        print(f"📋 الأعمدة بعد التوحيد: {list(districts.columns)}")
         
         return districts
     
@@ -375,3 +391,7 @@ if __name__ == "__main__":
     
     projects_df = load_projects_data()
     districts_df = load_districts_data()
+    
+    if districts_df is not None:
+        print("\n🔍 أول 3 صفوف من الأحياء:")
+        print(districts_df.head(3))
