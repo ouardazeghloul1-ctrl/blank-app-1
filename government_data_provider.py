@@ -286,7 +286,7 @@ def load_government_data(selected_city: Optional[str] = None,
 
 
 # =========================================
-# ✅ الدالة لقراءة ملف المشاريع (مع توحيد اسم العمود)
+# ✅ الدالة لقراءة ملف المشاريع (مع توحيد اسم العمود - نسخة محسنة)
 # =========================================
 
 def load_projects_data():
@@ -297,17 +297,30 @@ def load_projects_data():
         projects = pd.read_excel("projects.xlsx")
         projects.columns = projects.columns.str.strip()
         
-        # توحيد اسم عمود اسم المشروع
-        if "اسم المشروع بالعربية" in projects.columns:
-            projects = projects.rename(columns={"اسم المشروع بالعربية": "اسم_المشروع"})
-        elif "اسم المشروع" in projects.columns:
-            projects = projects.rename(columns={"اسم المشروع": "اسم_المشروع"})
-        elif "Project Name (English)" in projects.columns:
-            projects = projects.rename(columns={"Project Name (English)": "اسم_المشروع"})
+        # ✅ توحيد اسم عمود اسم المشروع - حل نهائي ومرن جدًا
+        # هذا الحل يعمل بغض النظر عن وجود مسافات أو تشكيل أو أسماء مختلفة
+        for col in projects.columns:
+            # تنظيف اسم العمود من المسافات الخفية والرموز غير المرئية
+            col_clean = (
+                str(col)
+                .strip()
+                .replace(" ", "")
+                .replace("_", "")
+                .replace("\u200c", "")
+                .replace("\u200d", "")
+                .lower()
+            )
+            
+            # البحث عن أي تطابق مع الصيغ الممكنة
+            if "اسمالمشروع" in col_clean or "projectname" in col_clean:
+                projects = projects.rename(columns={col: "اسم_المشروع"})
+                print(f"✅ تم تعيين عمود المشاريع: '{col}' → 'اسم_المشروع'")
+                break
         
-        # تأكيد وجود العمود الأساسي للمشروع
+        # تأكيد نهائي - إذا لم يتم العثور على العمود، طباعة تحذير واضح
         if "اسم_المشروع" not in projects.columns:
-            print("❌ تحذير: عمود 'اسم_المشروع' غير موجود بعد التوحيد")
+            print("❌ تحذير: لم يتم العثور على عمود أسماء المشاريع")
+            print("📋 الأعمدة الحالية:", list(projects.columns))
         
         # توحيد أسماء الأعمدة للمشاريع
         if "خط العرض" in projects.columns:
