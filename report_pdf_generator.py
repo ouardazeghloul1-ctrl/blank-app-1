@@ -176,6 +176,14 @@ def create_district_projects_map(
             print("Map: no projects data")
             return None
         
+        # =========================================================
+        # ✅ التعديل 1: إعادة تسمية عمود اسم المشروع إذا كان بالصيغة العربية
+        # =========================================================
+        if "اسم_المشروع" not in projects_df.columns:
+            if "اسم المشروع بالعربية" in projects_df.columns:
+                projects_df = projects_df.rename(columns={"اسم المشروع بالعربية": "اسم_المشروع"})
+                print("✅ Map: تم إعادة تسمية العمود 'اسم المشروع بالعربية' → 'اسم_المشروع'")
+        
         required_columns = ["خط_العرض", "خط_الطول", "اسم_المشروع"]
         for col in required_columns:
             if col not in projects_df.columns:
@@ -200,8 +208,10 @@ def create_district_projects_map(
         district_lat = float(district_lat)
         district_lon = float(district_lon)
         
-        # تحويل المسافة التقريبية - الحد الأدنى 5 كم
-        radius_deg = max(impact_radius_km, 5) / 111
+        # =========================================================
+        # ✅ التعديل 2: توسيع نطاق البحث من 5 كم إلى 10 كم كحد أدنى
+        # =========================================================
+        radius_deg = max(impact_radius_km, 10) / 111
         
         print(f"DEBUG radius_deg: {radius_deg}")
         print(f"DEBUG district_lat: {district_lat}, district_lon: {district_lon}")
@@ -216,7 +226,7 @@ def create_district_projects_map(
             )
         ]
         
-        print(f"Map: found {len(nearby_projects)} nearby projects within {max(impact_radius_km, 5)} km")
+        print(f"Map: found {len(nearby_projects)} nearby projects within {max(impact_radius_km, 10)} km")
         
         # =========================================================
         # ✅ التعديل المطلوب: لا نرجع None حتى لو لا توجد مشاريع
@@ -252,7 +262,9 @@ def create_district_projects_map(
                 )
             )
         
-        # ✅ التعديل الجوهري: تغيير mapbox_style من open-street-map إلى carto-positron
+        # =========================================================
+        # ✅ التعديل 3: تغيير mapbox_style من open-street-map إلى carto-positron
+        # =========================================================
         fig.update_layout(
             mapbox_style="carto-positron",  # حل مشكلة Access blocked – Referrer is required
             mapbox=dict(
@@ -262,7 +274,7 @@ def create_district_projects_map(
             margin=dict(l=0, r=0, t=0, b=0),
             height=450,
             title=dict(
-                text=f"موقع حي {district_name} والمشاريع القريبة (نطاق {max(impact_radius_km, 5)} كم)",
+                text=f"موقع حي {district_name} والمشاريع القريبة (نطاق {max(impact_radius_km, 10)} كم)",
                 x=0.5,
                 xanchor='center',
                 font=dict(size=16)
