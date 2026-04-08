@@ -283,7 +283,7 @@ def show_district_reports(df_raw):
                         
                         # =========================================
                         # استخدام محرك الأحياء لتوليد النص
-                        # ✅ تم التعديل هنا: استخدام city_data بدلاً من df_raw
+                        # ✅ السطر المطلوب: projects_data=projects_df تم إضافته أدناه
                         # =========================================
                         report_text = generate_district_narrative(
                             user_info=user_info,
@@ -291,8 +291,8 @@ def show_district_reports(df_raw):
                             nearby_districts=nearby_districts,
                             dpi_score=dpi_score,
                             market_data=city_data,
-                            real_data=city_data, # ✅ تم التعديل من df_raw إلى city_data
-                            projects_data=projects_df
+                            real_data=city_data,
+                            projects_data=projects_df  # ✅ هذا هو السطر المطلوب
                         )
                         
                         # استخدام city_data للرسومات
