@@ -60,7 +60,8 @@ def generate_district_narrative(
         nearby_districts,
         dpi_score,
         market_data,
-        real_data
+        real_data,
+        projects_data=None  # ✅ تم إضافة المتغير الجديد
 ):
     """
     إنشاء تقرير تحليلي احترافي لحي داخل مدينة
@@ -122,9 +123,10 @@ def generate_district_narrative(
 
     # =========================================
     # استخدام البيانات المحملة مرة واحدة (بدون إعادة تحميل)
+    # ✅ التعديل المطلوب: استخدام projects_data الوارد من الدالة إن وجد
     # =========================================
     districts_df = DISTRICTS_DATA
-    projects_df = PROJECTS_DATA
+    projects_df = projects_data if projects_data is not None else PROJECTS_DATA
 
     # =========================================
     # جلب إحداثيات الحي الحالي
