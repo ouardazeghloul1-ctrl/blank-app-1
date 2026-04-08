@@ -291,7 +291,8 @@ def show_district_reports(df_raw):
                             nearby_districts=nearby_districts,
                             dpi_score=dpi_score,
                             market_data=city_data,
-                            real_data=city_data  # ✅ تم التعديل من df_raw إلى city_data
+                            real_data=city_data, # ✅ تم التعديل من df_raw إلى city_data
+                            projects_data=projects_df
                         )
                         
                         # استخدام city_data للرسومات
