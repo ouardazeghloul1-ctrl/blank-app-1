@@ -297,6 +297,18 @@ def load_projects_data():
         projects = pd.read_excel("projects.xlsx")
         projects.columns = projects.columns.str.strip()
         
+        # توحيد اسم عمود اسم المشروع
+        if "اسم المشروع بالعربية" in projects.columns:
+            projects = projects.rename(columns={"اسم المشروع بالعربية": "اسم_المشروع"})
+        elif "اسم المشروع" in projects.columns:
+            projects = projects.rename(columns={"اسم المشروع": "اسم_المشروع"})
+        elif "Project Name (English)" in projects.columns:
+            projects = projects.rename(columns={"Project Name (English)": "اسم_المشروع"})
+        
+        # تأكيد وجود العمود الأساسي للمشروع
+        if "اسم_المشروع" not in projects.columns:
+            print("❌ تحذير: عمود 'اسم_المشروع' غير موجود بعد التوحيد")
+        
         # توحيد أسماء الأعمدة للمشاريع
         if "خط العرض" in projects.columns:
             projects = projects.rename(columns={"خط العرض": "خط_العرض"})
