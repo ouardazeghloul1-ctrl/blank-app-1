@@ -1520,15 +1520,23 @@ if page == "📊 التحليل الكامل":
                     district_impact = None
 
                     if districts_df is not None and not districts_df.empty and district_name:
+                        # التعديل الحاسم: استخدام contains بدلاً من == للمطابقة المرنة
                         district_row = districts_df[
-                            districts_df["اسم الحي"].astype(str).str.strip() == str(district_name).strip()
+                            districts_df["اسم الحي"]
+                            .astype(str)
+                            .str.strip()
+                            .str.contains(str(district_name).strip(), case=False, na=False)
                         ]
                         
-                        if district_row is not None and not district_row.empty:
+                        # التحسين النهائي: أخذ أول نتيجة فقط لتجنب التكرار
+                        district_row = district_row.head(1)
+                        
+                        if not district_row.empty:
                             district_lat = district_row.iloc[0].get("خط_العرض", None)
                             district_lon = district_row.iloc[0].get("خط_الطول", None)
                             district_impact = district_row.iloc[0].get("نطاق_التأثير", None)
                             
+                            # ضمان أن نطاق التأثير رقم صالح
                             try:
                                 district_impact = float(district_impact)
                             except (TypeError, ValueError):
@@ -1539,7 +1547,7 @@ if page == "📊 التحليل الكامل":
                             print(f"   خط الطول: {district_lon}")
                             print(f"   نطاق التأثير: {district_impact}")
                         else:
-                            print(f"⚠️ لم يتم العثور على الحي: {district_name}")
+                            print(f"⚠️ لم يتم العثور على الحي: {district_name} في ملف الأحياء")
                     else:
                         print("⚠️ لا توجد بيانات أحياء أو لم يتم تحديد حي")
 
