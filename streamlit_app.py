@@ -1,5 +1,5 @@
 import streamlit as st
-from government_data_provider import load_government_data
+from government_data_provider import load_government_data, load_projects_data, load_districts_data
 
 st.set_page_config(
     page_title="التحليل العقاري الذهبي | Warda Intelligence",
@@ -16,9 +16,8 @@ if "go_store" not in st.session_state:
 # ========== تحديد المسار الأساسي ==========
 import os
 import json
-import shutil  # ✅ التأكد من وجود shutil
+import shutil
 from datetime import datetime
-import os
 import streamlit as st
 
 if st.button("🔍 عرض ملفات التقارير"):
@@ -42,7 +41,7 @@ if st.button("🔍 عرض ملفات التقارير"):
 
                 st.write("عدد الملفات:", len(files))
 
-                for file in files[:20]:  # يعرض أول 20 فقط
+                for file in files[:20]:
 
                     file_path = os.path.join(folder_path, file)
 
@@ -67,8 +66,7 @@ PRO_FOLDER = os.path.join(REPORTS_STORE, "pro")
 PREMIUM_FOLDER = os.path.join(REPORTS_STORE, "premium")
 LOGS_FOLDER = os.path.join(REPORTS_STORE, "logs")
 
-# إنشاء المجلدات (تأكيد)
-# تأكيد إنشاء المجلد الرئيسي
+# إنشاء المجلدات
 os.makedirs(REPORTS_STORE, exist_ok=True)
 os.makedirs(METADATA_FOLDER, exist_ok=True)
 os.makedirs(BASIC_FOLDER, exist_ok=True)
@@ -508,7 +506,6 @@ def setup_arabic_support():
         font-weight: bold !important;
     }
     
-    /* ستايل خاص لزر المتجر */
     div[data-testid="stButton"] button[kind="secondary"] {
         background: linear-gradient(135deg, #d4af37, #ffd700) !important;
         border: 2px solid #b8860b !important;
@@ -525,7 +522,6 @@ def setup_arabic_support():
         background: linear-gradient(135deg, #ffd700, #d4af37) !important;
     }
     
-    /* ستايل بطاقات المتجر */
     .store-card {
         background: linear-gradient(135deg, #1a1a1a, #2d2d2d) !important;
         padding: 20px !important;
@@ -573,7 +569,6 @@ def setup_arabic_support():
         padding-top: 15px !important;
     }
     
-    /* ستايل زر المصنع المؤقت */
     .factory-button {
         background: linear-gradient(135deg, #4a1a1a, #6a2a2a) !important;
         border: 3px solid #ffaa00 !important;
@@ -914,32 +909,27 @@ st.markdown("""
 
 st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — انتقل إلى المستشار الذكي")
 
-# ========== زر المصنع المبسط (بعد التعديل) ==========
+# ========== زر المصنع المبسط ==========
 st.markdown("### 🏭 تشغيل مصنع التقارير (اختبار مباشر)")
 st.warning("⚠️ هذا تشغيل مباشر - انتظر حتى تظهر النتيجة")
 
-# تعيين القيمة الافتراضية = كل البيانات (أو 100000 أقصى حد)
 default_sample_size = min(len(df_raw), 100000)
 sample_size = st.number_input("عدد الصفقات للتحليل", min_value=100, max_value=100000, value=default_sample_size, step=100)
 
 if st.button("🚀 تشغيل المصنع الآن", key="factory_simple_btn", use_container_width=True):
     
-    # 1️⃣ كتابة أول رسالة للتأكد أن الكود شتغل
     st.write("📌 1. تم الضغط على الزر - بدء التنفيذ...")
     
     try:
-        # 2️⃣ التأكد من import الدالة
         st.write("📌 2. جاري استيراد مصنع التقارير...")
         from district_report_factory import generate_all_district_reports
         st.success("✅ تم استيراد المصنع بنجاح")
         
-        # 3️⃣ تنظيف المتجر قبل البدء (للتجربة فقط)
         st.write("📌 3. تنظيف المتجر القديم...")
         if os.path.exists(REPORTS_STORE):
             shutil.rmtree(REPORTS_STORE)
             st.write("✅ تم حذف المتجر القديم")
         
-        # 4️⃣ إنشاء المجلدات من جديد
         st.write("📌 4. إنشاء مجلدات جديدة...")
         os.makedirs(METADATA_FOLDER, exist_ok=True)
         os.makedirs(BASIC_FOLDER, exist_ok=True)
@@ -949,11 +939,9 @@ if st.button("🚀 تشغيل المصنع الآن", key="factory_simple_btn", 
         
         st.success("✅ تم إنشاء المجلدات بنجاح")
         
-        # 5️⃣ التحقق من البيانات
         st.write(f"📌 5. حجم البيانات الإجمالي: {len(df_raw)} صفقة")
         st.write(f"📌 6. العينة المطلوبة: {sample_size} صفقة")
         
-        # 6️⃣ استخدام العينة المحددة أو كل البيانات إذا كان العدد أكبر من المتاح
         if sample_size >= len(df_raw):
             df_sample = df_raw
             st.write(f"✅ سيتم استخدام كل البيانات ({len(df_sample)} صفقة)")
@@ -961,18 +949,14 @@ if st.button("🚀 تشغيل المصنع الآن", key="factory_simple_btn", 
             df_sample = df_raw.head(sample_size)
             st.write(f"✅ سيتم استخدام أول {sample_size} صفقة")
         
-        # 7️⃣ تشغيل المصنع
         st.write("📌 7. جاري تشغيل المصنع... (قد يستغرق 5-15 دقيقة حسب حجم البيانات)")
         
-        # استدعاء المصنع
         result = generate_all_district_reports(df_sample)
         
-        # 8️⃣ عرض النتيجة
         if result and isinstance(result, tuple) and len(result) >= 1:
             total_reports = result[0]
             st.success(f"✅ تم إنشاء {total_reports} تقرير بنجاح!")
             
-            # 9️⃣ التحقق من مجلد metadata
             if os.path.exists(METADATA_FOLDER):
                 files = os.listdir(METADATA_FOLDER)
                 json_files = [f for f in files if f.endswith('.json')]
@@ -984,7 +968,6 @@ if st.button("🚀 تشغيل المصنع الآن", key="factory_simple_btn", 
                     for f in json_files[:5]:
                         st.code(f)
                     
-                    # عرض محتوى أول ملف
                     try:
                         with open(os.path.join(METADATA_FOLDER, json_files[0]), 'r', encoding='utf-8') as f:
                             data = json.load(f)
@@ -1520,17 +1503,61 @@ if page == "📊 التحليل الكامل":
                         city, property_type, status, real_data
                     )
 
+                    # =========================================================
+                    # التعديلات النهائية: تحميل بيانات المشاريع والأحياء والإحداثيات
+                    # =========================================================
+                    district_name = None  # يمكن تعديله إذا كان المستخدم يختار حياً
+                    
+                    projects_df = load_projects_data()
+                    if projects_df is None:
+                        projects_df = []  # Fail-safe handling
+
+                    districts_df = load_districts_data()
+
+                    # استخراج إحداثيات الحي إذا كان موجود
+                    district_lat = None
+                    district_lon = None
+                    district_impact = None
+
+                    if districts_df is not None and not districts_df.empty and district_name:
+                        district_row = districts_df[
+                            districts_df["اسم الحي"].astype(str).str.strip() == str(district_name).strip()
+                        ]
+                        
+                        if district_row is not None and not district_row.empty:
+                            district_lat = district_row.iloc[0].get("خط_العرض", None)
+                            district_lon = district_row.iloc[0].get("خط_الطول", None)
+                            district_impact = district_row.iloc[0].get("نطاق_التأثير", None)
+                            
+                            try:
+                                district_impact = float(district_impact)
+                            except (TypeError, ValueError):
+                                district_impact = 5
+                            
+                            print(f"📍 تم العثور على الحي: {district_name}")
+                            print(f"   خط العرض: {district_lat}")
+                            print(f"   خط الطول: {district_lon}")
+                            print(f"   نطاق التأثير: {district_impact}")
+                        else:
+                            print(f"⚠️ لم يتم العثور على الحي: {district_name}")
+                    else:
+                        print("⚠️ لا توجد بيانات أحياء أو لم يتم تحديد حي")
+
                     user_info = {
                         "user_type": user_type,
                         "city": city,
-                        "district": None,
+                        "district": district_name,
                         "property_type": property_type,
                         "area": area,
                         "package": chosen_pkg,
                         "chosen_pkg": chosen_pkg,
                         "باقة": chosen_pkg,
                         "property_count": property_count,
-                        "status": status
+                        "status": status,
+                        "خط_العرض": district_lat,
+                        "خط_الطول": district_lon,
+                        "نطاق_التأثير": district_impact,
+                        "projects_data": projects_df
                     }
                     
                     st.session_state["user_info"] = user_info
@@ -1562,11 +1589,10 @@ if page == "📊 التحليل الكامل":
                     try:
                         from report_orchestrator import build_report_story
 
-                        # ✅ التعديل هنا: إضافة report_kind="city" لتحديد نوع التقرير كمدينة
                         story = build_report_story(
                             user_info,
                             provided_dataframe=real_data,
-                            report_kind="city"  # <-- هذا هو السطر المطلوب
+                            report_kind="city"
                         )
                         
                         final_content_text = story.get("content_text", "")
@@ -1587,7 +1613,6 @@ if page == "📊 التحليل الكامل":
                         
                         st.session_state["charts_by_chapter"] = charts_by_chapter
                         
-                        # ✅ التعديل الجديد: تمرير report_kind إلى user_info قبل إنشاء PDF
                         user_info["report_kind"] = "city"
                         
                         pdf_buffer = create_pdf_from_content(
@@ -1657,7 +1682,6 @@ if page == "📊 التحليل الكامل":
     
     # ===== قسم تقارير الأحياء =====
     if analysis_mode == "📍 تقارير الأحياء":
-        # استدعاء الدالة من الملف المنفصل
         show_district_reports(df_raw)
 
 # ========== صفحة المستشار الذكي ==========
@@ -1763,14 +1787,11 @@ if st.session_state.go_store:
     </div>
     """, unsafe_allow_html=True)
     
-    # ===== التعديل الأساسي: استيراد دالة جلب المخزون من المصنع مع حماية =====
     from district_report_factory import get_store_inventory
 
-    # جلب البيانات من المصنع الذي قام بإنشاء التقارير مع معالجة الأخطاء
     try:
         inventory_data = get_store_inventory()
         
-        # دمج التقارير من جميع المستويات (Basic, Pro, Premium) في قائمة واحدة
         inventory = (
             inventory_data.get("basic", []) +
             inventory_data.get("pro", []) +
@@ -1783,7 +1804,6 @@ if st.session_state.go_store:
         st.error(f"❌ خطأ في قراءة المخزون: {str(e)}")
         st.info("⚠️ يرجى التأكد من تشغيل مصنع التقارير أولاً باستخدام الزر المخصص")
         
-        # تهيئة مخزون فارغ لضمان استمرار التطبيق
         inventory_data = {
             "basic": [],
             "pro": [],
@@ -1791,7 +1811,6 @@ if st.session_state.go_store:
         }
         inventory = []
         
-        # إضافة زر لتشغيل المصنع مباشرة من المتجر
         if st.button("🚀 تشغيل مصنع التقارير الآن", use_container_width=True):
             st.session_state.go_store = False
             st.rerun()
@@ -1800,7 +1819,6 @@ if st.session_state.go_store:
             st.session_state.go_store = False
             st.rerun()
         st.stop()
-    # ===== نهاية التعديل =====
     
     if not inventory:
         st.warning("⚠️ لا توجد تقارير في المتجر حالياً. استخدم زر 'تشغيل مصنع التقارير' أعلاه لإنشاء التقارير أولاً.")
@@ -1810,7 +1828,6 @@ if st.session_state.go_store:
             st.rerun()
         st.stop()
     
-    # عرض إحصائيات سريعة في الـ sidebar
     if len(inventory) > 50:
         st.sidebar.success(f"🔥 المتجر: {len(inventory)} تقرير")
     elif len(inventory) > 0:
@@ -1818,7 +1835,6 @@ if st.session_state.go_store:
     else:
         st.sidebar.warning("📊 المتجر: 0 تقرير")
     
-    # ===== فلترة التقارير =====
     st.markdown("### 🔍 فلترة التقارير")
     col1, col2, col3 = st.columns(3)
     
@@ -1834,7 +1850,6 @@ if st.session_state.go_store:
         product_titles = sorted(list(set(item.get("product_title", "غير محدد") for item in inventory)))
         selected_product = st.selectbox("📊 نوع التقرير", ["الكل"] + product_titles)
     
-    # ===== تطبيق الفلترة =====
     filtered_inventory = []
     for item in inventory:
         if selected_city != "الكل" and item.get("city") != selected_city:
@@ -1854,12 +1869,10 @@ if st.session_state.go_store:
             st.rerun()
         st.stop()
     
-    # ===== عرض التقارير في بطاقات =====
     cols = st.columns(3)
     
     for i, item in enumerate(filtered_inventory):
         with cols[i % 3]:
-            # استخراج البيانات
             city = item.get("city", "غير محدد")
             district = item.get("district", "غير محدد")
             property_type = item.get("property_type", "غير محدد")
@@ -1867,7 +1880,6 @@ if st.session_state.go_store:
             price = item.get("price", 0)
             file_path = item.get("file_path", "")
             
-            # تنسيق السعر
             if price == 0:
                 price_display = "مجاني"
                 price_color = "#00FFD1"
@@ -1883,7 +1895,6 @@ if st.session_state.go_store:
                 <div class='price' style='color: {price_color};'>{price_display}</div>
             """, unsafe_allow_html=True)
             
-            # زر تحميل التقرير مع معالجة الأخطاء
             if file_path and os.path.exists(file_path):
                 try:
                     with open(file_path, "rb") as f:
@@ -1905,7 +1916,6 @@ if st.session_state.go_store:
             
             st.markdown("</div>", unsafe_allow_html=True)
     
-    # زر العودة
     if st.button("🔙 العودة للتحليل", use_container_width=True):
         st.session_state.go_store = False
         st.rerun()
