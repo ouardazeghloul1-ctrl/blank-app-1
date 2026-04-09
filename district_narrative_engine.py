@@ -185,7 +185,8 @@ def generate_district_narrative(
                 # ✅ استخدام اسم العمود الموحد "نطاق_التأثير" (تم توحيده في load_projects_data)
                 impact_radius = float(getattr(row, "نطاق_التأثير", 2) or 2)
                 
-                if distance <= impact_radius:
+                # ✅ التعديل الحقيقي: توحيد نطاق البحث مع الخريطة (10 كم كحد أدنى)
+                if distance <= max(impact_radius, 10):
                     nearby_projects.append({
                         "type": getattr(row, "النوع", "غير محدد"),
                         "status": getattr(row, "الحالة", "غير محدد"),
@@ -383,11 +384,10 @@ def generate_district_narrative(
     
     # =========================================
     # المشاريع القريبة من الحي (مع الإحداثيات للخرائط)
-    # ✅ التعديل المطلوب: تحسين الشرط ليشمل المشروع الواحد
+    # ✅ التعديل: استخدام len(nearby_projects) > 0 بدلاً من nearby_projects فقط
     # =========================================
     projects_section = ""
-    # ✅ التعديل: تغيير الشرط من "if nearby_projects" إلى "if len(nearby_projects) > 0"
-    # هذا يضمن أن المشروع الواحد يعتبر مؤثراً ولا يتم تجاهله
+    # ✅ التعديل: تغيير الشرط ليشمل المشروع الواحد
     if len(nearby_projects) > 0:
         lines = ""
         # تخزين المشاريع والإحداثيات لاستخدامها في الخريطة لاحقاً
