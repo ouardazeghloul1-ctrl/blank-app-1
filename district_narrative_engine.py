@@ -383,9 +383,12 @@ def generate_district_narrative(
     
     # =========================================
     # المشاريع القريبة من الحي (مع الإحداثيات للخرائط)
+    # ✅ التعديل المطلوب: تحسين الشرط ليشمل المشروع الواحد
     # =========================================
     projects_section = ""
-    if nearby_projects:
+    # ✅ التعديل: تغيير الشرط من "if nearby_projects" إلى "if len(nearby_projects) > 0"
+    # هذا يضمن أن المشروع الواحد يعتبر مؤثراً ولا يتم تجاهله
+    if len(nearby_projects) > 0:
         lines = ""
         # تخزين المشاريع والإحداثيات لاستخدامها في الخريطة لاحقاً
         user_info["nearby_projects"] = nearby_projects
@@ -406,11 +409,18 @@ def generate_district_narrative(
                 f"({p['status']}) "
                 f"على بعد {p['distance']} كم\n"
             )
+        
+        # ✅ تحسين النص ليعكس العدد بدقة (مفرد/جمع)
+        if len(nearby_projects) == 1:
+            projects_intro = f"تشير البيانات إلى وجود مشروع تنموي مؤثر بالقرب من حي {district}:"
+        else:
+            projects_intro = f"تشير البيانات إلى وجود عدد من المشاريع التنموية المؤثرة بالقرب من حي {district}:"
+        
         projects_section = f"""
 
 المشاريع التنموية القريبة من الحي
 
-تشير البيانات إلى وجود عدد من المشاريع التنموية المؤثرة بالقرب من حي {district}.
+{projects_intro}
 
 {lines}
 
@@ -429,7 +439,7 @@ def generate_district_narrative(
     # ✅ جدول المشاريع القريبة من الحي (تمت الإضافة هنا)
     # =========================================
     projects_table_section = ""
-    if nearby_projects:
+    if len(nearby_projects) > 0:
         table_lines = ""
         for i, p in enumerate(nearby_projects, start=1):
             # تحديد مستوى التأثير حسب المسافة
