@@ -685,6 +685,11 @@ def create_pdf_from_content(
             impact_radius_km=impact_radius
         )
         
+        # ✅ هذا هو التعديل الحاسم: حفظ المشاريع القريبة لاستخدامها في النص
+        if projects_df is not None and not projects_df.empty:
+            user_info["nearby_projects"] = projects_df.to_dict("records")
+            print(f"DEBUG: تم حفظ {len(projects_df)} مشروع في user_info['nearby_projects']")
+        
         # =========================================================
         # ✅ الاختبار البصري داخل التقرير نفسه
         # =========================================================
