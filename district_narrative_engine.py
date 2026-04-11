@@ -182,11 +182,9 @@ def generate_district_narrative(
                 if distance is None:
                     continue
                 
-                # ✅ التعديل الحاسم: توحيد نطاق البحث مع الخريطة (10 كم كحد أدنى)
-                impact_radius = max(float(getattr(row, "نطاق_التأثير", 2) or 2), 10)
-                
-                # ✅ سطر تشخيصي للتأكد من القيمة الجديدة
-                print(f"DEBUG NEW impact_radius: {impact_radius}, distance: {distance}")
+                # ✅ التعديل الحاسم: استخدام نطاق التأثير من user_info (الحي) بدلاً من المشروع
+                # impact_radius = float(getattr(row, "نطاق_التأثير", 2) or 2)  # القديم
+                impact_radius = max(float(user_info.get("نطاق_التأثير", 5) or 5), 10)  # ✅ الجديد
                 
                 if distance <= impact_radius:
                     nearby_projects.append({
@@ -388,7 +386,7 @@ def generate_district_narrative(
     # المشاريع القريبة من الحي (مع الإحداثيات للخرائط)
     # =========================================
     projects_section = ""
-    if len(nearby_projects) > 0:
+    if nearby_projects:
         lines = ""
         # تخزين المشاريع والإحداثيات لاستخدامها في الخريطة لاحقاً
         user_info["nearby_projects"] = nearby_projects
@@ -409,18 +407,11 @@ def generate_district_narrative(
                 f"({p['status']}) "
                 f"على بعد {p['distance']} كم\n"
             )
-        
-        # ✅ تحسين النص ليعكس العدد بدقة (مفرد/جمع)
-        if len(nearby_projects) == 1:
-            projects_intro = f"تشير البيانات إلى وجود مشروع تنموي مؤثر بالقرب من حي {district}:"
-        else:
-            projects_intro = f"تشير البيانات إلى وجود عدد من المشاريع التنموية المؤثرة بالقرب من حي {district}:"
-        
         projects_section = f"""
 
 المشاريع التنموية القريبة من الحي
 
-{projects_intro}
+تشير البيانات إلى وجود عدد من المشاريع التنموية المؤثرة بالقرب من حي {district}.
 
 {lines}
 
@@ -439,7 +430,7 @@ def generate_district_narrative(
     # ✅ جدول المشاريع القريبة من الحي (تمت الإضافة هنا)
     # =========================================
     projects_table_section = ""
-    if len(nearby_projects) > 0:
+    if nearby_projects:
         table_lines = ""
         for i, p in enumerate(nearby_projects, start=1):
             # تحديد مستوى التأثير حسب المسافة
