@@ -162,7 +162,10 @@ def generate_district_narrative(
             for row in projects_df.itertuples(index=False):
                 # الوصول للحقول باستخدام النقطة (أسرع)
                 project_city = getattr(row, "المدينة", None)
-                if project_city != city:
+                # ✅ تنظيف اسم المدينة من أي صيغ إضافية (/ حي كذا)
+                project_city_clean = str(project_city).split("/")[0].strip().lower()
+                city_clean = str(city).split("/")[0].strip().lower()
+                if project_city_clean != city_clean:
                     continue
                 
                 project_lat = getattr(row, "خط_العرض", None)
@@ -182,12 +185,23 @@ def generate_district_narrative(
                 if distance is None:
                     continue
                 
-                # ✅ التعديل الحاسم: استخدام نطاق التأثير من user_info (الحي) بدلاً من المشروع
-                # impact_radius = float(getattr(row, "نطاق_التأثير", 2) or 2)  # القديم
-                impact_radius = max(float(user_info.get("نطاق_التأثير", 5) or 5), 10)  # ✅ الجديد
+                # ✅ التعديل الحاسم: استخدام نطاق التأثير من user_info (الحي) بدلاً من المشروع مع حماية إضافية
+                try:
+                    impact_radius = max(float(user_info.get("نطاق_التأثير", 5) or 5), 10)
+                except (ValueError, TypeError):
+                    impact_radius = 10
+                
+                # ✅ قراءة اسم المشروع من الأعمدة المختلفة
+                # ملاحظة: itertuples يحول المسافات في أسماء الأعمدة إلى شرطات سفلية
+                project_name = getattr(row, "اسم_المشروع", None)
+                if project_name is None:
+                    project_name = getattr(row, "اسم_المشروع_بالعربية", None)
+                if project_name is None:
+                    project_name = "غير محدد"
                 
                 if distance <= impact_radius:
                     nearby_projects.append({
+                        "name": project_name,
                         "type": getattr(row, "النوع", "غير محدد"),
                         "status": getattr(row, "الحالة", "غير محدد"),
                         "distance": distance,
@@ -386,6 +400,8 @@ def generate_district_narrative(
     # المشاريع القريبة من الحي (مع الإحداثيات للخرائط)
     # =========================================
     projects_section = ""
+    # ✅ استخدام المشاريع القادمة من الخريطة إذا كانت موجودة
+    nearby_projects = user_info.get("nearby_projects", nearby_projects)
     if nearby_projects:
         lines = ""
         # تخزين المشاريع والإحداثيات لاستخدامها في الخريطة لاحقاً
@@ -403,8 +419,8 @@ def generate_district_narrative(
         
         for p in nearby_projects:
             lines += (
-                f"• {p['type']} "
-                f"({p['status']}) "
+                f"• {p.get('name', 'مشروع')} "
+                f"({p.get('status', 'غير محدد')}) "
                 f"على بعد {p['distance']} كم\n"
             )
         projects_section = f"""
@@ -444,6 +460,7 @@ def generate_district_narrative(
             
             table_lines += (
                 f"{i}. "
+                f"{p.get('name', 'مشروع')} — "
                 f"{p.get('type', 'غير محدد')} — "
                 f"{p.get('status', 'غير محدد')} — "
                 f"{distance} كم — "
