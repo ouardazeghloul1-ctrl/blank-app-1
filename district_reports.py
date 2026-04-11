@@ -219,11 +219,11 @@ def show_district_reports(df_raw):
                                 district_lon = district_row.iloc[0].get("خط_الطول", None)
                                 district_impact = district_row.iloc[0].get("نطاق_التأثير", 5)
                                 
-                                # ✅ التعديل الحاسم: تحويل نطاق التأثير إلى رقم بشكل آمن
+                                # 🔴🔴🔴 التعديل الحاسم - إجبار نطاق التأثير على 10 كم كحد أدنى 🔴🔴🔴
                                 try:
-                                    district_impact = float(district_impact)
+                                    district_impact = max(float(district_impact), 10)
                                 except (ValueError, TypeError):
-                                    district_impact = 5  # قيمة افتراضية آمنة
+                                    district_impact = 10  # قيمة افتراضية 10 كم
                         
                         # =========================================
                         # ✅ التعديل الأساسي: إعداد user_info بجميع المفاتيح المطلوبة
