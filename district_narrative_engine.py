@@ -198,6 +198,12 @@ def generate_district_narrative(
     # =========================================
     nearby_projects = []
     try:
+        # ✅ سطر الاختبار - قبل أي شرط ليكشف الحقيقة حتى لو البيانات فارغة
+        print("DEBUG PROJECTS DF:", type(projects_df), "rows:", len(projects_df) if projects_df is not None else "None")
+        
+        # ✅ سطر إضافي لفحص الأعمدة
+        print("DEBUG PROJECTS COLUMNS:", list(projects_df.columns) if projects_df is not None else "None")
+        
         if (district_lat is not None and district_lon is not None and
             projects_df is not None and not projects_df.empty):
             
@@ -246,7 +252,7 @@ def generate_district_narrative(
                         "lat": float(project_lat),
                         "lon": float(project_lon)
                     })
-                    print(f"✅ مشروع قريب: {project_name} ({project_type}) على بعد {distance} كم")
+                    print(f"✅ مشروع قريب: {project_name} ({project_type}) على بعد {distance} км")
             
             nearby_projects.sort(key=lambda x: x["distance"])
             nearby_projects = nearby_projects[:MAX_PROJECTS]
