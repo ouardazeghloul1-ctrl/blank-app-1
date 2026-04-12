@@ -214,24 +214,30 @@ def generate_district_narrative(
             district_impact_radius = max(float(user_info.get("نطاق_التأثير", 5) or 5), 10)
             print(f"📍 نطاق تأثير الحي المستخدم للبحث: {district_impact_radius} كم")
             
-            for row in projects_df.itertuples(index=False):
+            # ✅ التعديل الحاسم: استخدام iterrows بدلاً من itertuples
+            for _, row in projects_df.iterrows():
                 # ✅ سطر الاختبار الحاسم - يكشف السبب الحقيقي
-                print("DEBUG TEST:", getattr(row, "اسم_المشروع", None), getattr(row, "المدينة", None), getattr(row, "خط_العرض", None), getattr(row, "خط_الطول", None))
+                project_city = row.get("المدينة", None)
+                project_lat = row.get("خط_العرض", None)
+                project_lon = row.get("خط_الطول", None)
+                project_name = row.get("اسم_المشروع", "غير محدد")
+                project_type = row.get("النوع", "غير محدد")
+                project_status = row.get("الحالة", "غير محدد")
                 
-                # ✅ التعديل الحاسم: تنظيف اسم المدينة قبل المقارنة
-                project_city_raw = getattr(row, "المدينة", None)
-                project_city_clean = str(project_city_raw).split("/")[0].strip().lower() if project_city_raw else ""
+                print("DEBUG ROW:", project_city, project_lat, project_lon, project_name)
+                
+                # تنظيف اسم المدينة للمقارنة
+                project_city_clean = str(project_city).split("/")[0].strip().lower() if project_city else ""
                 city_clean = str(city).split("/")[0].strip().lower()
                 
                 print(f"DEBUG CITY COMPARE: project='{project_city_clean}', report='{city_clean}'")
                 
                 if project_city_clean != city_clean:
+                    print(f"DEBUG SKIP: city mismatch - {project_city_clean} != {city_clean}")
                     continue
                 
-                project_lat = getattr(row, "خط_العرض", None)
-                project_lon = getattr(row, "خط_الطول", None)
-                
                 if project_lat is None or project_lon is None:
+                    print(f"DEBUG SKIP: missing coordinates for {project_name}")
                     continue
                 
                 distance = calculate_distance(
@@ -244,12 +250,7 @@ def generate_district_narrative(
                 if distance is None:
                     continue
                 
-                # ✅ استخدام اسم العمود المباشر "اسم_المشروع"
-                project_name = getattr(row, "اسم_المشروع", "غير محدد")
-                project_type = getattr(row, "النوع", "غير محدد")
-                project_status = getattr(row, "الحالة", "غير محدد")
-                
-                print(f"DEBUG DISTANCE: distance={distance}, radius={district_impact_radius}")
+                print(f"DEBUG DISTANCE: {project_name} distance={distance}, radius={district_impact_radius}")
                 
                 if distance <= district_impact_radius:
                     nearby_projects.append({
