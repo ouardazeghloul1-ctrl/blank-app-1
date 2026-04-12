@@ -114,6 +114,14 @@ def generate_district_narrative(
     districts_df = DISTRICTS_DATA
     projects_df = projects_data if projects_data is not None else PROJECTS_DATA
 
+    # ✅ سطر تشخيصي حاسم - يكشف مصدر البيانات
+    print("="*50)
+    print("PROJECTS SOURCE:", "passed data" if projects_data is not None else "global data")
+    print("PROJECTS ROW COUNT:", len(projects_df) if projects_df is not None else "None")
+    if projects_df is not None and not projects_df.empty:
+        print("PROJECTS FIRST ROW:", projects_df.iloc[0].to_dict() if len(projects_df) > 0 else "Empty")
+    print("="*50)
+
     # =========================================
     # جلب إحداثيات الحي الحالي
     # =========================================
@@ -220,7 +228,15 @@ def generate_district_narrative(
                 project_city = row.get("المدينة", None)
                 project_lat = row.get("خط_العرض", None)
                 project_lon = row.get("خط_الطول", None)
-                project_name = row.get("اسم_المشروع", "غير محدد")
+                
+                # ✅ التعديل النهائي: استخدام اسم العمود الصحيح من ملف Excel
+                project_name = (
+                    row.get("اسم المشروع بالعربية") or 
+                    row.get("اسم_المشروع") or 
+                    row.get("Project Name (English)") or 
+                    "غير محدد"
+                )
+                
                 project_type = row.get("النوع", "غير محدد")
                 project_status = row.get("الحالة", "غير محدد")
                 
