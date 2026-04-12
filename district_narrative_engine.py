@@ -196,7 +196,7 @@ def generate_district_narrative(
         import traceback
         traceback.print_exc()
 
-    # ✅ التعديل الحاسم: لا تستبدل القائمة إذا كانت تحتوي على مشاريع بالفعل
+    # ✅ التعديل الحاسم: إذا كانت القائمة فارغة، خذ القائمة من user_info (التي خزنتها الخريطة)
     if not nearby_projects:
         nearby_projects = user_info.get("nearby_projects", [])
 
@@ -319,7 +319,11 @@ def generate_district_narrative(
     # المشاريع القريبة من الحي
     # =========================================
     projects_section = ""
-    if len(nearby_projects) > 0:
+    # ✅ الحل الحاسم: إذا كانت القائمة فارغة خذيها من user_info
+    if not nearby_projects:
+        nearby_projects = user_info.get("nearby_projects", [])
+    
+    if nearby_projects:
         lines = ""
         user_info["nearby_projects"] = nearby_projects
         if district_lat is not None:
@@ -363,7 +367,7 @@ def generate_district_narrative(
     # جدول المشاريع القريبة من الحي
     # =========================================
     projects_table_section = ""
-    if len(nearby_projects) > 0:
+    if nearby_projects:
         table_lines = ""
         for i, p in enumerate(nearby_projects, start=1):
             distance = p.get("distance", 0)
