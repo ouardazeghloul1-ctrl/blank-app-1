@@ -129,18 +129,56 @@ def generate_district_narrative(
     district_lon = None
     try:
         if districts_df is not None and not districts_df.empty:
-            match = districts_df[
-                (districts_df["المدينة"] == city) &
-                (districts_df["الحي"].str.strip() == clean_district_base)
+            # ✅ سطور تشخيصية لمعرفة سبب عدم العثور على الإحداثيات
+            print("CITY:", city)
+            print("DISTRICT:", clean_district_base)
+            print("AVAILABLE DISTRICTS SAMPLE:", districts_df["الحي"].head(10).tolist())
+            
+            # ✅ تنظيف أسماء المدن والأحياء للمقارنة المرنة
+            city_clean = str(city).strip().lower()
+            
+            # تنظيف اسم الحي المطلوب
+            district_clean = str(clean_district_base).strip().replace("حي", "").strip().lower()
+            
+            # إنشاء عمود مؤقت للبحث المرن
+            districts_df_clean = districts_df.copy()
+            districts_df_clean["city_clean"] = districts_df["المدينة"].astype(str).str.strip().str.lower()
+            districts_df_clean["district_clean"] = (
+                districts_df["الحي"]
+                .astype(str)
+                .str.strip()
+                .str.replace("حي", "")
+                .str.strip()
+                .str.lower()
+            )
+            
+            # البحث المرن
+            match = districts_df_clean[
+                (districts_df_clean["city_clean"] == city_clean) &
+                (districts_df_clean["district_clean"] == district_clean)
             ]
+            
             if not match.empty:
                 district_lat = match.iloc[0]["خط_العرض"]
                 district_lon = match.iloc[0]["خط_الطول"]
                 print(f"📍 تم العثور على إحداثيات الحي {clean_district_base}: {district_lat}, {district_lon}")
             else:
-                print(f"⚠️ لم يتم العثور على إحداثيات للحي {clean_district_base}")
+                # محاولة البحث الجزئي إذا لم يجد تطابق تام
+                print(f"⚠️ لم يتم العثور على تطابق تام، جاري البحث الجزئي...")
+                match_partial = districts_df_clean[
+                    (districts_df_clean["city_clean"] == city_clean) &
+                    (districts_df_clean["district_clean"].str.contains(district_clean, na=False))
+                ]
+                if not match_partial.empty:
+                    district_lat = match_partial.iloc[0]["خط_العرض"]
+                    district_lon = match_partial.iloc[0]["خط_الطول"]
+                    print(f"📍 تم العثور على إحداثيات (بحث جزئي) للحي {clean_district_base}: {district_lat}, {district_lon}")
+                else:
+                    print(f"❌ لم يتم العثور على إحداثيات للحي {clean_district_base}")
     except Exception as e:
         print("خطأ في جلب إحداثيات الحي:", e)
+        import traceback
+        traceback.print_exc()
 
     # =========================================
     # حساب المشاريع القريبة
