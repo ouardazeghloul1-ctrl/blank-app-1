@@ -136,6 +136,66 @@ def generate_district_narrative(
 
     # =========================================
     # حساب المشاريع القريبة
+    # ✅ تم نقل هذا القسم إلى قبل إنشاء النص مباشرة
+    # =========================================
+    
+    # =========================================
+    # تحسين الأداء: إنشاء df_city مرة واحدة
+    # =========================================
+    
+    city_districts_list = []
+    city_transactions_by_district = pd.Series(dtype=int)
+    city_price_by_district = pd.Series(dtype=float)
+    total_city_transactions = 0
+    df_city = pd.DataFrame()
+    
+    try:
+        if isinstance(real_data, pd.DataFrame) and not real_data.empty and "district" in real_data.columns:
+            print("="*50)
+            print(f"تحليل مدينة: {city}")
+            print(f"الحي المطلوب: {clean_district_base}")
+            print(f"إجمالي البيانات المستقبلة: {len(real_data):,} صفقة")
+            
+            df_city = real_data.copy()
+            print(f"✅ تم استخدام البيانات مباشرة بدون إعادة فلترة")
+            print(f"صفقات المدينة: {len(df_city):,}")
+            
+            if not df_city.empty:
+                df_city["district_clean"] = (
+                    df_city["district"]
+                    .astype(str)
+                    .str.split("/")
+                    .str[-1]
+                    .str.strip()
+                )
+                
+                df_city["price"] = pd.to_numeric(df_city["price"], errors="coerce")
+                df_city["area"] = pd.to_numeric(df_city["area"], errors="coerce")
+                df_city = df_city[df_city["area"] > 0]
+                df_city["price_sqm"] = df_city["price"] / df_city["area"]
+                df_city = df_city[df_city["price_sqm"].notna()]
+                df_city = df_city[(df_city["price_sqm"] >= 50) & (df_city["price_sqm"] <= 200000)]
+                
+                total_city_transactions = len(df_city)
+                city_transactions_by_district = df_city["district_clean"].value_counts(sort=True)
+                city_districts_list = city_transactions_by_district.index.tolist()
+                city_price_by_district = df_city.groupby("district_clean")["price_sqm"].median()
+                city_price_by_district = city_price_by_district.dropna().sort_values(ascending=False)
+                
+                print(f"عدد الأحياء المكتشفة: {len(city_districts_list)}")
+                
+                if clean_district_base in city_districts_list:
+                    print(f"✅ تم العثور على الحي: {clean_district_base}")
+                    print(f"عدد صفقات الحي: {city_transactions_by_district[clean_district_base]:,}")
+                else:
+                    print(f"⚠️ الحي {clean_district_base} غير موجود في القائمة")
+    except Exception as e:
+        print(f"❌ خطأ في تجهيز بيانات المدينة: {e}")
+
+    print("="*50)
+
+    # =========================================
+    # ✅ التعديل الحاسم: حساب المشاريع القريبة قبل إنشاء النص
     # =========================================
     nearby_projects = []
     try:
@@ -196,60 +256,7 @@ def generate_district_narrative(
         import traceback
         traceback.print_exc()
 
-    # =========================================
-    # تحسين الأداء: إنشاء df_city مرة واحدة
-    # =========================================
-    
-    city_districts_list = []
-    city_transactions_by_district = pd.Series(dtype=int)
-    city_price_by_district = pd.Series(dtype=float)
-    total_city_transactions = 0
-    df_city = pd.DataFrame()
-    
-    try:
-        if isinstance(real_data, pd.DataFrame) and not real_data.empty and "district" in real_data.columns:
-            print("="*50)
-            print(f"تحليل مدينة: {city}")
-            print(f"الحي المطلوب: {clean_district_base}")
-            print(f"إجمالي البيانات المستقبلة: {len(real_data):,} صفقة")
-            
-            df_city = real_data.copy()
-            print(f"✅ تم استخدام البيانات مباشرة بدون إعادة فلترة")
-            print(f"صفقات المدينة: {len(df_city):,}")
-            
-            if not df_city.empty:
-                df_city["district_clean"] = (
-                    df_city["district"]
-                    .astype(str)
-                    .str.split("/")
-                    .str[-1]
-                    .str.strip()
-                )
-                
-                df_city["price"] = pd.to_numeric(df_city["price"], errors="coerce")
-                df_city["area"] = pd.to_numeric(df_city["area"], errors="coerce")
-                df_city = df_city[df_city["area"] > 0]
-                df_city["price_sqm"] = df_city["price"] / df_city["area"]
-                df_city = df_city[df_city["price_sqm"].notna()]
-                df_city = df_city[(df_city["price_sqm"] >= 50) & (df_city["price_sqm"] <= 200000)]
-                
-                total_city_transactions = len(df_city)
-                city_transactions_by_district = df_city["district_clean"].value_counts(sort=True)
-                city_districts_list = city_transactions_by_district.index.tolist()
-                city_price_by_district = df_city.groupby("district_clean")["price_sqm"].median()
-                city_price_by_district = city_price_by_district.dropna().sort_values(ascending=False)
-                
-                print(f"عدد الأحياء المكتشفة: {len(city_districts_list)}")
-                
-                if clean_district_base in city_districts_list:
-                    print(f"✅ تم العثور على الحي: {clean_district_base}")
-                    print(f"عدد صفقات الحي: {city_transactions_by_district[clean_district_base]:,}")
-                else:
-                    print(f"⚠️ الحي {clean_district_base} غير موجود في القائمة")
-    except Exception as e:
-        print(f"❌ خطأ في تجهيز بيانات المدينة: {e}")
-
-    print("="*50)
+    print(f"DEBUG: عدد المشاريع المكتشفة: {len(nearby_projects)}")
 
     # =========================================
     # تهيئة متغيرات التقرير
@@ -312,30 +319,26 @@ def generate_district_narrative(
     report_sections.append(snapshot_section)
     
     # =========================================
-    # المشاريع القريبة من الحي
-    # 🔴 التعديل الحاسم: تأكد أن القائمة تأتي من user_info إذا كانت فارغة
+    # ✅ المشاريع القريبة من الحي
+    # ✅ تم نقل هذا القسم إلى بعد حساب المشاريع
     # =========================================
+    
+    # تخزين المشاريع والإحداثيات لاستخدامها في الخريطة لاحقاً
+    user_info["nearby_projects"] = nearby_projects
+    if district_lat is not None:
+        user_info["district_lat"] = float(district_lat)
+    else:
+        user_info["district_lat"] = None
+    if district_lon is not None:
+        user_info["district_lon"] = float(district_lon)
+    else:
+        user_info["district_lon"] = None
+    
+    print(f"DEBUG: عدد المشاريع المستخدمة في النص: {len(nearby_projects)}")
+    
     projects_section = ""
-    
-    # ✅ إذا كانت القائمة فارغة، خذ القائمة من user_info (التي خزنتها الخريطة)
-    if not nearby_projects:
-        nearby_projects = user_info.get("nearby_projects", [])
-    
-    print("DEBUG: عدد المشاريع المستخدمة في النص:", len(nearby_projects))
-    
     if nearby_projects:
         lines = ""
-        # تخزين المشاريع والإحداثيات لاستخدامها في الخريطة لاحقاً
-        user_info["nearby_projects"] = nearby_projects
-        if district_lat is not None:
-            user_info["district_lat"] = float(district_lat)
-        else:
-            user_info["district_lat"] = None
-        if district_lon is not None:
-            user_info["district_lon"] = float(district_lon)
-        else:
-            user_info["district_lon"] = None
-        
         for p in nearby_projects:
             name = p.get("name", "مشروع")
             status = p.get("status", "غير محدد")
@@ -367,7 +370,7 @@ def generate_district_narrative(
     report_sections.append(projects_section)
 
     # =========================================
-    # جدول المشاريع القريبة من الحي
+    # ✅ جدول المشاريع القريبة من الحي
     # =========================================
     projects_table_section = ""
     if nearby_projects:
