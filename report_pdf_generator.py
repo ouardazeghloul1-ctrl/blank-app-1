@@ -691,32 +691,33 @@ def create_pdf_from_content(
             print(f"DEBUG: تم حفظ {len(projects_df)} مشروع في user_info['nearby_projects']")
         
         # =========================================================
-        # ✅ الاختبار البصري داخل التقرير نفسه
+        # ✅ التعديل المطلوب: الخريطة في صفحة كاملة وحدها
         # =========================================================
         if map_fig:
-            map_img = plotly_to_image(map_fig, 16.8, 9)
+            # إنهاء الصفحة الحالية
+            story.append(PageBreak())
+            
+            # إدراج الخريطة بحجم صفحة كاملة
+            map_img = plotly_to_image(map_fig, 18.0, 24.0)
             if map_img:
                 if hasattr(map_img, '_temp_file'):
                     temp_files.append(map_img._temp_file)
-                story.append(Spacer(1, 0.8 * cm))
                 story.append(map_img)
-                story.append(Spacer(1, 0.8 * cm))
+                story.append(Spacer(1, 0.4 * cm))
             else:
-                # فشل تحويل الخريطة إلى صورة
-                story.append(Spacer(1, 0.8 * cm))
                 story.append(Paragraph(
-                    ar("⚠️ فشل تحويل الخريطة إلى صورة - مشكلة في Plotly أو Kaleido"),
+                    ar("⚠️ فشل تحويل الخريطة إلى صورة"),
                     body
                 ))
-                story.append(Spacer(1, 0.8 * cm))
+            
+            # إنهاء صفحة الخريطة
+            story.append(PageBreak())
         else:
             # الخريطة نفسها لم تنشأ (map_fig = None)
-            story.append(Spacer(1, 0.8 * cm))
             story.append(Paragraph(
-                ar("⚠️ لم يتم إنشاء الخريطة - تحقق من الإحداثيات أو البيانات (map_fig = None)"),
+                ar("⚠️ لم يتم إنشاء الخريطة - تحقق من الإحداثيات أو البيانات"),
                 body
             ))
-            story.append(Spacer(1, 0.8 * cm))
             
             # معلومات تشخيصية إضافية
             diag_text = f"الإحداثيات المستلمة: خط العرض = {district_lat}, خط الطول = {district_lon}"
