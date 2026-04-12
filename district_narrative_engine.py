@@ -196,10 +196,6 @@ def generate_district_narrative(
         import traceback
         traceback.print_exc()
 
-    # ✅ التعديل الحاسم: إذا كانت القائمة فارغة، خذ القائمة من user_info (التي خزنتها الخريطة)
-    if not nearby_projects:
-        nearby_projects = user_info.get("nearby_projects", [])
-
     # =========================================
     # تحسين الأداء: إنشاء df_city مرة واحدة
     # =========================================
@@ -317,14 +313,19 @@ def generate_district_narrative(
     
     # =========================================
     # المشاريع القريبة من الحي
+    # 🔴 التعديل الحاسم: تأكد أن القائمة تأتي من user_info إذا كانت فارغة
     # =========================================
     projects_section = ""
-    # ✅ الحل الحاسم: إذا كانت القائمة فارغة خذيها من user_info
+    
+    # ✅ إذا كانت القائمة فارغة، خذ القائمة من user_info (التي خزنتها الخريطة)
     if not nearby_projects:
         nearby_projects = user_info.get("nearby_projects", [])
     
+    print("DEBUG: عدد المشاريع المستخدمة في النص:", len(nearby_projects))
+    
     if nearby_projects:
         lines = ""
+        # تخزين المشاريع والإحداثيات لاستخدامها في الخريطة لاحقاً
         user_info["nearby_projects"] = nearby_projects
         if district_lat is not None:
             user_info["district_lat"] = float(district_lat)
@@ -336,8 +337,10 @@ def generate_district_narrative(
             user_info["district_lon"] = None
         
         for p in nearby_projects:
-            project_display = p.get('name', p.get('type', 'مشروع'))
-            lines += f"• {project_display} ({p.get('status', 'غير محدد')}) على بعد {p['distance']} كم\n"
+            name = p.get("name", "مشروع")
+            status = p.get("status", "غير محدد")
+            distance = round(float(p.get("distance", 0)), 2)
+            lines += f"• {name} ({status}) على بعد {distance} كم\n"
         
         if len(nearby_projects) == 1:
             projects_intro = f"تشير البيانات إلى وجود مشروع تنموي مؤثر بالقرب من حي {district}:"
