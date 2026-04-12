@@ -124,6 +124,7 @@ def generate_district_narrative(
 
     # =========================================
     # جلب إحداثيات الحي الحالي
+    # ✅ التعديل الحاسم: استخدام اسم العمود الصحيح "اسم الحي"
     # =========================================
     district_lat = None
     district_lon = None
@@ -132,7 +133,15 @@ def generate_district_narrative(
             # ✅ سطور تشخيصية لمعرفة سبب عدم العثور على الإحداثيات
             print("CITY:", city)
             print("DISTRICT:", clean_district_base)
-            print("AVAILABLE DISTRICTS SAMPLE:", districts_df["الحي"].head(10).tolist())
+            
+            # ✅ عرض أسماء الأعمدة للتأكد من وجود "اسم الحي"
+            print("AVAILABLE COLUMNS:", list(districts_df.columns))
+            
+            if "اسم الحي" not in districts_df.columns:
+                print("❌ عمود 'اسم الحي' غير موجود في ملف الأحياء!")
+                print("📋 الأعمدة المتاحة:", list(districts_df.columns))
+            else:
+                print("AVAILABLE DISTRICTS SAMPLE:", districts_df["اسم الحي"].head(10).tolist())
             
             # ✅ تنظيف أسماء المدن والأحياء للمقارنة المرنة
             city_clean = str(city).strip().lower()
@@ -140,22 +149,10 @@ def generate_district_narrative(
             # تنظيف اسم الحي المطلوب
             district_clean = str(clean_district_base).strip().replace("حي", "").strip().lower()
             
-            # إنشاء عمود مؤقت للبحث المرن
-            districts_df_clean = districts_df.copy()
-            districts_df_clean["city_clean"] = districts_df["المدينة"].astype(str).str.strip().str.lower()
-            districts_df_clean["district_clean"] = (
-                districts_df["الحي"]
-                .astype(str)
-                .str.strip()
-                .str.replace("حي", "")
-                .str.strip()
-                .str.lower()
-            )
-            
-            # البحث المرن
-            match = districts_df_clean[
-                (districts_df_clean["city_clean"] == city_clean) &
-                (districts_df_clean["district_clean"] == district_clean)
+            # ✅ البحث المرن باستخدام اسم العمود الصحيح "اسم الحي"
+            match = districts_df[
+                (districts_df["المدينة"].astype(str).str.strip().str.lower() == city_clean) &
+                (districts_df["اسم الحي"].astype(str).str.strip().str.replace("حي", "").str.strip().str.lower() == district_clean)
             ]
             
             if not match.empty:
@@ -165,9 +162,9 @@ def generate_district_narrative(
             else:
                 # محاولة البحث الجزئي إذا لم يجد تطابق تام
                 print(f"⚠️ لم يتم العثور على تطابق تام، جاري البحث الجزئي...")
-                match_partial = districts_df_clean[
-                    (districts_df_clean["city_clean"] == city_clean) &
-                    (districts_df_clean["district_clean"].str.contains(district_clean, na=False))
+                match_partial = districts_df[
+                    (districts_df["المدينة"].astype(str).str.strip().str.lower() == city_clean) &
+                    (districts_df["اسم الحي"].astype(str).str.contains(district_clean, case=False, na=False))
                 ]
                 if not match_partial.empty:
                     district_lat = match_partial.iloc[0]["خط_العرض"]
