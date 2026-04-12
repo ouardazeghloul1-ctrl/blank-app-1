@@ -218,8 +218,14 @@ def generate_district_narrative(
                 # ✅ سطر الاختبار الحاسم - يكشف السبب الحقيقي
                 print("DEBUG TEST:", getattr(row, "اسم_المشروع", None), getattr(row, "المدينة", None), getattr(row, "خط_العرض", None), getattr(row, "خط_الطول", None))
                 
-                project_city = getattr(row, "المدينة", None)
-                if project_city != city:
+                # ✅ التعديل الحاسم: تنظيف اسم المدينة قبل المقارنة
+                project_city_raw = getattr(row, "المدينة", None)
+                project_city_clean = str(project_city_raw).split("/")[0].strip().lower() if project_city_raw else ""
+                city_clean = str(city).split("/")[0].strip().lower()
+                
+                print(f"DEBUG CITY COMPARE: project='{project_city_clean}', report='{city_clean}'")
+                
+                if project_city_clean != city_clean:
                     continue
                 
                 project_lat = getattr(row, "خط_العرض", None)
@@ -243,6 +249,8 @@ def generate_district_narrative(
                 project_type = getattr(row, "النوع", "غير محدد")
                 project_status = getattr(row, "الحالة", "غير محدد")
                 
+                print(f"DEBUG DISTANCE: distance={distance}, radius={district_impact_radius}")
+                
                 if distance <= district_impact_radius:
                     nearby_projects.append({
                         "name": project_name,
@@ -252,7 +260,7 @@ def generate_district_narrative(
                         "lat": float(project_lat),
                         "lon": float(project_lon)
                     })
-                    print(f"✅ مشروع قريب: {project_name} ({project_type}) على بعد {distance} км")
+                    print(f"✅ مشروع قريب: {project_name} ({project_type}) على بعد {distance} كم")
             
             nearby_projects.sort(key=lambda x: x["distance"])
             nearby_projects = nearby_projects[:MAX_PROJECTS]
