@@ -220,7 +220,15 @@ def generate_district_narrative(
                 project_city = row.get("المدينة", None)
                 project_lat = row.get("خط_العرض", None)
                 project_lon = row.get("خط_الطول", None)
-                project_name = row.get("اسم_المشروع", "غير محدد")
+                
+                # ✅ التعديل النهائي: استخدام اسم العمود الصحيح من ملف Excel
+                project_name = (
+                    row.get("اسم المشروع بالعربية") or 
+                    row.get("اسم_المشروع") or 
+                    row.get("Project Name (English)") or 
+                    "غير محدد"
+                )
+                
                 project_type = row.get("النوع", "غير محدد")
                 project_status = row.get("الحالة", "غير محدد")
                 
