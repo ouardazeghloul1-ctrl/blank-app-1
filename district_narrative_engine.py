@@ -145,8 +145,7 @@ def generate_district_narrative(
             print(f"🔍 جاري البحث عن مشاريع قريبة من {clean_district_base}...")
             print(f"📋 أعمدة المشاريع المتاحة: {list(projects_df.columns)}")
             
-            # ✅ التعديل الحاسم: استخدام نطاق تأثير الحي (من user_info) بدلاً من نطاق المشروع
-            # الحد الأدنى 10 كم ليتطابق مع الخريطة
+            # ✅ استخدام نطاق تأثير الحي (من user_info) مع الحد الأدنى 10 كم
             district_impact_radius = max(float(user_info.get("نطاق_التأثير", 5) or 5), 10)
             print(f"📍 نطاق تأثير الحي المستخدم للبحث: {district_impact_radius} كم")
             
@@ -171,12 +170,11 @@ def generate_district_narrative(
                 if distance is None:
                     continue
                 
-                # ✅ التعديل النهائي: استخدام اسم العمود المباشر "اسم_المشروع"
+                # ✅ استخدام اسم العمود المباشر "اسم_المشروع"
                 project_name = getattr(row, "اسم_المشروع", "غير محدد")
                 project_type = getattr(row, "النوع", "غير محدد")
                 project_status = getattr(row, "الحالة", "غير محدد")
                 
-                # استخدام نطاق الحي بدلاً من نطاق المشروع
                 if distance <= district_impact_radius:
                     nearby_projects.append({
                         "name": project_name,
@@ -197,6 +195,10 @@ def generate_district_narrative(
         print("خطأ في حساب المشاريع القريبة:", e)
         import traceback
         traceback.print_exc()
+
+    # ✅ التعديل الحاسم: لا تستبدل القائمة إذا كانت تحتوي على مشاريع بالفعل
+    if not nearby_projects:
+        nearby_projects = user_info.get("nearby_projects", [])
 
     # =========================================
     # تحسين الأداء: إنشاء df_city مرة واحدة
@@ -330,7 +332,6 @@ def generate_district_narrative(
             user_info["district_lon"] = None
         
         for p in nearby_projects:
-            # ✅ استخدام name بدلاً من type فقط
             project_display = p.get('name', p.get('type', 'مشروع'))
             lines += f"• {project_display} ({p.get('status', 'غير محدد')}) على بعد {p['distance']} كم\n"
         
