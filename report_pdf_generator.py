@@ -124,10 +124,11 @@ def plotly_to_image(fig, width_cm, height_cm):
 
     tmp = None
     try:
+        # ✅ التعديل المطلوب: زيادة الدقة
         img_bytes = fig.to_image(
             format="png",
-            width=1200,
-            height=700,
+            width=1600,   # كانت 1200
+            height=1000,  # كانت 700
             scale=2,
             engine="kaleido"
         )
@@ -269,7 +270,7 @@ def create_district_projects_map(
             mapbox_style="carto-positron",  # حل مشكلة Access blocked – Referrer is required
             mapbox=dict(
                 center=dict(lat=district_lat, lon=district_lon),
-                zoom=11
+                zoom=12  # ✅ التعديل المطلوب: كانت 11
             ),
             margin=dict(l=0, r=0, t=0, b=0),
             height=450,
