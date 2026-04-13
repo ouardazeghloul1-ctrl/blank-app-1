@@ -4,7 +4,6 @@ import os
 import tempfile
 import re
 import unicodedata
-import math
 from datetime import datetime
 
 import arabic_reshaper
@@ -125,11 +124,10 @@ def plotly_to_image(fig, width_cm, height_cm):
 
     tmp = None
     try:
-        # ✅ تم تعديل الدقة: من 1200×700 إلى 1600×1000 لجودة احترافية للطباعة
         img_bytes = fig.to_image(
             format="png",
-            width=1600,
-            height=1000,
+            width=1200,
+            height=700,
             scale=2,
             engine="kaleido"
         )
@@ -240,46 +238,14 @@ def create_district_projects_map(
         fig = go.Figure()
         
         # دبوس الحي (يتم رسمه دائماً)
-        # ✅ التعديل 4 — تكبير دبوس الحي قليلاً (جذاب بصريًا)
         fig.add_trace(
             go.Scattermapbox(
                 lat=[district_lat],
                 lon=[district_lon],
                 mode="markers",
-                marker=dict(size=20, color="#D32F2F"),
+                marker=dict(size=14, color="red"),
                 text=[district_name],
                 name="الحي"
-            )
-        )
-        
-        # ===== دائرة نطاق التأثير حول الحي =====
-        num_points = 60
-        radius_km = impact_radius_km
-        circle_lats = []
-        circle_lons = []
-        for i in range(num_points):
-            angle = 2 * math.pi * i / num_points
-            delta_lat = (radius_km / 111) * math.cos(angle)
-            delta_lon = (radius_km / (111 * math.cos(math.radians(district_lat)))) * math.sin(angle)
-            circle_lats.append(district_lat + delta_lat)
-            circle_lons.append(district_lon + delta_lon)
-        # إغلاق الدائرة
-        circle_lats.append(circle_lats[0])
-        circle_lons.append(circle_lons[0])
-        
-        # ✅ التعديل النهائي: إزالة التعبئة من الدائرة (fill="none") لجعل الخريطة أوضح وأكثر احترافية
-        fig.add_trace(
-            go.Scattermapbox(
-                lat=circle_lats,
-                lon=circle_lons,
-                mode="lines",
-                fill="none",
-                line=dict(
-                    color="#D32F2F",
-                    width=3,
-                    dash="dot"
-                ),
-                name="نطاق التأثير"
             )
         )
         
@@ -290,7 +256,7 @@ def create_district_projects_map(
                     lat=nearby_projects["خط_العرض"],
                     lon=nearby_projects["خط_الطول"],
                     mode="markers",
-                    marker=dict(size=12, color="blue"),
+                    marker=dict(size=10, color="blue"),
                     text=nearby_projects["اسم_المشروع"],
                     name="المشاريع القريبة"
                 )
@@ -299,12 +265,11 @@ def create_district_projects_map(
         # =========================================================
         # ✅ التعديل 3: تغيير mapbox_style من open-street-map إلى carto-positron
         # =========================================================
-        # ✅ التعديل 2 — تحسين مستوى الزوم (ليظهر الحي بوضوح)
         fig.update_layout(
             mapbox_style="carto-positron",  # حل مشكلة Access blocked – Referrer is required
             mapbox=dict(
                 center=dict(lat=district_lat, lon=district_lon),
-                zoom=14.5  # تم زيادة مستوى الزوم من 12 إلى 14.5
+                zoom=11
             ),
             margin=dict(l=0, r=0, t=0, b=0),
             height=450,
@@ -312,8 +277,7 @@ def create_district_projects_map(
                 text=f"موقع حي {district_name} والمشاريع القريبة (نطاق {max(impact_radius_km, 10)} كم)",
                 x=0.5,
                 xanchor='center',
-                # ✅ التعديل 5 — عنوان أقوى للخريطة (مهم تسويقيًا)
-                font=dict(size=18, color="#333333")
+                font=dict(size=16)
             )
         )
         
@@ -727,15 +691,14 @@ def create_pdf_from_content(
             print(f"DEBUG: تم حفظ {len(projects_df)} مشروع في user_info['nearby_projects']")
         
         # =========================================================
-        # ✅ الخريطة في صفحة كاملة وحدها
-        # ✅ التعديل 1 — تكبير الخريطة داخل الصفحة (أهم شيء)
+        # ✅ التعديل المطلوب: الخريطة في صفحة كاملة وحدها
         # =========================================================
         if map_fig:
             # إنهاء الصفحة الحالية
             story.append(PageBreak())
             
-            # إدراج الخريطة بحجم صفحة كاملة (تم التكبير من 18.0, 24.0 إلى 19.5, 25.5)
-            map_img = plotly_to_image(map_fig, 19.5, 25.5)
+            # إدراج الخريطة بحجم صفحة كاملة
+            map_img = plotly_to_image(map_fig, 18.0, 24.0)
             if map_img:
                 if hasattr(map_img, '_temp_file'):
                     temp_files.append(map_img._temp_file)
