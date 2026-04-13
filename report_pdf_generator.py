@@ -191,7 +191,6 @@ def add_radius_rings(fig, lat, lon):
                 line=dict(
                     color="#7A0000",  # اللون الأساسي للماركة
                     width=2
-                    # ✅ تم إزالة dash="dot" لتجنب خطأ Plotly في بعض الإصدارات
                 ),
                 name=f"{radius} كم"
             )
@@ -214,7 +213,7 @@ def create_district_projects_map(
     2) تسمية فوق الحي
     3) ألوان Branding ثابتة (#7A0000, #1565C0)
     4) zoom=13 (وضوح مثالي للحي)
-    5) تم إزالة dash="dot" لتجنب خطأ Plotly
+    5) mapbox_style="open-street-map" (حل مشكلة تصدير الخريطة مع Kaleido)
     """
     try:
         if district_lat is None or district_lon is None:
@@ -299,9 +298,10 @@ def create_district_projects_map(
                 )
             )
         
-        # zoom=13: مستوى قياسي لتقارير الأحياء
+        # ✅ التعديل الحاسم: تغيير mapbox_style إلى open-street-map
+        # هذا يحل مشكلة تصدير الخريطة مع Kaleido (خطأ Mapbox error 525)
         fig.update_layout(
-            mapbox_style="carto-positron",
+            mapbox_style="open-street-map",
             mapbox=dict(
                 center=dict(lat=district_lat, lon=district_lon),
                 zoom=13
