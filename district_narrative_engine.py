@@ -77,6 +77,13 @@ def generate_district_narrative(
     user_info = user_info or {}
     
     # =========================================
+    # ✅ تعريف investment_score بشكل نظيف ومستقر
+    # =========================================
+    investment_score = user_info.get("investment_score")
+    if investment_score is None:
+        investment_score = round(dpi_score * 0.77, 1)
+    
+    # =========================================
     # استخراج البيانات الأساسية
     # =========================================
 
