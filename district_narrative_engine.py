@@ -333,41 +333,7 @@ def generate_district_narrative(
     report_sections = []
 
     # =========================================
-    # Investment Intelligence Score
-    # =========================================
-    try:
-        price_score = 50
-        if price_ratio < 0.85:
-            price_score = 85
-        elif price_ratio < 0.95:
-            price_score = 70
-        elif price_ratio <= 1.05:
-            price_score = 60
-        elif price_ratio <= 1.15:
-            price_score = 50
-        else:
-            price_score = 40
-
-        if transactions >= 40:
-            liquidity_score = 90
-        elif transactions >= 25:
-            liquidity_score = 75
-        elif transactions >= 15:
-            liquidity_score = 60
-        elif transactions >= 8:
-            liquidity_score = 45
-        else:
-            liquidity_score = 30
-
-        investment_score = round(price_score * 0.30 + liquidity_score * 0.30 + dpi_score * 0.40, 1)
-        confidence = min(95, max(30, int(0.7 * dpi_score + 0.3 * min(transactions, 60))))
-    except Exception as e:
-        print("Error calculating scores:", e)
-        investment_score = 50
-        confidence = 50
-
-    # =========================================
-    # Investment Snapshot
+    # Investment Snapshot (سيصبح الفصل الأول)
     # =========================================
     snapshot_section = f"""
 
@@ -387,7 +353,7 @@ def generate_district_narrative(
     report_sections.append(snapshot_section)
     
     # =========================================
-    # ✅ المشاريع القريبة من الحي
+    # ✅ المشاريع القريبة من الحي (سيصبح هذا القسم الأول)
     # =========================================
     
     # تخزين المشاريع والإحداثيات لاستخدامها في الخريطة لاحقاً
@@ -434,8 +400,9 @@ def generate_district_narrative(
 
 لا توجد حالياً مشاريع مؤثرة ضمن نطاق التأثير المحدد حول حي {district}.
 """
-    report_sections.append(projects_section)
-
+    # ✅ سيتم إضافة هذا القسم أولاً في التجميع النهائي
+    projects_section_for_report = projects_section
+    
     # =========================================
     # ✅ جدول المشاريع القريبة من الحي
     # =========================================
@@ -1546,23 +1513,30 @@ def generate_district_narrative(
         "التاسع والعشرون","الثلاثون"
     ]
     
+    # ✅ إعادة ترتيب الأقسام: المشاريع أولاً ثم باقي التحليل
+    final_sections = []
+    
+    # إضافة قسم المشاريع أولاً
+    if projects_section_for_report.strip():
+        final_sections.append(projects_section_for_report)
+    
+    # إضافة باقي الأقسام (بدءاً من ملخص الاستثمار السريع)
+    for section in report_sections:
+        final_sections.append(section)
+    
     final_report = ""
-    for i, section in enumerate(report_sections, start=1):
-        # أول قسمين = معلومات فقط، بدون كلمة "الفصل"
-        if i <= 2:
-            if i == 1:
-                final_report += "معلومات أساسية عن الحي\n"
-            elif i == 2:
-                final_report += "المشاريع التنموية القريبة من الحي\n"
+    for i, section in enumerate(final_sections, start=1):
+        # القسم الأول فقط = المشاريع (بدون كلمة "فصل")
+        if i == 1:
+            final_report += "المشاريع التنموية القريبة من الحي\n"
         else:
-            # رقم الفصل الحقيقي يبدأ من 1 بعد القسمين الأولين
-            chapter_index = i - 2
+            chapter_index = i - 1
             chapter_title = (
                 chapter_names[chapter_index - 1] if chapter_index <= len(chapter_names) else str(chapter_index)
             )
             final_report += f"الفصل {chapter_title}\n"
             
-            # الرسومات — داخل else فقط (لأنها تخص الفصول فقط)
+            # مواقع الرسومات
             if chapter_index == 4:
                 final_report += "[[ANCHOR_CHART]]\n\n"
             elif chapter_index == 7:
