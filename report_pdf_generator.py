@@ -80,7 +80,7 @@ def ar(text):
 
     try:
         text = str(text)
-        # ✅ التعديل 2: إزالة الأقواس المعكوسة نهائيًا
+        # ✅ إزالة الأقواس المعكوسة نهائيًا
         text = text.replace("(", "")
         text = text.replace(")", "")
         text = text.replace("% ", "%")
@@ -173,35 +173,37 @@ def create_district_projects_map(
             print("Map: missing district coordinates")
             return None
         
-        if projects_df is None or projects_df.empty:
-            print("Map: no projects data")
-            return None
+        # ✅ التعديل الاحترافي: التعامل مع حالة عدم وجود مشاريع
+        if projects_df is None:
+            print("Map: no projects data, creating empty DataFrame")
+            projects_df = pd.DataFrame()
         
         # =========================================================
         # ✅ التعديل 1: إعادة تسمية عمود اسم المشروع إذا كان بالصيغة العربية
         # =========================================================
-        if "اسم_المشروع" not in projects_df.columns:
+        if not projects_df.empty and "اسم_المشروع" not in projects_df.columns:
             if "اسم المشروع بالعربية" in projects_df.columns:
                 projects_df = projects_df.rename(columns={"اسم المشروع بالعربية": "اسم_المشروع"})
                 print("✅ Map: تم إعادة تسمية العمود 'اسم المشروع بالعربية' → 'اسم_المشروع'")
         
         required_columns = ["خط_العرض", "خط_الطول", "اسم_المشروع"]
         for col in required_columns:
-            if col not in projects_df.columns:
+            if not projects_df.empty and col not in projects_df.columns:
                 print(f"Map: missing column '{col}' in projects_df")
                 return None
         
         # =========================
         # ✅ تحويل الإحداثيات إلى أرقام (حل نهائي)
         # =========================
-        projects_df["خط_العرض"] = pd.to_numeric(projects_df["خط_العرض"], errors="coerce")
-        projects_df["خط_الطول"] = pd.to_numeric(projects_df["خط_الطول"], errors="coerce")
+        if not projects_df.empty:
+            projects_df["خط_العرض"] = pd.to_numeric(projects_df["خط_العرض"], errors="coerce")
+            projects_df["خط_الطول"] = pd.to_numeric(projects_df["خط_الطول"], errors="coerce")
+            
+            # إزالة الصفوف غير الصالحة
+            projects_df = projects_df.dropna(subset=["خط_العرض", "خط_الطول"])
         
-        # إزالة الصفوف غير الصالحة
-        projects_df = projects_df.dropna(subset=["خط_العرض", "خط_الطول"])
-        
-        print("DEBUG dtype latitude:", projects_df["خط_العرض"].dtype)
-        print("DEBUG dtype longitude:", projects_df["خط_الطول"].dtype)
+        print("DEBUG dtype latitude:", projects_df["خط_العرض"].dtype if not projects_df.empty else "empty")
+        print("DEBUG dtype longitude:", projects_df["خط_الطول"].dtype if not projects_df.empty else "empty")
         print(f"DEBUG district_lat type: {type(district_lat)}, value: {district_lat}")
         print(f"DEBUG district_lon type: {type(district_lon)}, value: {district_lon}")
         
@@ -210,31 +212,29 @@ def create_district_projects_map(
         district_lon = float(district_lon)
         
         # =========================================================
-        # ✅ التعديل 2: توسيع نطاق البحث من 5 كم إلى 10 كم كحد أدنى
+        # ✅ التعديل النهائي: احترام نطاق البحث الذي يختاره المستخدم
         # =========================================================
-        radius_deg = max(impact_radius_km, 10) / 111
+        # نضمن فقط حدًا أدنى منطقيًا (1 كم) لمنع الأخطاء
+        radius_km = max(float(impact_radius_km), 1)
+        radius_deg = radius_km / 111
         
+        print(f"DEBUG radius_km: {radius_km}")
         print(f"DEBUG radius_deg: {radius_deg}")
         print(f"DEBUG district_lat: {district_lat}, district_lon: {district_lon}")
         
-        # فلترة المشاريع القريبة
-        nearby_projects = projects_df[
-            (
-                (projects_df["خط_العرض"] - district_lat).abs() <= radius_deg
-            ) &
-            (
-                (projects_df["خط_الطول"] - district_lon).abs() <= radius_deg
-            )
-        ]
+        # فلترة المشاريع القريبة (إذا كان هناك مشاريع)
+        nearby_projects = pd.DataFrame()
+        if not projects_df.empty:
+            nearby_projects = projects_df[
+                (
+                    (projects_df["خط_العرض"] - district_lat).abs() <= radius_deg
+                ) &
+                (
+                    (projects_df["خط_الطول"] - district_lon).abs() <= radius_deg
+                )
+            ]
         
-        print(f"Map: found {len(nearby_projects)} nearby projects within {max(impact_radius_km, 10)} km")
-        
-        # =========================================================
-        # ✅ التعديل المطلوب: لا نرجع None حتى لو لا توجد مشاريع
-        # =========================================================
-        if nearby_projects.empty:
-            print("Map: No projects found in the specified radius")
-            # لا نرجع None - نستمر لرسم الخريطة بدبوس الحي فقط
+        print(f"Map: found {len(nearby_projects)} nearby projects within {radius_km} km")
         
         fig = go.Figure()
         
@@ -266,6 +266,10 @@ def create_district_projects_map(
         # =========================================================
         # ✅ التعديل 3: تغيير mapbox_style من open-street-map إلى carto-positron
         # =========================================================
+        title_text = f"موقع حي {district_name}"
+        if not nearby_projects.empty:
+            title_text += f" والمشاريع القريبة (نطاق {radius_km} كم)"
+        
         fig.update_layout(
             mapbox_style="carto-positron",  # حل مشكلة Access blocked – Referrer is required
             mapbox=dict(
@@ -275,7 +279,7 @@ def create_district_projects_map(
             margin=dict(l=0, r=0, t=0, b=0),
             height=450,
             title=dict(
-                text=f"موقع حي {district_name} والمشاريع القريبة (نطاق {max(impact_radius_km, 10)} كم)",
+                text=title_text,
                 x=0.5,
                 xanchor='center',
                 font=dict(size=16)
@@ -473,8 +477,15 @@ def create_pdf_from_content(
             5: 5, 6: 6, 7: 7, 8: 8
         }
     else:
-        # ✅ التعديل 1: تصحيح انتقال الرسومات بعد إضافة فصلين في البداية
-        CHAPTER_CHART_MAP = { 6: 4, 9: 7, 13: 11, 18: 16, 23: 21 }
+        # ✅ التعديل النهائي: استخدام إزاحة ثابتة (أضيف فصلين في البداية)
+        OFFSET = 2
+        CHAPTER_CHART_MAP = {
+            4 + OFFSET: 4,
+            7 + OFFSET: 5,
+            11 + OFFSET: 6,
+            16 + OFFSET: 7,
+            21 + OFFSET: 8
+        }
 
     # =========================
     # COVER
@@ -509,6 +520,7 @@ def create_pdf_from_content(
         transactions = user_info.get("transactions_count", "—")
         dpi = user_info.get("dpi_score", "—")
         
+        # ✅ تنسيق السعر بشكل صحيح مع الفواصل
         def format_number_with_commas(value):
             if value == "—":
                 return "—"
@@ -531,8 +543,7 @@ def create_pdf_from_content(
                 [ar("المدينة"), ar(city)],
                 [ar("نوع العقار"), ar(property_type)],
                 [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
-                # ✅ التعديل 3: توضيح عدد الصفقات حسب نوع العقار
-                [ar("عدد صفقات نوع العقار"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
+                [ar("عدد صفقات الحي"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
                 [ar("مؤشر قوة السوق"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
             ]
         else:
@@ -543,8 +554,7 @@ def create_pdf_from_content(
                 [ar("نوع العقار"), ar(property_type)],
                 [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
                 [ar("متوسط المدينة"), ar(f"{city_price_formatted} ريال") if city_price != "—" else ar("—")],
-                # ✅ التعديل 3: توضيح عدد الصفقات حسب نوع العقار
-                [ar("عدد صفقات نوع العقار"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
+                [ar("عدد صفقات الحي"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
                 [ar("مؤشر قوة الحي"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
             ]
         
@@ -563,7 +573,7 @@ def create_pdf_from_content(
         story.append(Spacer(1, 1*cm))
         story.append(table)
         
-        # ✅ التعديل 4: إضافة سطر توضيحي احترافي في الغلاف
+        # ✅ إضافة سطر توضيحي احترافي في الغلاف
         story.append(Spacer(1, 0.4 * cm))
         story.append(Paragraph(
             ar("تم تحليل صفقات نوع العقار المختار فقط داخل الحي."),
@@ -679,7 +689,7 @@ def create_pdf_from_content(
         
         district_impact = user_info.get("نطاق_التأثير") or user_info.get("impact_radius") or 5
         try:
-            impact_radius = max(float(district_impact or 0), 5)
+            impact_radius = max(float(district_impact or 0), 1)
         except (ValueError, TypeError):
             impact_radius = 5
         
@@ -813,12 +823,13 @@ def create_pdf_from_content(
     
     buffer.seek(0)
     
+    # ✅ التعديل النهائي: تنظيف الملفات المؤقتة مع حماية إضافية
     unique_temp_files = list(set(temp_files))
     for temp_file in unique_temp_files:
         try:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
-        except Exception as e:
-            print(f"Error deleting temp file {temp_file}: {e}")
+            if temp_file and os.path.exists(temp_file):
+                os.remove(temp_file)
+        except Exception as cleanup_error:
+            print("Temp cleanup warning:", cleanup_error)
     
     return buffer
