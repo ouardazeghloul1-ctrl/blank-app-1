@@ -4,7 +4,6 @@ import os
 import tempfile
 import re
 import unicodedata
-import math
 from datetime import datetime
 
 import arabic_reshaper
@@ -244,36 +243,9 @@ def create_district_projects_map(
                 lat=[district_lat],
                 lon=[district_lon],
                 mode="markers",
-                marker=dict(size=16, color="red"),
+                marker=dict(size=14, color="red"),
                 text=[district_name],
                 name="الحي"
-            )
-        )
-        
-        # ===== دائرة نطاق التأثير حول الحي =====
-        num_points = 60
-        radius_km = impact_radius_km
-        circle_lats = []
-        circle_lons = []
-        for i in range(num_points):
-            angle = 2 * math.pi * i / num_points
-            delta_lat = (radius_km / 111) * math.cos(angle)
-            delta_lon = (radius_km / (111 * math.cos(math.radians(district_lat)))) * math.sin(angle)
-            circle_lats.append(district_lat + delta_lat)
-            circle_lons.append(district_lon + delta_lon)
-        # إغلاق الدائرة
-        circle_lats.append(circle_lats[0])
-        circle_lons.append(circle_lons[0])
-        
-        fig.add_trace(
-            go.Scattermapbox(
-                lat=circle_lats,
-                lon=circle_lons,
-                mode="lines",
-                fill="toself",
-                fillcolor="rgba(255, 0, 0, 0.12)",
-                line=dict(color="red", width=2),
-                name="نطاق التأثير"
             )
         )
         
@@ -284,7 +256,7 @@ def create_district_projects_map(
                     lat=nearby_projects["خط_العرض"],
                     lon=nearby_projects["خط_الطول"],
                     mode="markers",
-                    marker=dict(size=12, color="blue"),
+                    marker=dict(size=10, color="blue"),
                     text=nearby_projects["اسم_المشروع"],
                     name="المشاريع القريبة"
                 )
@@ -297,7 +269,7 @@ def create_district_projects_map(
             mapbox_style="carto-positron",  # حل مشكلة Access blocked – Referrer is required
             mapbox=dict(
                 center=dict(lat=district_lat, lon=district_lon),
-                zoom=13  # تم زيادة مستوى الزوم من 12 إلى 13
+                zoom=11
             ),
             margin=dict(l=0, r=0, t=0, b=0),
             height=450,
@@ -719,7 +691,7 @@ def create_pdf_from_content(
             print(f"DEBUG: تم حفظ {len(projects_df)} مشروع في user_info['nearby_projects']")
         
         # =========================================================
-        # ✅ الخريطة في صفحة كاملة وحدها
+        # ✅ التعديل المطلوب: الخريطة في صفحة كاملة وحدها
         # =========================================================
         if map_fig:
             # إنهاء الصفحة الحالية
