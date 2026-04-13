@@ -1546,14 +1546,34 @@ def generate_district_narrative(
         "التاسع والعشرون","الثلاثون"
     ]
     
-    chart_chapters = [4,7,11,16,21,24,28]
-    
     final_report = ""
     for i, section in enumerate(report_sections, start=1):
-        chapter_title = chapter_names[i-1] if i <= len(chapter_names) else str(i)
-        final_report += f"الفصل {chapter_title}\n"
-        if i in chart_chapters:
-            final_report += "[[ANCHOR_CHART]]\n\n"
+        # أول قسمين = معلومات فقط، بدون كلمة "الفصل"
+        if i <= 2:
+            if i == 1:
+                final_report += "معلومات أساسية عن الحي\n"
+            elif i == 2:
+                final_report += "المشاريع التنموية القريبة من الحي\n"
+        else:
+            # رقم الفصل الحقيقي يبدأ من 1 بعد القسمين الأولين
+            chapter_index = i - 2
+            chapter_title = (
+                chapter_names[chapter_index - 1] if chapter_index <= len(chapter_names) else str(chapter_index)
+            )
+            final_report += f"الفصل {chapter_title}\n"
+            
+            # الرسومات — داخل else فقط (لأنها تخص الفصول فقط)
+            if chapter_index == 4:
+                final_report += "[[ANCHOR_CHART]]\n\n"
+            elif chapter_index == 7:
+                final_report += "[[ANCHOR_CHART]]\n\n"
+            elif chapter_index == 11:
+                final_report += "[[RHYTHM_CHART]]\n\n"
+            elif chapter_index == 16:
+                final_report += "[[ANCHOR_CHART]]\n\n"
+            elif chapter_index == 21:
+                final_report += "[[ANCHOR_CHART]]\n\n"
+        
         if section.strip():
             final_report += section.strip()
         else:
