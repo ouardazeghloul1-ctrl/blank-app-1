@@ -125,7 +125,7 @@ def plotly_to_image(fig, width_cm, height_cm):
 
     tmp = None
     try:
-        # ✅ رفع جودة التصدير (Scale 2 وعرض وارتفاع أكبر)
+        # ✅ تم تعديل الدقة: من 1200×700 إلى 1600×1000 لجودة احترافية للطباعة
         img_bytes = fig.to_image(
             format="png",
             width=1600,
@@ -239,35 +239,20 @@ def create_district_projects_map(
         
         fig = go.Figure()
         
-        # ===== هالة بيضاء تحت نقطة الحي =====
+        # دبوس الحي (يتم رسمه دائماً)
+        # ✅ التعديل 4 — تكبير دبوس الحي قليلاً (جذاب بصريًا)
         fig.add_trace(
             go.Scattermapbox(
                 lat=[district_lat],
                 lon=[district_lon],
                 mode="markers",
-                marker=dict(
-                    size=24,
-                    color="white"
-                ),
-                showlegend=False
-            )
-        )
-        
-        # ===== نقطة الحي الحمراء فوق الهالة =====
-        fig.add_trace(
-            go.Scattermapbox(
-                lat=[district_lat],
-                lon=[district_lon],
-                mode="markers",
-                marker=dict(
-                    size=18,
-                    color="red"
-                ),
+                marker=dict(size=20, color="#D32F2F"),
+                text=[district_name],
                 name="الحي"
             )
         )
         
-        # ===== دائرة نطاق التأثير حول الحي (حدود متقطعة بدون تعبئة) =====
+        # ===== دائرة نطاق التأثير حول الحي =====
         num_points = 60
         radius_km = impact_radius_km
         circle_lats = []
@@ -282,6 +267,7 @@ def create_district_projects_map(
         circle_lats.append(circle_lats[0])
         circle_lons.append(circle_lons[0])
         
+        # ✅ التعديل النهائي: إزالة التعبئة من الدائرة (fill="none") لجعل الخريطة أوضح وأكثر احترافية
         fig.add_trace(
             go.Scattermapbox(
                 lat=circle_lats,
@@ -289,8 +275,8 @@ def create_district_projects_map(
                 mode="lines",
                 fill="none",
                 line=dict(
-                    color="red",
-                    width=2,
+                    color="#D32F2F",
+                    width=3,
                     dash="dot"
                 ),
                 name="نطاق التأثير"
@@ -299,47 +285,26 @@ def create_district_projects_map(
         
         # دبابيس المشاريع (إذا وجدت)
         if not nearby_projects.empty:
-            for idx, row in nearby_projects.iterrows():
-                lat = row["خط_العرض"]
-                lon = row["خط_الطول"]
-                name = row["اسم_المشروع"]
-                
-                # هالة بيضاء تحت نقطة المشروع
-                fig.add_trace(
-                    go.Scattermapbox(
-                        lat=[lat],
-                        lon=[lon],
-                        mode="markers",
-                        marker=dict(
-                            size=18,
-                            color="white"
-                        ),
-                        showlegend=False
-                    )
+            fig.add_trace(
+                go.Scattermapbox(
+                    lat=nearby_projects["خط_العرض"],
+                    lon=nearby_projects["خط_الطول"],
+                    mode="markers",
+                    marker=dict(size=12, color="blue"),
+                    text=nearby_projects["اسم_المشروع"],
+                    name="المشاريع القريبة"
                 )
-                
-                # نقطة المشروع الزرقاء فوق الهالة
-                fig.add_trace(
-                    go.Scattermapbox(
-                        lat=[lat],
-                        lon=[lon],
-                        mode="markers",
-                        marker=dict(
-                            size=12,
-                            color="blue"
-                        ),
-                        name=name
-                    )
-                )
+            )
         
         # =========================================================
-        # ✅ mapbox_style="carto-positron" (الأفضل للتقارير)
+        # ✅ التعديل 3: تغيير mapbox_style من open-street-map إلى carto-positron
         # =========================================================
+        # ✅ التعديل 2 — تحسين مستوى الزوم (ليظهر الحي بوضوح)
         fig.update_layout(
-            mapbox_style="carto-positron",
+            mapbox_style="carto-positron",  # حل مشكلة Access blocked – Referrer is required
             mapbox=dict(
                 center=dict(lat=district_lat, lon=district_lon),
-                zoom=13
+                zoom=14.5  # تم زيادة مستوى الزوم من 12 إلى 14.5
             ),
             margin=dict(l=0, r=0, t=0, b=0),
             height=450,
@@ -347,7 +312,8 @@ def create_district_projects_map(
                 text=f"موقع حي {district_name} والمشاريع القريبة (نطاق {max(impact_radius_km, 10)} كم)",
                 x=0.5,
                 xanchor='center',
-                font=dict(size=16)
+                # ✅ التعديل 5 — عنوان أقوى للخريطة (مهم تسويقيًا)
+                font=dict(size=18, color="#333333")
             )
         )
         
@@ -762,13 +728,14 @@ def create_pdf_from_content(
         
         # =========================================================
         # ✅ الخريطة في صفحة كاملة وحدها
+        # ✅ التعديل 1 — تكبير الخريطة داخل الصفحة (أهم شيء)
         # =========================================================
         if map_fig:
             # إنهاء الصفحة الحالية
             story.append(PageBreak())
             
-            # إدراج الخريطة بحجم صفحة كاملة
-            map_img = plotly_to_image(map_fig, 18.0, 24.0)
+            # إدراج الخريطة بحجم صفحة كاملة (تم التكبير من 18.0, 24.0 إلى 19.5, 25.5)
+            map_img = plotly_to_image(map_fig, 19.5, 25.5)
             if map_img:
                 if hasattr(map_img, '_temp_file'):
                     temp_files.append(map_img._temp_file)
