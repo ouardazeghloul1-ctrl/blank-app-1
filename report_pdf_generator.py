@@ -125,10 +125,11 @@ def plotly_to_image(fig, width_cm, height_cm):
 
     tmp = None
     try:
+        # ✅ رفع جودة التصدير (Scale 2 وعرض وارتفاع أكبر)
         img_bytes = fig.to_image(
             format="png",
-            width=1200,
-            height=700,
+            width=1600,
+            height=1000,
             scale=2,
             engine="kaleido"
         )
@@ -238,19 +239,35 @@ def create_district_projects_map(
         
         fig = go.Figure()
         
-        # دبوس الحي (يتم رسمه دائماً)
+        # ===== هالة بيضاء تحت نقطة الحي =====
         fig.add_trace(
             go.Scattermapbox(
                 lat=[district_lat],
                 lon=[district_lon],
                 mode="markers",
-                marker=dict(size=16, color="red"),
-                text=[district_name],
+                marker=dict(
+                    size=24,
+                    color="white"
+                ),
+                showlegend=False
+            )
+        )
+        
+        # ===== نقطة الحي الحمراء فوق الهالة =====
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=[district_lat],
+                lon=[district_lon],
+                mode="markers",
+                marker=dict(
+                    size=18,
+                    color="red"
+                ),
                 name="الحي"
             )
         )
         
-        # ===== دائرة نطاق التأثير حول الحي =====
+        # ===== دائرة نطاق التأثير حول الحي (حدود متقطعة بدون تعبئة) =====
         num_points = 60
         radius_km = impact_radius_km
         circle_lats = []
@@ -270,34 +287,59 @@ def create_district_projects_map(
                 lat=circle_lats,
                 lon=circle_lons,
                 mode="lines",
-                fill="toself",
-                fillcolor="rgba(255, 0, 0, 0.12)",
-                line=dict(color="red", width=2),
+                fill="none",
+                line=dict(
+                    color="red",
+                    width=2,
+                    dash="dot"
+                ),
                 name="نطاق التأثير"
             )
         )
         
         # دبابيس المشاريع (إذا وجدت)
         if not nearby_projects.empty:
-            fig.add_trace(
-                go.Scattermapbox(
-                    lat=nearby_projects["خط_العرض"],
-                    lon=nearby_projects["خط_الطول"],
-                    mode="markers",
-                    marker=dict(size=12, color="blue"),
-                    text=nearby_projects["اسم_المشروع"],
-                    name="المشاريع القريبة"
+            for idx, row in nearby_projects.iterrows():
+                lat = row["خط_العرض"]
+                lon = row["خط_الطول"]
+                name = row["اسم_المشروع"]
+                
+                # هالة بيضاء تحت نقطة المشروع
+                fig.add_trace(
+                    go.Scattermapbox(
+                        lat=[lat],
+                        lon=[lon],
+                        mode="markers",
+                        marker=dict(
+                            size=18,
+                            color="white"
+                        ),
+                        showlegend=False
+                    )
                 )
-            )
+                
+                # نقطة المشروع الزرقاء فوق الهالة
+                fig.add_trace(
+                    go.Scattermapbox(
+                        lat=[lat],
+                        lon=[lon],
+                        mode="markers",
+                        marker=dict(
+                            size=12,
+                            color="blue"
+                        ),
+                        name=name
+                    )
+                )
         
         # =========================================================
-        # ✅ التعديل 3: تغيير mapbox_style من open-street-map إلى carto-positron
+        # ✅ mapbox_style="carto-positron" (الأفضل للتقارير)
         # =========================================================
         fig.update_layout(
-            mapbox_style="carto-positron",  # حل مشكلة Access blocked – Referrer is required
+            mapbox_style="carto-positron",
             mapbox=dict(
                 center=dict(lat=district_lat, lon=district_lon),
-                zoom=13  # تم زيادة مستوى الزوم من 12 إلى 13
+                zoom=13
             ),
             margin=dict(l=0, r=0, t=0, b=0),
             height=450,
