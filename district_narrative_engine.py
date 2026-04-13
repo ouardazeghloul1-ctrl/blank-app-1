@@ -84,6 +84,14 @@ def generate_district_narrative(
         investment_score = round(dpi_score * 0.77, 1)
     
     # =========================================
+    # ✅ تعريف confidence بشكل نظيف ومستقر
+    # =========================================
+    try:
+        confidence = int(min(95, max(50, dpi_score)))
+    except:
+        confidence = 60
+    
+    # =========================================
     # استخراج البيانات الأساسية
     # =========================================
 
@@ -1549,4 +1557,3 @@ def generate_district_narrative(
     final_report += "منصة التحليل الاستثماري العقاري المعتمدة على بيانات الصفقات الفعلية في السوق.\n"
 
     return final_report
-```
