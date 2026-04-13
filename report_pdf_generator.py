@@ -80,8 +80,9 @@ def ar(text):
 
     try:
         text = str(text)
-        text = text.replace("(", " - ")
-        text = text.replace(")", " - ")
+        # ✅ التعديل 2: إزالة الأقواس المعكوسة نهائيًا
+        text = text.replace("(", "")
+        text = text.replace(")", "")
         text = text.replace("% ", "%")
         text = text.replace(" %", "%")
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
@@ -124,11 +125,10 @@ def plotly_to_image(fig, width_cm, height_cm):
 
     tmp = None
     try:
-        # ✅ التعديل المطلوب: زيادة الدقة
         img_bytes = fig.to_image(
             format="png",
-            width=1600,   # كانت 1200
-            height=1000,  # كانت 700
+            width=1600,
+            height=1000,
             scale=2,
             engine="kaleido"
         )
@@ -270,7 +270,7 @@ def create_district_projects_map(
             mapbox_style="carto-positron",  # حل مشكلة Access blocked – Referrer is required
             mapbox=dict(
                 center=dict(lat=district_lat, lon=district_lon),
-                zoom=12  # ✅ التعديل المطلوب: كانت 11
+                zoom=12
             ),
             margin=dict(l=0, r=0, t=0, b=0),
             height=450,
@@ -473,9 +473,8 @@ def create_pdf_from_content(
             5: 5, 6: 6, 7: 7, 8: 8
         }
     else:
-        CHAPTER_CHART_MAP = {
-            4: 4, 7: 7, 11: 11, 16: 16, 21: 21
-        }
+        # ✅ التعديل 1: تصحيح انتقال الرسومات بعد إضافة فصلين في البداية
+        CHAPTER_CHART_MAP = { 6: 4, 9: 7, 13: 11, 18: 16, 23: 21 }
 
     # =========================
     # COVER
@@ -532,7 +531,8 @@ def create_pdf_from_content(
                 [ar("المدينة"), ar(city)],
                 [ar("نوع العقار"), ar(property_type)],
                 [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
-                [ar("عدد الصفقات"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
+                # ✅ التعديل 3: توضيح عدد الصفقات حسب نوع العقار
+                [ar("عدد صفقات نوع العقار"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
                 [ar("مؤشر قوة السوق"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
             ]
         else:
@@ -543,7 +543,8 @@ def create_pdf_from_content(
                 [ar("نوع العقار"), ar(property_type)],
                 [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
                 [ar("متوسط المدينة"), ar(f"{city_price_formatted} ريال") if city_price != "—" else ar("—")],
-                [ar("عدد الصفقات"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
+                # ✅ التعديل 3: توضيح عدد الصفقات حسب نوع العقار
+                [ar("عدد صفقات نوع العقار"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
                 [ar("مؤشر قوة الحي"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
             ]
         
@@ -561,6 +562,13 @@ def create_pdf_from_content(
         ]))
         story.append(Spacer(1, 1*cm))
         story.append(table)
+        
+        # ✅ التعديل 4: إضافة سطر توضيحي احترافي في الغلاف
+        story.append(Spacer(1, 0.4 * cm))
+        story.append(Paragraph(
+            ar("تم تحليل صفقات نوع العقار المختار فقط داخل الحي."),
+            body
+        ))
     
     if user_info and "total_transactions" in user_info:
         total = user_info["total_transactions"]
