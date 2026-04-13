@@ -4,6 +4,7 @@ import os
 import tempfile
 import re
 import unicodedata
+import math
 from datetime import datetime
 
 import arabic_reshaper
@@ -124,10 +125,11 @@ def plotly_to_image(fig, width_cm, height_cm):
 
     tmp = None
     try:
+        # دقة عالية للطباعة: 1600×1000 × scale=2 = 3200×2000 بكسل فعلي
         img_bytes = fig.to_image(
             format="png",
-            width=1200,
-            height=700,
+            width=1600,
+            height=1000,
             scale=2,
             engine="kaleido"
         )
@@ -152,9 +154,49 @@ def plotly_to_image(fig, width_cm, height_cm):
 
 
 # =========================
-# MAP: District & Projects Map
+# MAP: District & Projects Map (مع جميع التعديلات)
 # =========================
 import pandas as pd
+
+def add_radius_rings(fig, lat, lon):
+    """إضافة حلقات نصف القطر 1، 3، 5 كم حول موقع الحي"""
+    radii = [1, 3, 5]
+    # ألوان Branding ثابتة (Warda Intelligence)
+    colors_list = [
+        "rgba(122,0,0,0.18)",   # 1 كم
+        "rgba(122,0,0,0.12)",   # 3 كم
+        "rgba(122,0,0,0.06)"    # 5 كم
+    ]
+    
+    for radius, ring_color in zip(radii, colors_list):
+        num_points = 60
+        circle_lats = []
+        circle_lons = []
+        for i in range(num_points):
+            angle = 2 * math.pi * i / num_points
+            delta_lat = (radius / 111) * math.cos(angle)
+            delta_lon = (radius / (111 * math.cos(math.radians(lat)))) * math.sin(angle)
+            circle_lats.append(lat + delta_lat)
+            circle_lons.append(lon + delta_lon)
+        # إغلاق الدائرة
+        circle_lats.append(circle_lats[0])
+        circle_lons.append(circle_lons[0])
+        
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=circle_lats,
+                lon=circle_lons,
+                mode="lines",
+                fill="none",
+                line=dict(
+                    color="#7A0000",  # اللون الأساسي للماركة
+                    width=2,
+                    dash="dot"
+                ),
+                name=f"{radius} كم"
+            )
+        )
+
 
 def create_district_projects_map(
     district_lat,
@@ -166,6 +208,12 @@ def create_district_projects_map(
     """
     إنشاء خريطة الحي والمشاريع القريبة
     الأعمدة المطلوبة في projects_df: خط_العرض, خط_الطول, اسم_المشروع
+    
+    ✅ التعديلات المطبقة:
+    1) حلقات نصف القطر (1-3-5 كم)
+    2) تسمية فوق الحي
+    3) ألوان Branding ثابتة (#7A0000, #1565C0)
+    4) zoom=13 (وضوح مثالي للحي)
     """
     try:
         if district_lat is None or district_lon is None:
@@ -176,9 +224,7 @@ def create_district_projects_map(
             print("Map: no projects data")
             return None
         
-        # =========================================================
-        # ✅ التعديل 1: إعادة تسمية عمود اسم المشروع إذا كان بالصيغة العربية
-        # =========================================================
+        # إعادة تسمية عمود اسم المشروع إذا كان بالصيغة العربية
         if "اسم_المشروع" not in projects_df.columns:
             if "اسم المشروع بالعربية" in projects_df.columns:
                 projects_df = projects_df.rename(columns={"اسم المشروع بالعربية": "اسم_المشروع"})
@@ -190,31 +236,19 @@ def create_district_projects_map(
                 print(f"Map: missing column '{col}' in projects_df")
                 return None
         
-        # =========================
-        # ✅ تحويل الإحداثيات إلى أرقام (حل نهائي)
-        # =========================
+        # تحويل الإحداثيات إلى أرقام
         projects_df["خط_العرض"] = pd.to_numeric(projects_df["خط_العرض"], errors="coerce")
         projects_df["خط_الطول"] = pd.to_numeric(projects_df["خط_الطول"], errors="coerce")
         
         # إزالة الصفوف غير الصالحة
         projects_df = projects_df.dropna(subset=["خط_العرض", "خط_الطول"])
         
-        print("DEBUG dtype latitude:", projects_df["خط_العرض"].dtype)
-        print("DEBUG dtype longitude:", projects_df["خط_الطول"].dtype)
-        print(f"DEBUG district_lat type: {type(district_lat)}, value: {district_lat}")
-        print(f"DEBUG district_lon type: {type(district_lon)}, value: {district_lon}")
-        
-        # تحويل إحداثيات الحي إلى float أيضاً
+        # تحويل إحداثيات الحي إلى float
         district_lat = float(district_lat)
         district_lon = float(district_lon)
         
-        # =========================================================
-        # ✅ التعديل 2: توسيع نطاق البحث من 5 كم إلى 10 كم كحد أدنى
-        # =========================================================
+        # توسيع نطاق البحث
         radius_deg = max(impact_radius_km, 10) / 111
-        
-        print(f"DEBUG radius_deg: {radius_deg}")
-        print(f"DEBUG district_lat: {district_lat}, district_lon: {district_lon}")
         
         # فلترة المشاريع القريبة
         nearby_projects = projects_df[
@@ -228,48 +262,48 @@ def create_district_projects_map(
         
         print(f"Map: found {len(nearby_projects)} nearby projects within {max(impact_radius_km, 10)} km")
         
-        # =========================================================
-        # ✅ التعديل المطلوب: لا نرجع None حتى لو لا توجد مشاريع
-        # =========================================================
-        if nearby_projects.empty:
-            print("Map: No projects found in the specified radius")
-            # لا نرجع None - نستمر لرسم الخريطة بدبوس الحي فقط
+        # ألوان Branding ثابتة
+        PRIMARY_COLOR = "#7A0000"
+        SECONDARY_COLOR = "#1565C0"
         
         fig = go.Figure()
         
-        # دبوس الحي (يتم رسمه دائماً)
+        # حلقات نصف القطر
+        add_radius_rings(fig, district_lat, district_lon)
+        
+        # تسمية الحي (اسم الحي يظهر فوق النقطة)
         fig.add_trace(
             go.Scattermapbox(
                 lat=[district_lat],
                 lon=[district_lon],
-                mode="markers",
-                marker=dict(size=14, color="red"),
+                mode="markers+text",
+                marker=dict(size=14, color=PRIMARY_COLOR),
                 text=[district_name],
+                textposition="top center",
+                textfont=dict(size=12, color=PRIMARY_COLOR, family="Arial"),
                 name="الحي"
             )
         )
         
-        # دبابيس المشاريع (إذا وجدت)
+        # دبابيس المشاريع (إذا وجدت) - بالألوان الثابتة
         if not nearby_projects.empty:
             fig.add_trace(
                 go.Scattermapbox(
                     lat=nearby_projects["خط_العرض"],
                     lon=nearby_projects["خط_الطول"],
                     mode="markers",
-                    marker=dict(size=10, color="blue"),
+                    marker=dict(size=10, color=SECONDARY_COLOR),
                     text=nearby_projects["اسم_المشروع"],
                     name="المشاريع القريبة"
                 )
             )
         
-        # =========================================================
-        # ✅ التعديل 3: تغيير mapbox_style من open-street-map إلى carto-positron
-        # =========================================================
+        # zoom=13: مستوى قياسي لتقارير الأحياء
         fig.update_layout(
-            mapbox_style="carto-positron",  # حل مشكلة Access blocked – Referrer is required
+            mapbox_style="carto-positron",
             mapbox=dict(
                 center=dict(lat=district_lat, lon=district_lon),
-                zoom=11
+                zoom=13
             ),
             margin=dict(l=0, r=0, t=0, b=0),
             height=450,
@@ -277,7 +311,7 @@ def create_district_projects_map(
                 text=f"موقع حي {district_name} والمشاريع القريبة (نطاق {max(impact_radius_km, 10)} كم)",
                 x=0.5,
                 xanchor='center',
-                font=dict(size=16)
+                font=dict(size=16, color=PRIMARY_COLOR)
             )
         )
         
@@ -674,9 +708,6 @@ def create_pdf_from_content(
         except (ValueError, TypeError):
             impact_radius = 5
         
-        print(f"DEBUG: district_lat={district_lat}, district_lon={district_lon}")
-        print(f"DEBUG: impact_radius={impact_radius}")
-        
         map_fig = create_district_projects_map(
             district_lat,
             district_lon,
@@ -685,20 +716,17 @@ def create_pdf_from_content(
             impact_radius_km=impact_radius
         )
         
-        # ✅ هذا هو التعديل الحاسم: حفظ المشاريع القريبة لاستخدامها في النص
+        # حفظ المشاريع القريبة لاستخدامها في النص
         if projects_df is not None and not projects_df.empty:
             user_info["nearby_projects"] = projects_df.to_dict("records")
             print(f"DEBUG: تم حفظ {len(projects_df)} مشروع في user_info['nearby_projects']")
         
-        # =========================================================
-        # ✅ التعديل المطلوب: الخريطة في صفحة كاملة وحدها
-        # =========================================================
+        # إدراج الخريطة في صفحة كاملة
+        # ✅ تحسين حجم الخريطة: 19.0 × 25.0 (تملأ الصفحة بشكل أفضل)
         if map_fig:
-            # إنهاء الصفحة الحالية
             story.append(PageBreak())
             
-            # إدراج الخريطة بحجم صفحة كاملة
-            map_img = plotly_to_image(map_fig, 18.0, 24.0)
+            map_img = plotly_to_image(map_fig, 19.0, 25.0)
             if map_img:
                 if hasattr(map_img, '_temp_file'):
                     temp_files.append(map_img._temp_file)
@@ -710,16 +738,13 @@ def create_pdf_from_content(
                     body
                 ))
             
-            # إنهاء صفحة الخريطة
             story.append(PageBreak())
         else:
-            # الخريطة نفسها لم تنشأ (map_fig = None)
             story.append(Paragraph(
                 ar("⚠️ لم يتم إنشاء الخريطة - تحقق من الإحداثيات أو البيانات"),
                 body
             ))
             
-            # معلومات تشخيصية إضافية
             diag_text = f"الإحداثيات المستلمة: خط العرض = {district_lat}, خط الطول = {district_lon}"
             story.append(Paragraph(ar(diag_text), body))
             story.append(Spacer(1, 0.4 * cm))
