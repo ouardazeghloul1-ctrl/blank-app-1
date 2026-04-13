@@ -190,8 +190,8 @@ def add_radius_rings(fig, lat, lon):
                 fill="none",
                 line=dict(
                     color="#7A0000",  # اللون الأساسي للماركة
-                    width=2,
-                    dash="dot"
+                    width=2
+                    # ✅ تم إزالة dash="dot" لتجنب خطأ Plotly في بعض الإصدارات
                 ),
                 name=f"{radius} كم"
             )
@@ -214,6 +214,7 @@ def create_district_projects_map(
     2) تسمية فوق الحي
     3) ألوان Branding ثابتة (#7A0000, #1565C0)
     4) zoom=13 (وضوح مثالي للحي)
+    5) تم إزالة dash="dot" لتجنب خطأ Plotly
     """
     try:
         if district_lat is None or district_lon is None:
@@ -722,7 +723,7 @@ def create_pdf_from_content(
             print(f"DEBUG: تم حفظ {len(projects_df)} مشروع في user_info['nearby_projects']")
         
         # إدراج الخريطة في صفحة كاملة
-        # ✅ تحسين حجم الخريطة: 19.0 × 25.0 (تملأ الصفحة بشكل أفضل)
+        # حجم الخريطة: 19.0 × 25.0 (تملأ الصفحة بشكل أفضل)
         if map_fig:
             story.append(PageBreak())
             
