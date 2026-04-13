@@ -1,4 +1,3 @@
-```python
 # =========================================
 # Warda Intelligence
 # District Narrative Engine (الإصدار النهائي للإنتاج مع المشاريع القريبة)
