@@ -438,6 +438,7 @@ def generate_district_narrative(
     # بطاقة معلومات السوق
     # =========================================
     # ✅ التعديل 2: تنسيق الأسعار في overview_section
+    print(f"DEBUG PRICE: district_price raw = {district_price}, rounded = {int(round(district_price)):,}")
     overview_section = f"""
 تحليل سوق {property_market} في حي {district} – مدينة {city}
 
@@ -467,6 +468,17 @@ def generate_district_narrative(
 {dpi_score:.1f} / 100
 """
     report_sections.append(overview_section)
+
+    # ✅ خط الشفافية - إظهار عدد الصفقات المستبعدة
+    filtered_out_transactions = int(user_info.get("filtered_out_transactions") or 0)
+    if filtered_out_transactions > 0:
+        transparency_section = f"""
+ملاحظة حول جودة البيانات
+
+تم استبعاد {filtered_out_transactions:,} صفقة غير صالحة من التحليل
+لضمان دقة المؤشرات وموثوقية النتائج.
+"""
+        report_sections.append(transparency_section)
 
     # =========================================
     # منهجية التحليل
@@ -727,7 +739,7 @@ def generate_district_narrative(
 يحتل حي {district} المرتبة {district_rank} من أصل {total_districts} حي
 من حيث عدد الصفقات.
 
-✅ التعديل 1: بلغ عدد صفقات نوع العقار محل التحليل في حي {district} {int(district_transactions):,} صفقة خلال الفترة المدروسة.
+بلغ عدد صفقات نوع العقار محل التحليل في حي {district} {int(district_transactions):,} صفقة خلال الفترة المدروسة.
 
 هذا يضع الحي {rank_label} مقارنة ببقية الأحياء داخل المدينة.
 """
