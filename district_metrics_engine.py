@@ -6,6 +6,21 @@
 
 import pandas as pd
 import numpy as np
+import logging
+
+# ---------------------------------
+# إعداد نظام التسجيل (logging)
+# ---------------------------------
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+# ---------------------------------
+# حدود فلترة القيم غير الواقعية (قابلة للتعديل حسب نوع العقار)
+# ---------------------------------
+MIN_PRICE_PER_SQM = 500
+MAX_PRICE_PER_SQM = 20000
 
 
 def prepare_district_data(df: pd.DataFrame) -> pd.DataFrame:
@@ -44,25 +59,63 @@ def calculate_basic_district_metrics(df: pd.DataFrame, city_name: str, district_
     """
 
     if df.empty:
+        logging.warning("Input dataframe is empty")
         return None
 
     # بيانات المدينة
     city_df = df[df["city"] == city_name]
 
     if city_df.empty:
+        logging.warning(f"No data found for city {city_name}")
         return None
 
-    # بيانات الحي
+    # بيانات الحي (غير مفلترة - للحصول على العدد الإجمالي للصفقات)
+    total_transactions = len(city_df[city_df["district"] == district_name])
+
+    # بيانات الحي (المستخدمة في التحليل)
     district_df = city_df[city_df["district"] == district_name]
 
-    # متوسط سعر المتر في المدينة (Median أكثر دقة)
-    city_avg_price = city_df["price_per_sqm"].median()
+    # ---------------------------------
+    # فلترة القيم غير الواقعية لسعر المتر
+    # ---------------------------------
+    district_df = district_df[
+        (district_df["price_per_sqm"] >= MIN_PRICE_PER_SQM) & 
+        (district_df["price_per_sqm"] <= MAX_PRICE_PER_SQM)
+    ]
+    
+    city_clean = city_df[
+        (city_df["price_per_sqm"] >= MIN_PRICE_PER_SQM) & 
+        (city_df["price_per_sqm"] <= MAX_PRICE_PER_SQM)
+    ]
 
-    # متوسط سعر المتر في الحي
+    # ---------------------------------
+    # حماية من البيانات الفارغة بعد الفلترة (مع تسجيل السبب)
+    # ---------------------------------
+    if district_df.empty:
+        logging.warning(f"No valid transactions after filtering for district {district_name}")
+        return None
+    if city_clean.empty:
+        logging.warning(f"No valid city data after filtering for city {city_name}")
+        return None
+
+    # ---------------------------------
+    # حساب المتوسط الوسيط مع حماية NaN
+    # ---------------------------------
     district_avg_price = district_df["price_per_sqm"].median()
+    city_avg_price = city_clean["price_per_sqm"].median()
 
-    # عدد الصفقات
+    if pd.isna(district_avg_price):
+        logging.warning(f"Median price is NaN for district {district_name}")
+        return None
+    if pd.isna(city_avg_price):
+        logging.warning(f"Median price is NaN for city {city_name}")
+        return None
+
+    # عدد الصفقات المستخدمة في التحليل (بعد الفلترة)
     transactions_count = len(district_df)
+    
+    # عدد الصفقات المستبعدة بسبب الفلترة
+    filtered_out_transactions = total_transactions - transactions_count
 
     # منع القسمة على صفر
     if city_avg_price and city_avg_price > 0:
@@ -76,6 +129,8 @@ def calculate_basic_district_metrics(df: pd.DataFrame, city_name: str, district_
         "district_avg_price": round(float(district_avg_price), 2),
         "city_avg_price": round(float(city_avg_price), 2),
         "transactions_count": int(transactions_count),
+        "total_transactions": int(total_transactions),
+        "filtered_out_transactions": int(filtered_out_transactions),
         "price_deviation_percent": round(float(deviation), 2)
     }
 
