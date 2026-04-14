@@ -100,16 +100,16 @@ def generate_district_narrative(
     
     district_price = float(district_metrics.get("district_avg_price", 0) or 0)
     city_price = float(district_metrics.get("city_avg_price", 0) or 0)
-    transactions = int(district_metrics.get("transactions_count", 0) or 0)
     
-    # ✅ التعديل 1: إضافة total_transactions لتوضيح الفرق بين صفقات الحي وصفقات النوع
-    total_transactions = int(district_metrics.get("total_transactions", transactions) or 0)
+    # ✅ التعديل 3: فصل متغيرات الصفقات (total_transactions vs property_transactions)
+    total_transactions = int(district_metrics.get("transactions_count", 0) or 0)
+    property_transactions = int(user_info.get("property_transactions", total_transactions) or 0)
     
     property_type = user_info.get("property_type", "عقار")
     
     # ✅ التعديل 1: إضافة قسم توضيح الفرق بين عدد الصفقات
-    transactions_section = f"""عدد صفقات الحي الكلي: {total_transactions:,} صفقة
-عدد صفقات نوع العقار محل التحليل ({property_type}): {transactions:,} صفقة
+    transactions_section = f"""عدد صفقات الحي الكلي: {int(total_transactions):,} صفقة
+عدد صفقات نوع العقار محل التحليل ({property_type}): {int(property_transactions):,} صفقة
 
 تم احتساب المؤشرات في هذا التقرير بناءً على صفقات نوع العقار المحدد فقط داخل الحي."""
     
@@ -401,6 +401,7 @@ def generate_district_narrative(
     # =========================================
     # Investment Snapshot (سيصبح الفصل الأول)
     # =========================================
+    # ✅ التعديل 2: تنسيق الأسعار بشكل صحيح باستخدام int(round())
     snapshot_section = f"""
 
 ملخص الاستثمار السريع
@@ -409,11 +410,11 @@ def generate_district_narrative(
 الحي: {district}
 نوع العقار: {property_type}
 
-متوسط سعر المتر: {district_price:,.0f} ريال
-متوسط سعر المدينة: {city_price:,.0f} ريال
-عدد الصفقات: {transactions:,} صفقة
+متوسط سعر المتر: {int(round(district_price)):,} ريال
+متوسط سعر المدينة: {int(round(city_price)):,} ريال
+عدد الصفقات: {property_transactions:,} صفقة
 مؤشر قوة الحي (DPI): {dpi_score:.1f} / 100
-النتيجة الاستثمارية: {investment_score} / 100
+النتيجة الاستثمارية: {investment_score:.1f} / 100
 
 """
     report_sections.append(snapshot_section)
@@ -426,9 +427,9 @@ def generate_district_narrative(
 ملخص تنفيذي
 
 يعرض هذا التقرير تحليلاً لسوق {property_market} في حي {district} بمدينة {city}.
-يعتمد التحليل على {transactions:,} صفقة عقارية تم تسجيلها في السوق خلال الفترة المدروسة.
+يعتمد التحليل على {property_transactions:,} صفقة عقارية تم تسجيلها في السوق خلال الفترة المدروسة.
 
-متوسط سعر المتر في الحي يبلغ {district_price:,.0f} ريال، مقارنة بمتوسط المدينة البالغ {city_price:,.0f} ريال.
+متوسط سعر المتر في الحي يبلغ {int(round(district_price)):,} ريال، مقارنة بمتوسط المدينة البالغ {int(round(city_price)):,} ريال.
 هذا يضع الحي ضمن شريحة { "مرتفع السعر" if price_ratio > 1.1 else "متوسط السعر" if price_ratio > 0.9 else "منخفض السعر" } داخل السوق العقاري للمدينة.
 """
     report_sections.append(summary_section)
@@ -436,6 +437,7 @@ def generate_district_narrative(
     # =========================================
     # بطاقة معلومات السوق
     # =========================================
+    # ✅ التعديل 2: تنسيق الأسعار في overview_section
     overview_section = f"""
 تحليل سوق {property_market} في حي {district} – مدينة {city}
 
@@ -453,13 +455,13 @@ def generate_district_narrative(
 نوع العقار محل التحليل: {property_type}
 
 متوسط سعر المتر في الحي:
-{district_price:,.0f} ريال
+{int(round(district_price)):,} ريال
 
 متوسط سعر المتر في المدينة:
-{city_price:,.0f} ريال
+{int(round(city_price)):,} ريال
 
 عدد الصفقات المنفذة:
-{transactions:,} صفقة
+{property_transactions:,} صفقة
 
 مؤشر قوة الحي (DPI):
 {dpi_score:.1f} / 100
@@ -479,7 +481,7 @@ def generate_district_narrative(
 
 ولتقليل تأثير الصفقات الشاذة تم استخدام القيمة الوسيطة (Median) بدلاً من المتوسط الحسابي في بعض المؤشرات.
 
-يعتمد التقرير على {transactions:,} صفقة عقارية داخل حي {district} خلال الفترة المتاحة من البيانات.
+يعتمد التقرير على {property_transactions:,} صفقة عقارية داخل حي {district} خلال الفترة المتاحة من البيانات.
 """
     report_sections.append(data_method_section)
 
@@ -560,8 +562,8 @@ def generate_district_narrative(
 
 فجوة السعر داخل المدينة
 
-متوسط سعر المتر في حي {district}: {district_price:,.0f} ريال
-متوسط سعر المتر في مدينة {city}: {city_price:,.0f} ريال
+متوسط سعر المتر في حي {district}: {int(round(district_price)):,} ريال
+متوسط سعر المتر في مدينة {city}: {int(round(city_price)):,} ريال
 
 هذا يعني أن الحي {relation} من متوسط المدينة بنسبة: {abs(gap):.1f}%
 
@@ -579,8 +581,8 @@ def generate_district_narrative(
 
 مقارنة الحي مع متوسط السوق
 
-متوسط سعر المتر في الحي: {district_price:,.0f} ريال
-متوسط سعر المتر في المدينة: {city_price:,.0f} ريال
+متوسط سعر المتر في الحي: {int(round(district_price)):,} ريال
+متوسط سعر المتر في المدينة: {int(round(city_price)):,} ريال
 
 الفارق: {price_diff_percent:.1f}%
 
@@ -647,30 +649,30 @@ def generate_district_narrative(
     # =========================================
     # تحليل السيولة العقارية
     # =========================================
-    if transactions >= 40:
+    if property_transactions >= 40:
         liquidity_level = "سيولة عالية جداً"
         liquidity_analysis = f"""
 يسجل حي {district} مستوى نشاط مرتفع في السوق العقاري،
-حيث بلغ عدد الصفقات المنفذة {transactions:,} صفقة.
+حيث بلغ عدد الصفقات المنفذة {property_transactions:,} صفقة.
 
 هذا الحجم من النشاط يشير عادة إلى سوق يتمتع بدرجة
 عالية من السيولة، مما يسهل عمليات البيع والشراء
 ويقلل من فترات انتظار بيع العقار.
 """
-    elif transactions >= 20:
+    elif property_transactions >= 20:
         liquidity_level = "سيولة جيدة"
         liquidity_analysis = f"""
 بلغ عدد الصفقات العقارية في حي {district}
-حوالي {transactions:,} صفقة خلال الفترة محل التحليل.
+حوالي {property_transactions:,} صفقة خلال الفترة محل التحليل.
 
 يشير هذا المستوى من النشاط إلى وجود سيولة جيدة
 في السوق العقاري للحي، حيث توجد حركة بيع وشراء
 مستمرة نسبياً مقارنة بعدد من الأحياء الأخرى.
 """
-    elif transactions >= 10:
+    elif property_transactions >= 10:
         liquidity_level = "سيولة متوسطة"
         liquidity_analysis = f"""
-سجل حي {district} نحو {transactions:,} صفقة عقارية
+سجل حي {district} نحو {property_transactions:,} صفقة عقارية
 خلال الفترة محل التحليل.
 
 هذا يشير إلى وجود نشاط عقاري متوسط،
@@ -681,7 +683,7 @@ def generate_district_narrative(
         liquidity_level = "سيولة منخفضة"
         liquidity_analysis = f"""
 بلغ عدد الصفقات العقارية في حي {district}
-حوالي {transactions:,} صفقة فقط.
+حوالي {property_transactions:,} صفقة فقط.
 
 انخفاض عدد الصفقات قد يشير إلى سوق
 بطيء نسبياً من ناحية السيولة،
@@ -725,8 +727,7 @@ def generate_district_narrative(
 يحتل حي {district} المرتبة {district_rank} من أصل {total_districts} حي
 من حيث عدد الصفقات.
 
-بلغ إجمالي الصفقات المسجلة في الحي
-{district_transactions:,} صفقة خلال الفترة المدروسة.
+✅ التعديل 1: بلغ عدد صفقات نوع العقار محل التحليل في حي {district} {int(district_transactions):,} صفقة خلال الفترة المدروسة.
 
 هذا يضع الحي {rank_label} مقارنة ببقية الأحياء داخل المدينة.
 """
@@ -773,14 +774,14 @@ def generate_district_narrative(
     # =========================================
     # تحليل الفجوة السعرية وفرصة الاستثمار
     # =========================================
-    if price_ratio < 0.85 and transactions >= 15:
+    if price_ratio < 0.85 and property_transactions >= 15:
         opportunity_type = "فرصة استثمارية قوية"
         opportunity_analysis = f"""
 تشير البيانات إلى أن متوسط سعر المتر في حي {district}
 أقل بشكل ملحوظ من متوسط الأسعار في مدينة {city}.
 
 في الوقت نفسه يظهر الحي نشاطاً جيداً في عدد الصفقات
-حيث بلغ إجمالي الصفقات {transactions:,} صفقة.
+حيث بلغ إجمالي الصفقات {property_transactions:,} صفقة.
 
 هذا الجمع بين السعر المنخفض نسبياً والنشاط الجيد
 قد يشير إلى وجود فرصة استثمارية، حيث يمكن أن يكون
@@ -844,7 +845,7 @@ def generate_district_narrative(
             relation = "أعلى" if diff > 0 else "أقل" if diff < 0 else "مساوٍ"
             comparison_lines += f"""
 حي {name}
-متوسط السعر: {price:,.0f} ريال للمتر
+متوسط السعر: {int(round(price)):,} ريال للمتر
 الفرق عن حي {district}: {abs(diff):.1f}% ({relation})
 """
 
@@ -863,7 +864,7 @@ def generate_district_narrative(
     # =========================================
     # تحليل المخاطر الاستثمارية
     # =========================================
-    if transactions < 10:
+    if property_transactions < 10:
         liquidity_risk = "مخاطر سيولة مرتفعة"
         liquidity_risk_text = f"""
 انخفاض عدد الصفقات في حي {district} قد يشير
@@ -872,7 +873,7 @@ def generate_district_narrative(
 في هذه الحالة قد تستغرق عملية بيع العقار
 فترة أطول مقارنة بالأحياء الأكثر نشاطاً.
 """
-    elif transactions < 25:
+    elif property_transactions < 25:
         liquidity_risk = "مخاطر سيولة متوسطة"
         liquidity_risk_text = f"""
 مستوى النشاط العقاري في حي {district}
@@ -950,7 +951,6 @@ def generate_district_narrative(
                     first_price = df_trend.iloc[:midpoint]["price_sqm"].median()
                     last_price = df_trend.iloc[midpoint:]["price_sqm"].median()
                     change = ((last_price - first_price) / first_price) * 100 if first_price > 0 else 0
-                    # ✅ التعديل 2: تنسيق النسبة المئوية بشكل صحيح
                     growth_rate = change
                     growth_rate_text = f"{growth_rate:+.1f}%"
                     trend = "اتجاه صعودي" if change > 3 else "اتجاه هبوطي" if change < -3 else "استقرار نسبي"
@@ -991,7 +991,6 @@ def generate_district_narrative(
                     first_price = df_cycle.iloc[:midpoint]["price_sqm"].median()
                     last_price = df_cycle.iloc[midpoint:]["price_sqm"].median()
                     change = ((last_price - first_price) / first_price) * 100 if first_price > 0 else 0
-                    # ✅ التعديل 2: تنسيق النسبة المئوية بشكل صحيح
                     growth_rate = change
                     growth_rate_text = f"{growth_rate:+.1f}%"
                     if change > 5:
@@ -1058,7 +1057,7 @@ def generate_district_narrative(
     # =========================================
     # Capital Growth Potential
     # =========================================
-    if price_ratio < 0.9 and transactions >= 20:
+    if price_ratio < 0.9 and property_transactions >= 20:
         growth = "مرتفعة"
         range_text = "12% إلى 20% خلال 3 إلى 5 سنوات"
     elif price_ratio <= 1.0:
@@ -1093,7 +1092,7 @@ def generate_district_narrative(
 
 التقييم الكلي لجاذبية الاستثمار في الحي
 
-النتيجة النهائية: {investment_score} / 100
+النتيجة النهائية: {investment_score:.1f} / 100
 
 يعتمد هذا التقييم على عدة عوامل رئيسية تشمل:
 - مستوى الأسعار مقارنة بمتوسط المدينة
@@ -1170,13 +1169,13 @@ def generate_district_narrative(
     # =========================================
     # Market Liquidity Speed
     # =========================================
-    if transactions >= 60:
+    if property_transactions >= 60:
         speed = "سوق سريع جداً"
         speed_text = "العقارات في هذا الحي غالباً ما تباع بسرعة بسبب الطلب المرتفع."
-    elif transactions >= 30:
+    elif property_transactions >= 30:
         speed = "سوق نشط"
         speed_text = "السوق يتمتع بحركة بيع وشراء جيدة مقارنة بعدد من الأحياء."
-    elif transactions >= 15:
+    elif property_transactions >= 15:
         speed = "سوق متوسط النشاط"
         speed_text = "السيولة متوسطة وقد تستغرق بعض الصفقات وقتاً أطول."
     else:
@@ -1198,7 +1197,7 @@ def generate_district_narrative(
     # =========================================
     heat_section = ""
     try:
-        heat_score = min(100, int(0.6 * dpi_score + 0.4 * min(transactions, 100)))
+        heat_score = min(100, int(0.6 * dpi_score + 0.4 * min(property_transactions, 100)))
         if heat_score >= 80:
             heat_label = "شديد السخونة"
             heat_description = "نشاط مرتفع جداً، سرعة في تنفيذ الصفقات"
@@ -1232,7 +1231,7 @@ def generate_district_narrative(
     # =========================================
     smart_section = ""
     try:
-        if price_ratio < 0.9 and transactions >= 15:
+        if price_ratio < 0.9 and property_transactions >= 15:
             smart_text = f"""
 تشير البيانات إلى أن حي {district} قد يقدم فرصاً مناسبة
 للمستثمرين الباحثين عن دخول السوق عند مستويات سعرية
@@ -1296,7 +1295,7 @@ def generate_district_narrative(
     # =========================================
     future_section = ""
     try:
-        if price_ratio < 0.9 and transactions >= 15:
+        if price_ratio < 0.9 and property_transactions >= 15:
             optimistic = "قد تشهد الأسعار نمواً إضافياً يتراوح بين 8% و 15% خلال السنوات القادمة."
             balanced = "من المرجح أن يستمر السوق في مسار نمو تدريجي مع ارتفاعات معتدلة."
             pessimistic = "في حالة تباطؤ الطلب قد يحدث تصحيح محدود لا يتجاوز 5%."
@@ -1334,13 +1333,13 @@ def generate_district_narrative(
     # =========================================
     horizon_section = ""
     try:
-        if price_ratio < 0.9 and transactions >= 15:
+        if price_ratio < 0.9 and property_transactions >= 15:
             horizon = "استثمار متوسط الأجل (3 إلى 5 سنوات)"
             horizon_text = "تسمح هذه الفترة للاستفادة من النمو المتوقع في الأسعار مع تجنب مخاطر التقلبات القصيرة."
-        elif price_ratio > 1.1 and transactions >= 20:
+        elif price_ratio > 1.1 and property_transactions >= 20:
             horizon = "استثمار طويل الأجل (5 إلى 10 سنوات)"
             horizon_text = "السوق وصل لمستويات سعرية مرتفعة، لذلك الأفق الطويل يساعد على تجاوز أي تصحيحات سعرية محتملة."
-        elif transactions >= 30:
+        elif property_transactions >= 30:
             horizon = "استثمار قصير إلى متوسط الأجل (1 إلى 4 سنوات)"
             horizon_text = "النشاط العالي في الحي يسمح بمرونة في إعادة البيع عند الحاجة."
         else:
@@ -1367,19 +1366,19 @@ def generate_district_narrative(
     # =========================================
     decision_section = ""
     try:
-        if price_ratio < 0.9 and transactions >= 20 and dpi_score >= 70:
+        if price_ratio < 0.9 and property_transactions >= 20 and dpi_score >= 70:
             decision = "شراء"
             reasoning = f"""
 البيانات تشير إلى أن حي {district} يوفر فرصة استثمارية جيدة حالياً.
 السبب الرئيسي:
 • سعر المتر أقل من متوسط المدينة
-• نشاط السوق جيد ({transactions:,} صفقة)
+• نشاط السوق جيد ({property_transactions:,} صفقة)
 • مؤشر قوة الحي مرتفع ({dpi_score}/100)
 
 الاستراتيجية المقترحة:
 شراء عقار بسعر قريب أو أقل من متوسط سعر الحي والاحتفاظ به لمدة 3 إلى 5 سنوات.
 """
-        elif price_ratio > 1.15 and transactions < 20:
+        elif price_ratio > 1.15 and property_transactions < 20:
             decision = "الانتظار"
             reasoning = f"""
 أسعار الحي مرتفعة مقارنة بمتوسط السوق مع نشاط محدود في عدد الصفقات.
@@ -1427,7 +1426,7 @@ def generate_district_narrative(
     # =========================================
     # الحكم الاستثماري النهائي
     # =========================================
-    if price_ratio < 0.9 and transactions >= 20 and dpi_score >= 70:
+    if price_ratio < 0.9 and property_transactions >= 20 and dpi_score >= 70:
         verdict = "حي يتمتع بجاذبية استثمارية قوية"
         verdict_text = f"""
 تشير المؤشرات العقارية إلى أن حي {district}
