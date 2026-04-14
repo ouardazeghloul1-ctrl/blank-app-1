@@ -530,8 +530,7 @@ def create_pdf_from_content(
                 return "—"
             try:
                 num = float(value)
-                # ✅ التعديل: تغيير 0.01 إلى 0.001 لمنع ظهور .00
-                if abs(num - round(num)) < 0.001:
+                if abs(num - round(num)) < 0.01:
                     return f"{int(round(num)):,}"
                 else:
                     return f"{num:,.2f}"
@@ -641,8 +640,7 @@ def create_pdf_from_content(
 
         story.append(Spacer(1, 1.0 * cm))
         story.append(elegant_divider("30%"))
-        # ✅ التعديل: إزالة PageBreak هنا - لا نضيف PageBreak بعد transition
-        # لأن صفحة الخريطة ستأخذ الصفحة التالية مباشرة
+        story.append(PageBreak())
 
     # =========================
     # TRANSITION PAGE
@@ -674,8 +672,7 @@ def create_pdf_from_content(
 
     story.append(Spacer(1, 1.2 * cm))
     story.append(elegant_divider("30%"))
-    # ✅ التعديل: إزالة PageBreak هنا - لا نضيف PageBreak بعد transition
-    # لأن صفحة الخريطة ستأخذ الصفحة التالية مباشرة
+    story.append(PageBreak())
 
     # =========================
     # PROCESS CONTENT WITH MAP
@@ -694,13 +691,11 @@ def create_pdf_from_content(
         district_name = user_info.get("district_name")
         projects_df = user_info.get("projects_data")
         
-        # ✅ التعديل: حماية نطاق التأثير
+        district_impact = user_info.get("نطاق_التأثير") or user_info.get("impact_radius") or 5
         try:
-            district_impact = user_info.get("نطاق_التأثير") or user_info.get("impact_radius") or 5
-            impact_radius = float(district_impact)
+            impact_radius = max(float(district_impact or 0), 1)
         except (ValueError, TypeError):
             impact_radius = 5
-        impact_radius = max(impact_radius, 1)
         
         print(f"DEBUG: district_lat={district_lat}, district_lon={district_lon}")
         print(f"DEBUG: impact_radius={impact_radius}")
@@ -739,10 +734,6 @@ def create_pdf_from_content(
             
             # إنهاء صفحة الخريطة
             story.append(PageBreak())
-            
-            # ✅ إعادة ضبط عداد الفصول بعد الخريطة
-            chapter_index = 0
-            
         else:
             # الخريطة نفسها لم تنشأ (map_fig = None)
             story.append(Paragraph(
@@ -754,12 +745,6 @@ def create_pdf_from_content(
             diag_text = f"الإحداثيات المستلمة: خط العرض = {district_lat}, خط الطول = {district_lon}"
             story.append(Paragraph(ar(diag_text), body))
             story.append(Spacer(1, 0.4 * cm))
-            
-            # ✅ التعديل: ضمان أن الفصل الأول يبدأ في صفحة جديدة حتى لو فشلت الخريطة
-            story.append(PageBreak())
-            
-            # ✅ إعادة ضبط عداد الفصول بعد الخريطة (حتى في حالة الفشل)
-            chapter_index = 0
 
     # =========================
     # MAIN CONTENT LOOP
@@ -780,10 +765,12 @@ def create_pdf_from_content(
             continue
 
         if raw_stripped.startswith("الفصل"):
-            # ✅ التعديل النهائي: أول فصل فقط يبدأ بعد الخريطة مباشرة
+            # ✅ التعديل: كل فصل يبدأ في صفحة جديدة
             if first_chapter_processed:
                 story.append(PageBreak())
-            first_chapter_processed = True
+            else:
+                story.append(PageBreak())
+                first_chapter_processed = True
             chapter_index += 1
             chart_cursor[chapter_index] = 0
             story.append(Paragraph(ar(clean), chapter))
