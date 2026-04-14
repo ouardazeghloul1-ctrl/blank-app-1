@@ -739,6 +739,10 @@ def create_pdf_from_content(
             
             # إنهاء صفحة الخريطة
             story.append(PageBreak())
+            
+            # ✅ إعادة ضبط عداد الفصول بعد الخريطة
+            chapter_index = 0
+            
         else:
             # الخريطة نفسها لم تنشأ (map_fig = None)
             story.append(Paragraph(
@@ -753,6 +757,9 @@ def create_pdf_from_content(
             
             # ✅ التعديل: ضمان أن الفصل الأول يبدأ في صفحة جديدة حتى لو فشلت الخريطة
             story.append(PageBreak())
+            
+            # ✅ إعادة ضبط عداد الفصول بعد الخريطة (حتى في حالة الفشل)
+            chapter_index = 0
 
     # =========================
     # MAIN CONTENT LOOP
