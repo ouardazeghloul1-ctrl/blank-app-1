@@ -399,7 +399,7 @@ def create_pdf_from_content(
         spaceAfter=12,
         allowWidows=1,
         allowOrphans=1,
-        splitLongWords=True,  # ✅ تم التعديل: منع كسر الأرقام (828 بدل 2,828)
+        splitLongWords=False,  # ✅ منع انكسار السطر داخل الأرقام
     )
 
     chapter = ParagraphStyle(
@@ -412,7 +412,7 @@ def create_pdf_from_content(
         spaceBefore=24,
         spaceAfter=12,
         keepWithNext=1,
-        splitLongWords=True,  # ✅ تم التعديل
+        splitLongWords=False,
     )
 
     ai_sub_title = ParagraphStyle(
@@ -424,7 +424,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#444444"),
         spaceBefore=14,
         spaceAfter=8,
-        splitLongWords=True,  # ✅ تم التعديل
+        splitLongWords=False,
     )
 
     title = ParagraphStyle(
@@ -435,7 +435,7 @@ def create_pdf_from_content(
         alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
         spaceAfter=40,
-        splitLongWords=True,  # ✅ تم التعديل
+        splitLongWords=False,
     )
 
     ai_executive_header = ParagraphStyle(
@@ -446,7 +446,7 @@ def create_pdf_from_content(
         fontSize=17,
         spaceBefore=24,
         spaceAfter=12,
-        splitLongWords=True,  # ✅ تم التعديل
+        splitLongWords=False,
     )
 
     date_style = ParagraphStyle(
@@ -457,7 +457,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#555555"),
         spaceBefore=6,
         spaceAfter=12,
-        splitLongWords=True,  # ✅ تم التعديل
+        splitLongWords=False,
     )
 
     stats_style = ParagraphStyle(
@@ -468,7 +468,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#1B5E20"),
         spaceBefore=16,
         spaceAfter=16,
-        splitLongWords=True,  # ✅ تم التعديل
+        splitLongWords=False,
     )
 
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
@@ -551,13 +551,6 @@ def create_pdf_from_content(
         city_price_formatted = format_number_with_commas(city_price)
         transactions_formatted = format_number_with_commas(transactions)
         
-        # ✅ توحيد تنسيق DPI - 95 / 100 وليس 100 / 95
-        try:
-            dpi_float = float(dpi) if dpi != "—" else None
-            dpi_formatted = f"{dpi_float:.1f} / 100" if dpi_float is not None else "—"
-        except (ValueError, TypeError):
-            dpi_formatted = "—"
-        
         if report_kind == "city":
             table_data = [
                 [ar("المؤشر"), ar("القيمة")],
@@ -565,7 +558,7 @@ def create_pdf_from_content(
                 [ar("نوع العقار"), ar(property_type)],
                 [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
                 [ar("عدد صفقات نوع العقار"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
-                [ar("مؤشر قوة السوق - DPI"), ar(dpi_formatted) if dpi_formatted != "—" else ar("—")]
+                [ar("مؤشر قوة السوق - DPI"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
             ]
             
             # ✅ إضافة إجمالي صفقات الحي
@@ -582,7 +575,7 @@ def create_pdf_from_content(
                 [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
                 [ar("متوسط المدينة"), ar(f"{city_price_formatted} ريال") if city_price != "—" else ar("—")],
                 [ar("عدد صفقات نوع العقار"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
-                [ar("مؤشر قوة الحي - DPI"), ar(dpi_formatted) if dpi_formatted != "—" else ar("—")]
+                [ar("مؤشر قوة الحي - DPI"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
             ]
             
             # ✅ إضافة إجمالي صفقات الحي
