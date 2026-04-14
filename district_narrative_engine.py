@@ -268,8 +268,12 @@ def generate_district_narrative(
             print(f"🔍 جاري البحث عن مشاريع قريبة من {clean_district_base}...")
             print(f"📋 أعمدة المشاريع المتاحة: {list(projects_df.columns)}")
             
-            # ✅ استخدام نطاق تأثير الحي (من user_info) مع الحد الأدنى 10 كم
-            district_impact_radius = max(float(user_info.get("نطاق_التأثير", 5) or 5), 10)
+            # ✅ استخدام نطاق تأثير الحي (من user_info) مع الحد الأدنى 10 كم - مع حماية التحويل
+            try:
+                district_impact_radius = float(user_info.get("نطاق_التأثير", 5) or 5)
+            except:
+                district_impact_radius = 5
+            district_impact_radius = max(district_impact_radius, 10)
             print(f"📍 نطاق تأثير الحي المستخدم للبحث: {district_impact_radius} كم")
             
             # ✅ التعديل الحاسم: استخدام iterrows بدلاً من itertuples
@@ -399,9 +403,9 @@ def generate_district_narrative(
 الحي: {district}
 نوع العقار: {property_type}
 
-متوسط سعر المتر: {district_price:,.0f} ريال
-متوسط سعر المدينة: {city_price:,.0f} ريال
-عدد الصفقات: {transactions:,} صفقة
+متوسط سعر المتر: {int(round(district_price)):,} ريال
+متوسط سعر المدينة: {int(round(city_price)):,} ريال
+عدد الصفقات: {int(transactions):,} صفقة
 مؤشر قوة الحي (DPI): {dpi_score:.1f} / 100
 النتيجة الاستثمارية: {investment_score} / 100
 
@@ -413,9 +417,9 @@ def generate_district_narrative(
 ملخص تنفيذي
 
 يعرض هذا التقرير تحليلاً لسوق {property_market} في حي {district} بمدينة {city}.
-يعتمد التحليل على {transactions:,} صفقة عقارية تم تسجيلها في السوق خلال الفترة المدروسة.
+يعتمد التحليل على {int(transactions):,} صفقة عقارية تم تسجيلها في السوق خلال الفترة المدروسة.
 
-متوسط سعر المتر في الحي يبلغ {district_price:,.0f} ريال، مقارنة بمتوسط المدينة البالغ {city_price:,.0f} ريال.
+متوسط سعر المتر في الحي يبلغ {int(round(district_price)):,} ريال، مقارنة بمتوسط المدينة البالغ {int(round(city_price)):,} ريال.
 هذا يضع الحي ضمن شريحة { "مرتفع السعر" if price_ratio > 1.1 else "متوسط السعر" if price_ratio > 0.9 else "منخفض السعر" } داخل السوق العقاري للمدينة.
 """
     report_sections.append(summary_section)
@@ -440,13 +444,13 @@ def generate_district_narrative(
 نوع العقار محل التحليل: {property_type}
 
 متوسط سعر المتر في الحي:
-{district_price:,.0f} ريال
+{int(round(district_price)):,} ريال
 
 متوسط سعر المتر في المدينة:
-{city_price:,.0f} ريال
+{int(round(city_price)):,} ريال
 
 عدد الصفقات المنفذة:
-{transactions:,} صفقة
+{int(transactions):,} صفقة
 
 مؤشر قوة الحي (DPI):
 {dpi_score:.1f} / 100
@@ -466,7 +470,7 @@ def generate_district_narrative(
 
 ولتقليل تأثير الصفقات الشاذة تم استخدام القيمة الوسيطة (Median) بدلاً من المتوسط الحسابي في بعض المؤشرات.
 
-يعتمد التقرير على {transactions:,} صفقة عقارية داخل حي {district} خلال الفترة المتاحة من البيانات.
+يعتمد التقرير على {int(transactions):,} صفقة عقارية داخل حي {district} خلال الفترة المتاحة من البيانات.
 """
     report_sections.append(data_method_section)
 
@@ -547,8 +551,8 @@ def generate_district_narrative(
 
 فجوة السعر داخل المدينة
 
-متوسط سعر المتر في حي {district}: {district_price:,.0f} ريال
-متوسط سعر المتر في مدينة {city}: {city_price:,.0f} ريال
+متوسط سعر المتر في حي {district}: {int(round(district_price)):,} ريال
+متوسط سعر المتر في مدينة {city}: {int(round(city_price)):,} ريال
 
 هذا يعني أن الحي {relation} من متوسط المدينة بنسبة: {abs(gap):.1f}%
 
@@ -561,13 +565,17 @@ def generate_district_narrative(
     # =========================================
     # Market Benchmark
     # =========================================
-    price_diff_percent = ((district_price - city_price) / city_price) * 100 if city_price > 0 else 0
+    # ✅ إصلاح price_diff_percent مع حماية nan
+    if city_price and city_price > 0:
+        price_diff_percent = ((district_price - city_price) / city_price) * 100
+    else:
+        price_diff_percent = 0
     benchmark_section = f"""
 
 مقارنة الحي مع متوسط السوق
 
-متوسط سعر المتر في الحي: {district_price:,.0f} ريال
-متوسط سعر المتر في المدينة: {city_price:,.0f} ريال
+متوسط سعر المتر في الحي: {int(round(district_price)):,} ريال
+متوسط سعر المتر في المدينة: {int(round(city_price)):,} ريال
 
 الفارق: {price_diff_percent:.1f}%
 
@@ -638,7 +646,7 @@ def generate_district_narrative(
         liquidity_level = "سيولة عالية جداً"
         liquidity_analysis = f"""
 يسجل حي {district} مستوى نشاط مرتفع في السوق العقاري،
-حيث بلغ عدد الصفقات المنفذة {transactions:,} صفقة.
+حيث بلغ عدد الصفقات المنفذة {int(transactions):,} صفقة.
 
 هذا الحجم من النشاط يشير عادة إلى سوق يتمتع بدرجة
 عالية من السيولة، مما يسهل عمليات البيع والشراء
@@ -648,7 +656,7 @@ def generate_district_narrative(
         liquidity_level = "سيولة جيدة"
         liquidity_analysis = f"""
 بلغ عدد الصفقات العقارية في حي {district}
-حوالي {transactions:,} صفقة خلال الفترة محل التحليل.
+حوالي {int(transactions):,} صفقة خلال الفترة محل التحليل.
 
 يشير هذا المستوى من النشاط إلى وجود سيولة جيدة
 في السوق العقاري للحي، حيث توجد حركة بيع وشراء
@@ -657,7 +665,7 @@ def generate_district_narrative(
     elif transactions >= 10:
         liquidity_level = "سيولة متوسطة"
         liquidity_analysis = f"""
-سجل حي {district} نحو {transactions:,} صفقة عقارية
+سجل حي {district} نحو {int(transactions):,} صفقة عقارية
 خلال الفترة محل التحليل.
 
 هذا يشير إلى وجود نشاط عقاري متوسط،
@@ -668,7 +676,7 @@ def generate_district_narrative(
         liquidity_level = "سيولة منخفضة"
         liquidity_analysis = f"""
 بلغ عدد الصفقات العقارية في حي {district}
-حوالي {transactions:,} صفقة فقط.
+حوالي {int(transactions):,} صفقة فقط.
 
 انخفاض عدد الصفقات قد يشير إلى سوق
 بطيء نسبياً من ناحية السيولة،
@@ -713,7 +721,7 @@ def generate_district_narrative(
 من حيث عدد الصفقات.
 
 بلغ إجمالي الصفقات المسجلة في الحي
-{district_transactions:,} صفقة خلال الفترة المدروسة.
+{int(district_transactions):,} صفقة خلال الفترة المدروسة.
 
 هذا يضع الحي {rank_label} مقارنة ببقية الأحياء داخل المدينة.
 """
@@ -732,7 +740,7 @@ def generate_district_narrative(
                 lines = ""
                 for i, (name, count) in enumerate(top_districts.items(), start=1):
                     market_share = (count / total_city_transactions) * 100 if total_city_transactions > 0 else 0
-                    lines += f"{i}. {name} — {count:,} صفقة ({market_share:.1f}% من السوق)\n"
+                    lines += f"{i}. {name} — {int(count):,} صفقة ({market_share:.1f}% من السوق)\n"
                 
                 if clean_district_base in city_transactions_by_district.index:
                     current_rank = list(city_transactions_by_district.index).index(clean_district_base) + 1
@@ -767,7 +775,7 @@ def generate_district_narrative(
 أقل بشكل ملحوظ من متوسط الأسعار في مدينة {city}.
 
 في الوقت نفسه يظهر الحي نشاطاً جيداً في عدد الصفقات
-حيث بلغ إجمالي الصفقات {transactions:,} صفقة.
+حيث بلغ إجمالي الصفقات {int(transactions):,} صفقة.
 
 هذا الجمع بين السعر المنخفض نسبياً والنشاط الجيد
 قد يشير إلى وجود فرصة استثمارية، حيث يمكن أن يكون
@@ -827,11 +835,15 @@ def generate_district_narrative(
         for d in nearby_districts:
             name = d.get("district_name", "")
             price = float(d.get("avg_price", 0) or 0)
-            diff = ((price - district_price) / district_price) * 100 if district_price > 0 else 0
+            # ✅ إصلاح ZeroDivisionError
+            if district_price > 0:
+                diff = ((price - district_price) / district_price) * 100
+            else:
+                diff = 0
             relation = "أعلى" if diff > 0 else "أقل" if diff < 0 else "مساوٍ"
             comparison_lines += f"""
 حي {name}
-متوسط السعر: {price:,.0f} ريال للمتر
+متوسط السعر: {int(round(price)):,} ريال للمتر
 الفرق عن حي {district}: {abs(diff):.1f}% ({relation})
 """
 
@@ -943,7 +955,7 @@ def generate_district_narrative(
 اتجاه السوق داخل الفترة المدروسة
 
 بمقارنة الصفقات الأولى مع أحدث الصفقات في حي {district}
-يظهر أن متوسط سعر المتر تغير بنسبة {change:.1f}%.
+يظهر أن متوسط سعر المتر تغير بنسبة {abs(change):.1f}% {'انخفاض' if change < 0 else 'ارتفاع'}.
 
 هذا يشير إلى {trend} في السوق العقاري داخل الحي
 خلال الفترة المتاحة من البيانات.
@@ -989,7 +1001,7 @@ def generate_district_narrative(
 تحليل الزخم السعري في السوق
 
 تم تحليل حركة أسعار المتر في حي {district} خلال الفترة الزمنية المتاحة من البيانات.
-أظهر التحليل أن متوسط سعر المتر تغير بنسبة {change:.1f}%.
+أظهر التحليل أن متوسط سعر المتر تغير بنسبة {abs(change):.1f}% {'انخفاض' if change < 0 else 'ارتفاع'}.
 
 هذا يشير إلى {trend} في السوق العقاري داخل الحي خلال الأشهر الأخيرة.
 {interpretation}
@@ -1354,7 +1366,7 @@ def generate_district_narrative(
 البيانات تشير إلى أن حي {district} يوفر فرصة استثمارية جيدة حالياً.
 السبب الرئيسي:
 • سعر المتر أقل من متوسط المدينة
-• نشاط السوق جيد ({transactions:,} صفقة)
+• نشاط السوق جيد ({int(transactions):,} صفقة)
 • مؤشر قوة الحي مرتفع ({dpi_score}/100)
 
 الاستراتيجية المقترحة:
@@ -1491,9 +1503,11 @@ def generate_district_narrative(
     # إضافة باقي الأقسام مع ترقيم الفصول
     for i, section in enumerate(report_sections, start=1):
         chapter_index = i
-        chapter_title = (
-            chapter_names[chapter_index - 1] if chapter_index <= len(chapter_names) else str(chapter_index)
-        )
+        # ✅ تحسين حماية chapter_names
+        if chapter_index <= len(chapter_names):
+            chapter_title = chapter_names[chapter_index - 1]
+        else:
+            chapter_title = f"رقم {chapter_index}"
         final_report += f"الفصل {chapter_title}\n"
         
         # مواقع الرسومات
@@ -1508,13 +1522,17 @@ def generate_district_narrative(
         elif chapter_index == 21:
             final_report += "[[ANCHOR_CHART]]\n\n"
         
-        if section.strip():
-            final_report += section.strip()
+        # تنظيف القسم وحمايته من القيم الفارغة
+        clean_section = str(section or "").strip()
+        if clean_section:
+            final_report += clean_section
         else:
             final_report += "لا توجد بيانات كافية لهذا التحليل."
         final_report += "\n"
 
-    final_report += "\nWarda Intelligence\n"
+    # ✅ تحسين التوقيع النهائي
+    final_report += "\n— — —\n"
+    final_report += "Warda Intelligence\n"
     final_report += "منصة التحليل الاستثماري العقاري المعتمدة على بيانات الصفقات الفعلية في السوق.\n"
 
     return final_report
