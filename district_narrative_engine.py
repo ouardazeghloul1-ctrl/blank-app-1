@@ -77,6 +77,21 @@ def generate_district_narrative(
     user_info = user_info or {}
     
     # =========================================
+    # ✅ تعريف investment_score بشكل نظيف ومستقر
+    # =========================================
+    investment_score = user_info.get("investment_score")
+    if investment_score is None:
+        investment_score = round(dpi_score * 0.77, 1)
+    
+    # =========================================
+    # ✅ تعريف confidence بشكل نظيف ومستقر
+    # =========================================
+    try:
+        confidence = int(min(95, max(50, dpi_score)))
+    except:
+        confidence = 60
+    
+    # =========================================
     # استخراج البيانات الأساسية
     # =========================================
 
@@ -327,47 +342,54 @@ def generate_district_narrative(
     print(f"DEBUG: عدد المشاريع المكتشفة: {len(nearby_projects)}")
 
     # =========================================
-    # تهيئة متغيرات التقرير
+    # فقرة المشاريع — بدون فصل (كتلة واحدة فقط)
     # =========================================
+    
+    # بناء قائمة المشاريع للنص
+    projects_list_text = ""
+    if nearby_projects:
+        for p in nearby_projects:
+            name = p.get("name", "مشروع")
+            status = p.get("status", "غير محدد")
+            distance = round(float(p.get("distance", 0)), 2)
+            projects_list_text += f"• {name} ({status}) — على بعد {distance} كم\n"
+    
+    # الفقرة النهائية للمشاريع (بدون أي عنوان "فصل")
+    if nearby_projects:
+        projects_paragraph = f"""المشاريع التنموية القريبة من الحي
 
+تشير البيانات إلى وجود مشاريع تنموية قريبة من الحي، وهو عامل إيجابي يعزز جاذبية الموقع ويرفع من احتمالية استقرار الطلب العقاري ونمو القيمة السوقية للعقارات خلال السنوات القادمة.
+
+{projects_list_text}
+
+وجود هذه المشاريع قد يساهم في رفع الطلب العقاري وتحسين جاذبية الحي للمستثمرين خلال السنوات القادمة.
+"""
+    else:
+        projects_paragraph = """المشاريع التنموية القريبة من الحي
+
+لا تشير البيانات الحالية إلى وجود مشاريع تنموية مؤثرة ضمن نطاق التأثير الجغرافي للحي، وهو ما يعكس استقرار البيئة العمرانية الحالية دون وجود عوامل نمو إضافية في المدى القريب.
+
+غياب المشاريع التنموية لا يمثل عامل خطر مباشر، لكنه قد يعني أن نمو الطلب العقاري يعتمد بشكل أساسي على خصائص الحي الحالية ومستوى الخدمات المتوفر فيه.
+"""
+
+    # تخزين المشاريع والإحداثيات لاستخدامها في الخريطة لاحقاً
+    user_info["nearby_projects"] = nearby_projects
+    if district_lat is not None:
+        user_info["district_lat"] = float(district_lat)
+    else:
+        user_info["district_lat"] = None
+    if district_lon is not None:
+        user_info["district_lon"] = float(district_lon)
+    else:
+        user_info["district_lon"] = None
+
+    # =========================================
+    # تهيئة report_sections (بدون أي قسم للمشاريع)
+    # =========================================
     report_sections = []
 
     # =========================================
-    # Investment Intelligence Score
-    # =========================================
-    try:
-        price_score = 50
-        if price_ratio < 0.85:
-            price_score = 85
-        elif price_ratio < 0.95:
-            price_score = 70
-        elif price_ratio <= 1.05:
-            price_score = 60
-        elif price_ratio <= 1.15:
-            price_score = 50
-        else:
-            price_score = 40
-
-        if transactions >= 40:
-            liquidity_score = 90
-        elif transactions >= 25:
-            liquidity_score = 75
-        elif transactions >= 15:
-            liquidity_score = 60
-        elif transactions >= 8:
-            liquidity_score = 45
-        else:
-            liquidity_score = 30
-
-        investment_score = round(price_score * 0.30 + liquidity_score * 0.30 + dpi_score * 0.40, 1)
-        confidence = min(95, max(30, int(0.7 * dpi_score + 0.3 * min(transactions, 60))))
-    except Exception as e:
-        print("Error calculating scores:", e)
-        investment_score = 50
-        confidence = 50
-
-    # =========================================
-    # Investment Snapshot
+    # Investment Snapshot (سيصبح الفصل الأول)
     # =========================================
     snapshot_section = f"""
 
@@ -385,93 +407,7 @@ def generate_district_narrative(
 
 """
     report_sections.append(snapshot_section)
-    
-    # =========================================
-    # ✅ المشاريع القريبة من الحي
-    # =========================================
-    
-    # تخزين المشاريع والإحداثيات لاستخدامها في الخريطة لاحقاً
-    user_info["nearby_projects"] = nearby_projects
-    if district_lat is not None:
-        user_info["district_lat"] = float(district_lat)
-    else:
-        user_info["district_lat"] = None
-    if district_lon is not None:
-        user_info["district_lon"] = float(district_lon)
-    else:
-        user_info["district_lon"] = None
-    
-    print(f"DEBUG: عدد المشاريع المستخدمة في النص: {len(nearby_projects)}")
-    
-    projects_section = ""
-    if nearby_projects:
-        lines = ""
-        for p in nearby_projects:
-            name = p.get("name", "مشروع")
-            status = p.get("status", "غير محدد")
-            distance = round(float(p.get("distance", 0)), 2)
-            lines += f"• {name} ({status}) على بعد {distance} كم\n"
-        
-        if len(nearby_projects) == 1:
-            projects_intro = f"تشير البيانات إلى وجود مشروع تنموي مؤثر بالقرب من حي {district}:"
-        else:
-            projects_intro = f"تشير البيانات إلى وجود عدد من المشاريع التنموية المؤثرة بالقرب من حي {district}:"
-        
-        projects_section = f"""
 
-المشاريع التنموية القريبة من الحي
-
-{projects_intro}
-
-{lines}
-
-وجود هذه المشاريع قد يساهم في رفع الطلب العقاري وتحسين جاذبية الحي للمستثمرين خلال السنوات القادمة.
-"""
-    else:
-        projects_section = f"""
-
-المشاريع التنموية القريبة من الحي
-
-لا توجد حالياً مشاريع مؤثرة ضمن نطاق التأثير المحدد حول حي {district}.
-"""
-    report_sections.append(projects_section)
-
-    # =========================================
-    # ✅ جدول المشاريع القريبة من الحي
-    # =========================================
-    projects_table_section = ""
-    if nearby_projects:
-        table_lines = ""
-        for i, p in enumerate(nearby_projects, start=1):
-            distance = p.get("distance", 0)
-            if distance <= 1:
-                impact_level = "تأثير عالي"
-            elif distance <= 2:
-                impact_level = "تأثير متوسط"
-            else:
-                impact_level = "تأثير محدود"
-            
-            project_display = p.get('name', p.get('type', 'مشروع'))
-            table_lines += f"{i}. {project_display} — {p.get('status', 'غير محدد')} — {distance} كم — {impact_level}\n"
-        projects_table_section = f"""
-
-جدول المشاريع التنموية القريبة من الحي
-
-عدد المشاريع المؤثرة: {len(nearby_projects)}
-
-{table_lines}
-
-يعرض هذا الجدول المشاريع الواقعة ضمن نطاق التأثير الجغرافي للحي مرتبة حسب القرب من الموقع.
-"""
-    else:
-        projects_table_section = f"""
-
-جدول المشاريع التنموية القريبة من الحي
-
-لا توجد حالياً مشاريع ضمن نطاق التأثير المحدد حول الحي.
-"""
-    report_sections.append(projects_table_section)
-    
     # ملخص تنفيذي
     summary_section = f"""
 ملخص تنفيذي
@@ -776,8 +712,8 @@ def generate_district_narrative(
 يحتل حي {district} المرتبة {district_rank} من أصل {total_districts} حي
 من حيث عدد الصفقات.
 
-بلغ عدد صفقات نوع العقار محل التحليل في حي {district}
-{int(district_transactions):,} صفقة خلال الفترة المدروسة.
+بلغ إجمالي الصفقات المسجلة في الحي
+{district_transactions:,} صفقة خلال الفترة المدروسة.
 
 هذا يضع الحي {rank_label} مقارنة ببقية الأحياء داخل المدينة.
 """
@@ -1546,30 +1482,31 @@ def generate_district_narrative(
         "التاسع والعشرون","الثلاثون"
     ]
     
-    # ✅ إزاحة بمقدار فصلين (الفصل الأول والثاني أصبحا جديدين)
-    OFFSET = 2
-    
-    # الفصول التي تحتوي على رسومات (بعد الإزاحة)
-    # الفصل 4 → 6, الفصل 7 → 9, الفصل 11 → 13, الفصل 16 → 18, الفصل 21 → 23
-    chart_chapters_with_offset = [4 + OFFSET, 7 + OFFSET, 11 + OFFSET, 16 + OFFSET, 21 + OFFSET]
-    
+    # بناء التقرير النهائي
     final_report = ""
+    
+    # إضافة فقرة المشاريع أولاً (بدون أي عنوان "فصل")
+    final_report += projects_paragraph + "\n"
+    
+    # إضافة باقي الأقسام مع ترقيم الفصول
     for i, section in enumerate(report_sections, start=1):
-        chapter_title = chapter_names[i-1] if i <= len(chapter_names) else str(i)
+        chapter_index = i
+        chapter_title = (
+            chapter_names[chapter_index - 1] if chapter_index <= len(chapter_names) else str(chapter_index)
+        )
         final_report += f"الفصل {chapter_title}\n"
         
-        # ✅ وضع إشارات الرسومات في الفصول الصحيحة بعد الإزاحة
-        if i in chart_chapters_with_offset:
-            if i == 4 + OFFSET:      # الفصل السادس → ANCHOR_CHART
-                final_report += "[[ANCHOR_CHART]]\n\n"
-            elif i == 7 + OFFSET:    # الفصل التاسع → ANCHOR_CHART
-                final_report += "[[ANCHOR_CHART]]\n\n"
-            elif i == 11 + OFFSET:   # الفصل الثالث عشر → RHYTHM_CHART
-                final_report += "[[RHYTHM_CHART]]\n\n"
-            elif i == 16 + OFFSET:   # الفصل الثامن عشر → ANCHOR_CHART
-                final_report += "[[ANCHOR_CHART]]\n\n"
-            elif i == 21 + OFFSET:   # الفصل الثالث والعشرون → ANCHOR_CHART
-                final_report += "[[ANCHOR_CHART]]\n\n"
+        # مواقع الرسومات
+        if chapter_index == 4:
+            final_report += "[[ANCHOR_CHART]]\n\n"
+        elif chapter_index == 7:
+            final_report += "[[ANCHOR_CHART]]\n\n"
+        elif chapter_index == 11:
+            final_report += "[[RHYTHM_CHART]]\n\n"
+        elif chapter_index == 16:
+            final_report += "[[ANCHOR_CHART]]\n\n"
+        elif chapter_index == 21:
+            final_report += "[[ANCHOR_CHART]]\n\n"
         
         if section.strip():
             final_report += section.strip()
