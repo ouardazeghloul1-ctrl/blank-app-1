@@ -101,7 +101,17 @@ def generate_district_narrative(
     district_price = float(district_metrics.get("district_avg_price", 0) or 0)
     city_price = float(district_metrics.get("city_avg_price", 0) or 0)
     transactions = int(district_metrics.get("transactions_count", 0) or 0)
+    
+    # ✅ التعديل 1: إضافة total_transactions لتوضيح الفرق بين صفقات الحي وصفقات النوع
+    total_transactions = int(district_metrics.get("total_transactions", transactions) or 0)
+    
     property_type = user_info.get("property_type", "عقار")
+    
+    # ✅ التعديل 1: إضافة قسم توضيح الفرق بين عدد الصفقات
+    transactions_section = f"""عدد صفقات الحي الكلي: {total_transactions:,} صفقة
+عدد صفقات نوع العقار محل التحليل ({property_type}): {transactions:,} صفقة
+
+تم احتساب المؤشرات في هذا التقرير بناءً على صفقات نوع العقار المحدد فقط داخل الحي."""
     
     clean_district_base = str(district).split("/")[-1].strip()
     
@@ -407,6 +417,9 @@ def generate_district_narrative(
 
 """
     report_sections.append(snapshot_section)
+
+    # ✅ التعديل 1: إضافة قسم توضيح الفرق بين عدد الصفقات
+    report_sections.append(transactions_section)
 
     # ملخص تنفيذي
     summary_section = f"""
@@ -937,13 +950,16 @@ def generate_district_narrative(
                     first_price = df_trend.iloc[:midpoint]["price_sqm"].median()
                     last_price = df_trend.iloc[midpoint:]["price_sqm"].median()
                     change = ((last_price - first_price) / first_price) * 100 if first_price > 0 else 0
+                    # ✅ التعديل 2: تنسيق النسبة المئوية بشكل صحيح
+                    growth_rate = change
+                    growth_rate_text = f"{growth_rate:+.1f}%"
                     trend = "اتجاه صعودي" if change > 3 else "اتجاه هبوطي" if change < -3 else "استقرار نسبي"
                     trend_section = f"""
 
 اتجاه السوق داخل الفترة المدروسة
 
 بمقارنة الصفقات الأولى مع أحدث الصفقات في حي {district}
-يظهر أن متوسط سعر المتر تغير بنسبة {change:.1f}%.
+يظهر أن متوسط سعر المتر تغير بنسبة {growth_rate_text}.
 
 هذا يشير إلى {trend} في السوق العقاري داخل الحي
 خلال الفترة المتاحة من البيانات.
@@ -975,6 +991,9 @@ def generate_district_narrative(
                     first_price = df_cycle.iloc[:midpoint]["price_sqm"].median()
                     last_price = df_cycle.iloc[midpoint:]["price_sqm"].median()
                     change = ((last_price - first_price) / first_price) * 100 if first_price > 0 else 0
+                    # ✅ التعديل 2: تنسيق النسبة المئوية بشكل صحيح
+                    growth_rate = change
+                    growth_rate_text = f"{growth_rate:+.1f}%"
                     if change > 5:
                         trend = "اتجاه صعودي واضح"
                         interpretation = "يشير هذا إلى زيادة الطلب أو تحسن في مستويات التسعير داخل الحي."
@@ -989,7 +1008,7 @@ def generate_district_narrative(
 تحليل الزخم السعري في السوق
 
 تم تحليل حركة أسعار المتر في حي {district} خلال الفترة الزمنية المتاحة من البيانات.
-أظهر التحليل أن متوسط سعر المتر تغير بنسبة {change:.1f}%.
+أظهر التحليل أن متوسط سعر المتر تغير بنسبة {growth_rate_text}.
 
 هذا يشير إلى {trend} في السوق العقاري داخل الحي خلال الأشهر الأخيرة.
 {interpretation}
