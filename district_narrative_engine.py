@@ -5,6 +5,7 @@
 # =========================================
 
 import pandas as pd
+import logging
 from ai_executive_summary import generate_executive_summary
 
 # ✅ استيراد دوال تحميل البيانات
@@ -24,6 +25,12 @@ PROJECTS_DATA = load_projects_data()
 # ✅ الحد الأقصى لعدد المشاريع المعروضة في التقرير
 # =========================================
 MAX_PROJECTS = 10
+
+# =========================================
+# ✅ إعداد logging للإنتاج
+# =========================================
+logging.basicConfig(level=logging.WARNING)
+logger = logging.getLogger(__name__)
 
 
 # =========================================
@@ -50,7 +57,7 @@ def calculate_distance(lat1, lon1, lat2, lon2):
         distance = R * c
         return round(distance, 2)
     except Exception as e:
-        print(f"⚠️ خطأ في حساب المسافة: {e}")
+        logger.warning(f"calculate_distance error: {e}")
         return None
 
 
@@ -88,7 +95,8 @@ def generate_district_narrative(
     # =========================================
     try:
         confidence = int(min(95, max(50, dpi_score)))
-    except:
+    except Exception as e:
+        logger.warning(f"confidence calculation error: {e}")
         confidence = 60
     
     # =========================================
@@ -101,13 +109,13 @@ def generate_district_narrative(
     district_price = float(district_metrics.get("district_avg_price", 0) or 0)
     city_price = float(district_metrics.get("city_avg_price", 0) or 0)
     
-    # ✅ التعديل 3: فصل متغيرات الصفقات (total_transactions vs property_transactions)
-    total_transactions = int(district_metrics.get("transactions_count", 0) or 0)
+    # ✅ تعريف total_transactions بشكل آمن مع fallback
+    total_transactions = int(district_metrics.get("total_transactions", district_metrics.get("transactions_count", 0)) or 0)
     property_transactions = int(user_info.get("property_transactions", total_transactions) or 0)
     
     property_type = user_info.get("property_type", "عقار")
     
-    # ✅ التعديل 1: إضافة قسم توضيح الفرق بين عدد الصفقات
+    # ✅ قسم توضيح الفرق بين عدد الصفقات
     transactions_section = f"""عدد صفقات الحي الكلي: {int(total_transactions):,} صفقة
 عدد صفقات نوع العقار محل التحليل ({property_type}): {int(property_transactions):,} صفقة
 
@@ -139,42 +147,16 @@ def generate_district_narrative(
     districts_df = DISTRICTS_DATA
     projects_df = projects_data if projects_data is not None else PROJECTS_DATA
 
-    # ✅ سطر تشخيصي حاسم - يكشف مصدر البيانات
-    print("="*50)
-    print("PROJECTS SOURCE:", "passed data" if projects_data is not None else "global data")
-    print("PROJECTS ROW COUNT:", len(projects_df) if projects_df is not None else "None")
-    if projects_df is not None and not projects_df.empty:
-        print("PROJECTS FIRST ROW:", projects_df.iloc[0].to_dict() if len(projects_df) > 0 else "Empty")
-    print("="*50)
-
     # =========================================
     # جلب إحداثيات الحي الحالي
-    # ✅ التعديل الحاسم: استخدام اسم العمود الصحيح "اسم الحي"
     # =========================================
     district_lat = None
     district_lon = None
     try:
         if districts_df is not None and not districts_df.empty:
-            # ✅ سطور تشخيصية لمعرفة سبب عدم العثور على الإحداثيات
-            print("CITY:", city)
-            print("DISTRICT:", clean_district_base)
-            
-            # ✅ عرض أسماء الأعمدة للتأكد من وجود "اسم الحي"
-            print("AVAILABLE COLUMNS:", list(districts_df.columns))
-            
-            if "اسم الحي" not in districts_df.columns:
-                print("❌ عمود 'اسم الحي' غير موجود في ملف الأحياء!")
-                print("📋 الأعمدة المتاحة:", list(districts_df.columns))
-            else:
-                print("AVAILABLE DISTRICTS SAMPLE:", districts_df["اسم الحي"].head(10).tolist())
-            
-            # ✅ تنظيف أسماء المدن والأحياء للمقارنة المرنة
             city_clean = str(city).strip().lower()
-            
-            # تنظيف اسم الحي المطلوب
             district_clean = str(clean_district_base).strip().replace("حي", "").strip().lower()
             
-            # ✅ البحث المرن باستخدام اسم العمود الصحيح "اسم الحي"
             match = districts_df[
                 (districts_df["المدينة"].astype(str).str.strip().str.lower() == city_clean) &
                 (districts_df["اسم الحي"].astype(str).str.strip().str.replace("حي", "").str.strip().str.lower() == district_clean)
@@ -183,10 +165,7 @@ def generate_district_narrative(
             if not match.empty:
                 district_lat = match.iloc[0]["خط_العرض"]
                 district_lon = match.iloc[0]["خط_الطول"]
-                print(f"📍 تم العثور على إحداثيات الحي {clean_district_base}: {district_lat}, {district_lon}")
             else:
-                # محاولة البحث الجزئي إذا لم يجد تطابق تام
-                print(f"⚠️ لم يتم العثور على تطابق تام، جاري البحث الجزئي...")
                 match_partial = districts_df[
                     (districts_df["المدينة"].astype(str).str.strip().str.lower() == city_clean) &
                     (districts_df["اسم الحي"].astype(str).str.contains(district_clean, case=False, na=False))
@@ -194,20 +173,11 @@ def generate_district_narrative(
                 if not match_partial.empty:
                     district_lat = match_partial.iloc[0]["خط_العرض"]
                     district_lon = match_partial.iloc[0]["خط_الطول"]
-                    print(f"📍 تم العثور على إحداثيات (بحث جزئي) للحي {clean_district_base}: {district_lat}, {district_lon}")
-                else:
-                    print(f"❌ لم يتم العثور على إحداثيات للحي {clean_district_base}")
     except Exception as e:
-        print("خطأ في جلب إحداثيات الحي:", e)
-        import traceback
-        traceback.print_exc()
+        logger.warning(f"Error fetching district coordinates for {clean_district_base}: {e}")
 
     # =========================================
     # حساب المشاريع القريبة
-    # =========================================
-    
-    # =========================================
-    # تحسين الأداء: إنشاء df_city مرة واحدة
     # =========================================
     
     city_districts_list = []
@@ -218,14 +188,7 @@ def generate_district_narrative(
     
     try:
         if isinstance(real_data, pd.DataFrame) and not real_data.empty and "district" in real_data.columns:
-            print("="*50)
-            print(f"تحليل مدينة: {city}")
-            print(f"الحي المطلوب: {clean_district_base}")
-            print(f"إجمالي البيانات المستقبلة: {len(real_data):,} صفقة")
-            
             df_city = real_data.copy()
-            print(f"✅ تم استخدام البيانات مباشرة بدون إعادة فلترة")
-            print(f"صفقات المدينة: {len(df_city):,}")
             
             if not df_city.empty:
                 df_city["district_clean"] = (
@@ -248,48 +211,24 @@ def generate_district_narrative(
                 city_districts_list = city_transactions_by_district.index.tolist()
                 city_price_by_district = df_city.groupby("district_clean")["price_sqm"].median()
                 city_price_by_district = city_price_by_district.dropna().sort_values(ascending=False)
-                
-                print(f"عدد الأحياء المكتشفة: {len(city_districts_list)}")
-                
-                if clean_district_base in city_districts_list:
-                    print(f"✅ تم العثور على الحي: {clean_district_base}")
-                    print(f"عدد صفقات الحي: {city_transactions_by_district[clean_district_base]:,}")
-                else:
-                    print(f"⚠️ الحي {clean_district_base} غير موجود في القائمة")
     except Exception as e:
-        print(f"❌ خطأ في تجهيز بيانات المدينة: {e}")
-
-    print("="*50)
+        logger.warning(f"Error processing city data for {city}: {e}")
 
     # =========================================
-    # ✅ حساب المشاريع القريبة قبل إنشاء النص
+    # ✅ حساب المشاريع القريبة
     # =========================================
     nearby_projects = []
     try:
-        # ✅ سطر الاختبار - قبل أي شرط ليكشف الحقيقة حتى لو البيانات فارغة
-        print("DEBUG PROJECTS DF:", type(projects_df), "rows:", len(projects_df) if projects_df is not None else "None")
-        
-        # ✅ سطر إضافي لفحص الأعمدة
-        print("DEBUG PROJECTS COLUMNS:", list(projects_df.columns) if projects_df is not None else "None")
-        
         if (district_lat is not None and district_lon is not None and
             projects_df is not None and not projects_df.empty):
             
-            print(f"🔍 جاري البحث عن مشاريع قريبة من {clean_district_base}...")
-            print(f"📋 أعمدة المشاريع المتاحة: {list(projects_df.columns)}")
-            
-            # ✅ استخدام نطاق تأثير الحي (من user_info) مع الحد الأدنى 10 كم
             district_impact_radius = max(float(user_info.get("نطاق_التأثير", 5) or 5), 10)
-            print(f"📍 نطاق تأثير الحي المستخدم للبحث: {district_impact_radius} كم")
             
-            # ✅ التعديل الحاسم: استخدام iterrows بدلاً من itertuples
             for _, row in projects_df.iterrows():
-                # ✅ سطر الاختبار الحاسم - يكشف السبب الحقيقي
                 project_city = row.get("المدينة", None)
                 project_lat = row.get("خط_العرض", None)
                 project_lon = row.get("خط_الطول", None)
                 
-                # ✅ التعديل النهائي: استخدام اسم العمود الصحيح من ملف Excel
                 project_name = (
                     row.get("اسم المشروع بالعربية") or 
                     row.get("اسم_المشروع") or 
@@ -300,20 +239,13 @@ def generate_district_narrative(
                 project_type = row.get("النوع", "غير محدد")
                 project_status = row.get("الحالة", "غير محدد")
                 
-                print("DEBUG ROW:", project_city, project_lat, project_lon, project_name)
-                
-                # تنظيف اسم المدينة للمقارنة
                 project_city_clean = str(project_city).split("/")[0].strip().lower() if project_city else ""
                 city_clean = str(city).split("/")[0].strip().lower()
                 
-                print(f"DEBUG CITY COMPARE: project='{project_city_clean}', report='{city_clean}'")
-                
                 if project_city_clean != city_clean:
-                    print(f"DEBUG SKIP: city mismatch - {project_city_clean} != {city_clean}")
                     continue
                 
                 if project_lat is None or project_lon is None:
-                    print(f"DEBUG SKIP: missing coordinates for {project_name}")
                     continue
                 
                 distance = calculate_distance(
@@ -326,8 +258,6 @@ def generate_district_narrative(
                 if distance is None:
                     continue
                 
-                print(f"DEBUG DISTANCE: {project_name} distance={distance}, radius={district_impact_radius}")
-                
                 if distance <= district_impact_radius:
                     nearby_projects.append({
                         "name": project_name,
@@ -337,25 +267,17 @@ def generate_district_narrative(
                         "lat": float(project_lat),
                         "lon": float(project_lon)
                     })
-                    print(f"✅ مشروع قريب: {project_name} ({project_type}) على بعد {distance} كم")
             
             nearby_projects.sort(key=lambda x: x["distance"])
             nearby_projects = nearby_projects[:MAX_PROJECTS]
             
-            print(f"✅ تم العثور على {len(nearby_projects)} مشروع قريب (بحد أقصى {MAX_PROJECTS})")
-            
     except Exception as e:
-        print("خطأ في حساب المشاريع القريبة:", e)
-        import traceback
-        traceback.print_exc()
-
-    print(f"DEBUG: عدد المشاريع المكتشفة: {len(nearby_projects)}")
+        logger.warning(f"Error calculating nearby projects for {district}: {e}")
 
     # =========================================
-    # فقرة المشاريع — بدون فصل (كتلة واحدة فقط)
+    # فقرة المشاريع
     # =========================================
     
-    # بناء قائمة المشاريع للنص
     projects_list_text = ""
     if nearby_projects:
         for p in nearby_projects:
@@ -364,7 +286,6 @@ def generate_district_narrative(
             distance = round(float(p.get("distance", 0)), 2)
             projects_list_text += f"• {name} ({status}) — على بعد {distance} كم\n"
     
-    # الفقرة النهائية للمشاريع (بدون أي عنوان "فصل")
     if nearby_projects:
         projects_paragraph = f"""المشاريع التنموية القريبة من الحي
 
@@ -394,14 +315,13 @@ def generate_district_narrative(
         user_info["district_lon"] = None
 
     # =========================================
-    # تهيئة report_sections (بدون أي قسم للمشاريع)
+    # تهيئة report_sections
     # =========================================
     report_sections = []
 
     # =========================================
-    # Investment Snapshot (سيصبح الفصل الأول)
+    # Investment Snapshot
     # =========================================
-    # ✅ التعديل 2: تنسيق الأسعار بشكل صحيح باستخدام int(round())
     snapshot_section = f"""
 
 ملخص الاستثمار السريع
@@ -412,14 +332,13 @@ def generate_district_narrative(
 
 متوسط سعر المتر: {int(round(district_price)):,} ريال
 متوسط سعر المدينة: {int(round(city_price)):,} ريال
-عدد الصفقات: {property_transactions:,} صفقة
+عدد صفقات نوع العقار ({property_type}): {property_transactions:,} صفقة
 مؤشر قوة الحي (DPI): {dpi_score:.1f} / 100
 النتيجة الاستثمارية: {investment_score:.1f} / 100
 
 """
     report_sections.append(snapshot_section)
 
-    # ✅ التعديل 1: إضافة قسم توضيح الفرق بين عدد الصفقات
     report_sections.append(transactions_section)
 
     # ملخص تنفيذي
@@ -437,8 +356,6 @@ def generate_district_narrative(
     # =========================================
     # بطاقة معلومات السوق
     # =========================================
-    # ✅ التعديل 2: تنسيق الأسعار في overview_section
-    print(f"DEBUG PRICE: district_price raw = {district_price}, rounded = {int(round(district_price)):,}")
     overview_section = f"""
 تحليل سوق {property_market} في حي {district} – مدينة {city}
 
@@ -461,15 +378,14 @@ def generate_district_narrative(
 متوسط سعر المتر في المدينة:
 {int(round(city_price)):,} ريال
 
-عدد الصفقات المنفذة:
-{property_transactions:,} صفقة
+عدد صفقات نوع العقار محل التحليل ({property_type}): {property_transactions:,} صفقة
 
 مؤشر قوة الحي (DPI):
 {dpi_score:.1f} / 100
 """
     report_sections.append(overview_section)
 
-    # ✅ خط الشفافية - إظهار عدد الصفقات المستبعدة
+    # ✅ خط الشفافية
     filtered_out_transactions = int(user_info.get("filtered_out_transactions") or 0)
     if filtered_out_transactions > 0:
         transparency_section = f"""
@@ -582,13 +498,18 @@ def generate_district_narrative(
 يعطي هذا المؤشر فكرة عن موقع الحي السعري داخل السوق.
 """
     except Exception as e:
-        print("Gap Analysis Error:", e)
+        logger.warning(f"Gap analysis error for {district}: {e}")
     report_sections.append(gap_section)
 
     # =========================================
     # Market Benchmark
     # =========================================
-    price_diff_percent = ((district_price - city_price) / city_price) * 100 if city_price > 0 else 0
+    # ✅ حماية division by zero
+    if city_price > 0:
+        price_diff_percent = ((district_price - city_price) / city_price) * 100
+    else:
+        price_diff_percent = 0
+    
     benchmark_section = f"""
 
 مقارنة الحي مع متوسط السوق
@@ -634,7 +555,7 @@ def generate_district_narrative(
 هذا يضع الحي {label}.
 """
     except Exception as e:
-        print("Price Rank Error:", e)
+        logger.warning(f"Price rank error for {district}: {e}")
     report_sections.append(price_rank_section)
 
     # =========================================
@@ -655,7 +576,7 @@ def generate_district_narrative(
 كلما كان الترتيب أقرب إلى المركز الأول كان السوق أكثر سيولة.
 """
     except Exception as e:
-        print("Liquidity Rank Error:", e)
+        logger.warning(f"Liquidity rank error for {district}: {e}")
     report_sections.append(liquidity_rank_section)
 
     # =========================================
@@ -739,12 +660,12 @@ def generate_district_narrative(
 يحتل حي {district} المرتبة {district_rank} من أصل {total_districts} حي
 من حيث عدد الصفقات.
 
-بلغ عدد صفقات نوع العقار محل التحليل في حي {district} {int(district_transactions):,} صفقة خلال الفترة المدروسة.
+بلغ عدد صفقات الحي الكلي في حي {district} بحسب بيانات المدينة {int(district_transactions):,} صفقة خلال الفترة المدروسة.
 
 هذا يضع الحي {rank_label} مقارنة ببقية الأحياء داخل المدينة.
 """
     except Exception as e:
-        print("Narrative Engine Error (Ranking):", e)
+        logger.warning(f"Ranking section error for {district}: {e}")
     report_sections.append(ranking_section)
 
     # =========================================
@@ -780,7 +701,7 @@ def generate_district_narrative(
 {rank_note}
 """
     except Exception as e:
-        print("Top Districts Error:", e)
+        logger.warning(f"Top districts error for {city}: {e}")
     report_sections.append(top_districts_section)
 
     # =========================================
@@ -985,7 +906,7 @@ def generate_district_narrative(
 يوصى بتجميع المزيد من البيانات للحصول على قراءة أدق لاتجاه الأسعار.
 """
     except Exception as e:
-        print("Narrative Engine Error (Trend):", e)
+        logger.warning(f"Trend analysis error for {district}: {e}")
     report_sections.append(trend_section)
 
     # =========================================
@@ -1033,7 +954,7 @@ def generate_district_narrative(
 يوصى بمتابعة السوق خلال الأشهر القادمة للحصول على قراءة أوضح لاتجاه الأسعار.
 """
     except Exception as e:
-        print("Market Momentum Error:", e)
+        logger.warning(f"Market momentum error for {district}: {e}")
     report_sections.append(cycle_section)
 
     # =========================================
@@ -1147,7 +1068,7 @@ def generate_district_narrative(
 نشاط السوق العقاري، ومؤشر قوة الحي الاستثماري.
 """
     except Exception as e:
-        print("Grade Error:", e)
+        logger.warning(f"Grade calculation error for {district}: {e}")
     report_sections.append(grade_section)
 
     # =========================================
@@ -1175,7 +1096,7 @@ def generate_district_narrative(
 عند مقارنة متوسط الأسعار مع بقية أحياء مدينة {city}.
 """
     except Exception as e:
-        print("Position Error:", e)
+        logger.warning(f"Position percentile error for {district}: {e}")
     report_sections.append(position_section)
 
     # =========================================
@@ -1234,7 +1155,7 @@ def generate_district_narrative(
 داخل الحي مقارنة ببقية أحياء المدينة.
 """
     except Exception as e:
-        print("Narrative Engine Error (Heat):", e)
+        logger.warning(f"Heat index error for {district}: {e}")
     if heat_section:
         report_sections.append(heat_section)
 
@@ -1298,7 +1219,7 @@ def generate_district_narrative(
 {smart_text}
 """
     except Exception as e:
-        print("Narrative Engine Error (Smart):", e)
+        logger.warning(f"Smart investors section error for {district}: {e}")
     if smart_section:
         report_sections.append(smart_section)
 
@@ -1336,7 +1257,7 @@ def generate_district_narrative(
 {pessimistic}
 """
     except Exception as e:
-        print("Narrative Engine Error (Future):", e)
+        logger.warning(f"Future scenario error for {district}: {e}")
     if future_section:
         report_sections.append(future_section)
 
@@ -1369,7 +1290,7 @@ def generate_district_narrative(
 {horizon_text}
 """
     except Exception as e:
-        print("Narrative Engine Error (Horizon):", e)
+        logger.warning(f"Investment horizon error for {district}: {e}")
     if horizon_section:
         report_sections.append(horizon_section)
 
@@ -1412,7 +1333,7 @@ def generate_district_narrative(
 {reasoning}
 """
     except Exception as e:
-        print("Decision Section Error:", e)
+        logger.warning(f"Investment decision error for {district}: {e}")
     report_sections.append(decision_section)
 
     # =========================================
@@ -1433,7 +1354,7 @@ def generate_district_narrative(
 """
             report_sections.append(executive_section)
     except Exception as e:
-        print("Executive Summary Error:", e)
+        logger.warning(f"Executive summary error for {district}: {e}")
 
     # =========================================
     # الحكم الاستثماري النهائي
