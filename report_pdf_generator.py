@@ -4,7 +4,6 @@ import os
 import tempfile
 import re
 import unicodedata
-import logging
 from datetime import datetime
 
 import arabic_reshaper
@@ -24,54 +23,6 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase.pdfmetrics import stringWidth
 import plotly.graph_objects as go
-
-# =========================
-# ✅ LOGGING SETUP
-# =========================
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-
-# =========================
-# ✅ VALIDATION FUNCTION - منع الأخطاء المنطقية
-# =========================
-def validate_report_data(user_info):
-    """
-    التحقق من صحة البيانات قبل إنشاء التقرير
-    يمنع الأخطاء المنطقية مثل تساوي عدد صفقات الحي مع صفقات نوع العقار
-    """
-    if not user_info:
-        return True, ""
-    
-    district_transactions = user_info.get("district_transactions_total")
-    property_transactions = user_info.get("property_transactions_count")
-    
-    # التحقق من عدم تساوي عدد صفقات الحي مع صفقات نوع العقار (إلا إذا كان هناك نوع واحد فقط)
-    if district_transactions and property_transactions:
-        try:
-            d_total = float(district_transactions)
-            p_total = float(property_transactions)
-            
-            if d_total == p_total and d_total > 0:
-                # هذا خطأ منطقي - كل صفقات الحي لا يمكن أن تكون من نوع واحد فقط
-                property_types_in_district = user_info.get("property_types_in_district", 1)
-                if property_types_in_district > 1:
-                    error_msg = (
-                        f"❌ خطأ منطقي في البيانات: عدد صفقات الحي ({d_total:,.0f}) "
-                        f"يساوي عدد صفقات نوع العقار ({p_total:,.0f}) "
-                        f"مع وجود {property_types_in_district} أنواع عقارات في الحي"
-                    )
-                    logger.error(error_msg)
-                    return False, error_msg
-        except (ValueError, TypeError) as e:
-            logger.warning(f"تحذير في التحقق من البيانات: {e}")
-            pass
-    
-    logger.info("✅ تم التحقق من صحة البيانات بنجاح")
-    return True, "✅ البيانات صالحة"
 
 
 # =========================
@@ -129,17 +80,16 @@ def ar(text):
 
     try:
         text = str(text)
-        # ✅ استبدال الأقواس بشرطة باستخدام regex لمنع المسافات المزدوجة
-        text = re.sub(r"\(\s*", " - ", text)
-        text = re.sub(r"\s*\)", "", text)
+        # ✅ إزالة الأقواس المعكوسة نهائيًا
+        text = text.replace("(", "")
+        text = text.replace(")", "")
         text = text.replace("% ", "%")
         text = text.replace(" %", "%")
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
 
         reshaped = arabic_reshaper.reshape(text)
         return get_display(reshaped)
-    except Exception as e:
-        logger.warning(f"خطأ في معالجة النص العربي: {e}")
+    except Exception:
         return str(text)
 
 
@@ -193,7 +143,7 @@ def plotly_to_image(fig, width_cm, height_cm):
         return img_obj
 
     except Exception as e:
-        logger.error(f"خطأ في تصدير الرسم البياني: {e}")
+        print("Chart export error:", e)
         if tmp and os.path.exists(tmp.name):
             try:
                 os.unlink(tmp.name)
@@ -220,27 +170,31 @@ def create_district_projects_map(
     """
     try:
         if district_lat is None or district_lon is None:
-            logger.warning("الخريطة: إحداثيات الحي مفقودة")
+            print("Map: missing district coordinates")
             return None
         
-        # ✅ التعامل مع حالة عدم وجود مشاريع
+        # ✅ التعديل الاحترافي: التعامل مع حالة عدم وجود مشاريع
         if projects_df is None:
-            logger.info("الخريطة: لا توجد بيانات مشاريع، إنشاء DataFrame فارغ")
+            print("Map: no projects data, creating empty DataFrame")
             projects_df = pd.DataFrame()
         
-        # ✅ إعادة تسمية عمود اسم المشروع إذا كان بالصيغة العربية
+        # =========================================================
+        # ✅ التعديل 1: إعادة تسمية عمود اسم المشروع إذا كان بالصيغة العربية
+        # =========================================================
         if not projects_df.empty and "اسم_المشروع" not in projects_df.columns:
             if "اسم المشروع بالعربية" in projects_df.columns:
                 projects_df = projects_df.rename(columns={"اسم المشروع بالعربية": "اسم_المشروع"})
-                logger.info("✅ الخريطة: تم إعادة تسمية العمود 'اسم المشروع بالعربية' → 'اسم_المشروع'")
+                print("✅ Map: تم إعادة تسمية العمود 'اسم المشروع بالعربية' → 'اسم_المشروع'")
         
         required_columns = ["خط_العرض", "خط_الطول", "اسم_المشروع"]
         for col in required_columns:
             if not projects_df.empty and col not in projects_df.columns:
-                logger.warning(f"الخريطة: العمود '{col}' مفقود في projects_df")
+                print(f"Map: missing column '{col}' in projects_df")
                 return None
         
-        # ✅ تحويل الإحداثيات إلى أرقام
+        # =========================
+        # ✅ تحويل الإحداثيات إلى أرقام (حل نهائي)
+        # =========================
         if not projects_df.empty:
             projects_df["خط_العرض"] = pd.to_numeric(projects_df["خط_العرض"], errors="coerce")
             projects_df["خط_الطول"] = pd.to_numeric(projects_df["خط_الطول"], errors="coerce")
@@ -248,21 +202,27 @@ def create_district_projects_map(
             # إزالة الصفوف غير الصالحة
             projects_df = projects_df.dropna(subset=["خط_العرض", "خط_الطول"])
         
-        logger.debug(f"نوع بيانات خط العرض: {projects_df['خط_العرض'].dtype if not projects_df.empty else 'empty'}")
-        logger.debug(f"نوع بيانات خط الطول: {projects_df['خط_الطول'].dtype if not projects_df.empty else 'empty'}")
-        logger.debug(f"إحداثيات الحي: خط العرض={district_lat}, خط الطول={district_lon}")
+        print("DEBUG dtype latitude:", projects_df["خط_العرض"].dtype if not projects_df.empty else "empty")
+        print("DEBUG dtype longitude:", projects_df["خط_الطول"].dtype if not projects_df.empty else "empty")
+        print(f"DEBUG district_lat type: {type(district_lat)}, value: {district_lat}")
+        print(f"DEBUG district_lon type: {type(district_lon)}, value: {district_lon}")
         
-        # تحويل إحداثيات الحي إلى float
+        # تحويل إحداثيات الحي إلى float أيضاً
         district_lat = float(district_lat)
         district_lon = float(district_lon)
         
-        # ✅ احترام نطاق البحث الذي يختاره المستخدم
+        # =========================================================
+        # ✅ التعديل النهائي: احترام نطاق البحث الذي يختاره المستخدم
+        # =========================================================
+        # نضمن فقط حدًا أدنى منطقيًا (1 كم) لمنع الأخطاء
         radius_km = max(float(impact_radius_km), 1)
         radius_deg = radius_km / 111
         
-        logger.debug(f"نطاق البحث: {radius_km} كم = {radius_deg} درجة")
+        print(f"DEBUG radius_km: {radius_km}")
+        print(f"DEBUG radius_deg: {radius_deg}")
+        print(f"DEBUG district_lat: {district_lat}, district_lon: {district_lon}")
         
-        # فلترة المشاريع القريبة
+        # فلترة المشاريع القريبة (إذا كان هناك مشاريع)
         nearby_projects = pd.DataFrame()
         if not projects_df.empty:
             nearby_projects = projects_df[
@@ -274,11 +234,11 @@ def create_district_projects_map(
                 )
             ]
         
-        logger.info(f"الخريطة: تم العثور على {len(nearby_projects)} مشروع قريب ضمن نطاق {radius_km} كم")
+        print(f"Map: found {len(nearby_projects)} nearby projects within {radius_km} km")
         
         fig = go.Figure()
         
-        # دبوس الحي
+        # دبوس الحي (يتم رسمه دائماً)
         fig.add_trace(
             go.Scattermapbox(
                 lat=[district_lat],
@@ -290,7 +250,7 @@ def create_district_projects_map(
             )
         )
         
-        # دبابيس المشاريع
+        # دبابيس المشاريع (إذا وجدت)
         if not nearby_projects.empty:
             fig.add_trace(
                 go.Scattermapbox(
@@ -303,13 +263,15 @@ def create_district_projects_map(
                 )
             )
         
-        # ✅ استخدام carto-positron لحل مشكلة Access blocked
+        # =========================================================
+        # ✅ التعديل 3: تغيير mapbox_style من open-street-map إلى carto-positron
+        # =========================================================
         title_text = f"موقع حي {district_name}"
         if not nearby_projects.empty:
             title_text += f" والمشاريع القريبة (نطاق {radius_km} كم)"
         
         fig.update_layout(
-            mapbox_style="carto-positron",
+            mapbox_style="carto-positron",  # حل مشكلة Access blocked – Referrer is required
             mapbox=dict(
                 center=dict(lat=district_lat, lon=district_lon),
                 zoom=12
@@ -327,7 +289,7 @@ def create_district_projects_map(
         return fig
         
     except Exception as e:
-        logger.error(f"خطأ في إنشاء الخريطة: {e}")
+        print(f"Map error: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -377,36 +339,6 @@ def add_footer(canvas, doc):
 
 
 # =========================
-# ✅ تنسيق الأرقام بشكل احترافي - منع قطع الأرقام
-# =========================
-def format_number_with_commas(value):
-    """
-    تنسيق الأرقام مع فواصل الآلاف ومنع قطع الأرقام
-    """
-    if value in [None, "", "—"]:
-        return "—"
-    
-    try:
-        num = float(value)
-        
-        # منع الأرقام السالبة الغريبة
-        if abs(num) < 0.0001:
-            return "0"
-        
-        # ✅ استخدام صيغة موحدة لمنع قطع الأرقام
-        if abs(num - round(num)) < 0.01:
-            # رقم صحيح
-            return f"{int(round(num)):,}"
-        else:
-            # رقم عشري
-            return f"{num:,.2f}"
-            
-    except (ValueError, TypeError) as e:
-        logger.warning(f"خطأ في تنسيق الرقم '{value}': {e}")
-        return str(value)
-
-
-# =========================
 # MAIN PDF GENERATOR
 # =========================
 def create_pdf_from_content(
@@ -417,14 +349,6 @@ def create_pdf_from_content(
     package_level,
     ai_recommendations=None
 ):
-    logger.info("بدء إنشاء تقرير PDF")
-    
-    # ✅ التحقق من صحة البيانات قبل إنشاء التقرير - إيقاف التقرير عند خطأ
-    is_valid, validation_message = validate_report_data(user_info)
-    if not is_valid:
-        logger.error(f"فشل التحقق من صحة البيانات: {validation_message}")
-        raise ValueError(validation_message)
-    
     buffer = BytesIO()
 
     # -------------------------
@@ -442,10 +366,9 @@ def create_pdf_from_content(
             break
 
     if not font_path:
-        raise FileNotFoundError("خط Amiri غير موجود")
+        raise FileNotFoundError("Amiri font not found")
 
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
-    logger.info(f"تم تحميل الخط: {font_path}")
 
     # -------------------------
     # DOCUMENT
@@ -554,6 +477,7 @@ def create_pdf_from_content(
             5: 5, 6: 6, 7: 7, 8: 8
         }
     else:
+        # ✅ التعديل النهائي: استخدام إزاحة ثابتة (أضيف فصلين في البداية)
         OFFSET = 2
         CHAPTER_CHART_MAP = {
             4 + OFFSET: 4,
@@ -566,7 +490,6 @@ def create_pdf_from_content(
     # =========================
     # COVER
     # =========================
-    logger.info("إنشاء صفحة الغلاف")
     story.append(Spacer(1, 4 * cm))
     story.append(Paragraph(ar("تقرير وردة للذكاء العقاري"), title))
     
@@ -594,17 +517,25 @@ def create_pdf_from_content(
         
         price = user_info.get("district_avg_price", "—")
         city_price = user_info.get("city_avg_price", "—")
-        
-        # ✅ فصل المتغيرات: صفقات الحي الكلية ≠ صفقات نوع العقار
-        district_transactions = user_info.get("district_transactions_total", "—")
-        property_transactions = user_info.get("property_transactions_count", "—")
-        
+        transactions = user_info.get("transactions_count", "—")
         dpi = user_info.get("dpi_score", "—")
+        
+        # ✅ تنسيق السعر بشكل صحيح مع الفواصل
+        def format_number_with_commas(value):
+            if value == "—":
+                return "—"
+            try:
+                num = float(value)
+                if abs(num - round(num)) < 0.01:
+                    return f"{int(round(num)):,}"
+                else:
+                    return f"{num:,.2f}"
+            except (ValueError, TypeError):
+                return str(value)
         
         price_formatted = format_number_with_commas(price)
         city_price_formatted = format_number_with_commas(city_price)
-        district_transactions_formatted = format_number_with_commas(district_transactions)
-        property_transactions_formatted = format_number_with_commas(property_transactions)
+        transactions_formatted = format_number_with_commas(transactions)
         
         if report_kind == "city":
             table_data = [
@@ -612,7 +543,7 @@ def create_pdf_from_content(
                 [ar("المدينة"), ar(city)],
                 [ar("نوع العقار"), ar(property_type)],
                 [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
-                [ar("عدد صفقات نوع العقار"), ar(f"{property_transactions_formatted} صفقة") if property_transactions != "—" else ar("—")],
+                [ar("عدد صفقات الحي"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
                 [ar("مؤشر قوة السوق"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
             ]
         else:
@@ -621,10 +552,9 @@ def create_pdf_from_content(
                 [ar("المدينة"), ar(city)],
                 [ar("الحي"), ar(district)],
                 [ar("نوع العقار"), ar(property_type)],
-                [ar("متوسط سعر المتر في الحي"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
-                [ar("متوسط سعر المتر في المدينة"), ar(f"{city_price_formatted} ريال") if city_price != "—" else ar("—")],
-                [ar("عدد صفقات الحي الكلي"), ar(f"{district_transactions_formatted} صفقة") if district_transactions != "—" else ar("—")],
-                [ar("عدد صفقات نوع العقار"), ar(f"{property_transactions_formatted} صفقة") if property_transactions != "—" else ar("—")],
+                [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
+                [ar("متوسط المدينة"), ar(f"{city_price_formatted} ريال") if city_price != "—" else ar("—")],
+                [ar("عدد صفقات الحي"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
                 [ar("مؤشر قوة الحي"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
             ]
         
@@ -643,10 +573,10 @@ def create_pdf_from_content(
         story.append(Spacer(1, 1*cm))
         story.append(table)
         
-        # ✅ سطر توضيحي احترافي
+        # ✅ إضافة سطر توضيحي احترافي في الغلاف
         story.append(Spacer(1, 0.4 * cm))
         story.append(Paragraph(
-            ar("تم تحليل صفقات نوع العقار المختار فقط داخل الحي. عدد صفقات الحي الكلي يشمل جميع أنواع العقارات."),
+            ar("تم تحليل صفقات نوع العقار المختار فقط داخل الحي."),
             body
         ))
     
@@ -678,7 +608,6 @@ def create_pdf_from_content(
     }
 
     if executive_decision and executive_decision.strip():
-        logger.info("إضافة الخلاصة التنفيذية")
         story.append(Spacer(1, 1.2 * cm))
         story.append(Paragraph(ar("الخلاصة التنفيذية للقرار"), ai_executive_header))
         story.append(elegant_divider("60%"))
@@ -712,7 +641,6 @@ def create_pdf_from_content(
     # =========================
     # TRANSITION PAGE
     # =========================
-    logger.info("إضافة صفحة الانتقال")
     story.append(Spacer(1, 2.5 * cm))
     story.append(Paragraph(ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"), ai_executive_header))
     story.append(elegant_divider("55%"))
@@ -754,7 +682,6 @@ def create_pdf_from_content(
     # INSERT MAP BEFORE CONTENT
     # =========================
     if user_info:
-        logger.info("إنشاء خريطة الحي والمشاريع")
         district_lat = user_info.get("خط_العرض") or user_info.get("district_latitude") or user_info.get("district_lat")
         district_lon = user_info.get("خط_الطول") or user_info.get("district_longitude") or user_info.get("district_lon")
         district_name = user_info.get("district_name")
@@ -766,8 +693,8 @@ def create_pdf_from_content(
         except (ValueError, TypeError):
             impact_radius = 5
         
-        logger.debug(f"إحداثيات الحي: خط العرض={district_lat}, خط الطول={district_lon}")
-        logger.debug(f"نطاق التأثير: {impact_radius} كم")
+        print(f"DEBUG: district_lat={district_lat}, district_lon={district_lon}")
+        print(f"DEBUG: impact_radius={impact_radius}")
         
         map_fig = create_district_projects_map(
             district_lat,
@@ -777,12 +704,14 @@ def create_pdf_from_content(
             impact_radius_km=impact_radius
         )
         
-        # حفظ المشاريع القريبة لاستخدامها في النص
+        # ✅ هذا هو التعديل الحاسم: حفظ المشاريع القريبة لاستخدامها في النص
         if projects_df is not None and not projects_df.empty:
             user_info["nearby_projects"] = projects_df.to_dict("records")
-            logger.info(f"تم حفظ {len(projects_df)} مشروع في user_info['nearby_projects']")
+            print(f"DEBUG: تم حفظ {len(projects_df)} مشروع في user_info['nearby_projects']")
         
-        # ✅ الخريطة في صفحة كاملة وحدها
+        # =========================================================
+        # ✅ التعديل المطلوب: الخريطة في صفحة كاملة وحدها
+        # =========================================================
         if map_fig:
             # إنهاء الصفحة الحالية
             story.append(PageBreak())
@@ -794,9 +723,7 @@ def create_pdf_from_content(
                     temp_files.append(map_img._temp_file)
                 story.append(map_img)
                 story.append(Spacer(1, 0.4 * cm))
-                logger.info("✅ تم إضافة الخريطة بنجاح")
             else:
-                logger.warning("⚠️ فشل تحويل الخريطة إلى صورة")
                 story.append(Paragraph(
                     ar("⚠️ فشل تحويل الخريطة إلى صورة"),
                     body
@@ -805,8 +732,7 @@ def create_pdf_from_content(
             # إنهاء صفحة الخريطة
             story.append(PageBreak())
         else:
-            # الخريطة نفسها لم تنشأ
-            logger.warning("⚠️ لم يتم إنشاء الخريطة - تحقق من الإحداثيات أو البيانات")
+            # الخريطة نفسها لم تنشأ (map_fig = None)
             story.append(Paragraph(
                 ar("⚠️ لم يتم إنشاء الخريطة - تحقق من الإحداثيات أو البيانات"),
                 body
@@ -820,7 +746,6 @@ def create_pdf_from_content(
     # =========================
     # MAIN CONTENT LOOP
     # =========================
-    logger.info("بدء معالجة محتوى التقرير")
     for raw in content_text.split("\n"):
         raw_stripped = raw.strip()
 
@@ -836,13 +761,9 @@ def create_pdf_from_content(
             story.append(Spacer(1, 0.3 * cm))
             continue
 
-        # ✅ التعديل الأساسي: كل فصل يبدأ في صفحة جديدة - مع منع الصفحات الفارغة المزدوجة
-        if raw_stripped.lower().startswith(("الفصل", "chapter")):
-            # ✅ منع PageBreak مزدوج
-            if story and not isinstance(story[-1], PageBreak):
+        if raw_stripped.startswith("الفصل"):
+            if first_chapter_processed:
                 story.append(PageBreak())
-                logger.debug(f"إضافة PageBreak قبل الفصل {chapter_index + 1}")
-            
             chapter_index += 1
             chart_cursor[chapter_index] = 0
             story.append(Paragraph(ar(clean), chapter))
@@ -850,7 +771,6 @@ def create_pdf_from_content(
             story.append(elegant_divider("40%"))
             story.append(Spacer(1, 0.6 * cm))
             first_chapter_processed = True
-            logger.info(f"معالجة الفصل {chapter_index}")
             continue
 
         if clean == "[[ANCHOR_CHART]]":
@@ -899,145 +819,17 @@ def create_pdf_from_content(
             story.extend(arabic_paragraph_flowables(clean, body, AVAILABLE_WIDTH))
             story.append(Spacer(1, 0.15 * cm))
 
-    logger.info("بدء بناء مستند PDF")
     doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
     
     buffer.seek(0)
     
-    # ✅ تنظيف الملفات المؤقتة
+    # ✅ التعديل النهائي: تنظيف الملفات المؤقتة مع حماية إضافية
     unique_temp_files = list(set(temp_files))
     for temp_file in unique_temp_files:
         try:
             if temp_file and os.path.exists(temp_file):
                 os.remove(temp_file)
-                logger.debug(f"تم حذف الملف المؤقت: {temp_file}")
         except Exception as cleanup_error:
-            logger.warning(f"تحذير في تنظيف الملفات المؤقتة: {cleanup_error}")
+            print("Temp cleanup warning:", cleanup_error)
     
-    logger.info("✅ تم إنشاء التقرير بنجاح")
     return buffer
-
-
-# =========================
-# ✅ UNIT TESTS
-# =========================
-def run_unit_tests():
-    """
-    اختبارات وحدة للتأكد من صحة التعديلات
-    """
-    print("🧪 بدء اختبارات الوحدة...")
-    
-    # Test 1: Validation function
-    print("\n📋 اختبار 1: التحقق من صحة البيانات")
-    test_data_1 = {
-        "district_transactions_total": 1000,
-        "property_transactions_count": 1000,
-        "property_types_in_district": 3
-    }
-    is_valid, msg = validate_report_data(test_data_1)
-    assert not is_valid, "❌ يجب أن يفشل التحقق عندما تتساوى الأرقام مع وجود أنواع متعددة"
-    print("✅ اختبار 1 ناجح: تم اكتشاف الخطأ المنطقي")
-    
-    test_data_2 = {
-        "district_transactions_total": 1000,
-        "property_transactions_count": 380,
-        "property_types_in_district": 3
-    }
-    is_valid, msg = validate_report_data(test_data_2)
-    assert is_valid, "❌ يجب أن ينجح التحقق عندما تختلف الأرقام"
-    print("✅ اختبار 2 ناجح: البيانات الصحيحة تمر")
-    
-    # Test 2: Number formatting
-    print("\n📋 اختبار 3: تنسيق الأرقام")
-    assert format_number_with_commas(2828) == "2,828", "❌ خطأ في تنسيق الرقم 2828"
-    assert format_number_with_commas(1000000) == "1,000,000", "❌ خطأ في تنسيق المليون"
-    assert format_number_with_commas(None) == "—", "❌ خطأ في التعامل مع None"
-    assert format_number_with_commas("") == "—", "❌ خطأ في التعامل مع نص فارغ"
-    print("✅ اختبار 3 ناجح: تنسيق الأرقام صحيح")
-    
-    # Test 3: Arabic text with parentheses
-    print("\n📋 اختبار 4: معالجة الأقواس في النص العربي")
-    test_text = "عدد الصفقات (شقة)"
-    result = ar(test_text)
-    assert "(" not in result, "❌ لا يزال هناك قوس في النص"
-    assert "-" in result, "❌ لم يتم استبدال القوس بشرطة"
-    assert "  " not in result, "❌ توجد مسافات مزدوجة في النص"
-    print("✅ اختبار 4 ناجح: تم استبدال الأقواس بشرطة بدون مسافات مزدوجة")
-    
-    # Test 4: Parentheses with spaces
-    print("\n📋 اختبار 5: معالجة الأقواس مع مسافات")
-    test_text_2 = "السعر ( 5000 ) ريال"
-    result_2 = ar(test_text_2)
-    assert "السعر - 5000 ريال" in result_2 or "السعر - 5000 ريال" in result_2.replace("  ", " ")
-    print("✅ اختبار 5 ناجح: معالجة المسافات حول الأقواس صحيحة")
-    
-    print("\n🎉 جميع الاختبارات ناجحة!")
-    print("✅ النظام جاهز للإنتاج")
-
-
-# =========================
-# ✅ INTEGRATION TEST
-# =========================
-def run_integration_test():
-    """
-    اختبار تكاملي - إنشاء PDF فعلي والتحقق من عدم وجود صفحات فارغة
-    """
-    print("\n🧪 بدء الاختبار التكاملي...")
-    
-    try:
-        # بيانات اختبارية
-        test_user_info = {
-            "report_kind": "district",
-            "district_name": "حي النخيل",
-            "city_name": "الرياض",
-            "property_type": "شقة",
-            "district_avg_price": 4500,
-            "city_avg_price": 4200,
-            "district_transactions_total": 1250,
-            "property_transactions_count": 380,
-            "property_types_in_district": 3,
-            "dpi_score": 78,
-            "total_transactions": 1250,
-            "خط_العرض": 24.7136,
-            "خط_الطول": 46.6753
-        }
-        
-        test_content = """الفصل الأول: ملخص الاستثمار السريع
-هذا فصل اختباري للتأكد من أن الفصل يبدأ في صفحة جديدة.
-
-الفصل الثاني: تحليل السوق
-هذا فصل آخر للتأكد من pagination."""
-        
-        test_decision = "[DECISION_BLOCK:DECISION_DEFINITION]\nقرار اختباري\n[END_DECISION_BLOCK]"
-        
-        # إنشاء PDF
-        pdf_buffer = create_pdf_from_content(
-            test_user_info,
-            test_content,
-            test_decision,
-            {},
-            "premium"
-        )
-        
-        # حفظ الملف للفحص
-        with open("test_report.pdf", "wb") as f:
-            f.write(pdf_buffer.getvalue())
-        
-        print("✅ الاختبار التكاملي ناجح: تم إنشاء test_report.pdf")
-        print("📄 يمكنك فتح الملف للتأكد من:")
-        print("   1. الفصل الأول يبدأ في صفحة جديدة")
-        print("   2. لا توجد صفحات فارغة مزدوجة")
-        print("   3. الأرقام منسقة بشكل صحيح")
-        print("   4. الأقواس مستبدلة بشرطة")
-        
-    except Exception as e:
-        print(f"❌ فشل الاختبار التكاملي: {e}")
-        import traceback
-        traceback.print_exc()
-
-
-# تشغيل الاختبارات إذا تم استدعاء الملف مباشرة
-if __name__ == "__main__":
-    run_unit_tests()
-    print("\n" + "="*50)
-    run_integration_test()
