@@ -90,8 +90,23 @@ def show_district_reports(df_raw):
         # =========================================
         district_transactions_total = len(district_data)
         
-        # التأكد من وجود عمود property_type في البيانات
-        if "property_type" in district_data.columns:
+        # ✅ التعديل الأساسي: استخدام property_subtype بدلاً من property_type
+        # التأكد من وجود عمود property_subtype في البيانات
+        if "property_subtype" in district_data.columns:
+            property_transactions_count = len(
+                district_data[
+                    district_data["property_subtype"]
+                    .astype(str)
+                    .str.strip()
+                    .str.lower() == property_type.lower()
+                ]
+            )
+            # ✅ سطر debug لطباعة توزيع property_subtype داخل الحي
+            subtype_dist = district_data["property_subtype"].value_counts()
+            print(f"🔍 DEBUG: توزيع property_subtype في حي {district}:")
+            print(subtype_dist.to_string())
+        elif "property_type" in district_data.columns:
+            # Fallback احتياطي: استخدام property_type إذا لم يوجد property_subtype
             property_transactions_count = len(
                 district_data[
                     district_data["property_type"]
@@ -100,9 +115,11 @@ def show_district_reports(df_raw):
                     .str.lower() == property_type.lower()
                 ]
             )
+            print(f"⚠️ DEBUG: عمود property_subtype غير موجود، تم استخدام property_type بدلاً منه")
         else:
-            # إذا لم يوجد العمود، نستخدم العدد الكلي كقيمة احتياطية
+            # إذا لم يوجد أي من العمودين، نستخدم العدد الكلي كقيمة احتياطية
             property_transactions_count = district_transactions_total
+            print(f"⚠️ DEBUG: لا يوجد عمود property_type ولا property_subtype، تم استخدام العدد الكلي")
         
         # ✅ إضافة عمود بنوع العقار المحدد للاستخدام في الرسومات
         district_data["selected_property_type"] = property_type
