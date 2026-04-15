@@ -85,6 +85,25 @@ def show_district_reports(df_raw):
             .str.lower() == district.lower()
         ].copy()
         
+        # =========================================
+        # ✅ التعديل الأول: حساب عدد صفقات الحي الكلي وعدد صفقات نوع العقار
+        # =========================================
+        district_transactions_total = len(district_data)
+        
+        # التأكد من وجود عمود property_type في البيانات
+        if "property_type" in district_data.columns:
+            property_transactions_count = len(
+                district_data[
+                    district_data["property_type"]
+                    .astype(str)
+                    .str.strip()
+                    .str.lower() == property_type.lower()
+                ]
+            )
+        else:
+            # إذا لم يوجد العمود، نستخدم العدد الكلي كقيمة احتياطية
+            property_transactions_count = district_transactions_total
+        
         # ✅ إضافة عمود بنوع العقار المحدد للاستخدام في الرسومات
         district_data["selected_property_type"] = property_type
         
@@ -226,7 +245,7 @@ def show_district_reports(df_raw):
                                     district_impact = 10  # قيمة افتراضية 10 كم
                         
                         # =========================================
-                        # ✅ التعديل الأساسي: إعداد user_info بجميع المفاتيح المطلوبة
+                        # ✅ التعديل الثاني: تعديل user_info بإضافة المفتاحين الجديدين واستبدال transactions_count
                         # =========================================
                         user_info = {
                             # المفاتيح المطلوبة من report_pdf_generator.py
@@ -235,9 +254,11 @@ def show_district_reports(df_raw):
                             "property_type": property_type,
                             "district_avg_price": district_price_per_m2,
                             "city_avg_price": city_price_per_m2,
-                            "transactions_count": len(district_data),
+                            # ✅ تم استبدال transactions_count بالمفتاحين التاليين
+                            "district_transactions_total": district_transactions_total,
+                            "property_transactions_count": property_transactions_count,
                             "dpi_score": dpi_score,
-                            "total_transactions": len(district_data),  # ✅ إضافة إجمالي الصفقات
+                            "total_transactions": len(district_data),  # ✅ إضافة إجمالي الصفقات (للتطابق مع بعض الوظائف)
                             
                             # مفاتيح إضافية للاستخدام الداخلي
                             "package": "ذهبية",
@@ -335,7 +356,8 @@ def show_district_reports(df_raw):
                         print(f"📊 DEBUG: DPI Score: {dpi_score}")
                         print(f"📊 DEBUG: عدد الأحياء المجاورة: {len(nearby_districts)}")
                         print(f"📊 DEBUG: نوع العقار المحدد: {property_type}")
-                        print(f"📊 DEBUG: عدد الصفقات للحي {district}: {len(district_data)}")
+                        print(f"📊 DEBUG: عدد صفقات الحي الكلي: {district_transactions_total}")
+                        print(f"📊 DEBUG: عدد صفقات نوع العقار: {property_transactions_count}")
                         print(f"📍 DEBUG: إحداثيات الحي - خط العرض: {district_lat}, خط الطول: {district_lon}")
                         print(f"🎯 DEBUG: نطاق التأثير: {district_impact} (النوع: {type(district_impact).__name__})")
                         print(f"🔑 DEBUG: مفاتيح user_info: {list(user_info.keys())}")
