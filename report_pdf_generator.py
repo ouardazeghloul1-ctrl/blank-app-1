@@ -49,7 +49,7 @@ def arabic_paragraph_flowables(text, style, available_width):
         test_line = " ".join(current_line + [word])  
         reshaped = arabic_reshaper.reshape(test_line)  
         bidi_text = get_display(reshaped)  
-        # ✅ إصلاح الأرقام - إضافة مسافة نهاية لمنع انكسار الأرقام  
+        # ✅ التعديل 2: إصلاح الأرقام - إضافة مسافة نهاية لمنع انكسار الأرقام  
         width = stringWidth(bidi_text + " ", style.fontName, style.fontSize)  
           
         if width <= available_width:  
@@ -400,7 +400,7 @@ def create_pdf_from_content(
         spaceAfter=12,  
         allowWidows=1,  
         allowOrphans=1,  
-        splitLongWords=False,  
+        splitLongWords=False,  # ✅ منع انكسار السطر داخل الأرقام  
     )  
   
     chapter = ParagraphStyle(  
@@ -506,6 +506,7 @@ def create_pdf_from_content(
     if user_info:  
         district = user_info.get("district_name", "")  
         city = user_info.get("city_name", "")  
+        # ✅ التعديل: تنظيف property_type لمنع None أو فراغ  
         property_type = str(user_info.get("property_type", "عقار")).strip()  
         if not property_type:  
             property_type = "عقار"  
@@ -534,6 +535,7 @@ def create_pdf_from_content(
         transactions = user_info.get("transactions_count", "—")  
         dpi = user_info.get("dpi_score", "—")  
           
+        # ✅ تنسيق السعر بشكل صحيح مع الفواصل - إصلاح الأرقام المكسورة  
         def format_number_with_commas(value):  
             if value == "—" or value is None:  
                 return "—"  
@@ -560,6 +562,7 @@ def create_pdf_from_content(
                 [ar("مؤشر قوة السوق - DPI"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]  
             ]  
               
+            # ✅ إضافة إجمالي صفقات الحي  
             total_transactions = user_info.get("total_transactions")  
             if total_transactions is not None and total_transactions != "—":  
                 total_formatted = format_number_with_commas(total_transactions)  
@@ -576,6 +579,7 @@ def create_pdf_from_content(
                 [ar("مؤشر قوة الحي - DPI"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]  
             ]  
               
+            # ✅ إضافة إجمالي صفقات الحي  
             total_transactions = user_info.get("total_transactions")  
             if total_transactions is not None and total_transactions != "—":  
                 total_formatted = format_number_with_commas(total_transactions)  
@@ -596,6 +600,7 @@ def create_pdf_from_content(
         story.append(Spacer(1, 1*cm))  
         story.append(table)  
           
+        # ✅ إضافة سطر توضيحي احترافي في الغلاف  
         story.append(Spacer(1, 0.4 * cm))  
         story.append(Paragraph(  
             ar("تم تحليل صفقات نوع العقار المختار فقط داخل الحي."),  
@@ -690,9 +695,7 @@ def create_pdf_from_content(
   
     story.append(Spacer(1, 1.2 * cm))  
     story.append(elegant_divider("30%"))  
-    # ✅ التعديل: إضافة PageBreak فقط إذا كان هناك محتوى بعدها (لمنع الصفحة الفارغة)  
-    if content_text.strip():  
-        story.append(PageBreak())  
+    story.append(PageBreak())  
   
     # =========================  
     # PROCESS CONTENT WITH MAP  
@@ -728,11 +731,16 @@ def create_pdf_from_content(
             impact_radius_km=impact_radius  
         )  
           
+        # ✅ هذا هو التعديل الحاسم: حفظ المشاريع القريبة لاستخدامها في النص  
         if projects_df is not None and not projects_df.empty:  
             user_info["nearby_projects"] = projects_df.to_dict("records")  
             print(f"DEBUG: تم حفظ {len(projects_df)} مشروع في user_info['nearby_projects']")  
           
+        # =========================================================  
+        # ✅ الخريطة في صفحة كاملة وحدها  
+        # =========================================================  
         if map_fig:  
+            # إدراج الخريطة بحجم صفحة كاملة  
             map_img = plotly_to_image(map_fig, 18.0, 24.0)  
             if map_img:  
                 if hasattr(map_img, '_temp_file'):  
@@ -745,19 +753,22 @@ def create_pdf_from_content(
                     body  
                 ))  
               
-            # ✅ إضافة PageBreak فقط إذا كان هناك محتوى بعدها  
+            # ✅ التعديل 3: حذف الصفحة الفارغة - إضافة PageBreak فقط إذا كان هناك محتوى بعدها  
             if content_text.strip():  
                 story.append(PageBreak())  
         else:  
+            # الخريطة نفسها لم تنشأ (map_fig = None)  
             story.append(Paragraph(  
                 ar("⚠️ لم يتم إنشاء الخريطة - تحقق من الإحداثيات أو البيانات"),  
                 body  
             ))  
               
+            # معلومات تشخيصية إضافية  
             diag_text = f"الإحداثيات المستلمة: خط العرض = {district_lat}, خط الطول = {district_lon}"  
             story.append(Paragraph(ar(diag_text), body))  
             story.append(Spacer(1, 0.4 * cm))  
               
+            # ✅ التعديل 3: حذف الصفحة الفارغة - إضافة PageBreak فقط إذا كان هناك محتوى بعدها  
             if content_text.strip():  
                 story.append(PageBreak())  
   
@@ -770,25 +781,24 @@ def create_pdf_from_content(
         if not raw_stripped:  
             continue  
   
-        # ✅ إصلاح الأقواس: clean أصبحت بالفعل نصاً معالجاً بـ ar() مرة واحدة  
+        # ✅ التعديل 1: إصلاح الأقواس - تمرير النص عبر ar() بعد clean_text  
         clean = raw_stripped if raw_stripped in SPECIAL_TAGS else ar(clean_text(raw))  
   
         if clean.startswith(("📊", "💎", "⚠️")):  
             story.append(Spacer(1, 0.6 * cm))  
             story.append(elegant_divider())  
-            # ✅ لا نطبق ar() مرة أخرى  
-            story.append(Paragraph(clean, ai_sub_title))  
+            story.append(Paragraph(ar(clean), ai_sub_title))  
             story.append(Spacer(1, 0.3 * cm))  
             continue  
   
         if raw_stripped.startswith("الفصل"):  
+            # ✅ إصلاح الصفحة الفارغة: أول فصل يبدأ مباشرة بدون صفحة فارغة  
             if first_chapter_processed:  
                 story.append(PageBreak())  
             first_chapter_processed = True  
             chapter_index += 1  
             chart_cursor[chapter_index] = 0  
-            # ✅ لا نطبق ar() مرة أخرى  
-            story.append(Paragraph(clean, chapter))  
+            story.append(Paragraph(ar(clean), chapter))  
             story.append(Spacer(1, 0.3 * cm))  
             story.append(elegant_divider("40%"))  
             story.append(Spacer(1, 0.6 * cm))  
@@ -840,7 +850,7 @@ def create_pdf_from_content(
             story.extend(arabic_paragraph_flowables(clean, body, AVAILABLE_WIDTH))  
             story.append(Spacer(1, 0.15 * cm))  
   
-    # منع الصفحة الفارغة الأخيرة  
+    # ✅ منع الصفحة الفارغة الأخيرة  
     while story and isinstance(story[-1], PageBreak):  
         story.pop()  
   
@@ -848,7 +858,7 @@ def create_pdf_from_content(
       
     buffer.seek(0)  
       
-    # تنظيف الملفات المؤقتة  
+    # ✅ تنظيف الملفات المؤقتة مع حماية إضافية  
     unique_temp_files = list(set(temp_files))  
     for temp_file in unique_temp_files:  
         try:  
