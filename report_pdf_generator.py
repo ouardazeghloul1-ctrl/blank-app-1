@@ -80,9 +80,12 @@ def ar(text):
 
     try:
         text = str(text)
-        # ✅ إزالة الأقواس المعكوسة نهائيًا
-        text = text.replace("(", "")
+        # ✅ استبدال الأقواس بشرطة (التعديل المطلوب مع تنظيف المسافات)
+        text = text.replace("(", " - ")
         text = text.replace(")", "")
+        # تنظيف المسافات الزائدة حول الشرطة
+        text = re.sub(r"\s*-\s*", " - ", text)
+        text = re.sub(r"\s+", " ", text)
         text = text.replace("% ", "%")
         text = text.replace(" %", "%")
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
