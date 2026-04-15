@@ -109,9 +109,9 @@ def generate_district_narrative(
     district_price = float(district_metrics.get("district_avg_price", 0) or 0)
     city_price = float(district_metrics.get("city_avg_price", 0) or 0)
     
-    # ✅ تعريف total_transactions بشكل آمن مع fallback
-    total_transactions = int(district_metrics.get("total_transactions", district_metrics.get("transactions_count", 0)) or 0)
-    property_transactions = int(user_info.get("property_transactions", total_transactions) or 0)
+    # ✅ التعديل الصحيح
+    total_transactions = int(user_info.get("district_transactions_total", district_metrics.get("transactions_count", 0)) or 0)
+    property_transactions = int(user_info.get("property_transactions_count", total_transactions) or 0)
     
     property_type = user_info.get("property_type", "عقار")
     
