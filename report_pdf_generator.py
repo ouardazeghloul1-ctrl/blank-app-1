@@ -49,7 +49,8 @@ def arabic_paragraph_flowables(text, style, available_width):
         test_line = " ".join(current_line + [word])
         reshaped = arabic_reshaper.reshape(test_line)
         bidi_text = get_display(reshaped)
-        width = stringWidth(bidi_text, style.fontName, style.fontSize)
+        # ✅ التعديل 2: إصلاح الأرقام - إضافة مسافة نهاية لمنع انكسار الأرقام
+        width = stringWidth(bidi_text + " ", style.fontName, style.fontSize)
         
         if width <= available_width:
             current_line.append(word)
@@ -72,7 +73,7 @@ def arabic_paragraph_flowables(text, style, available_width):
 
 
 # =========================
-# Arabic helper
+# Arabic helper - استبدال الأقواس بشرطة (حل نهائي لمشكلة RTL)
 # =========================
 def ar(text):
     if not text:
@@ -80,9 +81,13 @@ def ar(text):
 
     try:
         text = str(text)
-        # ✅ إزالة الأقواس المعكوسة نهائيًا
-        text = text.replace("(", "")
+        # ✅ استبدال الأقواس بشرطة (بدل محاولة إصلاحها المعقدة)
+        text = text.replace("(", " - ")
         text = text.replace(")", "")
+        text = text.replace(" - ", " - ")  # تحسين احترافي لمنع المسافات الزائدة
+        # ✅ تنظيف المسافات
+        text = re.sub(r"\s+", " ", text)
+        # ✅ إصلاح علامة النسبة المئوية
         text = text.replace("% ", "%")
         text = text.replace(" %", "%")
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
@@ -371,7 +376,7 @@ def create_pdf_from_content(
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
     # -------------------------
-    # DOCUMENT
+    # DOCUMENT - هوامش متساوية لاتجاه RTL
     # -------------------------
     doc = SimpleDocTemplate(
         buffer,
@@ -395,6 +400,7 @@ def create_pdf_from_content(
         spaceAfter=12,
         allowWidows=1,
         allowOrphans=1,
+        splitLongWords=False,  # ✅ منع انكسار السطر داخل الأرقام
     )
 
     chapter = ParagraphStyle(
@@ -406,7 +412,8 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#8B0000"),
         spaceBefore=24,
         spaceAfter=12,
-        keepWithNext=1
+        keepWithNext=1,
+        splitLongWords=False,
     )
 
     ai_sub_title = ParagraphStyle(
@@ -418,6 +425,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#444444"),
         spaceBefore=14,
         spaceAfter=8,
+        splitLongWords=False,
     )
 
     title = ParagraphStyle(
@@ -427,7 +435,8 @@ def create_pdf_from_content(
         fontSize=22,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
-        spaceAfter=40
+        spaceAfter=40,
+        splitLongWords=False,
     )
 
     ai_executive_header = ParagraphStyle(
@@ -438,6 +447,7 @@ def create_pdf_from_content(
         fontSize=17,
         spaceBefore=24,
         spaceAfter=12,
+        splitLongWords=False,
     )
 
     date_style = ParagraphStyle(
@@ -448,6 +458,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#555555"),
         spaceBefore=6,
         spaceAfter=12,
+        splitLongWords=False,
     )
 
     stats_style = ParagraphStyle(
@@ -458,6 +469,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#1B5E20"),
         spaceBefore=16,
         spaceAfter=16,
+        splitLongWords=False,
     )
 
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
@@ -477,7 +489,6 @@ def create_pdf_from_content(
             5: 5, 6: 6, 7: 7, 8: 8
         }
     else:
-        # ✅ التعديل النهائي: إزالة OFFSET نهائيًا (لم نعد نستخدم فصلين إضافيين)
         CHAPTER_CHART_MAP = {
             4: 4,
             7: 5,
@@ -524,14 +535,13 @@ def create_pdf_from_content(
         transactions = user_info.get("transactions_count", "—")
         dpi = user_info.get("dpi_score", "—")
         
-        # ✅ تنسيق السعر بشكل صحيح مع الفواصل
+        # ✅ تنسيق السعر بشكل صحيح مع الفواصل - إصلاح الأرقام المكسورة
         def format_number_with_commas(value):
-            if value == "—":
+            if value == "—" or value is None:
                 return "—"
             try:
                 num = float(value)
-                # ✅ التعديل: تغيير 0.01 إلى 0.001 لمنع ظهور .00
-                if abs(num - round(num)) < 0.001:
+                if abs(num - round(num)) < 0.01:
                     return f"{int(round(num)):,}"
                 else:
                     return f"{num:,.2f}"
@@ -548,9 +558,15 @@ def create_pdf_from_content(
                 [ar("المدينة"), ar(city)],
                 [ar("نوع العقار"), ar(property_type)],
                 [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
-                [ar("عدد صفقات الحي"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
-                [ar("مؤشر قوة السوق"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
+                [ar("عدد صفقات نوع العقار"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
+                [ar("مؤشر قوة السوق - DPI"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
             ]
+            
+            # ✅ إضافة إجمالي صفقات الحي
+            total_transactions = user_info.get("total_transactions")
+            if total_transactions is not None and total_transactions != "—":
+                total_formatted = format_number_with_commas(total_transactions)
+                table_data.append([ar("إجمالي صفقات المدينة"), ar(f"{total_formatted} صفقة")])
         else:
             table_data = [
                 [ar("المؤشر"), ar("القيمة")],
@@ -559,9 +575,15 @@ def create_pdf_from_content(
                 [ar("نوع العقار"), ar(property_type)],
                 [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
                 [ar("متوسط المدينة"), ar(f"{city_price_formatted} ريال") if city_price != "—" else ar("—")],
-                [ar("عدد صفقات الحي"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
-                [ar("مؤشر قوة الحي"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
+                [ar("عدد صفقات نوع العقار"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
+                [ar("مؤشر قوة الحي - DPI"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
             ]
+            
+            # ✅ إضافة إجمالي صفقات الحي
+            total_transactions = user_info.get("total_transactions")
+            if total_transactions is not None and total_transactions != "—":
+                total_formatted = format_number_with_commas(total_transactions)
+                table_data.append([ar("إجمالي صفقات الحي"), ar(f"{total_formatted} صفقة")])
         
         table = Table(table_data, colWidths=[7*cm, 9*cm])
         table.setStyle(TableStyle([
@@ -641,8 +663,7 @@ def create_pdf_from_content(
 
         story.append(Spacer(1, 1.0 * cm))
         story.append(elegant_divider("30%"))
-        # ✅ التعديل: إزالة PageBreak هنا - لا نضيف PageBreak بعد transition
-        # لأن صفحة الخريطة ستأخذ الصفحة التالية مباشرة
+        story.append(PageBreak())
 
     # =========================
     # TRANSITION PAGE
@@ -674,8 +695,7 @@ def create_pdf_from_content(
 
     story.append(Spacer(1, 1.2 * cm))
     story.append(elegant_divider("30%"))
-    # ✅ التعديل: إزالة PageBreak هنا - لا نضيف PageBreak بعد transition
-    # لأن صفحة الخريطة ستأخذ الصفحة التالية مباشرة
+    story.append(PageBreak())
 
     # =========================
     # PROCESS CONTENT WITH MAP
@@ -694,13 +714,11 @@ def create_pdf_from_content(
         district_name = user_info.get("district_name")
         projects_df = user_info.get("projects_data")
         
-        # ✅ التعديل: حماية نطاق التأثير
+        district_impact = user_info.get("نطاق_التأثير") or user_info.get("impact_radius") or 5
         try:
-            district_impact = user_info.get("نطاق_التأثير") or user_info.get("impact_radius") or 5
-            impact_radius = float(district_impact)
+            impact_radius = max(float(district_impact or 0), 1)
         except (ValueError, TypeError):
             impact_radius = 5
-        impact_radius = max(impact_radius, 1)
         
         print(f"DEBUG: district_lat={district_lat}, district_lon={district_lon}")
         print(f"DEBUG: impact_radius={impact_radius}")
@@ -719,11 +737,9 @@ def create_pdf_from_content(
             print(f"DEBUG: تم حفظ {len(projects_df)} مشروع في user_info['nearby_projects']")
         
         # =========================================================
-        # ✅ التعديل المطلوب: الخريطة في صفحة كاملة وحدها
+        # ✅ الخريطة في صفحة كاملة وحدها
         # =========================================================
         if map_fig:
-            # ✅ لا نضيف PageBreak هنا لأننا بالفعل في صفحة جديدة بعد transition
-            
             # إدراج الخريطة بحجم صفحة كاملة
             map_img = plotly_to_image(map_fig, 18.0, 24.0)
             if map_img:
@@ -737,8 +753,9 @@ def create_pdf_from_content(
                     body
                 ))
             
-            # إنهاء صفحة الخريطة
-            story.append(PageBreak())
+            # ✅ التعديل 3: حذف الصفحة الفارغة - إضافة PageBreak فقط إذا كان هناك محتوى بعدها
+            if content_text.strip():
+                story.append(PageBreak())
         else:
             # الخريطة نفسها لم تنشأ (map_fig = None)
             story.append(Paragraph(
@@ -751,8 +768,9 @@ def create_pdf_from_content(
             story.append(Paragraph(ar(diag_text), body))
             story.append(Spacer(1, 0.4 * cm))
             
-            # ✅ التعديل: ضمان أن الفصل الأول يبدأ في صفحة جديدة حتى لو فشلت الخريطة
-            story.append(PageBreak())
+            # ✅ التعديل 3: حذف الصفحة الفارغة - إضافة PageBreak فقط إذا كان هناك محتوى بعدها
+            if content_text.strip():
+                story.append(PageBreak())
 
     # =========================
     # MAIN CONTENT LOOP
@@ -763,7 +781,8 @@ def create_pdf_from_content(
         if not raw_stripped:
             continue
 
-        clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
+        # ✅ التعديل 1: إصلاح الأقواس - تمرير النص عبر ar() بعد clean_text
+        clean = raw_stripped if raw_stripped in SPECIAL_TAGS else ar(clean_text(raw))
 
         if clean.startswith(("📊", "💎", "⚠️")):
             story.append(Spacer(1, 0.6 * cm))
@@ -773,7 +792,7 @@ def create_pdf_from_content(
             continue
 
         if raw_stripped.startswith("الفصل"):
-            # ✅ التعديل النهائي: أول فصل فقط يبدأ بعد الخريطة مباشرة
+            # ✅ إصلاح الصفحة الفارغة: أول فصل يبدأ مباشرة بدون صفحة فارغة
             if first_chapter_processed:
                 story.append(PageBreak())
             first_chapter_processed = True
@@ -831,11 +850,15 @@ def create_pdf_from_content(
             story.extend(arabic_paragraph_flowables(clean, body, AVAILABLE_WIDTH))
             story.append(Spacer(1, 0.15 * cm))
 
+    # ✅ منع الصفحة الفارغة الأخيرة
+    while story and isinstance(story[-1], PageBreak):
+        story.pop()
+
     doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
     
     buffer.seek(0)
     
-    # ✅ التعديل النهائي: تنظيف الملفات المؤقتة مع حماية إضافية
+    # ✅ تنظيف الملفات المؤقتة مع حماية إضافية
     unique_temp_files = list(set(temp_files))
     for temp_file in unique_temp_files:
         try:
