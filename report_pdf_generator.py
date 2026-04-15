@@ -349,6 +349,11 @@ def create_pdf_from_content(
     package_level,
     ai_recommendations=None
 ):
+    # ✅ التعديل الأساسي: إضافة transactions_count إذا كان district_transactions_total موجودًا
+    if user_info and "district_transactions_total" in user_info and "transactions_count" not in user_info:
+        user_info["transactions_count"] = user_info["district_transactions_total"]
+        print("✅ تم إضافة transactions_count تلقائيًا من district_transactions_total")
+
     buffer = BytesIO()
 
     # -------------------------
