@@ -89,7 +89,10 @@ def ar(text):
         text = text.replace("% ", "%")
         text = text.replace(" %", "%")
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
-
+        
+        # ✅ التعديل النهائي لإصلاح مشكلة .% -> %
+        text = text.replace(".%", "%")
+        
         reshaped = arabic_reshaper.reshape(text)
         return get_display(reshaped)
     except Exception:
@@ -123,6 +126,10 @@ def clean_text(text: str) -> str:
     text = text.replace("،", " ، ")
     text = text.replace("؛", " ؛ ")
     text = re.sub(r"\s+", " ", text)
+    
+    # ✅ التعديل النهائي لإصلاح مشكلة .% -> %
+    text = text.replace(".%", "%")
+    
     return text.strip()
 
 
