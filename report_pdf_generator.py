@@ -49,8 +49,7 @@ def arabic_paragraph_flowables(text, style, available_width):
         test_line = " ".join(current_line + [word])
         reshaped = arabic_reshaper.reshape(test_line)
         bidi_text = get_display(reshaped)
-        # ✅ إصلاح الأرقام - إضافة مسافة نهاية لمنع انكسار الأرقام
-        width = stringWidth(bidi_text + " ", style.fontName, style.fontSize)
+        width = stringWidth(bidi_text, style.fontName, style.fontSize)
         
         if width <= available_width:
             current_line.append(word)
@@ -73,7 +72,7 @@ def arabic_paragraph_flowables(text, style, available_width):
 
 
 # =========================
-# Arabic helper - استبدال الأقواس بشرطة (حل نهائي لمشكلة RTL)
+# Arabic helper
 # =========================
 def ar(text):
     if not text:
@@ -81,13 +80,9 @@ def ar(text):
 
     try:
         text = str(text)
-        # ✅ استبدال الأقواس بشرطة (بدل محاولة إصلاحها المعقدة)
-        text = text.replace("(", " - ")
+        # ✅ إزالة الأقواس المعكوسة نهائيًا
+        text = text.replace("(", "")
         text = text.replace(")", "")
-        text = text.replace(" - ", " - ")  # تحسين احترافي لمنع المسافات الزائدة
-        # ✅ تنظيف المسافات
-        text = re.sub(r"\s+", " ", text)
-        # ✅ إصلاح علامة النسبة المئوية
         text = text.replace("% ", "%")
         text = text.replace(" %", "%")
         text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
@@ -376,7 +371,7 @@ def create_pdf_from_content(
     pdfmetrics.registerFont(TTFont("Amiri", font_path))
 
     # -------------------------
-    # DOCUMENT - هوامش متساوية لاتجاه RTL
+    # DOCUMENT
     # -------------------------
     doc = SimpleDocTemplate(
         buffer,
@@ -400,7 +395,6 @@ def create_pdf_from_content(
         spaceAfter=12,
         allowWidows=1,
         allowOrphans=1,
-        splitLongWords=False,
     )
 
     chapter = ParagraphStyle(
@@ -412,8 +406,7 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#8B0000"),
         spaceBefore=24,
         spaceAfter=12,
-        keepWithNext=1,
-        splitLongWords=False,
+        keepWithNext=1
     )
 
     ai_sub_title = ParagraphStyle(
@@ -425,7 +418,6 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#444444"),
         spaceBefore=14,
         spaceAfter=8,
-        splitLongWords=False,
     )
 
     title = ParagraphStyle(
@@ -435,8 +427,7 @@ def create_pdf_from_content(
         fontSize=22,
         alignment=TA_CENTER,
         textColor=colors.HexColor("#7a0000"),
-        spaceAfter=40,
-        splitLongWords=False,
+        spaceAfter=40
     )
 
     ai_executive_header = ParagraphStyle(
@@ -447,7 +438,6 @@ def create_pdf_from_content(
         fontSize=17,
         spaceBefore=24,
         spaceAfter=12,
-        splitLongWords=False,
     )
 
     date_style = ParagraphStyle(
@@ -458,7 +448,6 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#555555"),
         spaceBefore=6,
         spaceAfter=12,
-        splitLongWords=False,
     )
 
     stats_style = ParagraphStyle(
@@ -469,7 +458,6 @@ def create_pdf_from_content(
         textColor=colors.HexColor("#1B5E20"),
         spaceBefore=16,
         spaceAfter=16,
-        splitLongWords=False,
     )
 
     SPECIAL_TAGS = {"[[ANCHOR_CHART]]", "[[RHYTHM_CHART]]", "[[CHART_CAPTION]]"}
@@ -489,6 +477,7 @@ def create_pdf_from_content(
             5: 5, 6: 6, 7: 7, 8: 8
         }
     else:
+        # ✅ التعديل النهائي: إزالة OFFSET نهائيًا (لم نعد نستخدم فصلين إضافيين)
         CHAPTER_CHART_MAP = {
             4: 4,
             7: 5,
@@ -506,6 +495,7 @@ def create_pdf_from_content(
     if user_info:
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
+        # ✅ التعديل: تنظيف property_type لمنع None أو فراغ
         property_type = str(user_info.get("property_type", "عقار")).strip()
         if not property_type:
             property_type = "عقار"
@@ -534,8 +524,9 @@ def create_pdf_from_content(
         transactions = user_info.get("transactions_count", "—")
         dpi = user_info.get("dpi_score", "—")
         
+        # ✅ تنسيق السعر بشكل صحيح مع الفواصل
         def format_number_with_commas(value):
-            if value == "—" or value is None:
+            if value == "—":
                 return "—"
             try:
                 num = float(value)
@@ -556,14 +547,9 @@ def create_pdf_from_content(
                 [ar("المدينة"), ar(city)],
                 [ar("نوع العقار"), ar(property_type)],
                 [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
-                [ar("عدد صفقات نوع العقار"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
-                [ar("مؤشر قوة السوق - DPI"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
+                [ar("عدد صفقات الحي"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
+                [ar("مؤشر قوة السوق"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
             ]
-            
-            total_transactions = user_info.get("total_transactions")
-            if total_transactions is not None and total_transactions != "—":
-                total_formatted = format_number_with_commas(total_transactions)
-                table_data.append([ar("إجمالي صفقات المدينة"), ar(f"{total_formatted} صفقة")])
         else:
             table_data = [
                 [ar("المؤشر"), ar("القيمة")],
@@ -572,14 +558,9 @@ def create_pdf_from_content(
                 [ar("نوع العقار"), ar(property_type)],
                 [ar("متوسط سعر المتر"), ar(f"{price_formatted} ريال") if price != "—" else ar("—")],
                 [ar("متوسط المدينة"), ar(f"{city_price_formatted} ريال") if city_price != "—" else ar("—")],
-                [ar("عدد صفقات نوع العقار"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
-                [ar("مؤشر قوة الحي - DPI"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
+                [ar("عدد صفقات الحي"), ar(f"{transactions_formatted} صفقة") if transactions != "—" else ar("—")],
+                [ar("مؤشر قوة الحي"), ar(f"{dpi} / 100") if dpi != "—" else ar("—")]
             ]
-            
-            total_transactions = user_info.get("total_transactions")
-            if total_transactions is not None and total_transactions != "—":
-                total_formatted = format_number_with_commas(total_transactions)
-                table_data.append([ar("إجمالي صفقات الحي"), ar(f"{total_formatted} صفقة")])
         
         table = Table(table_data, colWidths=[7*cm, 9*cm])
         table.setStyle(TableStyle([
@@ -596,6 +577,7 @@ def create_pdf_from_content(
         story.append(Spacer(1, 1*cm))
         story.append(table)
         
+        # ✅ إضافة سطر توضيحي احترافي في الغلاف
         story.append(Spacer(1, 0.4 * cm))
         story.append(Paragraph(
             ar("تم تحليل صفقات نوع العقار المختار فقط داخل الحي."),
@@ -642,219 +624,4 @@ def create_pdf_from_content(
                 continue
 
             if line.startswith("[DECISION_BLOCK:"):
-                key = line.replace("[DECISION_BLOCK:", "").replace("]", "")
-                title_text = DECISION_BLOCK_TITLES.get(key, "")
-                if title_text:
-                    story.append(Spacer(1, 0.6 * cm))
-                    story.append(Paragraph(ar(title_text), chapter))
-                    story.append(elegant_divider("50%"))
-                continue
-
-            if line == "[END_DECISION_BLOCK]":
-                continue
-
-            story.extend(arabic_paragraph_flowables(line, body, AVAILABLE_WIDTH))
-            story.append(Spacer(1, 0.2 * cm))
-
-        story.append(Spacer(1, 1.0 * cm))
-        story.append(elegant_divider("30%"))
-        story.append(PageBreak())
-
-    # =========================
-    # TRANSITION PAGE
-    # =========================
-    story.append(Spacer(1, 2.5 * cm))
-    story.append(Paragraph(ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"), ai_executive_header))
-    story.append(elegant_divider("55%"))
-    story.append(Spacer(1, 1.0 * cm))
-
-    transition_texts = [
-        "الخلاصة التنفيذية للقرار تمثل القرار المعتمد لهذا التقرير، "
-        "وقد تم اشتقاقه بناءً على مؤشرات رقمية ومعايير تحليلية محددة.",
-        
-        "الفصول التالية لا تُقرأ كتحليل عام للسوق، ولا كمسار للوصول إلى قرار جديد، "
-        "بل كشرح منهجي للأسس التي بُني عليها القرار الصادر.",
-        
-        "كل فصل يفسر جانبًا محددًا من القرار، ويبيّن السياق السوقي، "
-        "وحدود المخاطر، وطبيعة الفرص، وشروط التوقيت والتنفيذ، "
-        "بهدف توضيح لماذا جاء القرار بهذه الصيغة تحديدًا.",
-        
-        "القرار موجود في الأعلى، "
-        "وما يلي هو الإطار التحليلي الذي يبرره، "
-        "ويحدّد نطاق صلاحيته، ويضبط تطبيقه."
-    ]
-    
-    for text in transition_texts:
-        story.extend(arabic_paragraph_flowables(text, body, AVAILABLE_WIDTH))
-        story.append(Spacer(1, 0.15 * cm))
-
-    story.append(Spacer(1, 1.2 * cm))
-    story.append(elegant_divider("30%"))
-    # ✅ التعديل: إضافة PageBreak فقط إذا كان هناك محتوى بعدها (لمنع الصفحة الفارغة)
-    if content_text.strip():
-        story.append(PageBreak())
-
-    # =========================
-    # PROCESS CONTENT WITH MAP
-    # =========================
-    chapter_index = 0
-    chart_cursor = {}
-    first_chapter_processed = False
-    temp_files = []
-
-    # =========================
-    # INSERT MAP BEFORE CONTENT
-    # =========================
-    if user_info:
-        district_lat = user_info.get("خط_العرض") or user_info.get("district_latitude") or user_info.get("district_lat")
-        district_lon = user_info.get("خط_الطول") or user_info.get("district_longitude") or user_info.get("district_lon")
-        district_name = user_info.get("district_name")
-        projects_df = user_info.get("projects_data")
-        
-        district_impact = user_info.get("نطاق_التأثير") or user_info.get("impact_radius") or 5
-        try:
-            impact_radius = max(float(district_impact or 0), 1)
-        except (ValueError, TypeError):
-            impact_radius = 5
-        
-        print(f"DEBUG: district_lat={district_lat}, district_lon={district_lon}")
-        print(f"DEBUG: impact_radius={impact_radius}")
-        
-        map_fig = create_district_projects_map(
-            district_lat,
-            district_lon,
-            district_name,
-            projects_df,
-            impact_radius_km=impact_radius
-        )
-        
-        if projects_df is not None and not projects_df.empty:
-            user_info["nearby_projects"] = projects_df.to_dict("records")
-            print(f"DEBUG: تم حفظ {len(projects_df)} مشروع في user_info['nearby_projects']")
-        
-        if map_fig:
-            map_img = plotly_to_image(map_fig, 18.0, 24.0)
-            if map_img:
-                if hasattr(map_img, '_temp_file'):
-                    temp_files.append(map_img._temp_file)
-                story.append(map_img)
-                story.append(Spacer(1, 0.4 * cm))
-            else:
-                story.append(Paragraph(
-                    ar("⚠️ فشل تحويل الخريطة إلى صورة"),
-                    body
-                ))
-            
-            # ✅ إضافة PageBreak فقط إذا كان هناك محتوى بعدها
-            if content_text.strip():
-                story.append(PageBreak())
-        else:
-            story.append(Paragraph(
-                ar("⚠️ لم يتم إنشاء الخريطة - تحقق من الإحداثيات أو البيانات"),
-                body
-            ))
-            
-            diag_text = f"الإحداثيات المستلمة: خط العرض = {district_lat}, خط الطول = {district_lon}"
-            story.append(Paragraph(ar(diag_text), body))
-            story.append(Spacer(1, 0.4 * cm))
-            
-            if content_text.strip():
-                story.append(PageBreak())
-
-    # =========================
-    # MAIN CONTENT LOOP
-    # =========================
-    for raw in content_text.split("\n"):
-        raw_stripped = raw.strip()
-
-        if not raw_stripped:
-            continue
-
-        # ✅ إصلاح الأقواس: clean أصبحت بالفعل نصاً معالجاً بـ ar() مرة واحدة
-        clean = raw_stripped if raw_stripped in SPECIAL_TAGS else ar(clean_text(raw))
-
-        if clean.startswith(("📊", "💎", "⚠️")):
-            story.append(Spacer(1, 0.6 * cm))
-            story.append(elegant_divider())
-            # ✅ لا نطبق ar() مرة أخرى
-            story.append(Paragraph(clean, ai_sub_title))
-            story.append(Spacer(1, 0.3 * cm))
-            continue
-
-        if raw_stripped.startswith("الفصل"):
-            if first_chapter_processed:
-                story.append(PageBreak())
-            first_chapter_processed = True
-            chapter_index += 1
-            chart_cursor[chapter_index] = 0
-            # ✅ لا نطبق ar() مرة أخرى
-            story.append(Paragraph(clean, chapter))
-            story.append(Spacer(1, 0.3 * cm))
-            story.append(elegant_divider("40%"))
-            story.append(Spacer(1, 0.6 * cm))
-            continue
-
-        if clean == "[[ANCHOR_CHART]]":
-            real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
-            if real_chapter:
-                charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
-                cursor = chart_cursor.get(chapter_index, 0)
-
-                if cursor < len(charts):
-                    img = plotly_to_image(charts[cursor], 16.8, 9)
-                    if img:
-                        if hasattr(img, '_temp_file'):
-                            temp_files.append(img._temp_file)
-                        story.append(Spacer(1, 0.8 * cm))
-                        story.append(img)
-                        story.append(Spacer(1, 0.4 * cm))
-                    chart_cursor[chapter_index] += 1
-            continue
-
-        if clean == "[[RHYTHM_CHART]]":
-            real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
-            if real_chapter:
-                charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
-                cursor = chart_cursor.get(chapter_index, 0)
-
-                if cursor < len(charts):
-                    fig = charts[cursor]
-                    is_indicator = (
-                        fig is not None
-                        and hasattr(fig, 'data')
-                        and len(fig.data) > 0
-                        and isinstance(fig.data[0], go.Indicator)
-                    )
-                    img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
-                                           9.5 if is_indicator else 9)
-                    if img:
-                        if hasattr(img, '_temp_file'):
-                            temp_files.append(img._temp_file)
-                        story.append(Spacer(1, 0.8 * cm if is_indicator else 0.7 * cm))
-                        story.append(img)
-                        story.append(Spacer(1, 0.4 * cm))
-                    chart_cursor[chapter_index] += 1
-            continue
-
-        if clean and clean not in SPECIAL_TAGS:
-            story.extend(arabic_paragraph_flowables(clean, body, AVAILABLE_WIDTH))
-            story.append(Spacer(1, 0.15 * cm))
-
-    # منع الصفحة الفارغة الأخيرة
-    while story and isinstance(story[-1], PageBreak):
-        story.pop()
-
-    doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
-    
-    buffer.seek(0)
-    
-    # تنظيف الملفات المؤقتة
-    unique_temp_files = list(set(temp_files))
-    for temp_file in unique_temp_files:
-        try:
-            if temp_file and os.path.exists(temp_file):
-                os.remove(temp_file)
-        except Exception as cleanup_error:
-            print("Temp cleanup warning:", cleanup_error)
-    
-    return buffer
+                key = line.repl
