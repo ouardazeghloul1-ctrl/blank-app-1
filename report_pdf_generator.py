@@ -115,6 +115,8 @@ def clean_text(text: str) -> str:
     # ✅ التعديل المطلوب: استبدال الأقواس بشرطة (آمن ولا يمس RTL)
     text = text.replace("(", " - ")
     text = text.replace(")", "")
+    # تنظيف المسافات الزائدة حول الشرطة (تحسين شكلي)
+    text = re.sub(r"\s*-\s*", " - ", text)
     
     text = re.sub(r"^[\-\*\d\.\)]\s*", "", text)
     text = text.replace(":", " : ")
