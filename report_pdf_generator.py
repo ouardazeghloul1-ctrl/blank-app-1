@@ -477,14 +477,13 @@ def create_pdf_from_content(
             5: 5, 6: 6, 7: 7, 8: 8
         }
     else:
-        # ✅ التعديل النهائي: استخدام إزاحة ثابتة (أضيف فصلين في البداية)
-        OFFSET = 2
+        # ✅ التعديل النهائي: إزالة OFFSET نهائيًا (لم نعد نستخدم فصلين إضافيين)
         CHAPTER_CHART_MAP = {
-            4 + OFFSET: 4,
-            7 + OFFSET: 5,
-            11 + OFFSET: 6,
-            16 + OFFSET: 7,
-            21 + OFFSET: 8
+            4: 4,
+            7: 5,
+            11: 6,
+            16: 7,
+            21: 8
         }
 
     # =========================
@@ -496,7 +495,10 @@ def create_pdf_from_content(
     if user_info:
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
-        property_type = user_info.get("property_type", "")
+        # ✅ التعديل: تنظيف property_type لمنع None أو فراغ
+        property_type = str(user_info.get("property_type", "عقار")).strip()
+        if not property_type:
+            property_type = "عقار"
         
         if report_kind == "city":
             subtitle = f"التقرير الاستثماري العقاري\nمدينة {city}\nتحليل سوق {property_type}"
@@ -513,7 +515,9 @@ def create_pdf_from_content(
     if user_info:
         district = user_info.get("district_name", "")
         city = user_info.get("city_name", "")
-        property_type = user_info.get("property_type", "")
+        property_type = str(user_info.get("property_type", "عقار")).strip()
+        if not property_type:
+            property_type = "عقار"
         
         price = user_info.get("district_avg_price", "—")
         city_price = user_info.get("city_avg_price", "—")
@@ -713,8 +717,7 @@ def create_pdf_from_content(
         # ✅ التعديل المطلوب: الخريطة في صفحة كاملة وحدها
         # =========================================================
         if map_fig:
-            # إنهاء الصفحة الحالية
-            story.append(PageBreak())
+            # ✅ لا نضيف PageBreak هنا لأننا بالفعل في صفحة جديدة بعد transition
             
             # إدراج الخريطة بحجم صفحة كاملة
             map_img = plotly_to_image(map_fig, 18.0, 24.0)
@@ -762,15 +765,18 @@ def create_pdf_from_content(
             continue
 
         if raw_stripped.startswith("الفصل"):
+            # ✅ التعديل: كل فصل يبدأ في صفحة جديدة
             if first_chapter_processed:
                 story.append(PageBreak())
+            else:
+                story.append(PageBreak())
+                first_chapter_processed = True
             chapter_index += 1
             chart_cursor[chapter_index] = 0
             story.append(Paragraph(ar(clean), chapter))
             story.append(Spacer(1, 0.3 * cm))
             story.append(elegant_divider("40%"))
             story.append(Spacer(1, 0.6 * cm))
-            first_chapter_processed = True
             continue
 
         if clean == "[[ANCHOR_CHART]]":
