@@ -111,6 +111,11 @@ def clean_text(text: str) -> str:
             cleaned.append(ch)
 
     text = "".join(cleaned)
+    
+    # ✅ التعديل المطلوب: استبدال الأقواس بشرطة (آمن ولا يمس RTL)
+    text = text.replace("(", " - ")
+    text = text.replace(")", "")
+    
     text = re.sub(r"^[\-\*\d\.\)]\s*", "", text)
     text = text.replace(":", " : ")
     text = text.replace("،", " ، ")
