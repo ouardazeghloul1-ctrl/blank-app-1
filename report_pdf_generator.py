@@ -624,4 +624,218 @@ def create_pdf_from_content(
                 continue
 
             if line.startswith("[DECISION_BLOCK:"):
-                key = line.repl
+                key = line.replace("[DECISION_BLOCK:", "").replace("]", "")
+                title_text = DECISION_BLOCK_TITLES.get(key, "")
+                if title_text:
+                    story.append(Spacer(1, 0.6 * cm))
+                    story.append(Paragraph(ar(title_text), chapter))
+                    story.append(elegant_divider("50%"))
+                continue
+
+            if line == "[END_DECISION_BLOCK]":
+                continue
+
+            story.extend(arabic_paragraph_flowables(line, body, AVAILABLE_WIDTH))
+            story.append(Spacer(1, 0.2 * cm))
+
+        story.append(Spacer(1, 1.0 * cm))
+        story.append(elegant_divider("30%"))
+        story.append(PageBreak())
+
+    # =========================
+    # TRANSITION PAGE
+    # =========================
+    story.append(Spacer(1, 2.5 * cm))
+    story.append(Paragraph(ar("كيف تقرأ هذا التقرير بناءً على القرار أعلاه"), ai_executive_header))
+    story.append(elegant_divider("55%"))
+    story.append(Spacer(1, 1.0 * cm))
+
+    transition_texts = [
+        "الخلاصة التنفيذية للقرار تمثل القرار المعتمد لهذا التقرير، "
+        "وقد تم اشتقاقه بناءً على مؤشرات رقمية ومعايير تحليلية محددة.",
+        
+        "الفصول التالية لا تُقرأ كتحليل عام للسوق، ولا كمسار للوصول إلى قرار جديد، "
+        "بل كشرح منهجي للأسس التي بُني عليها القرار الصادر.",
+        
+        "كل فصل يفسر جانبًا محددًا من القرار، ويبيّن السياق السوقي، "
+        "وحدود المخاطر، وطبيعة الفرص، وشروط التوقيت والتنفيذ، "
+        "بهدف توضيح لماذا جاء القرار بهذه الصيغة تحديدًا.",
+        
+        "القرار موجود في الأعلى، "
+        "وما يلي هو الإطار التحليلي الذي يبرره، "
+        "ويحدّد نطاق صلاحيته، ويضبط تطبيقه."
+    ]
+    
+    for text in transition_texts:
+        story.extend(arabic_paragraph_flowables(text, body, AVAILABLE_WIDTH))
+        story.append(Spacer(1, 0.15 * cm))
+
+    story.append(Spacer(1, 1.2 * cm))
+    story.append(elegant_divider("30%"))
+    story.append(PageBreak())
+
+    # =========================
+    # PROCESS CONTENT WITH MAP
+    # =========================
+    chapter_index = 0
+    chart_cursor = {}
+    first_chapter_processed = False
+    temp_files = []
+
+    # =========================
+    # INSERT MAP BEFORE CONTENT
+    # =========================
+    if user_info:
+        district_lat = user_info.get("خط_العرض") or user_info.get("district_latitude") or user_info.get("district_lat")
+        district_lon = user_info.get("خط_الطول") or user_info.get("district_longitude") or user_info.get("district_lon")
+        district_name = user_info.get("district_name")
+        projects_df = user_info.get("projects_data")
+        
+        district_impact = user_info.get("نطاق_التأثير") or user_info.get("impact_radius") or 5
+        try:
+            impact_radius = max(float(district_impact or 0), 1)
+        except (ValueError, TypeError):
+            impact_radius = 5
+        
+        print(f"DEBUG: district_lat={district_lat}, district_lon={district_lon}")
+        print(f"DEBUG: impact_radius={impact_radius}")
+        
+        map_fig = create_district_projects_map(
+            district_lat,
+            district_lon,
+            district_name,
+            projects_df,
+            impact_radius_km=impact_radius
+        )
+        
+        # ✅ هذا هو التعديل الحاسم: حفظ المشاريع القريبة لاستخدامها في النص
+        if projects_df is not None and not projects_df.empty:
+            user_info["nearby_projects"] = projects_df.to_dict("records")
+            print(f"DEBUG: تم حفظ {len(projects_df)} مشروع في user_info['nearby_projects']")
+        
+        # =========================================================
+        # ✅ التعديل المطلوب: الخريطة في صفحة كاملة وحدها
+        # =========================================================
+        if map_fig:
+            # ✅ لا نضيف PageBreak هنا لأننا بالفعل في صفحة جديدة بعد transition
+            
+            # إدراج الخريطة بحجم صفحة كاملة
+            map_img = plotly_to_image(map_fig, 18.0, 24.0)
+            if map_img:
+                if hasattr(map_img, '_temp_file'):
+                    temp_files.append(map_img._temp_file)
+                story.append(map_img)
+                story.append(Spacer(1, 0.4 * cm))
+            else:
+                story.append(Paragraph(
+                    ar("⚠️ فشل تحويل الخريطة إلى صورة"),
+                    body
+                ))
+            
+            # إنهاء صفحة الخريطة
+            story.append(PageBreak())
+        else:
+            # الخريطة نفسها لم تنشأ (map_fig = None)
+            story.append(Paragraph(
+                ar("⚠️ لم يتم إنشاء الخريطة - تحقق من الإحداثيات أو البيانات"),
+                body
+            ))
+            
+            # معلومات تشخيصية إضافية
+            diag_text = f"الإحداثيات المستلمة: خط العرض = {district_lat}, خط الطول = {district_lon}"
+            story.append(Paragraph(ar(diag_text), body))
+            story.append(Spacer(1, 0.4 * cm))
+
+    # =========================
+    # MAIN CONTENT LOOP
+    # =========================
+    for raw in content_text.split("\n"):
+        raw_stripped = raw.strip()
+
+        if not raw_stripped:
+            continue
+
+        clean = raw_stripped if raw_stripped in SPECIAL_TAGS else clean_text(raw)
+
+        if clean.startswith(("📊", "💎", "⚠️")):
+            story.append(Spacer(1, 0.6 * cm))
+            story.append(elegant_divider())
+            story.append(Paragraph(ar(clean), ai_sub_title))
+            story.append(Spacer(1, 0.3 * cm))
+            continue
+
+        if raw_stripped.startswith("الفصل"):
+            # ✅ التعديل: كل فصل يبدأ في صفحة جديدة
+            if first_chapter_processed:
+                story.append(PageBreak())
+            else:
+                story.append(PageBreak())
+                first_chapter_processed = True
+            chapter_index += 1
+            chart_cursor[chapter_index] = 0
+            story.append(Paragraph(ar(clean), chapter))
+            story.append(Spacer(1, 0.3 * cm))
+            story.append(elegant_divider("40%"))
+            story.append(Spacer(1, 0.6 * cm))
+            continue
+
+        if clean == "[[ANCHOR_CHART]]":
+            real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
+            if real_chapter:
+                charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
+                cursor = chart_cursor.get(chapter_index, 0)
+
+                if cursor < len(charts):
+                    img = plotly_to_image(charts[cursor], 16.8, 9)
+                    if img:
+                        if hasattr(img, '_temp_file'):
+                            temp_files.append(img._temp_file)
+                        story.append(Spacer(1, 0.8 * cm))
+                        story.append(img)
+                        story.append(Spacer(1, 0.4 * cm))
+                    chart_cursor[chapter_index] += 1
+            continue
+
+        if clean == "[[RHYTHM_CHART]]":
+            real_chapter = CHAPTER_CHART_MAP.get(chapter_index)
+            if real_chapter:
+                charts = charts_by_chapter.get(f"chapter_{real_chapter}", [])
+                cursor = chart_cursor.get(chapter_index, 0)
+
+                if cursor < len(charts):
+                    fig = charts[cursor]
+                    is_indicator = (
+                        fig is not None
+                        and hasattr(fig, 'data')
+                        and len(fig.data) > 0
+                        and isinstance(fig.data[0], go.Indicator)
+                    )
+                    img = plotly_to_image(fig, 17.5 if is_indicator else 16.8,
+                                           9.5 if is_indicator else 9)
+                    if img:
+                        if hasattr(img, '_temp_file'):
+                            temp_files.append(img._temp_file)
+                        story.append(Spacer(1, 0.8 * cm if is_indicator else 0.7 * cm))
+                        story.append(img)
+                        story.append(Spacer(1, 0.4 * cm))
+                    chart_cursor[chapter_index] += 1
+            continue
+
+        if clean and clean not in SPECIAL_TAGS:
+            story.extend(arabic_paragraph_flowables(clean, body, AVAILABLE_WIDTH))
+            story.append(Spacer(1, 0.15 * cm))
+
+    doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
+    
+    buffer.seek(0)
+    
+    # ✅ التعديل النهائي: تنظيف الملفات المؤقتة مع حماية إضافية
+    unique_temp_files = list(set(temp_files))
+    for temp_file in unique_temp_files:
+        try:
+            if temp_file and os.path.exists(temp_file):
+                os.remove(temp_file)
+        except Exception as cleanup_error:
+            print("Temp cleanup warning:", cleanup_error)
+    
+    return buffer
