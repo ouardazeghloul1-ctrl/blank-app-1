@@ -738,7 +738,6 @@ def create_pdf_from_content(
     # =========================
     chapter_index = 0
     chart_cursor = {}
-    first_chapter_processed = False
     temp_files = []
 
     # =========================
@@ -823,13 +822,9 @@ def create_pdf_from_content(
             story.append(Spacer(1, 0.3 * cm))
             continue
 
+        # ✅ التعديل المطلوب: إضافة PageBreak قبل كل فصل (بما في ذلك الفصل الأول)
         if raw_stripped.startswith("الفصل"):
-            # ✅ التعديل النهائي المطلوب: PageBreak فقط بعد الفصل الأول
-            if first_chapter_processed:
-                story.append(PageBreak())
-            else:
-                # أول فصل: لا نضيف PageBreak قبله
-                first_chapter_processed = True
+            story.append(PageBreak())  # إضافة كسر صفحة قبل كل فصل
             chapter_index += 1
             chart_cursor[chapter_index] = 0
             story.append(Paragraph(ar(clean), chapter))
