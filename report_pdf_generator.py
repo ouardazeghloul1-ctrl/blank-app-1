@@ -24,6 +24,22 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase.pdfmetrics import stringWidth
 import plotly.graph_objects as go
 
+# =========================
+# FIX PERCENTAGE (LTR Island for RTL)
+# =========================
+BROKEN_PCT = re.compile(r'\.?%\s*(\d+(?:\.\d+)?)\s*-')
+
+def fix_percentage(text: str) -> str:
+    """Wrap negative percentages in LTR embedding to prevent bidi reversal."""
+    if not text:
+        return text
+    LRE = '\u202A'   # Left-to-Right Embedding
+    PDF = '\u202C'   # Pop Directional Formatting
+    def replacer(m):
+        number = m.group(1)
+        return f'{LRE}-{number}%{PDF}'
+    return BROKEN_PCT.sub(replacer, text)
+
 
 # =========================
 # الحل النهائي: تقسيم الفقرة العربية إلى أسطر متعددة
@@ -80,6 +96,9 @@ def ar(text):
 
     try:
         text = str(text)
+        # ✅ Fix broken percentages first (before reshaping)
+        text = fix_percentage(text)
+        
         # ✅ استبدال الأقواس بشرطة (التعديل المطلوب مع تنظيف المسافات)
         text = text.replace("(", " - ")
         text = text.replace(")", "")
@@ -92,8 +111,8 @@ def ar(text):
         
         # ✅ التعديل النهائي لإصلاح مشكلة .% -> %
         text = text.replace(".%", "%")
-        # ✅ إصلاح ترتيب الشرطة والنسبة المئوية (مثل .%8.3- -> -8.3%)
-        text = re.sub(r'%(-?\d+(\.\d+)?)\-?', r'-\1%', text)
+        # ✅ تم حذف السطر الذي يعيد ترتيب % و - لأنه أصبح غير ضروري بعد fix_percentage
+        # text = re.sub(r'%(-?\d+(\.\d+)?)\-?', r'-\1%', text)  # <-- تم الحذف
         
         reshaped = arabic_reshaper.reshape(text)
         return get_display(reshaped)
@@ -109,6 +128,9 @@ def clean_text(text: str) -> str:
         return ""
 
     text = str(text)
+    # ✅ Fix broken percentages first (before any other cleaning)
+    text = fix_percentage(text)
+
     cleaned = []
     for ch in text:
         cat = unicodedata.category(ch)
@@ -131,8 +153,8 @@ def clean_text(text: str) -> str:
     
     # ✅ التعديل النهائي لإصلاح مشكلة .% -> %
     text = text.replace(".%", "%")
-    # ✅ إصلاح ترتيب الشرطة والنسبة المئوية (مثل .%8.3- -> -8.3%)
-    text = re.sub(r'%(-?\d+(\.\d+)?)\-?', r'-\1%', text)
+    # ✅ تم حذف السطر الذي يعيد ترتيب % و - لأنه أصبح غير ضروري بعد fix_percentage
+    # text = re.sub(r'%(-?\d+(\.\d+)?)\-?', r'-\1%', text)  # <-- تم الحذف
     
     return text.strip()
 
