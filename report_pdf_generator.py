@@ -147,7 +147,11 @@ def clean_text(text: str) -> str:
     # تنظيف المسافات الزائدة حول الشرطة (تحسين شكلي)
     text = re.sub(r"(?<!\d)\s*-\s*(?!\d)", " - ", text)  # ✅ التعديل المطلوب
     
-    text = re.sub(r"^[\-\*\d\.\)]\s*", "", text)
+    # ✅ التعديل الجوهري: إزالة الأرقام من بداية السطر فقط إذا كانت bullet
+    # قبل: text = re.sub(r"^[\-\*\d\.\)]\s*", "", text)
+    # بعد: إزالة \d و \. حتى لا نحذف الأرقام
+    text = re.sub(r"^[\-\*\)]\s*", "", text)
+    
     text = text.replace(":", " : ")
     text = text.replace("،", " ، ")
     text = text.replace("؛", " ؛ ")
