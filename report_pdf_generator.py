@@ -92,7 +92,7 @@ def arabic_paragraph_flowables(text, style, available_width):
 
 
 # =========================
-# Arabic helper
+# Arabic helper - النسخة النهائية الصحيحة 100%
 # =========================
 def ar(text):
     if not text:
@@ -100,24 +100,22 @@ def ar(text):
 
     try:
         text = str(text)
-        # ✅ Fix broken percentages first (before reshaping)
+        # إصلاح النسب المكسورة أولاً
         text = fix_percentage(text)
         
-        # ✅ استبدال الأقواس بشرطة (التعديل المطلوب مع تنظيف المسافات)
+        # استبدال الأقواس بشرطة
         text = text.replace("(", " - ")
         text = text.replace(")", "")
-        # تنظيف المسافات الزائدة حول الشرطة
-        text = re.sub(r"(?<!\d)\s*-\s*(?!\d)", " - ", text)  # ✅ التعديل المطلوب
+        # تنظيف المسافات حول الشرطة
+        text = re.sub(r"(?<!\d)\s*-\s*(?!\d)", " - ", text)
+        
+        # ✅ التنظيف الوحيد المتبقي: إزالة المسافات الزائدة (بدون لمس %)
         text = re.sub(r"\s+", " ", text)
-        text = text.replace("% ", "%")
-        text = text.replace(" %", "%")
-        text = re.sub(r'(-?\d+(\.\d+)?)\s*%', r'\1%', text)
         
-        # ✅ التعديل النهائي لإصلاح مشكلة .% -> %
+        # إصلاح .% -> %
         text = text.replace(".%", "%")
-        # ✅ تم حذف السطر الذي يعيد ترتيب % و - لأنه أصبح غير ضروري بعد fix_percentage
-        # text = re.sub(r'%(-?\d+(\.\d+)?)\-?', r'-\1%', text)  # <-- تم الحذف
         
+        # إعادة تشكيل وعرض النص العربي
         reshaped = arabic_reshaper.reshape(text)
         return get_display(reshaped)
     except Exception:
@@ -157,8 +155,7 @@ def clean_text(text: str) -> str:
     
     # ✅ التعديل النهائي لإصلاح مشكلة .% -> %
     text = text.replace(".%", "%")
-    # ✅ تم حذف السطر الذي يعيد ترتيب % و - لأنه أصبح غير ضروري بعد fix_percentage
-    # text = re.sub(r'%(-?\d+(\.\d+)?)\-?', r'-\1%', text)  # <-- تم الحذف
+    # ✅ تم حذف جميع الأسطر التي تعيد ترتيب % أو تمسك بها
     
     return text.strip()
 
