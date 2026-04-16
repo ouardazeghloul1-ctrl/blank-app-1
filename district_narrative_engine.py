@@ -885,14 +885,18 @@ def generate_district_narrative(
                     last_price = df_trend.iloc[midpoint:]["price_sqm"].median()
                     change = ((last_price - first_price) / first_price) * 100 if first_price > 0 else 0
                     growth_rate = change
-                    growth_rate_text = f"{growth_rate:+.1f}%"
+                    if growth_rate < 0:
+                        growth_rate_text = f"-{abs(growth_rate):.1f}%"
+                    else:
+                        growth_rate_text = f"{abs(growth_rate):.1f}%"
+                    growth_rate_text = growth_rate_text
                     trend = "اتجاه صعودي" if change > 3 else "اتجاه هبوطي" if change < -3 else "استقرار نسبي"
                     trend_section = f"""
 
 اتجاه السوق داخل الفترة المدروسة
 
 بمقارنة الصفقات الأولى مع أحدث الصفقات في حي {district}
-يظهر أن متوسط سعر المتر تغير بنسبة {growth_rate_text}.
+يظهر أن متوسط سعر المتر تغير بنسبة {growth_rate_text} .
 
 هذا يشير إلى {trend} في السوق العقاري داخل الحي
 خلال الفترة المتاحة من البيانات.
@@ -925,7 +929,10 @@ def generate_district_narrative(
                     last_price = df_cycle.iloc[midpoint:]["price_sqm"].median()
                     change = ((last_price - first_price) / first_price) * 100 if first_price > 0 else 0
                     growth_rate = change
-                    growth_rate_text = f"{growth_rate:+.1f}%"
+                    if growth_rate < 0:
+                        growth_rate_text = f"-{abs(growth_rate):.1f}%"
+                    else:
+                        growth_rate_text = f"{abs(growth_rate):.1f}%"
                     if change > 5:
                         trend = "اتجاه صعودي واضح"
                         interpretation = "يشير هذا إلى زيادة الطلب أو تحسن في مستويات التسعير داخل الحي."
@@ -940,7 +947,7 @@ def generate_district_narrative(
 تحليل الزخم السعري في السوق
 
 تم تحليل حركة أسعار المتر في حي {district} خلال الفترة الزمنية المتاحة من البيانات.
-أظهر التحليل أن متوسط سعر المتر تغير بنسبة {growth_rate_text}.
+أظهر التحليل أن متوسط سعر المتر تغير بنسبة {growth_rate_text} .
 
 هذا يشير إلى {trend} في السوق العقاري داخل الحي خلال الأشهر الأخيرة.
 {interpretation}
