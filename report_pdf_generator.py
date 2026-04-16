@@ -268,7 +268,7 @@ def create_district_projects_map(
         # =========================================================
         # ✅ التعديل النهائي: احترام نطاق البحث الذي يختاره المستخدم
         # =========================================================
-        # نضمن فقط حدًا أدنى منطقيًا (1 كم) لمنع الأخطاء
+        # نضمن فقط حدًا أدنى منطقيًا (1 كم) لمنع الأخطار
         radius_km = max(float(impact_radius_km), 1)
         radius_deg = radius_km / 111
         
@@ -791,8 +791,8 @@ def create_pdf_from_content(
                     body
                 ))
             
-            # إنهاء صفحة الخريطة
-            story.append(PageBreak())
+            # ✅ التعديل 1: تم حذف PageBreak() الزائد هنا
+            
         else:
             # الخريطة نفسها لم تنشأ (map_fig = None)
             story.append(Paragraph(
@@ -824,11 +824,11 @@ def create_pdf_from_content(
             continue
 
         if raw_stripped.startswith("الفصل"):
-            # ✅ التعديل: كل فصل يبدأ في صفحة جديدة
+            # ✅ التعديل النهائي المطلوب: PageBreak فقط بعد الفصل الأول
             if first_chapter_processed:
                 story.append(PageBreak())
             else:
-                story.append(PageBreak())
+                # أول فصل: لا نضيف PageBreak قبله
                 first_chapter_processed = True
             chapter_index += 1
             chart_cursor[chapter_index] = 0
