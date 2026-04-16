@@ -141,6 +141,31 @@ def normalize_property_type(type_series: pd.Series) -> pd.Series:
     return type_series.apply(normalize_single)
 
 
+def classify_property_subtype(area, property_type):
+    """
+    🏷️ تصنيف دقيق للعقارات حسب النوع والمساحة
+    ✅ يستخدم الأنواع الحقيقية: أرض، محل تجاري، شقة، تاون هاوس، فيلا
+    """
+    # أولاً: الأنواع غير السكنية - نعيدها كما هي بدقة
+    if property_type == "أرض":
+        return "أرض"
+    if property_type == "تجاري":
+        return "محل تجاري"
+    
+    # ثانياً: السكني - نقسم حسب المساحة
+    if property_type == "سكني":
+        if pd.isna(area):
+            return "غير محدد"
+        if area < 180:
+            return "شقة"
+        elif 180 <= area <= 320:
+            return "تاون هاوس"
+        else:
+            return "فيلا"
+    
+    return "غير محدد"
+
+
 def load_government_data(selected_city: Optional[str] = None, 
                         selected_property_type: Optional[str] = None) -> pd.DataFrame:
     """🎯 المحرك الرئيسي للبيانات - واجهة موحدة لجميع أنظمة المشروع"""
@@ -253,20 +278,11 @@ def load_government_data(selected_city: Optional[str] = None,
         normalized_df.loc[normalized_df['price_raw'].isna(), 'price_validity'] = 'estimated'
         normalized_df.loc[(normalized_df['price_per_sqm'].isna()) & (normalized_df['price_validity'] == 'valid'), 'price_validity'] = 'corrected'
         
-        def classify_property_subtype(area, property_type):
-            if property_type != "سكني":
-                return "غير سكني"
-            if pd.isna(area):
-                return "غير محدد"
-            if area < 200:
-                return "شقة"
-            elif 200 <= area < 300:
-                return "تاون هاوس"
-            elif area >= 300:
-                return "فيلا"
-            return "غير محدد"
-        
-        normalized_df["property_subtype"] = normalized_df.apply(lambda row: classify_property_subtype(row["area"], row["property_type"]), axis=1)
+        # ✅ استخدام الدالة المحسنة لتصنيف العقارات - بدون "غير سكني"
+        normalized_df["property_subtype"] = normalized_df.apply(
+            lambda row: classify_property_subtype(row["area"], row["property_type"]), 
+            axis=1
+        )
         
         if selected_city and selected_city != 'الكل':
             city_mask = normalized_df['city'].astype(str).str.strip().str.contains(selected_city.strip(), case=False, na=False)
@@ -298,9 +314,7 @@ def load_projects_data():
         projects.columns = projects.columns.str.strip()
         
         # ✅ توحيد اسم عمود اسم المشروع - حل نهائي ومرن جدًا
-        # هذا الحل يعمل بغض النظر عن وجود مسافات أو تشكيل أو أسماء مختلفة
         for col in projects.columns:
-            # تنظيف اسم العمود من المسافات الخفية والرموز غير المرئية
             col_clean = (
                 str(col)
                 .strip()
@@ -311,13 +325,11 @@ def load_projects_data():
                 .lower()
             )
             
-            # البحث عن أي تطابق مع الصيغ الممكنة
             if "اسمالمشروع" in col_clean or "projectname" in col_clean:
                 projects = projects.rename(columns={col: "اسم_المشروع"})
                 print(f"✅ تم تعيين عمود المشاريع: '{col}' → 'اسم_المشروع'")
                 break
         
-        # تأكيد نهائي - إذا لم يتم العثور على العمود، طباعة تحذير واضح
         if "اسم_المشروع" not in projects.columns:
             print("❌ تحذير: لم يتم العثور على عمود أسماء المشاريع")
             print("📋 الأعمدة الحالية:", list(projects.columns))
@@ -413,6 +425,8 @@ if __name__ == "__main__":
     df = load_government_data()
     if not df.empty:
         print(f"\n✅ تم تحميل {len(df)} صفقة")
+        print(f"\n📊 توزيع الأنواع الفرعية:")
+        print(df['property_subtype'].value_counts())
     
     projects_df = load_projects_data()
     districts_df = load_districts_data()
