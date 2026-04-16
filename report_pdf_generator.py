@@ -33,6 +33,10 @@ def fix_percentage(text: str) -> str:
     """Wrap negative percentages in LTR embedding to prevent bidi reversal."""
     if not text:
         return text
+    
+    # ✅ التعديل المطلوب: إزالة النقطة قبل علامة % (مثل .% → %)
+    text = re.sub(r'\.\s*%', '%', text)
+    
     LRE = '\u202A'   # Left-to-Right Embedding
     PDF = '\u202C'   # Pop Directional Formatting
     def replacer(m):
