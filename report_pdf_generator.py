@@ -38,14 +38,17 @@ def fix_percentage(text: str) -> str:
     text = re.sub(r'\.\s*%', '%', text)
     
     # ✅ السطر الجديد: إصلاح حالة %8.3- . (نسبة مقلوبة مع نقطة بعدها)
-    text = re.sub(r'%\s*(\d+(?:\.\d+)?)\s*-\s*\.', r'-\1%', text)
+    text = re.sub(r'%\s*(\d+(?:\.\d+)?)\s*-\s*\.?', r'-\1%', text)
     
     LRE = '\u202A'   # Left-to-Right Embedding
     PDF = '\u202C'   # Pop Directional Formatting
     def replacer(m):
         number = m.group(1)
         return f'{LRE}-{number}%{PDF}'
-    return BROKEN_PCT.sub(replacer, text)
+    
+    # ✅ التعديل الأهم: تطبيق الـ regex الثاني بشكل تراكمي ثم إرجاع النص
+    text = BROKEN_PCT.sub(replacer, text)
+    return text
 
 
 # =========================
