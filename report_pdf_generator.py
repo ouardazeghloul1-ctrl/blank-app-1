@@ -92,6 +92,8 @@ def ar(text):
         
         # ✅ التعديل النهائي لإصلاح مشكلة .% -> %
         text = text.replace(".%", "%")
+        # ✅ إصلاح ترتيب الشرطة والنسبة المئوية (مثل .%8.3- -> -8.3%)
+        text = re.sub(r'%(-?\d+(\.\d+)?)\-?', r'-\1%', text)
         
         reshaped = arabic_reshaper.reshape(text)
         return get_display(reshaped)
@@ -129,6 +131,8 @@ def clean_text(text: str) -> str:
     
     # ✅ التعديل النهائي لإصلاح مشكلة .% -> %
     text = text.replace(".%", "%")
+    # ✅ إصلاح ترتيب الشرطة والنسبة المئوية (مثل .%8.3- -> -8.3%)
+    text = re.sub(r'%(-?\d+(\.\d+)?)\-?', r'-\1%', text)
     
     return text.strip()
 
