@@ -37,6 +37,9 @@ def fix_percentage(text: str) -> str:
     # ✅ التعديل المطلوب: إزالة النقطة قبل علامة % (مثل .% → %)
     text = re.sub(r'\.\s*%', '%', text)
     
+    # ✅ السطر الجديد: إصلاح حالة %8.3- . (نسبة مقلوبة مع نقطة بعدها)
+    text = re.sub(r'%\s*(\d+(?:\.\d+)?)\s*-\s*\.', r'-\1%', text)
+    
     LRE = '\u202A'   # Left-to-Right Embedding
     PDF = '\u202C'   # Pop Directional Formatting
     def replacer(m):
