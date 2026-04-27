@@ -73,6 +73,19 @@ def show_district_reports(df_raw):
             ["شقة", "تاون هاوس", "فيلا", "أرض", "محل تجاري"],
             key="property_type_select"
         )
+        
+        # -------- المرحلة 7.5: اختيار نوع التقرير --------
+        analysis_type = st.selectbox(
+            "اختر نوع التقرير",
+            [
+                "📈 مؤشر اتجاه الأسعار",
+                "💰 فرص الاستثمار",
+                "⚖️ المقارنة الذكية",
+                "🏘️ دليل السكن",
+                "🚀 تأثير المشاريع"
+            ],
+            key="analysis_type_select"
+        )
 
         # -------- المرحلة 7: فلترة البيانات حسب الحي فقط (بدون فلترة نوع العقار) --------
         # فلترة الحي فقط - مع تنظيف الاسم من المدينة
@@ -269,6 +282,7 @@ def show_district_reports(df_raw):
                             "city_name": city,
                             "district_name": district,
                             "property_type": property_type,
+                            "analysis_type": analysis_type,  # ✅ نوع التقرير المضاف حديثاً
                             "district_avg_price": district_price_per_m2,
                             "city_avg_price": city_price_per_m2,
                             # ✅ تم استبدال transactions_count بالمفتاحين التاليين
@@ -373,6 +387,7 @@ def show_district_reports(df_raw):
                         print(f"📊 DEBUG: DPI Score: {dpi_score}")
                         print(f"📊 DEBUG: عدد الأحياء المجاورة: {len(nearby_districts)}")
                         print(f"📊 DEBUG: نوع العقار المحدد: {property_type}")
+                        print(f"📊 DEBUG: نوع التقرير المحدد: {analysis_type}")
                         print(f"📊 DEBUG: عدد صفقات الحي الكلي: {district_transactions_total}")
                         print(f"📊 DEBUG: عدد صفقات نوع العقار: {property_transactions_count}")
                         print(f"📍 DEBUG: إحداثيات الحي - خط العرض: {district_lat}, خط الطول: {district_lon}")
