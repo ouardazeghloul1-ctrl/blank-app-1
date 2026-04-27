@@ -318,14 +318,14 @@ def create_district_projects_map(
             )
         
         # =========================================================
-        # ✅ التعديل 3: تغيير mapbox_style من open-street-map إلى carto-positron
+        # ✅ التعديل المطلوب: تغيير mapbox_style من carto-positron إلى carto-voyager
         # =========================================================
         title_text = f"موقع حي {district_name}"
         if not nearby_projects.empty:
             title_text += f" والمشاريع القريبة (نطاق {radius_km} كم)"
         
         fig.update_layout(
-            mapbox_style="carto-positron",  # حل مشكلة Access blocked – Referrer is required
+            mapbox_style="carto-voyager",  # تم التعديل من carto-positron إلى carto-voyager
             mapbox=dict(
                 center=dict(lat=district_lat, lon=district_lon),
                 zoom=12
