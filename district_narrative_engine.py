@@ -61,6 +61,47 @@ def calculate_distance(lat1, lon1, lat2, lon2):
         return None
 
 
+# =========================================
+# ✅ دالة توليد نص التركيز حسب نوع التقرير
+# =========================================
+def get_analysis_focus_text(analysis_type, district, city, property_type):
+    if analysis_type == "📈 مؤشر اتجاه الأسعار":
+        return (
+            f"يركز هذا التقرير على تحليل اتجاه أسعار {property_type} "
+            f"في حي {district} بمدينة {city}، "
+            "لتحديد ما إذا كان السوق يشهد نمواً أو استقراراً أو تراجعاً."
+        )
+    elif analysis_type == "💰 فرص الاستثمار":
+        return (
+            f"يركز هذا التقرير على تقييم جاذبية الاستثمار "
+            f"في سوق {property_type} داخل حي {district} بمدينة {city}، "
+            "مع تحليل مستوى الطلب والسيولة وفرص النمو."
+        )
+    elif analysis_type == "⚖️ المقارنة الذكية":
+        return (
+            f"يركز هذا التقرير على مقارنة حي {district} "
+            f"مع الأحياء الأخرى داخل مدينة {city} "
+            "لتحديد موقعه السعري ومستوى النشاط العقاري."
+        )
+    elif analysis_type == "🏘️ دليل السكن":
+        return (
+            f"يركز هذا التقرير على تقييم مدى ملاءمة "
+            f"حي {district} للسكن من حيث استقرار السوق "
+            "ونشاط الصفقات ومستوى البيئة العمرانية."
+        )
+    elif analysis_type == "🚀 تأثير المشاريع":
+        return (
+            f"يركز هذا التقرير على تحليل تأثير المشاريع التنموية "
+            f"القريبة من حي {district} في دعم الطلب العقاري "
+            "وزيادة القيمة المستقبلية للعقارات."
+        )
+    else:
+        return (
+            f"يعرض هذا التقرير تحليلاً عاماً "
+            f"لسوق {property_type} في حي {district}."
+        )
+
+
 def generate_district_narrative(
         user_info,
         district_metrics,
@@ -82,6 +123,9 @@ def generate_district_narrative(
     district_metrics = district_metrics or {}
     dpi_score = float(dpi_score or 0)
     user_info = user_info or {}
+    
+    # ✅ قراءة نوع التقرير من user_info
+    analysis_type = user_info.get("analysis_type", "📈 مؤشر اتجاه الأسعار")
     
     # =========================================
     # ✅ تعريف investment_score بشكل نظيف ومستقر
@@ -341,9 +385,15 @@ def generate_district_narrative(
 
     report_sections.append(transactions_section)
 
-    # ملخص تنفيذي
+    # =========================================
+    # ✅ ملخص تنفيذي مع نص التركيز الديناميكي
+    # =========================================
+    analysis_focus_text = get_analysis_focus_text(analysis_type, district, city, property_type)
+    
     summary_section = f"""
 ملخص تنفيذي
+
+{analysis_focus_text}
 
 يعرض هذا التقرير تحليلاً لسوق {property_market} في حي {district} بمدينة {city}.
 يعتمد التحليل على {property_transactions:,} صفقة عقارية تم تسجيلها في السوق خلال الفترة المدروسة.
@@ -1302,13 +1352,46 @@ def generate_district_narrative(
         report_sections.append(horizon_section)
 
     # =========================================
-    # Investment Decision
+    # ✅ Investment Decision (مخصص حسب نوع التقرير)
     # =========================================
     decision_section = ""
     try:
-        if price_ratio < 0.9 and property_transactions >= 20 and dpi_score >= 70:
-            decision = "شراء"
+        # تخصيص القرار حسب نوع التقرير
+        if analysis_type == "📈 مؤشر اتجاه الأسعار":
+            decision = "متابعة السوق"
             reasoning = f"""
+يركز هذا التقرير على اتجاه الأسعار في حي {district}.
+البيانات الحالية تشير إلى ضرورة مراقبة حركة السوق لتحديد أفضل توقيت للدخول أو البيع.
+"""
+        elif analysis_type == "💰 فرص الاستثمار":
+            decision = "استثمار"
+            reasoning = f"""
+يركز هذا التقرير على الفرص الاستثمارية في حي {district}.
+تشير المؤشرات إلى وجود نشاط عقاري مناسب يمكن أن يدعم قرارات الاستثمار في السوق.
+"""
+        elif analysis_type == "⚖️ المقارنة الذكية":
+            decision = "مقارنة الخيارات"
+            reasoning = f"""
+يركز هذا التقرير على مقارنة حي {district} مع الأحياء الأخرى داخل مدينة {city}.
+يوصى بدراسة الفروق السعرية ومستوى النشاط قبل اتخاذ قرار الشراء.
+"""
+        elif analysis_type == "🏘️ دليل السكن":
+            decision = "مناسب للسكن"
+            reasoning = f"""
+يركز هذا التقرير على ملاءمة حي {district} للسكن والاستقرار.
+تشير المؤشرات إلى أن السوق يتمتع بدرجة مقبولة من الاستقرار العقاري.
+"""
+        elif analysis_type == "🚀 تأثير المشاريع":
+            decision = "متابعة التطوير"
+            reasoning = f"""
+يركز هذا التقرير على تأثير المشاريع التنموية القريبة من حي {district}.
+وجود مشاريع جديدة قد يعزز من الطلب ويرفع القيمة العقارية مستقبلاً.
+"""
+        else:
+            # Fallback: المنطق القديم المبني على البيانات
+            if price_ratio < 0.9 and property_transactions >= 20 and dpi_score >= 70:
+                decision = "شراء"
+                reasoning = f"""
 البيانات تشير إلى أن حي {district} يوفر فرصة استثمارية جيدة حالياً.
 السبب الرئيسي:
 • سعر المتر أقل من متوسط المدينة
@@ -1318,15 +1401,15 @@ def generate_district_narrative(
 الاستراتيجية المقترحة:
 شراء عقار بسعر قريب أو أقل من متوسط سعر الحي والاحتفاظ به لمدة 3 إلى 5 سنوات.
 """
-        elif price_ratio > 1.15 and property_transactions < 20:
-            decision = "الانتظار"
-            reasoning = f"""
+            elif price_ratio > 1.15 and property_transactions < 20:
+                decision = "الانتظار"
+                reasoning = f"""
 أسعار الحي مرتفعة مقارنة بمتوسط السوق مع نشاط محدود في عدد الصفقات.
 في هذه الحالة قد يكون من الأفضل انتظار فرص شراء بأسعار أفضل.
 """
-        else:
-            decision = "شراء انتقائي"
-            reasoning = f"""
+            else:
+                decision = "شراء انتقائي"
+                reasoning = f"""
 السوق في حي {district} متوازن نسبياً.
 يمكن الاستثمار بشرط اختيار عقار بسعر مناسب وموقع جيد داخل الحي.
 """
