@@ -8,28 +8,28 @@ from government_data_provider import load_projects_data, load_districts_data
 from payment import create_payment, execute_payment  # ✅ إضافة نظام الدفع
 
 # ===== تأكيد الدفع بعد العودة من PayPal =====
-query_params = st.query_params
-if ("payment" in query_params and query_params["payment"] == "success"):
+query_params = st.experimental_get_query_params()
+if ("payment" in query_params and query_params["payment"][0] == "success"):
     # ✅ لا تنفذي الدفع مرة أخرى إذا تم سابقًا
     if not st.session_state.get("paid", False):
-        payment_id = query_params.get("paymentId")
-        payer_id = query_params.get("PayerID")
+        payment_id = query_params.get("paymentId", [None])[0]
+        payer_id = query_params.get("PayerID", [None])[0]
         if payment_id and payer_id:
             success = execute_payment(payment_id, payer_id)
             if success:
                 st.session_state["paid"] = True
                 st.success("✅ تم الدفع بنجاح — يمكنك الآن تحميل التقرير")
                 # ✅ تنظيف الرابط بعد المعالجة
-                st.query_params.clear()
+                st.experimental_set_query_params()
             else:
                 st.error("❌ فشل تنفيذ الدفع")
     else:
         # ✅ إذا كان الدفع تم مسبقاً، فقط ننظف الرابط
-        st.query_params.clear()
-elif ("payment" in query_params and query_params["payment"] == "cancel"):
+        st.experimental_set_query_params()
+elif ("payment" in query_params and query_params["payment"][0] == "cancel"):
     st.warning("⚠️ تم إلغاء عملية الدفع")
     # ✅ تنظيف الرابط بعد الإلغاء أيضاً
-    st.query_params.clear()
+    st.experimental_set_query_params()
 
 def show_district_reports(df_raw):
     """
@@ -431,6 +431,7 @@ def show_district_reports(df_raw):
                         
                         # ✅ إعادة تعيين حالة الدفع لكل تقرير جديد
                         st.session_state["paid"] = False
+                        st.session_state.pop("payment_id", None)  # ✅ تنظيف payment_id القديم
                         
                         # عرض معلومات debug
                         print(f"🚀 DEBUG: تم إنشاء تقرير الحي بنجاح")
