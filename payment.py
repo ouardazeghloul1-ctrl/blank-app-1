@@ -12,18 +12,18 @@ paypalrestsdk.configure({
 })
 
 # ✅ إنشاء عملية الدفع
-def create_payment(amount):
+def create_payment(amount, report_name):
     payment = paypalrestsdk.Payment({
         "intent": "sale",
         "payer": {"payment_method": "paypal"},
         "redirect_urls": {
-            "return_url": "http://localhost:8501",
-            "cancel_url": "http://localhost:8501"
+            "return_url": "http://localhost:8501/?payment=success",
+            "cancel_url": "http://localhost:8501/?payment=cancel"
         },
         "transactions": [{
             "item_list": {
                 "items": [{
-                    "name": "تقرير العقارات الذكي",
+                    "name": report_name,
                     "sku": "RealAI",
                     "price": str(amount),
                     "currency": "USD",
@@ -36,10 +36,11 @@ def create_payment(amount):
     })
 
     if payment.create():
+        payment_id = payment.id
         for link in payment.links:
             if link.rel == "approval_url":
-                return str(link.href)
-    return None
+                return str(link.href), payment_id
+    return None, None
 
 # ✅ تأكيد عملية الدفع
 def execute_payment(payment_id, payer_id):
