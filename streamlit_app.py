@@ -7,6 +7,22 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# ===== إعداد صلاحيات الإدارة =====
+ADMIN_MODE = False  # تم التعديل: False للإطلاق الحقيقي
+ADMIN_EMAIL = "admin@warda.com"  # البريد الإداري - يمكنك تغييره
+
+# سيتم تفعيل صلاحية الإدارة فقط عند تسجيل الدخول بالبريد الإداري
+if "user_email" in st.session_state:
+    if st.session_state["user_email"] == ADMIN_EMAIL:
+        st.session_state["is_admin"] = True
+        st.session_state["paid"] = True
+else:
+    if "is_admin" not in st.session_state:
+        st.session_state["is_admin"] = False
+    if "paid" not in st.session_state:
+        st.session_state["paid"] = False
+
 # تهيئة الصفحة الافتراضية
 if "page" not in st.session_state:
     st.session_state.page = "home"
@@ -20,43 +36,7 @@ import shutil
 from datetime import datetime
 import streamlit as st
 
-if st.button("🔍 عرض ملفات التقارير"):
-
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    reports_dir = os.path.join(base_dir, "reports_store")
-
-    st.write("المسار:", reports_dir)
-
-    for folder in ["basic", "pro", "premium"]:
-
-        folder_path = os.path.join(reports_dir, folder)
-
-        st.subheader(folder)
-
-        if os.path.exists(folder_path):
-
-            files = os.listdir(folder_path)
-
-            if files:
-
-                st.write("عدد الملفات:", len(files))
-
-                for file in files[:20]:
-
-                    file_path = os.path.join(folder_path, file)
-
-                    with open(file_path, "rb") as f:
-
-                        st.download_button(
-                            label=f"تحميل {file}",
-                            data=f,
-                            file_name=file,
-                            mime="application/pdf"
-                        )
-
-            else:
-                st.write("لا يوجد ملفات")
-    
+# ===== تم حذف زر "🔍 عرض ملفات التقارير" لأسباب أمنية =====
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPORTS_STORE = os.path.join(BASE_DIR, "reports_store")
@@ -909,85 +889,86 @@ st.markdown("""
 
 st.info("🧠 لديك مستشار ذكي يجيبك حسب باقتك — انتقل إلى المستشار الذكي")
 
-# ========== زر المصنع المبسط ==========
-st.markdown("### 🏭 تشغيل مصنع التقارير (اختبار مباشر)")
-st.warning("⚠️ هذا تشغيل مباشر - انتظر حتى تظهر النتيجة")
+# ========== زر المصنع المبسط (للـ Admin فقط) ==========
+if st.session_state.get("is_admin"):
+    st.markdown("### 🏭 تشغيل مصنع التقارير (اختبار مباشر)")
+    st.warning("⚠️ هذا تشغيل مباشر - انتظر حتى تظهر النتيجة")
 
-default_sample_size = min(len(df_raw), 100000)
-sample_size = st.number_input("عدد الصفقات للتحليل", min_value=100, max_value=100000, value=default_sample_size, step=100)
+    default_sample_size = min(len(df_raw), 100000)
+    sample_size = st.number_input("عدد الصفقات للتحليل", min_value=100, max_value=100000, value=default_sample_size, step=100)
 
-if st.button("🚀 تشغيل المصنع الآن", key="factory_simple_btn", use_container_width=True):
-    
-    st.write("📌 1. تم الضغط على الزر - بدء التنفيذ...")
-    
-    try:
-        st.write("📌 2. جاري استيراد مصنع التقارير...")
-        from district_report_factory import generate_all_district_reports
-        st.success("✅ تم استيراد المصنع بنجاح")
+    if st.button("🚀 تشغيل المصنع الآن", key="factory_simple_btn", use_container_width=True):
         
-        st.write("📌 3. تنظيف المتجر القديم...")
-        if os.path.exists(REPORTS_STORE):
-            shutil.rmtree(REPORTS_STORE)
-            st.write("✅ تم حذف المتجر القديم")
+        st.write("📌 1. تم الضغط على الزر - بدء التنفيذ...")
         
-        st.write("📌 4. إنشاء مجلدات جديدة...")
-        os.makedirs(METADATA_FOLDER, exist_ok=True)
-        os.makedirs(BASIC_FOLDER, exist_ok=True)
-        os.makedirs(PRO_FOLDER, exist_ok=True)
-        os.makedirs(PREMIUM_FOLDER, exist_ok=True)
-        os.makedirs(LOGS_FOLDER, exist_ok=True)
-        
-        st.success("✅ تم إنشاء المجلدات بنجاح")
-        
-        st.write(f"📌 5. حجم البيانات الإجمالي: {len(df_raw)} صفقة")
-        st.write(f"📌 6. العينة المطلوبة: {sample_size} صفقة")
-        
-        if sample_size >= len(df_raw):
-            df_sample = df_raw
-            st.write(f"✅ سيتم استخدام كل البيانات ({len(df_sample)} صفقة)")
-        else:
-            df_sample = df_raw.head(sample_size)
-            st.write(f"✅ سيتم استخدام أول {sample_size} صفقة")
-        
-        st.write("📌 7. جاري تشغيل المصنع... (قد يستغرق 5-15 دقيقة حسب حجم البيانات)")
-        
-        result = generate_all_district_reports(df_sample)
-        
-        if result and isinstance(result, tuple) and len(result) >= 1:
-            total_reports = result[0]
-            st.success(f"✅ تم إنشاء {total_reports} تقرير بنجاح!")
+        try:
+            st.write("📌 2. جاري استيراد مصنع التقارير...")
+            from district_report_factory import generate_all_district_reports
+            st.success("✅ تم استيراد المصنع بنجاح")
             
-            if os.path.exists(METADATA_FOLDER):
-                files = os.listdir(METADATA_FOLDER)
-                json_files = [f for f in files if f.endswith('.json')]
-                
-                st.write(f"📦 عدد ملفات metadata: {len(json_files)}")
-                
-                if json_files:
-                    st.write("📄 أول 5 ملفات:")
-                    for f in json_files[:5]:
-                        st.code(f)
-                    
-                    try:
-                        with open(os.path.join(METADATA_FOLDER, json_files[0]), 'r', encoding='utf-8') as f:
-                            data = json.load(f)
-                            st.json({
-                                "city": data.get("city"),
-                                "district": data.get("district"),
-                                "product": data.get("product_title"),
-                                "price": data.get("price")
-                            })
-                    except Exception as e:
-                        st.write(f"⚠️ لا يمكن قراءة الملف: {e}")
+            st.write("📌 3. تنظيف المتجر القديم...")
+            if os.path.exists(REPORTS_STORE):
+                shutil.rmtree(REPORTS_STORE)
+                st.write("✅ تم حذف المتجر القديم")
+            
+            st.write("📌 4. إنشاء مجلدات جديدة...")
+            os.makedirs(METADATA_FOLDER, exist_ok=True)
+            os.makedirs(BASIC_FOLDER, exist_ok=True)
+            os.makedirs(PRO_FOLDER, exist_ok=True)
+            os.makedirs(PREMIUM_FOLDER, exist_ok=True)
+            os.makedirs(LOGS_FOLDER, exist_ok=True)
+            
+            st.success("✅ تم إنشاء المجلدات بنجاح")
+            
+            st.write(f"📌 5. حجم البيانات الإجمالي: {len(df_raw)} صفقة")
+            st.write(f"📌 6. العينة المطلوبة: {sample_size} صفقة")
+            
+            if sample_size >= len(df_raw):
+                df_sample = df_raw
+                st.write(f"✅ سيتم استخدام كل البيانات ({len(df_sample)} صفقة)")
             else:
-                st.error("❌ مجلد metadata غير موجود!")
-        else:
-            st.error("❌ المصنع لم يرجع نتيجة صحيحة")
-            st.write(f"النتيجة: {result}")
+                df_sample = df_raw.head(sample_size)
+                st.write(f"✅ سيتم استخدام أول {sample_size} صفقة")
             
-    except Exception as e:
-        st.error("❌ حدث خطأ:")
-        st.exception(e)
+            st.write("📌 7. جاري تشغيل المصنع... (قد يستغرق 5-15 دقيقة حسب حجم البيانات)")
+            
+            result = generate_all_district_reports(df_sample)
+            
+            if result and isinstance(result, tuple) and len(result) >= 1:
+                total_reports = result[0]
+                st.success(f"✅ تم إنشاء {total_reports} تقرير بنجاح!")
+                
+                if os.path.exists(METADATA_FOLDER):
+                    files = os.listdir(METADATA_FOLDER)
+                    json_files = [f for f in files if f.endswith('.json')]
+                    
+                    st.write(f"📦 عدد ملفات metadata: {len(json_files)}")
+                    
+                    if json_files:
+                        st.write("📄 أول 5 ملفات:")
+                        for f in json_files[:5]:
+                            st.code(f)
+                        
+                        try:
+                            with open(os.path.join(METADATA_FOLDER, json_files[0]), 'r', encoding='utf-8') as f:
+                                data = json.load(f)
+                                st.json({
+                                    "city": data.get("city"),
+                                    "district": data.get("district"),
+                                    "product": data.get("product_title"),
+                                    "price": data.get("price")
+                                })
+                        except Exception as e:
+                            st.write(f"⚠️ لا يمكن قراءة الملف: {e}")
+                else:
+                    st.error("❌ مجلد metadata غير موجود!")
+            else:
+                st.error("❌ المصنع لم يرجع نتيجة صحيحة")
+                st.write(f"النتيجة: {result}")
+                
+        except Exception as e:
+            st.error("❌ حدث خطأ:")
+            st.exception(e)
 
 # ========== فصل: عرض حالة المجلدات (للتشخيص) ==========
 with st.expander("📁 حالة المجلدات (تشخيص)"):
@@ -1035,151 +1016,156 @@ if page == "📊 التحليل الكامل":
     # ===== قسم تقارير المدن =====
     if analysis_mode == "🏙️ تقارير المدن":
         st.markdown("---")
-        st.markdown("## 🔔 التنبيهات الاستثمارية الحية (اليوم)")
-
-        col_city, col_type = st.columns(2)
-        with col_city:
-            city_select = st.selectbox(
-                "اختر المدينة",
-                ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"],
-                key="city_select_alerts"
-            )
-        with col_type:
-            property_type_select = st.selectbox(
-                "اختر نوع العقار",
-                ["شقة", "فيلا", "أرض"],
-                key="property_type_select_alerts"
-            )
         
-        col_btn, col_info = st.columns([1, 3])
-        with col_btn:
-            if st.button("🔄 تحديث بيانات السوق (حقيقي)", key="market_update_btn", use_container_width=True):
-                if not city_select:
-                    st.error("❌ الرجاء اختيار المدينة أولاً")
-                else:
-                    with st.spinner("جاري جلب بيانات حقيقية وتحليل السوق..."):
-                        try:
-                            real_df = load_government_data(
-                                selected_city=city_select,
-                                selected_property_type=property_type_select
-                            )
+        # ===== إخفاء التنبيهات مؤقتًا =====
+        SHOW_ALERTS = False
+        
+        if SHOW_ALERTS:
+            st.markdown("## 🔔 التنبيهات الاستثمارية الحية (اليوم)")
 
-                            if real_df.empty:
-                                st.error(f"❌ لا توجد بيانات للمدينة {city_select}")
-                            else:
-                                alerts = update_market_and_check_alerts(
-                                    city_select,
-                                    property_type_select
+            col_city, col_type = st.columns(2)
+            with col_city:
+                city_select = st.selectbox(
+                    "اختر المدينة",
+                    ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"],
+                    key="city_select_alerts"
+                )
+            with col_type:
+                property_type_select = st.selectbox(
+                    "اختر نوع العقار",
+                    ["شقة", "فيلا", "أرض"],
+                    key="property_type_select_alerts"
+                )
+            
+            col_btn, col_info = st.columns([1, 3])
+            with col_btn:
+                if st.button("🔄 تحديث بيانات السوق (حقيقي)", key="market_update_btn", use_container_width=True):
+                    if not city_select:
+                        st.error("❌ الرجاء اختيار المدينة أولاً")
+                    else:
+                        with st.spinner("جاري جلب بيانات حقيقية وتحليل السوق..."):
+                            try:
+                                real_df = load_government_data(
+                                    selected_city=city_select,
+                                    selected_property_type=property_type_select
                                 )
 
-                                st.session_state.daily_alerts = alerts
-                                st.session_state.last_alert_refresh = datetime.now()
+                                if real_df.empty:
+                                    st.error(f"❌ لا توجد بيانات للمدينة {city_select}")
+                                else:
+                                    alerts = update_market_and_check_alerts(
+                                        city_select,
+                                        property_type_select
+                                    )
 
-                                st.success(f"✅ تم تحديث السوق بـ {len(real_df)} صفقة")
+                                    st.session_state.daily_alerts = alerts
+                                    st.session_state.last_alert_refresh = datetime.now()
 
-                        except Exception as e:
-                            st.error(f"❌ حدث خطأ: {str(e)}")
+                                    st.success(f"✅ تم تحديث السوق بـ {len(real_df)} صفقة")
 
-        with col_info:
-            last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
-            refresh_time = last_refresh.strftime('%H:%M:%S') if isinstance(last_refresh, datetime) else str(last_refresh)
-            st.caption(f"🕒 آخر تحديث: {refresh_time}")
+                            except Exception as e:
+                                st.error(f"❌ حدث خطأ: {str(e)}")
 
-        if "daily_alerts" not in st.session_state:
-            with st.spinner("🔄 جاري تحليل السوق ورصد الفرص..."):
-                if ALERTS_AVAILABLE:
-                    st.session_state.daily_alerts = get_today_alerts()
-                    st.session_state.last_alert_refresh = datetime.now()
-                else:
-                    st.session_state.daily_alerts = []
-                    st.session_state.last_alert_refresh = datetime.now()
-                    st.info("⚠️ نظام التنبيهات قيد التفعيل قريبًا")
+            with col_info:
+                last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
+                refresh_time = last_refresh.strftime('%H:%M:%S') if isinstance(last_refresh, datetime) else str(last_refresh)
+                st.caption(f"🕒 آخر تحديث: {refresh_time}")
 
-        TARGET_CITIES = ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"]
-        filtered_alerts = [
-            alert for alert in st.session_state.daily_alerts
-            if alert.get("city") in TARGET_CITIES
-        ]
-
-        alert_stats = get_alerts_stats() if ALERTS_AVAILABLE else {"total": 0, "by_confidence": {"HIGH": 0, "MEDIUM": 0, "LOW": 0}}
-
-        if filtered_alerts:
-            col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
-            with col_stat1:
-                st.metric("📊 إجمالي", len(filtered_alerts))
-            with col_stat2:
-                st.metric("🔴 قوية", alert_stats["by_confidence"].get("HIGH", 0))
-            with col_stat3:
-                st.metric("🟡 متوسطة", alert_stats["by_confidence"].get("MEDIUM", 0))
-            with col_stat4:
-                st.metric("🟢 خفيفة", alert_stats["by_confidence"].get("LOW", 0))
-
-        col_refresh, col_info = st.columns([1, 3])
-        with col_refresh:
-            if st.button("🔄 تحديث", key="refresh_alerts"):
-                with st.spinner("جاري تحديث السوق..."):
-                    try:
-                        alerts = update_market_and_check_alerts(city_select, property_type_select)
-                        st.session_state.daily_alerts = alerts
+            if "daily_alerts" not in st.session_state:
+                with st.spinner("🔄 جاري تحليل السوق ورصد الفرص..."):
+                    if ALERTS_AVAILABLE:
+                        st.session_state.daily_alerts = get_today_alerts()
                         st.session_state.last_alert_refresh = datetime.now()
-                        st.rerun()
-                    except Exception as e:
-                        st.info("ℹ️ لا توجد بيانات أحدث من آخر لقطة محفوظة. التحليل يعتمد على آخر بيانات موثوقة.")
+                    else:
+                        st.session_state.daily_alerts = []
+                        st.session_state.last_alert_refresh = datetime.now()
+                        st.info("⚠️ نظام التنبيهات قيد التفعيل قريبًا")
 
-        with col_info:
-            last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
-            refresh_time = last_refresh.strftime('%H:%M:%S') if isinstance(last_refresh, datetime) else str(last_refresh)
-            st.caption(f"🔒 عدد التنبيهات اليوم: {len(st.session_state.daily_alerts)} | 🕒 آخر تحديث: {refresh_time}")
+            TARGET_CITIES = ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام"]
+            filtered_alerts = [
+                alert for alert in st.session_state.daily_alerts
+                if alert.get("city") in TARGET_CITIES
+            ]
 
-        if filtered_alerts:
-            cols = st.columns(2) if len(filtered_alerts) > 1 else [st.container()]
-            
-            for i, alert in enumerate(filtered_alerts):
-                with cols[i % 2] if len(filtered_alerts) > 1 else cols[0]:
-                    formatted = format_alert_for_display(alert)
-                    
-                    alert_class = "alert-golden"
-                    if alert.get("type") == "MARKET_SHIFT":
-                        alert_class = "alert-shift"
-                    elif alert.get("type") == "RISK_WARNING":
-                        alert_class = "alert-warning"
-                    elif alert.get("type") == "TIMING_SIGNAL":
-                        alert_class = "alert-timing"
-                    
-                    confidence_class = "alert-confidence-high" if alert.get("confidence") == "HIGH" else ""
-                    
-                    description = formatted['description']
-                    if len(description) > 300:
-                        description = description[:300] + "..."
-                    
-                    confidence_icon = formatted.get('confidence_icon', '💰')
-                    
-                    html_content = f"""
-                    <div class='{alert_class}'>
-                        <div class='alert-header'>
-                            {confidence_icon} {alert['city']} – {formatted['title']}
+            alert_stats = get_alerts_stats() if ALERTS_AVAILABLE else {"total": 0, "by_confidence": {"HIGH": 0, "MEDIUM": 0, "LOW": 0}}
+
+            if filtered_alerts:
+                col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+                with col_stat1:
+                    st.metric("📊 إجمالي", len(filtered_alerts))
+                with col_stat2:
+                    st.metric("🔴 قوية", alert_stats["by_confidence"].get("HIGH", 0))
+                with col_stat3:
+                    st.metric("🟡 متوسطة", alert_stats["by_confidence"].get("MEDIUM", 0))
+                with col_stat4:
+                    st.metric("🟢 خفيفة", alert_stats["by_confidence"].get("LOW", 0))
+
+            col_refresh, col_info = st.columns([1, 3])
+            with col_refresh:
+                if st.button("🔄 تحديث", key="refresh_alerts"):
+                    with st.spinner("جاري تحديث السوق..."):
+                        try:
+                            alerts = update_market_and_check_alerts(city_select, property_type_select)
+                            st.session_state.daily_alerts = alerts
+                            st.session_state.last_alert_refresh = datetime.now()
+                            st.rerun()
+                        except Exception as e:
+                            st.info("ℹ️ لا توجد بيانات أحدث من آخر لقطة محفوظة. التحليل يعتمد على آخر بيانات موثوقة.")
+
+            with col_info:
+                last_refresh = st.session_state.get('last_alert_refresh', datetime.now())
+                refresh_time = last_refresh.strftime('%H:%M:%S') if isinstance(last_refresh, datetime) else str(last_refresh)
+                st.caption(f"🔒 عدد التنبيهات اليوم: {len(st.session_state.daily_alerts)} | 🕒 آخر تحديث: {refresh_time}")
+
+            if filtered_alerts:
+                cols = st.columns(2) if len(filtered_alerts) > 1 else [st.container()]
+                
+                for i, alert in enumerate(filtered_alerts):
+                    with cols[i % 2] if len(filtered_alerts) > 1 else cols[0]:
+                        formatted = format_alert_for_display(alert)
+                        
+                        alert_class = "alert-golden"
+                        if alert.get("type") == "MARKET_SHIFT":
+                            alert_class = "alert-shift"
+                        elif alert.get("type") == "RISK_WARNING":
+                            alert_class = "alert-warning"
+                        elif alert.get("type") == "TIMING_SIGNAL":
+                            alert_class = "alert-timing"
+                        
+                        confidence_class = "alert-confidence-high" if alert.get("confidence") == "HIGH" else ""
+                        
+                        description = formatted['description']
+                        if len(description) > 300:
+                            description = description[:300] + "..."
+                        
+                        confidence_icon = formatted.get('confidence_icon', '💰')
+                        
+                        html_content = f"""
+                        <div class='{alert_class}'>
+                            <div class='alert-header'>
+                                {confidence_icon} {alert['city']} – {formatted['title']}
+                            </div>
+                            <div>
+                                <p style='color: #EAEAEA;'>{description}</p>
+                                <p><strong>النوع:</strong> {alert.get('type', 'GOLDEN_OPPORTUNITY')}</p>
+                        """
+                        
+                        discount = alert.get("signal", {}).get("discount_percent")
+                        if discount is not None:
+                            html_content += f"<p><strong>الخصم:</strong> {discount}%</p>"
+                        
+                        html_content += f"""
+                                <p><strong>الثقة:</strong> <span class='{confidence_class}'>{formatted['confidence']}</span></p>
+                            </div>
+                            <div class='alert-meta'>
+                                🕒 {formatted['time']}
+                            </div>
                         </div>
-                        <div>
-                            <p style='color: #EAEAEA;'>{description}</p>
-                            <p><strong>النوع:</strong> {alert.get('type', 'GOLDEN_OPPORTUNITY')}</p>
-                    """
-                    
-                    discount = alert.get("signal", {}).get("discount_percent")
-                    if discount is not None:
-                        html_content += f"<p><strong>الخصم:</strong> {discount}%</p>"
-                    
-                    html_content += f"""
-                            <p><strong>الثقة:</strong> <span class='{confidence_class}'>{formatted['confidence']}</span></p>
-                        </div>
-                        <div class='alert-meta'>
-                            🕒 {formatted['time']}
-                        </div>
-                    </div>
-                    """
-                    
-                    st.markdown(html_content, unsafe_allow_html=True)
-        else:
-            st.info("🔍 لا توجد تنبيهات جديدة الآن. استخدم زر 'تحديث بيانات السوق (حقيقي)' لجلب أحدث البيانات.")
+                        """
+                        
+                        st.markdown(html_content, unsafe_allow_html=True)
+            else:
+                st.info("🔍 لا توجد تنبيهات جديدة الآن. استخدم زر 'تحديث بيانات السوق (حقيقي)' لجلب أحدث البيانات.")
 
         st.markdown("---")
         col1, col2 = st.columns([1, 1])
@@ -1479,8 +1465,12 @@ if page == "📊 التحليل الكامل":
         st.markdown("---")
         st.markdown(f"### 💰 السعر النهائي: **{total_price} دولار**")
 
+        # ===== نظام الدفع المؤقت =====
         if st.button("💳 الدفع عبر PayPal", key="pay_button"):
-            st.info("نظام الدفع قيد التطوير")
+            # مؤقتًا: محاكاة الدفع
+            st.session_state["paid"] = True
+            st.success("✅ تم الدفع بنجاح")
+            st.rerun()
 
         st.markdown("---")
         st.markdown("### 🚀 إنشاء التقرير")
@@ -1819,9 +1809,10 @@ if st.session_state.go_store:
         }
         inventory = []
         
-        if st.button("🚀 تشغيل مصنع التقارير الآن", use_container_width=True):
-            st.session_state.go_store = False
-            st.rerun()
+        if st.session_state.get("is_admin"):
+            if st.button("🚀 تشغيل مصنع التقارير الآن", use_container_width=True):
+                st.session_state.go_store = False
+                st.rerun()
         
         if st.button("🔙 العودة للتحليل", use_container_width=True):
             st.session_state.go_store = False
@@ -1907,14 +1898,20 @@ if st.session_state.go_store:
                 try:
                     with open(file_path, "rb") as f:
                         pdf_data = f.read()
-                        st.download_button(
-                            label="📥 تحميل التقرير",
-                            data=pdf_data,
-                            file_name=os.path.basename(file_path),
-                            mime="application/pdf",
-                            key=f"download_store_{i}_{hash(file_path)}",
-                            use_container_width=True
-                        )
+                        
+                        # ===== التحكم في التحميل =====
+                        if st.session_state.get("paid") or st.session_state.get("is_admin"):
+                            st.download_button(
+                                label="📥 تحميل التقرير",
+                                data=pdf_data,
+                                file_name=os.path.basename(file_path),
+                                mime="application/pdf",
+                                key=f"download_store_{i}_{hash(file_path)}",
+                                use_container_width=True
+                            )
+                        else:
+                            st.warning("🔒 يجب إتمام الدفع أولاً لفتح التقرير")
+                            
                 except Exception as e:
                     st.error(f"❌ خطأ في تحميل الملف: {str(e)[:50]}")
                     st.caption(f"المسار: {file_path}")
@@ -1951,6 +1948,8 @@ if 'charts_by_chapter' not in st.session_state:
     st.session_state.charts_by_chapter = {}
 if 'paid' not in st.session_state:
     st.session_state.paid = False
+if 'is_admin' not in st.session_state:
+    st.session_state.is_admin = ADMIN_MODE
 if 'robo_knowledge' not in st.session_state:
     st.session_state.robo_knowledge = None
 if 'chosen_pkg' not in st.session_state:
