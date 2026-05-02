@@ -4,8 +4,32 @@ import io
 from advanced_charts import AdvancedCharts
 from report_pdf_generator import create_pdf_from_content
 from district_narrative_engine import generate_district_narrative
-from government_data_provider import load_projects_data, load_districts_data  # ✅ إضافة جديدة
+from government_data_provider import load_projects_data, load_districts_data
+from payment import create_payment, execute_payment  # ✅ إضافة نظام الدفع
 
+# ===== تأكيد الدفع بعد العودة من PayPal =====
+query_params = st.query_params
+if ("payment" in query_params and query_params["payment"] == "success"):
+    # ✅ لا تنفذي الدفع مرة أخرى إذا تم سابقًا
+    if not st.session_state.get("paid", False):
+        payment_id = query_params.get("paymentId")
+        payer_id = query_params.get("PayerID")
+        if payment_id and payer_id:
+            success = execute_payment(payment_id, payer_id)
+            if success:
+                st.session_state["paid"] = True
+                st.success("✅ تم الدفع بنجاح — يمكنك الآن تحميل التقرير")
+                # ✅ تنظيف الرابط بعد المعالجة
+                st.query_params.clear()
+            else:
+                st.error("❌ فشل تنفيذ الدفع")
+    else:
+        # ✅ إذا كان الدفع تم مسبقاً، فقط ننظف الرابط
+        st.query_params.clear()
+elif ("payment" in query_params and query_params["payment"] == "cancel"):
+    st.warning("⚠️ تم إلغاء عملية الدفع")
+    # ✅ تنظيف الرابط بعد الإلغاء أيضاً
+    st.query_params.clear()
 
 def show_district_reports(df_raw):
     """
@@ -89,13 +113,16 @@ def show_district_reports(df_raw):
         
         # ✅ وصف ديناميكي لنوع التقرير (يظهر تحت الاختيار مباشرة)
         analysis_descriptions = {
-            "📈 مؤشر اتجاه الأسعار": "يحدد ما إذا كانت أسعار العقارات في الحي ترتفع أو تنخفض خلال الفترة الأخيرة.",
+            "📈 مؤشر اتجاه الأسعار": "يحدد ما إذا كانت أسعار العقارات في الحي ترتفع أم تنخفض خلال الفترة الأخيرة.",
             "💰 فرص الاستثمار": "يقيم جاذبية الاستثمار في الحي بناءً على الأسعار وعدد الصفقات والسيولة.",
             "⚖️ المقارنة الذكية": "يقارن الحي مع الأحياء الأخرى لمعرفة موقعه السعري داخل السوق.",
             "🏘️ دليل السكن": "يحلل مدى ملاءمة الحي للسكن من حيث الاستقرار والنشاط العقاري.",
             "🚀 تأثير المشاريع": "يقيم تأثير المشاريع القريبة على مستقبل الأسعار في الحي."
         }
         st.info(analysis_descriptions.get(analysis_type, ""))
+
+        # -------- تحديد سعر تقرير الحي --------
+        district_report_price = 49
 
         # -------- المرحلة 7: فلترة البيانات حسب الحي فقط (بدون فلترة نوع العقار) --------
         # فلترة الحي فقط - مع تنظيف الاسم من المدينة
@@ -402,6 +429,9 @@ def show_district_reports(df_raw):
                         st.session_state.district_pdf_data = pdf_buffer.getvalue()
                         st.session_state.district_report_generated = True
                         
+                        # ✅ إعادة تعيين حالة الدفع لكل تقرير جديد
+                        st.session_state["paid"] = False
+                        
                         # عرض معلومات debug
                         print(f"🚀 DEBUG: تم إنشاء تقرير الحي بنجاح")
                         print(f"📊 DEBUG: DPI Score: {dpi_score}")
@@ -422,16 +452,31 @@ def show_district_reports(df_raw):
                         import traceback
                         st.code(traceback.format_exc())
 
-    # -------- المرحلة 11: زر تحميل التقرير --------
+    # -------- المرحلة 11: زر تحميل التقرير (مع نظام الدفع) --------
     if st.session_state.get('district_report_generated', False) and st.session_state.get('district_pdf_data') is not None:
         district_name = district if 'district' in locals() and district else "district"
         file_name = f"warda_district_report_{city}_{district_name}_{property_type}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.pdf"
         
-        st.download_button(
-            label="📥 تحميل تقرير الحي PDF",
-            data=st.session_state.district_pdf_data,
-            file_name=file_name,
-            mime="application/pdf",
-            use_container_width=True,
-            key="download_district_report"
-        )
+        # ===== زر شراء التقرير =====
+        if not st.session_state.get("paid", False):
+            if st.button(f"💳 شراء تقرير الحي مقابل {district_report_price} $", use_container_width=True):
+                approval_url, payment_id = create_payment(district_report_price, f"تقرير حي {district_name}")
+                if approval_url:
+                    st.session_state["payment_id"] = payment_id
+                    st.markdown(
+                        f"""
+                        <meta http-equiv="refresh" content="0; url={approval_url}">
+                        """,
+                        unsafe_allow_html=True
+                    )
+                else:
+                    st.error("❌ فشل إنشاء عملية الدفع")
+        else:
+            st.download_button(
+                label="📥 تحميل تقرير الحي PDF",
+                data=st.session_state.district_pdf_data,
+                file_name=file_name,
+                mime="application/pdf",
+                use_container_width=True,
+                key="download_district_report"
+            )
