@@ -17,3 +17,5 @@ Pillow==10.2.0
 scikit-learn>=1.0.0
 gdown
 openpyxl
+fastapi
+uvicorn
