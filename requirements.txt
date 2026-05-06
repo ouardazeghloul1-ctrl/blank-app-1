@@ -1,6 +1,6 @@
 setuptools
 wheel
-streamlit==1.28.0
+streamlit==1.44.1
 pandas==2.2.3
 numpy==1.26.4
 fpdf2
