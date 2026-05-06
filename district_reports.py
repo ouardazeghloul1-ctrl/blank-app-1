@@ -429,8 +429,11 @@ def show_district_reports(df_raw):
                         st.session_state.district_pdf_data = pdf_buffer.getvalue()
                         st.session_state.district_report_generated = True
                         
-                        # ✅ إعادة تعيين حالة الدفع لكل تقرير جديد
-                        st.session_state["paid"] = False
+                        # =========================================
+                        # ✅ التعديل الأول: تغيير paid = False إلى شرط is_admin
+                        # =========================================
+                        if not st.session_state.get("is_admin"):
+                            st.session_state["paid"] = False
                         st.session_state.pop("payment_id", None)  # ✅ تنظيف payment_id القديم
                         
                         # عرض معلومات debug
@@ -444,6 +447,7 @@ def show_district_reports(df_raw):
                         print(f"📍 DEBUG: إحداثيات الحي - خط العرض: {district_lat}, خط الطول: {district_lon}")
                         print(f"🎯 DEBUG: نطاق التأثير: {district_impact} (النوع: {type(district_impact).__name__})")
                         print(f"🔑 DEBUG: مفاتيح user_info: {list(user_info.keys())}")
+                        print(f"👑 DEBUG: is_admin = {st.session_state.get('is_admin', False)}")
                         
                         st.success("✅ تم إنشاء تقرير الحي بنجاح!")
                         st.balloons()
@@ -458,8 +462,10 @@ def show_district_reports(df_raw):
         district_name = district if 'district' in locals() and district else "district"
         file_name = f"warda_district_report_{city}_{district_name}_{property_type}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.pdf"
         
-        # ===== زر شراء التقرير =====
-        if not st.session_state.get("paid", False):
+        # =========================================
+        # ✅ التعديل الثاني: تغيير شرط عرض زر الشراء ليشمل is_admin
+        # =========================================
+        if not (st.session_state.get("paid", False) or st.session_state.get("is_admin", False)):
             if st.button(f"💳 شراء تقرير الحي مقابل {district_report_price} $", use_container_width=True):
                 approval_url, payment_id = create_payment(district_report_price, f"تقرير حي {district_name}")
                 if approval_url:
