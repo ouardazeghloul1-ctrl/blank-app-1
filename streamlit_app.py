@@ -1,4 +1,8 @@
 import streamlit as st
+
+# ===== تمكين وضع الأدمن مباشرة =====
+st.session_state["is_admin"] = True  # للأدمن فقط - يلغي الحاجة للدفع
+
 from government_data_provider import load_government_data, load_projects_data, load_districts_data
 
 st.set_page_config(
@@ -9,8 +13,8 @@ st.set_page_config(
 )
 
 # ===== إعداد صلاحيات الإدارة =====
-ADMIN_MODE = False  # تم التعديل: False للإطلاق الحقيقي
-ADMIN_EMAIL = "admin@warda.com"  # البريد الإداري - يمكنك تغييره
+ADMIN_MODE = True  # تم التعديل: True لتفعيل وضع الأدمن
+ADMIN_EMAIL = ouardazeghloul1@gmail.com  # البريد الإداري - يمكنك تغييره
 
 # سيتم تفعيل صلاحية الإدارة فقط عند تسجيل الدخول بالبريد الإداري
 if "user_email" in st.session_state:
@@ -19,9 +23,9 @@ if "user_email" in st.session_state:
         st.session_state["paid"] = True
 else:
     if "is_admin" not in st.session_state:
-        st.session_state["is_admin"] = False
+        st.session_state["is_admin"] = True  # الأدمن مفعل افتراضياً
     if "paid" not in st.session_state:
-        st.session_state["paid"] = False
+        st.session_state["paid"] = True  # للأدمن فقط
 
 # تهيئة الصفحة الافتراضية
 if "page" not in st.session_state:
@@ -1466,11 +1470,14 @@ if page == "📊 التحليل الكامل":
         st.markdown(f"### 💰 السعر النهائي: **{total_price} دولار**")
 
         # ===== نظام الدفع المؤقت =====
-        if st.button("💳 الدفع عبر PayPal", key="pay_button"):
-            # مؤقتًا: محاكاة الدفع
-            st.session_state["paid"] = True
-            st.success("✅ تم الدفع بنجاح")
-            st.rerun()
+        # إذا كان الأدمن، لا نعرض زر الدفع
+        if not st.session_state.get("is_admin"):
+            if st.button("💳 الدفع عبر PayPal", key="pay_button"):
+                st.session_state["paid"] = True
+                st.success("✅ تم الدفع بنجاح")
+                st.rerun()
+        else:
+            st.info("👑 أنت في وضع الأدمن - سيظهر زر التحميل مباشرة بعد إنشاء التقرير")
 
         st.markdown("---")
         st.markdown("### 🚀 إنشاء التقرير")
@@ -1660,15 +1667,23 @@ if page == "📊 التحليل الكامل":
                     st.write(f"**ملف المخاطر:** {ai_recommendations.get('ملف_المخاطر', 'غير محدد')}")
                     st.write(f"**استراتيجية الاستثمار:** {ai_recommendations.get('استراتيجية_الاستثمار', 'غير محدد')}")
             
+            # ===== تعديل مهم: إضافة شرط الأدمن لزر التحميل =====
             if st.session_state.get('pdf_data'):
-                st.download_button(
-                    label="📥 تحميل التقرير PDF",
-                    data=st.session_state.pdf_data,
-                    file_name=f"تقرير_Warda_Intelligence_{city}_{property_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True,
-                    key="download_report"
-                )
+                # الأدمن أو المستخدم الذي دفع يظهر له زر التحميل
+                if st.session_state.get("is_admin") or st.session_state.get("paid"):
+                    st.download_button(
+                        label="📥 تحميل التقرير PDF",
+                        data=st.session_state.pdf_data,
+                        file_name=f"تقرير_Warda_Intelligence_{city}_{property_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key="download_report"
+                    )
+                else:
+                    st.warning(f"🔒 يجب إتمام الدفع أولاً (${total_price}) لتحميل التقرير")
+                    if st.button("💳 الدفع الآن", key="pay_after_generate"):
+                        st.session_state["paid"] = True
+                        st.rerun()
                 
                 st.info("""
                 **🎉 التقرير جاهز للطباعة والتقديم:**
@@ -1899,7 +1914,7 @@ if st.session_state.go_store:
                     with open(file_path, "rb") as f:
                         pdf_data = f.read()
                         
-                        # ===== التحكم في التحميل =====
+                        # ===== التحكم في التحميل (الأدمن أو من دفع) =====
                         if st.session_state.get("paid") or st.session_state.get("is_admin"):
                             st.download_button(
                                 label="📥 تحميل التقرير",
@@ -1910,7 +1925,10 @@ if st.session_state.go_store:
                                 use_container_width=True
                             )
                         else:
-                            st.warning("🔒 يجب إتمام الدفع أولاً لفتح التقرير")
+                            st.warning(f"🔒 يجب إتمام الدفع أولاً (${price}) لفتح التقرير")
+                            if st.button(f"💳 شراء التقرير", key=f"buy_store_{i}"):
+                                st.session_state["paid"] = True
+                                st.rerun()
                             
                 except Exception as e:
                     st.error(f"❌ خطأ في تحميل الملف: {str(e)[:50]}")
@@ -1947,9 +1965,9 @@ if 'smart_report_content' not in st.session_state:
 if 'charts_by_chapter' not in st.session_state:
     st.session_state.charts_by_chapter = {}
 if 'paid' not in st.session_state:
-    st.session_state.paid = False
+    st.session_state.paid = True  # تم التعديل للأدمن
 if 'is_admin' not in st.session_state:
-    st.session_state.is_admin = ADMIN_MODE
+    st.session_state.is_admin = True  # تم التعديل للأدمن
 if 'robo_knowledge' not in st.session_state:
     st.session_state.robo_knowledge = None
 if 'chosen_pkg' not in st.session_state:
