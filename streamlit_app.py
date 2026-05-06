@@ -14,7 +14,7 @@ st.set_page_config(
 
 # ===== إعداد صلاحيات الإدارة =====
 ADMIN_MODE = True  # تم التعديل: True لتفعيل وضع الأدمن
-ADMIN_EMAIL = ouardazeghloul1@gmail.com  # البريد الإداري - يمكنك تغييره
+ADMIN_EMAIL = "ouardazeghloul1@gmail.com"  # البريد الإداري - يمكنك تغييره
 
 # سيتم تفعيل صلاحية الإدارة فقط عند تسجيل الدخول بالبريد الإداري
 if "user_email" in st.session_state:
